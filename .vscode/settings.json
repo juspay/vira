@@ -1,0 +1,9 @@
+{
+  "search.useIgnoreFiles": true,
+  "editor.formatOnType": false,
+  "editor.formatOnSave": false,
+  "haskell.formattingProvider": "fourmolu",
+  "haskell.manageHLS": "PATH",
+  "nix.enableLanguageServer": true,
+  "nix.serverPath": "nixd"
+}

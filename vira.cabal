@@ -1,0 +1,146 @@
+cabal-version:      2.4
+name:               vira
+version:            0.1.0.0
+license:            AGPL-3.0-or-later
+copyright:          2024 Juspay
+maintainer:         srid@srid.ca
+author:             Sridhar Ratnakumar
+category:           Web
+homepage:           https://github.com/juspay/vira
+synopsis:           Nix CI & Cache
+description:        vira - Nix CI & Cache
+extra-source-files:
+  LICENSE
+  README.md
+
+flag ghcid
+  default: False
+  manual:  True
+
+common shared
+  default-language:   GHC2021
+  ghc-options:
+    -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns
+    -Wmissing-deriving-strategies -Wunused-foralls -Wunused-foralls
+    -fprint-explicit-foralls -fprint-explicit-kinds
+    -fplugin=Effectful.Plugin
+
+  mixins:
+    base hiding (Prelude),
+    relude (Relude as Prelude, Relude.Container.One),
+    relude
+
+  default-extensions:
+    DataKinds
+    DeriveTraversable
+    DerivingStrategies
+    DerivingVia
+    ImportQualifiedPost
+    LambdaCase
+    MultiWayIf
+    NoStarIsType
+    OverloadedStrings
+    StrictData
+    TypeFamilies
+    ViewPatterns
+
+common library-shared
+  import:        shared
+  build-depends:
+    , acid-state
+    , aeson
+    , async
+    , autodocodec
+    , base                   >=4       && <5
+    , beam-core
+    , beam-sqlite            >=0.3.1.0
+    , co-log
+    , co-log-core
+    , co-log-effectful
+    , dani-servant-lucid2
+    , data-default
+    , deriving-aeson
+    , directory
+    , effectful
+    , effectful-core         >=2.4.0.0
+    , effectful-plugin
+    , effectful-th
+    , filepath
+    , gitlib
+    , hspec
+    , hspec-discover
+    , htmx
+    , htmx-lucid
+    , htmx-servant
+    , ixset-typed
+    , lucid2
+    , mtl
+    , opt-env-conf
+    , optics-core
+    , process
+    , profunctors
+    , QuickCheck
+    , relude                 >=1.0
+    , safecopy
+    , servant
+    , servant-server
+    , shower
+    , sqlite-simple
+    , tailwind
+    , time
+    , wai-extra
+    , wai-middleware-static
+    , warp
+    , which
+    , with-utf8
+
+library
+  import:          library-shared
+  hs-source-dirs:  src
+  autogen-modules: Paths_vira
+  exposed-modules:
+    Paths_vira
+    Vira.App
+    Vira.App.AcidState
+    Vira.App.Beam
+    Vira.App.CLI
+    Vira.App.LinkTo
+    Vira.App.Logging
+    Vira.App.Servant
+    Vira.App.Stack
+    Vira.Lib.Git
+    Vira.Page.JobPage
+    Vira.Page.RegistryPage
+    Vira.Page.RepoPage
+    Vira.State.Acid
+    Vira.State.Core
+    Vira.State.Type
+    Vira.Supervisor
+    Vira.Supervisor.Type
+    Vira.Toplevel
+    Vira.Widgets
+
+executable vira
+  import:          library-shared
+  main-is:         Main.hs
+  ghc-options:     -threaded -rtsopts -with-rtsopts=-N
+  hs-source-dirs:  app
+  autogen-modules: Paths_vira
+  other-modules:   Paths_vira
+
+  if flag(ghcid)
+    hs-source-dirs: src
+
+  else
+    build-depends: vira
+
+executable vira-tests
+  import:         library-shared
+  main-is:        Test.hs
+  hs-source-dirs: test
+
+  if flag(ghcid)
+    hs-source-dirs: src
+
+  else
+    build-depends: vira

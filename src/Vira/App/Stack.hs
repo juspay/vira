@@ -1,0 +1,55 @@
+-- | Effectful stack for our app.
+module Vira.App.Stack where
+
+import Data.Acid (AcidState)
+import Effectful (Eff, IOE)
+import Effectful.Concurrent.Async (Concurrent, runConcurrent)
+import Effectful.Error.Static (Error, runErrorNoCallStack)
+import Effectful.Process (Process, runProcess)
+import Effectful.Reader.Dynamic (Reader, runReader)
+import Servant (Handler (Handler), ServerError)
+import Servant.Links (Link)
+import Vira.App.CLI qualified as CLI
+import Vira.App.LinkTo (LinkTo)
+import Vira.App.Logging (Log, Message, runViraLog)
+import Vira.State.Core (ViraState)
+import Vira.Supervisor.Type (TaskSupervisor)
+import Prelude hiding (Reader, ask, asks, runReader)
+
+type AppStack =
+  '[ Reader AppState
+   , Concurrent
+   , Process
+   , Log Message
+   , IOE
+   ]
+
+type AppServantStack = (Error ServerError : AppStack)
+
+-- | Run the application stack in IO monad
+runApp :: AppState -> Eff AppStack a -> IO a
+runApp cfg f = do
+  runViraLog
+    . runProcess
+    . runConcurrent
+    . runReader cfg
+    $ f
+
+-- | Like `runApp`, but for Servant 'Handler'.
+runAppInServant :: AppState -> Eff (Error ServerError : AppStack) a -> Handler a
+runAppInServant cfg =
+  Handler . ExceptT . runApp cfg . runErrorNoCallStack
+
+-- | Application-wide state available in Effectful stack
+data AppState = AppState
+  { -- CLI args passed by the user
+    settings :: CLI.Settings
+  , -- The state of the app
+    acid :: AcidState ViraState
+  , -- Process supervisor state
+    supervisor :: TaskSupervisor
+  , -- Create a link to a part of the app.
+    --
+    -- This is decoupled from servant types deliberately to avoid cyclic imports.
+    linkTo :: LinkTo -> Link
+  }
