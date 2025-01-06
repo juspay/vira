@@ -14,7 +14,7 @@ repl *ARGS:
 
 # Run the application, re-compiling if necessary.
 [group('1. vira')]
-run: resetdb
+run:
     vira-dev --no-server --tui=false
 
 # Run cabal tests (hspec)

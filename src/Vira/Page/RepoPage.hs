@@ -47,13 +47,16 @@ viewHandler name = do
   cfg <- ask
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   branches <- App.query $ St.GetBranchesByRepoA name
+  xs <- forM branches $ \branch -> do
+    jobs <- App.query $ St.GetJobsByBranchA repo.name branch.branchName
+    pure (branch, jobs)
   pure
     $ W.layout
       cfg.linkTo
       (toHtml . toString $ name)
       (crumbs <> [LinkTo.Repo name])
     $ do
-      viewRepo cfg.linkTo repo branches
+      viewRepo cfg.linkTo repo xs
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
@@ -63,7 +66,7 @@ updateHandler name = do
   pure $ addHeader True "Ok"
 
 -- TODO: Can we use `HtmlT (ReaderT ..) ()` to avoid threading the linkTo function?
-viewRepo :: (LinkTo.LinkTo -> Link) -> St.Repo -> [St.Branch] -> Html ()
+viewRepo :: (LinkTo.LinkTo -> Link) -> St.Repo -> [(St.Branch, [St.Job])] -> Html ()
 viewRepo linkTo repo branches = do
   W.viraButton_
     [ hxPostSafe_ $ linkTo $ RepoUpdate repo.name
@@ -73,21 +76,40 @@ viewRepo linkTo repo branches = do
   div_ $ do
     p_ "To clone this repo"
     pre_ [class_ "bg-black text-white"] $ code_ $ toHtml $ "git clone " <> repo.cloneUrl
-    h2_ [class_ "text-2xl font-bold"] "Branches"
-    table_ $ do
-      forM_ branches $ \branch -> do
-        tr_ $ do
-          td_ $ b_ $ toHtml . toString $ branch.branchName
-          td_ $ do
-            let branchJobs = linkTo $ LinkTo.RepoBranchJobs repo.name branch.branchName
-            a_ [href_ $ show $ linkURI branchJobs] $
-              pre_ $
-                toHtml . toString $
-                  branch.headCommit
-          -- Add a button to trigger building of this commit
-          td_ $
-            W.viraButton_
-              [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
-              , hxSwapS_ AfterEnd
-              ]
-              "Build"
+    h2_ [class_ "text-3xl font-bold my-8"] "Branches"
+    div_ [class_ "my-8"] $ do
+      forM_ branches $ \(branch, jobs) -> do
+        h2_ [class_ "text-2xl py-2 my-4 border-b-2"] $ code_ $ toHtml $ toString branch.branchName
+        "Head Commit: " <> viewCommit branch.headCommit
+        div_ $
+          W.viraButton_
+            [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
+            , hxSwapS_ AfterEnd
+            ]
+            "Build"
+        ul_ $ forM_ jobs $ \job -> do
+          li_ [class_ "my-4 py-2"] $ do
+            viewJob job
+
+viewJob :: St.Job -> Html ()
+viewJob job = do
+  div_ [class_ "flex items-center justify-start space-x-4"] $ do
+    div_ [class_ "w-24"] $ b_ $ "Job #" <> toHtml (show @Text job.jobId)
+    viewCommit job.jobCommit
+    viewJobStatus job.jobStatus
+  div_ $ do
+    pre_ [class_ "bg-black text-white p-2 text-xs"] $ code_ $ do
+      toHtml job.jobLog
+
+viewCommit :: Git.CommitID -> Html ()
+viewCommit (Git.CommitID commit) = do
+  code_ [class_ "text-gray-700 hover:text-black"] $ toHtml commit
+
+viewJobStatus :: St.JobStatus -> Html ()
+viewJobStatus status = do
+  case status of
+    St.JobRunning -> span_ [class_ "text-blue-700"] "🚧 Running"
+    St.JobPending -> span_ [class_ "text-yellow-700"] "⏳ Pending"
+    St.JobFinished St.JobSuccess -> span_ [class_ "text-green-700"] "✅ Success"
+    St.JobFinished St.JobFailure -> span_ [class_ "text-red-700"] "❌ Failure"
+    St.JobKilled -> span_ [class_ "text-red-700"] "💀 Killed"

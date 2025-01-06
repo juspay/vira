@@ -13,7 +13,6 @@
         just
         nixd
         ghciwatch
-        sqlite
       ];
     };
   };

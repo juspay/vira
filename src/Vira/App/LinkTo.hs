@@ -13,7 +13,6 @@ data LinkTo
   | RepoListing
   | Repo RepoName
   | RepoUpdate RepoName
-  | RepoBranchJobs RepoName BranchName
   | Build RepoName BranchName
   | About
 
@@ -23,6 +22,5 @@ linkShortTitle = \case
   RepoListing -> "Repos"
   Repo name -> toText . toString $ name
   RepoUpdate _ -> "Update" -- unused
-  RepoBranchJobs _ _ -> "Jobs" -- unused
   Build _ _ -> "Build" -- unused
   About -> "About"
