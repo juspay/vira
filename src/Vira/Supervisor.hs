@@ -30,18 +30,27 @@ logSupervisorState supervisor = do
 startTask ::
   (Concurrent :> es, Process :> es, Log Message :> es, HasCallStack) =>
   TaskSupervisor ->
+  TaskId ->
   String ->
+  -- Handler to call after the task finishes
+  (TaskOutput -> Eff es ()) ->
   Eff es TaskId
-startTask supervisor cmd = do
+startTask supervisor taskId cmd h = do
   logSupervisorState supervisor
   log Info $ "Starting task: " <> toText cmd
   modifyMVar (tasks supervisor) $ \tasks -> do
-    let taskId = maybe 0 (succ . fst) $ Map.lookupMax tasks
-    task <- async $ do
-      (exitCode, output, _) <- readProcessWithExitCode "sh" ["-c", cmd <> " 2>&1"] ""
-      log Info $ "Task " <> show taskId <> " finished with exit code " <> show exitCode
-      pure $ TaskOutput output exitCode
-    pure (Map.insert taskId task tasks, taskId)
+    if Map.member taskId tasks
+      then do
+        log Error $ "Task " <> show taskId <> " already exists"
+        pure (tasks, taskId)
+      else do
+        task <- async $ do
+          (exitCode, output, _) <- readProcessWithExitCode "sh" ["-c", cmd <> " 2>&1"] ""
+          log Info $ "Task " <> show taskId <> " finished with exit code " <> show exitCode
+          let out = TaskOutput output exitCode
+          h out
+          pure out
+        pure (Map.insert taskId task tasks, taskId)
 
 -- | Kill a task
 killTask :: TaskSupervisor -> TaskId -> Eff App.AppStack ()

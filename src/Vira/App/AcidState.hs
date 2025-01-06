@@ -36,3 +36,8 @@ update ::
 update event = do
   acid <- asks acid
   liftIO $ Acid.update acid event
+
+createCheckpoint :: (Reader AppState :> es, IOE :> es) => Eff es ()
+createCheckpoint = do
+  acid <- asks acid
+  liftIO $ Acid.createCheckpoint acid

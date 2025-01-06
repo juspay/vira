@@ -83,7 +83,7 @@ runVira = do
       bracket openViraState closeViraState $ \acid -> do
         supervisor <- Vira.Supervisor.newSupervisor
         let st = App.AppState {linkTo = linkTo, ..}
-        App.runApp st (app settings)
+        App.runApp st $ app settings
 
     -- Vira application for given `Settings`
     app :: (HasCallStack) => Settings -> Eff AppStack ()
@@ -103,5 +103,4 @@ linkTo = \case
   RepoListing -> fieldLink _repos // RegistryPage._listing
   Repo name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._view
   RepoUpdate name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._update
-  RepoBranchJobs repo _branch -> fieldLink _repos // RegistryPage._repo /: repo // RepoPage._job // JobPage._list
   Build repo branch -> fieldLink _repos // RegistryPage._repo /: repo // RepoPage._job // JobPage._build /: branch

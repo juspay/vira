@@ -5,8 +5,8 @@ module Vira.Page.JobPage where
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Reader.Dynamic (asks)
+import GHC.IO.Exception (ExitCode (..))
 import Htmx.Servant.Response
-import Lucid
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
@@ -17,12 +17,11 @@ import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (RepoName)
 import Vira.Supervisor qualified as Supervisor
+import Vira.Supervisor.Type (TaskOutput (..))
 import Prelude hiding (ask, asks)
 
-data Routes mode = Routes
-  { -- List all jobs for a repo
-    _list :: mode :- Get '[HTML] (Html ())
-  , -- Trigger a new build
+newtype Routes mode = Routes
+  { -- Trigger a new build
     _build :: mode :- "new" :> Capture "branch" BranchName :> Post '[HTML] (Headers '[HXRefresh] Text)
   }
   deriving stock (Generic)
@@ -30,20 +29,8 @@ data Routes mode = Routes
 handlers :: App.AppState -> RepoName -> Routes AsServer
 handlers cfg repoName = do
   Routes
-    { _list = App.runAppInServant cfg $ listHandler repoName
-    , _build = App.runAppInServant cfg . buildHandler repoName
+    { _build = App.runAppInServant cfg . buildHandler repoName
     }
-
-listHandler :: RepoName -> Eff App.AppServantStack (Html ())
-listHandler repoName = do
-  branches <- App.query $ St.GetBranchesByRepoA repoName
-  xs <- forM branches $ \branch -> do
-    jobs <- App.query $ St.GetJobsByBranchA repoName branch.branchName
-    pure (branch, jobs)
-  pure $ forM_ xs $ \(branch, jobs) -> do
-    h2_ $ toHtml $ "Jobs for " <> show @Text branch.branchName
-    ul_ $ forM_ jobs $ \job -> do
-      li_ $ toHtml $ show @Text job
 
 buildHandler :: RepoName -> BranchName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 buildHandler repoName branch = do
@@ -60,9 +47,17 @@ triggerNewBuild repoName branchName = do
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError err404) pure
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
   asks App.supervisor >>= \supervisor -> do
+    job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit
+    log Info $ "Added job " <> show job
     -- TODO We need a concept of 'working copy' to which source should be checked out. Then `nix build .` on that.
-    taskId <- Supervisor.startTask supervisor $ "nix build --no-link --print-out-paths " <> toString (gitFlakeUrl repo.cloneUrl) <> "/" <> toString branch.headCommit
-    -- TODO: Update db with new job
+    let cmd = "nix build -L --no-link --print-out-paths " <> toString (gitFlakeUrl repo.cloneUrl) <> "/" <> toString branch.headCommit
+    taskId <- Supervisor.startTask supervisor job.jobId cmd $ \taskOutput -> do
+      -- TODO: Set stdout
+      let status = case taskOutput.exitCode of
+            ExitSuccess -> St.JobFinished St.JobSuccess
+            ExitFailure _code -> St.JobFinished St.JobFailure
+      App.update $ St.JobUpdateStatusA job.jobId status $ toText taskOutput.output
+    App.update $ St.JobUpdateStatusA job.jobId St.JobRunning ""
     log Info $ "Started task " <> show taskId
   pure $ Just ()
   where

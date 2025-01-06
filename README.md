@@ -24,3 +24,12 @@ The project is currently in prototype phase. Contact [@srid](https://github.com/
 ## Roadmap
 
 TBD
+
+## Development
+
+```sh
+just run
+
+# Or, if you need to start from empty database (useful if you have changed the acid-state types)
+just resetdb run
+```

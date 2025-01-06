@@ -2,8 +2,10 @@ module Vira.Supervisor.Type where
 
 import Effectful.Concurrent.Async
 import System.Exit (ExitCode)
+import Vira.State.Type (JobId)
 
-type TaskId = Int
+type TaskId = JobId
+
 data TaskOutput = TaskOutput
   { output :: String -- stdout/stderr
   , exitCode :: ExitCode
@@ -16,6 +18,7 @@ data TaskState
   | Killed
   deriving stock (Generic, Show)
 
+-- TODO Use ixset-typed
 data TaskSupervisor = TaskSupervisor
   { tasks :: MVar (Map TaskId (Async TaskOutput))
   , dummy :: ()

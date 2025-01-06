@@ -19,7 +19,10 @@ import Vira.State.Type
 
 -- | Open vira database
 openViraState :: IO (AcidState ViraState)
-openViraState = openLocalState $ ViraState sampleRepos mempty mempty
+openViraState = do
+  st <- openLocalState $ ViraState sampleRepos mempty mempty
+  update st MarkRunningJobsAsStaleA
+  pure st
   where
     sampleRepos =
       Ix.fromList

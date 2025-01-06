@@ -54,6 +54,10 @@ instance Indexable BranchIxs Branch where
       (ixFun $ \Branch {repoName} -> [repoName])
       (ixFun $ \Branch {branchName} -> [branchName])
 
+newtype JobId = JobId {unJobId :: Int}
+  deriving stock (Generic, Data)
+  deriving newtype (Show, Eq, Ord, Num)
+
 data Job = Job
   { jobRepo :: RepoName
   -- ^ The name of the repository this job belongs to
@@ -61,7 +65,7 @@ data Job = Job
   -- ^ The name of the branch this job is running on
   , jobCommit :: CommitID
   -- ^ The commit this job is running on
-  , jobId :: Int
+  , jobId :: JobId
   -- ^ The unique identifier of the job
   , jobStatus :: JobStatus
   -- ^ The status of the job
@@ -70,7 +74,7 @@ data Job = Job
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
-type JobIxs = '[RepoName, BranchName, CommitID, Int]
+type JobIxs = '[RepoName, BranchName, CommitID, JobId]
 type IxJob = IxSet JobIxs Job
 
 instance Indexable JobIxs Job where
@@ -81,7 +85,7 @@ instance Indexable JobIxs Job where
       (ixFun $ \Job {jobCommit} -> [jobCommit])
       (ixFun $ \Job {jobId} -> [jobId])
 
-data JobStatus = JobPending | JobRunning | JobFinished JobResult
+data JobStatus = JobPending | JobRunning | JobFinished JobResult | JobKilled
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
 data JobResult = JobSuccess | JobFailure
@@ -90,6 +94,7 @@ data JobResult = JobSuccess | JobFailure
 $(deriveSafeCopy 0 'base ''JobResult)
 $(deriveSafeCopy 0 'base ''JobStatus)
 $(deriveSafeCopy 0 'base ''RepoName)
+$(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
 $(deriveSafeCopy 0 'base ''Branch)
 $(deriveSafeCopy 0 'base ''Repo)
