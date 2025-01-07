@@ -7,6 +7,8 @@ develop:
 
       ```sh
       just run
+      # If you want to reset the database before running, run instead:
+      just resetdb run
       ```
 
       Then open <http://localhost:5005>
