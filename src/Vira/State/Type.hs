@@ -56,7 +56,14 @@ instance Indexable BranchIxs Branch where
 
 newtype JobId = JobId {unJobId :: Int}
   deriving stock (Generic, Data)
-  deriving newtype (Show, Eq, Ord, Num)
+  deriving newtype
+    ( Show
+    , Eq
+    , Ord
+    , Num
+    , ToHttpApiData
+    , FromHttpApiData
+    )
 
 data Job = Job
   { jobRepo :: RepoName
@@ -69,8 +76,6 @@ data Job = Job
   -- ^ The unique identifier of the job
   , jobStatus :: JobStatus
   -- ^ The status of the job
-  , jobLog :: Text
-  -- ^ The log of the job (updates as the job runs, semi-periodically)
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
@@ -85,11 +90,22 @@ instance Indexable JobIxs Job where
       (ixFun $ \Job {jobCommit} -> [jobCommit])
       (ixFun $ \Job {jobId} -> [jobId])
 
-data JobStatus = JobPending | JobRunning | JobFinished JobResult | JobKilled
+data JobStatus
+  = JobPending
+  | JobRunning FilePath
+  | JobFinished FilePath JobResult
+  | JobKilled FilePath
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
 data JobResult = JobSuccess | JobFailure
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
+
+jobWorkingDir :: JobStatus -> Maybe FilePath
+jobWorkingDir = \case
+  JobPending -> Nothing
+  JobRunning dir -> Just dir
+  JobFinished dir _ -> Just dir
+  JobKilled dir -> Just dir
 
 $(deriveSafeCopy 0 'base ''JobResult)
 $(deriveSafeCopy 0 'base ''JobStatus)

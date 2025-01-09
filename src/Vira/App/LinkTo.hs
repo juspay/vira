@@ -2,7 +2,7 @@
 module Vira.App.LinkTo where
 
 import Vira.Lib.Git (BranchName)
-import Vira.State.Type (RepoName)
+import Vira.State.Type (JobId, RepoName)
 
 {- | The part of the application the caller intends to link to
 
@@ -14,6 +14,7 @@ data LinkTo
   | Repo RepoName
   | RepoUpdate RepoName
   | Build RepoName BranchName
+  | Job JobId
   | About
 
 linkShortTitle :: LinkTo -> Text
@@ -23,4 +24,5 @@ linkShortTitle = \case
   Repo name -> toText . toString $ name
   RepoUpdate _ -> "Update" -- unused
   Build _ _ -> "Build" -- unused
+  Job jobId -> "Job " <> show jobId
   About -> "About"

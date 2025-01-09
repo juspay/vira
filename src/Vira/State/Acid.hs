@@ -81,6 +81,11 @@ getJobsByBranchA repo branch = do
   ViraState {jobs} <- ask
   pure $ Ix.toList $ jobs @= repo @= branch
 
+getJobA :: JobId -> Query ViraState (Maybe Job)
+getJobA jobId = do
+  ViraState {jobs} <- ask
+  pure $ Ix.getOne $ jobs @= jobId
+
 -- | Create a new job returning it.
 addNewJobA :: RepoName -> BranchName -> CommitID -> Update ViraState Job
 addNewJobA jobRepo jobBranch jobCommit = do
@@ -90,7 +95,6 @@ addNewJobA jobRepo jobBranch jobCommit = do
       let ids = T.jobId <$> jobs
        in if Prelude.null ids then JobId 1 else JobId 1 + maximum ids
     jobStatus = JobPending
-    jobLog = ""
     job = Job {..}
   modify $ \s ->
     s
@@ -98,12 +102,12 @@ addNewJobA jobRepo jobBranch jobCommit = do
       }
   pure job
 
-jobUpdateStatusA :: JobId -> JobStatus -> Text -> Update ViraState ()
-jobUpdateStatusA jobId status log = do
+jobUpdateStatusA :: JobId -> JobStatus -> Update ViraState ()
+jobUpdateStatusA jobId status = do
   modify $ \s -> do
     let job = fromMaybe (error $ "No such job: " <> show jobId) $ Ix.getOne $ s.jobs @= jobId
     s
-      { jobs = Ix.updateIx jobId (job {jobStatus = status, jobLog = log}) s.jobs
+      { jobs = Ix.updateIx jobId (job {jobStatus = status}) s.jobs
       }
 
 markRunningJobsAsStaleA :: Update ViraState ()
@@ -111,8 +115,8 @@ markRunningJobsAsStaleA = do
   jobs <- Ix.toList <$> gets jobs
   forM_ jobs $ \job -> do
     case job.jobStatus of
-      JobRunning -> do
-        jobUpdateStatusA job.jobId JobKilled ""
+      JobRunning path -> do
+        jobUpdateStatusA job.jobId $ JobKilled path
       _ -> pass
 
 $( makeAcidic
@@ -124,6 +128,7 @@ $( makeAcidic
     , 'setRepoA
     , 'setRepoBranchesA
     , 'getJobsByBranchA
+    , 'getJobA
     , 'addNewJobA
     , 'jobUpdateStatusA
     , 'markRunningJobsAsStaleA

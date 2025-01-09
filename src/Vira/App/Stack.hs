@@ -5,6 +5,7 @@ import Data.Acid (AcidState)
 import Effectful (Eff, IOE)
 import Effectful.Concurrent.Async (Concurrent, runConcurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
+import Effectful.FileSystem (FileSystem, runFileSystem)
 import Effectful.Process (Process, runProcess)
 import Effectful.Reader.Dynamic (Reader, runReader)
 import Servant (Handler (Handler), ServerError)
@@ -20,6 +21,7 @@ type AppStack =
   '[ Reader AppState
    , Concurrent
    , Process
+   , FileSystem
    , Log Message
    , IOE
    ]
@@ -28,12 +30,13 @@ type AppServantStack = (Error ServerError : AppStack)
 
 -- | Run the application stack in IO monad
 runApp :: AppState -> Eff AppStack a -> IO a
-runApp cfg f = do
-  runViraLog
+runApp cfg =
+  do
+    runViraLog
+    . runFileSystem
     . runProcess
     . runConcurrent
     . runReader cfg
-    $ f
 
 -- | Like `runApp`, but for Servant 'Handler'.
 runAppInServant :: AppState -> Eff (Error ServerError : AppStack) a -> Handler a
