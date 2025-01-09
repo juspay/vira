@@ -40,6 +40,7 @@ import Prelude hiding (Reader, ask, runReader)
 data Routes mode = Routes
   { _home :: mode :- Get '[HTML] (Html ())
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
+  , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _about :: mode :- "about" Servant.API.:> Get '[HTML] (Html ())
   }
   deriving stock (Generic)
@@ -55,6 +56,7 @@ handlers cfg =
               a_ [href_ url, class_ "flex items-center p-3 space-x-3 text-blue-700 font-bold transition-colors rounded-md hover:bg-gray-100"] $ do
                 name
     , _repos = RegistryPage.handlers cfg
+    , _jobs = JobPage.handlers cfg
     , _about = do
         pure $ W.layout cfg.linkTo "About Vira" [About] $ do
           div_ $ do
@@ -103,4 +105,5 @@ linkTo = \case
   RepoListing -> fieldLink _repos // RegistryPage._listing
   Repo name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._view
   RepoUpdate name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._update
-  Build repo branch -> fieldLink _repos // RegistryPage._repo /: repo // RepoPage._job // JobPage._build /: branch
+  Build repo branch -> fieldLink _jobs // JobPage._build /: repo /: branch
+  Job jobId -> fieldLink _jobs // JobPage._view /: jobId

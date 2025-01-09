@@ -27,7 +27,6 @@ import Prelude hiding (ask, asks)
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
   , _update :: mode :- "fetch" :> Post '[HTML] (Headers '[HXRefresh] Text)
-  , _job :: mode :- "job" :> NamedRoutes JobPage.Routes
   }
   deriving stock (Generic)
 
@@ -39,7 +38,6 @@ handlers cfg name = do
   Routes
     { _view = App.runAppInServant cfg $ viewHandler name
     , _update = App.runAppInServant cfg $ updateHandler name
-    , _job = JobPage.handlers cfg name
     }
 
 viewHandler :: RepoName -> Eff App.AppServantStack (Html ())
@@ -80,7 +78,7 @@ viewRepo linkTo repo branches = do
     div_ [class_ "my-8"] $ do
       forM_ branches $ \(branch, jobs) -> do
         h2_ [class_ "text-2xl py-2 my-4 border-b-2"] $ code_ $ toHtml $ toString branch.branchName
-        "Head Commit: " <> viewCommit branch.headCommit
+        "Head Commit: " <> JobPage.viewCommit branch.headCommit
         div_ $
           W.viraButton_
             [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
@@ -89,27 +87,4 @@ viewRepo linkTo repo branches = do
             "Build"
         ul_ $ forM_ jobs $ \job -> do
           li_ [class_ "my-4 py-2"] $ do
-            viewJob job
-
-viewJob :: St.Job -> Html ()
-viewJob job = do
-  div_ [class_ "flex items-center justify-start space-x-4"] $ do
-    div_ [class_ "w-24"] $ b_ $ "Job #" <> toHtml (show @Text job.jobId)
-    viewCommit job.jobCommit
-    viewJobStatus job.jobStatus
-  div_ $ do
-    pre_ [class_ "bg-black text-white p-2 text-xs"] $ code_ $ do
-      toHtml job.jobLog
-
-viewCommit :: Git.CommitID -> Html ()
-viewCommit (Git.CommitID commit) = do
-  code_ [class_ "text-gray-700 hover:text-black"] $ toHtml commit
-
-viewJobStatus :: St.JobStatus -> Html ()
-viewJobStatus status = do
-  case status of
-    St.JobRunning -> span_ [class_ "text-blue-700"] "🚧 Running"
-    St.JobPending -> span_ [class_ "text-yellow-700"] "⏳ Pending"
-    St.JobFinished St.JobSuccess -> span_ [class_ "text-green-700"] "✅ Success"
-    St.JobFinished St.JobFailure -> span_ [class_ "text-red-700"] "❌ Failure"
-    St.JobKilled -> span_ [class_ "text-red-700"] "💀 Killed"
+            JobPage.viewJob linkTo job

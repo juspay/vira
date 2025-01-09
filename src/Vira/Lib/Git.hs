@@ -12,10 +12,6 @@ import Data.Data (Data)
 import Data.Map.Strict qualified as Map
 import Data.SafeCopy
 import Data.Text qualified as T
-import Database.Beam (FromBackendRow, HasSqlEqualityCheck)
-import Database.Beam.Backend (HasSqlValueSyntax)
-import Database.Beam.Sqlite.Connection (Sqlite)
-import Database.Beam.Sqlite.Syntax (SqliteValueSyntax)
 import Servant (FromHttpApiData, ToHttpApiData)
 import System.Process
 import System.Which (staticWhich)
@@ -35,8 +31,6 @@ newtype CommitID = CommitID {unCommitID :: Text}
     ( IsString
     , ToJSON
     , ToString
-    , FromBackendRow Sqlite
-    , HasSqlValueSyntax SqliteValueSyntax
     , ToHttpApiData
     , FromHttpApiData
     )
@@ -49,9 +43,6 @@ newtype BranchName = BranchName {unBranchName :: Text}
     ( IsString
     , ToJSON
     , ToString
-    , FromBackendRow Sqlite
-    , HasSqlValueSyntax SqliteValueSyntax
-    , HasSqlEqualityCheck Sqlite
     , ToHttpApiData
     , FromHttpApiData
     )
