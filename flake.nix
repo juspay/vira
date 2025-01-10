@@ -17,8 +17,6 @@
     autodocodec.flake = false;
     safe-coloured-text.url = "github:NorfairKing/safe-coloured-text";
     safe-coloured-text.flake = false;
-    effectful.url = "github:haskell-effectful/effectful";
-    effectful.flake = false;
     co-log-effectful.url = "github:eldritch-cookie/co-log-effectful";
   };
 

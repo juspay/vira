@@ -60,22 +60,6 @@
         "type": "github"
       }
     },
-    "effectful": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1733166259,
-        "narHash": "sha256-Q5cgm40EQNXpR0blxzL6tnwsdOvwFAQQflNJ9USdpCI=",
-        "owner": "haskell-effectful",
-        "repo": "effectful",
-        "rev": "f17d2a52f4f684460bf3743da83a8ac0f215716b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "haskell-effectful",
-        "repo": "effectful",
-        "type": "github"
-      }
-    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -120,11 +104,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1733312601,
-        "narHash": "sha256-4pDvzqnegAfRkPwO3wmwBhVi/Sye1mzps0zHWYnP88c=",
+        "lastModified": 1736143030,
+        "narHash": "sha256-+hu54pAoLDEZT9pjHlqL9DNzWz0NbUn8NEAHP7PQPzU=",
         "owner": "hercules-ci",
         "repo": "flake-parts",
-        "rev": "205b12d8b7cd4802fbcb8e8ef6a0f1408781a4f9",
+        "rev": "b905f6fc23a9051a6e1b741e1438dbfc0634c6de",
         "type": "github"
       },
       "original": {
@@ -203,11 +187,11 @@
     },
     "haskell-flake_2": {
       "locked": {
-        "lastModified": 1734703440,
-        "narHash": "sha256-QQbB7e9DQwKCjuLIMQjd9KTpeyvssK9muNAS7hR98y0=",
+        "lastModified": 1735436109,
+        "narHash": "sha256-WIn6GVY+UiaCL+kUeF8cfPXE5kxF4UPcFGx62U3kmAE=",
         "owner": "srid",
         "repo": "haskell-flake",
-        "rev": "72a4c403230c4b8bcfa5571c3b7e76253fc8d966",
+        "rev": "207b1d67106a799df892b380ed9dc7578746fbc1",
         "type": "github"
       },
       "original": {
@@ -281,11 +265,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1733749988,
-        "narHash": "sha256-+5qdtgXceqhK5ZR1YbP1fAUsweBIrhL38726oIEAtDs=",
+        "lastModified": 1736320768,
+        "narHash": "sha256-nIYdTAiKIGnFNugbomgBJR+Xv5F1ZQU+HfaBqJKroC0=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "bc27f0fde01ce4e1bfec1ab122d72b7380278e68",
+        "rev": "4bc9c909d9ac828a039f288cf872d16d38185db8",
         "type": "github"
       },
       "original": {
@@ -338,7 +322,6 @@
       "inputs": {
         "autodocodec": "autodocodec",
         "co-log-effectful": "co-log-effectful",
-        "effectful": "effectful",
         "flake-parts": "flake-parts_2",
         "fourmolu-nix": "fourmolu-nix",
         "git-hooks": "git-hooks",
