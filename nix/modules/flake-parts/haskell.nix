@@ -24,21 +24,12 @@
         ];
       });
 
-      # The base package set (this value is the default)
-      # basePackages = pkgs.haskellPackages;
-
-      # Packages to add on top of `basePackages`
       packages = {
         htmx.source = inputs.htmx + /htmx;
         htmx-lucid.source = inputs.htmx + /htmx-lucid;
         htmx-servant.source = inputs.htmx + /htmx-servant;
 
         # effectful
-        effectful.source = inputs.effectful + /effectful;
-        effectful-core.source = inputs.effectful + /effectful-core;
-        effectful-plugin.source = inputs.effectful + /effectful-plugin;
-        effectful-th.source = inputs.effectful + /effectful-th;
-        th-abstraction.source = "0.6.0.0"; # New effectful-th requires it.
         co-log-effectful.source = inputs.co-log-effectful;
 
         # Syd's libs
@@ -51,7 +42,6 @@
         safe-coloured-text-gen.source = inputs.safe-coloured-text + /safe-coloured-text-gen;
         safe-coloured-text-layout-gen.source = inputs.safe-coloured-text + /safe-coloured-text-layout-gen;
         safe-coloured-text-terminfo.source = inputs.safe-coloured-text + /safe-coloured-text-terminfo;
-
       };
 
       # Add your package overrides here
@@ -60,12 +50,11 @@
           extraBuildDepends = [ pkgs.git ];
           stan = true;
         };
-
         safe-coloured-text-layout = {
           check = false;
           broken = false;
         };
-        aeson.jailbreak = true; # Because we override th-abstraction
+        co-log-effectful.jailbreak = true;
       };
 
       # Development shell configuration

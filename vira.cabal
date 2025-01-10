@@ -51,7 +51,7 @@ common library-shared
     , aeson
     , async
     , autodocodec
-    , base                   >=4       && <5
+    , base                   >=4   && <5
     , co-log
     , co-log-core
     , co-log-effectful
@@ -60,7 +60,7 @@ common library-shared
     , deriving-aeson
     , directory
     , effectful
-    , effectful-core         >=2.4.0.0
+    , effectful-core
     , effectful-plugin
     , effectful-th
     , filepath
