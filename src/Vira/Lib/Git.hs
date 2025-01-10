@@ -2,7 +2,7 @@
 
 {- | Module for working with Git repositories in Haskell
 
-At one point, we should release this as a separate package to Hackage. Beam & Servant instances should be gated behind a Cabal flag.
+At one point, we should release this as a separate package to Hackage. Servant instances should be gated behind a Cabal flag.
 -}
 module Vira.Lib.Git where
 
