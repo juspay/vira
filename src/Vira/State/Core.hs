@@ -26,7 +26,7 @@ openViraState = do
   where
     sampleRepos =
       Ix.fromList
-        [ Repo "haskell-template" "https://github.com/srid/haskell-template.git"
+        [ Repo "emanote" "https://github.com/srid/emanote.git"
         ]
 
 {- | Close vira database

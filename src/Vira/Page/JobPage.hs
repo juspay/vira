@@ -106,4 +106,4 @@ triggerNewBuild repoName branchName = do
     gitFlakeUrl :: Text -> Text
     gitFlakeUrl _url =
       -- TODO: Implement this more generally
-      "github:srid/haskell-template"
+      "github:srid/emanote"
