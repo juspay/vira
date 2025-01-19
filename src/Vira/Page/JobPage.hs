@@ -41,9 +41,8 @@ handlers cfg = do
 
 buildHandler :: RepoName -> BranchName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 buildHandler repoName branch = do
-  triggerNewBuild repoName branch >>= \case
-    Nothing -> throwError err404
-    Just () -> pure $ addHeader True "Ok"
+  triggerNewBuild repoName branch
+  pure $ addHeader True "Ok"
 
 viewHandler :: JobId -> Eff App.AppServantStack (Html ())
 viewHandler jobId = do
@@ -85,10 +84,10 @@ viewJobStatus status = do
 -- TODO:
 -- 1. Fail if a build is already happening (until we support queuing)
 -- 2. Contact supervisor to spawn a new build, with it status going to DB.
-triggerNewBuild :: (HasCallStack) => RepoName -> BranchName -> Eff App.AppServantStack (Maybe ())
+triggerNewBuild :: (HasCallStack) => RepoName -> BranchName -> Eff App.AppServantStack ()
 triggerNewBuild repoName branchName = do
-  repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError err404) pure
-  branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError err404) pure
+  repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
+  branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
   asks App.supervisor >>= \supervisor -> do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit
@@ -101,7 +100,6 @@ triggerNewBuild repoName branchName = do
       App.update $ St.JobUpdateStatusA job.jobId status
     App.update $ St.JobUpdateStatusA job.jobId $ St.JobRunning workDir
     log Info $ "Started task " <> show job.jobId
-  pure $ Just ()
   where
     gitFlakeUrl :: Text -> Text
     gitFlakeUrl _url =
