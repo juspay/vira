@@ -13,6 +13,8 @@
         just
         nixd
         ghciwatch
+        # vira extraBuildDepends from haskell.nix
+        git
         inputs'.omnix.packages.default
       ];
     };
