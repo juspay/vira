@@ -8,14 +8,16 @@ import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar, modifyMVar_, readMVar)
-import Effectful.FileSystem (FileSystem, createDirectory)
+import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.FileSystem.IO (hClose, openFile)
-import Effectful.Process (CreateProcess (cwd, std_err, std_out), Process, StdStream (UseHandle), createProcess, shell, waitForProcess)
-import System.Directory (createDirectoryIfMissing, getCurrentDirectory, makeAbsolute)
-import System.Exit (ExitCode)
+import Effectful.Process (CreateProcess (cmdspec), Process, createProcess, waitForProcess)
+import System.Directory (getCurrentDirectory, makeAbsolute)
+import System.Directory qualified
+import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import Vira.App qualified as App
 import Vira.App.Logging
+import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type
 import Prelude hiding (readMVar)
 
@@ -24,7 +26,7 @@ newSupervisor = do
   tasks <- newMVar mempty
   pwd <- liftIO getCurrentDirectory
   workDir <- liftIO $ makeAbsolute $ pwd </> "state" </> "workspace" -- keep it alongside acid-state db
-  liftIO $ createDirectoryIfMissing True workDir
+  liftIO $ System.Directory.createDirectoryIfMissing True workDir
   pure $ TaskSupervisor tasks workDir
 
 logSupervisorState :: (HasCallStack, Concurrent :> es, Log Message :> es) => TaskSupervisor -> Eff es ()
@@ -48,62 +50,73 @@ startTask ::
   TaskId ->
   -- The working directory of the job (will be created)
   FilePath ->
-  -- The shell command to run
-  String ->
+  -- List of processes to run in sequence
+  NonEmpty CreateProcess ->
   -- Handler to call after the task finishes
   ( -- Exit code
     ExitCode ->
     Eff es ()
   ) ->
   Eff es ()
-startTask supervisor taskId pwd cmd h = do
+startTask supervisor taskId pwd procs h = do
   logSupervisorState supervisor
-  log Info $ "Starting task: " <> toText cmd
+  log Info $ "Starting task group: " <> show (cmdspec <$> procs) <> " in " <> toText pwd
   modifyMVar (tasks supervisor) $ \tasks -> do
     if Map.member taskId tasks
       then do
         log Error $ "Task " <> show taskId <> " already exists"
         die $ "Task " <> show taskId <> " already exists"
       else do
-        createDirectory pwd
-        asyncHandle <- Effectful.Concurrent.Async.async $ startTask' taskId pwd cmd h
+        createDirectoryIfMissing True pwd
+        asyncHandle <- Effectful.Concurrent.Async.async $ startTask' taskId pwd h procs
         let task = Task {workDir = pwd, asyncHandle}
         pure (Map.insert taskId task tasks, ())
 
 startTask' ::
+  forall es.
   (Process :> es, Log Message :> es, IOE :> es, FileSystem :> es) =>
   TaskId ->
   FilePath ->
-  String ->
   (ExitCode -> Eff es ()) ->
+  -- List of processes to run in sequence
+  NonEmpty CreateProcess ->
   Eff es ExitCode
-startTask' taskId pwd cmd h = do
-  -- Send all output to a file under working directory.
-  -- Write vira level log entry to the output log
-  let outputLogFile = pwd </> "output.log"
-  -- TODO: In lieu of https://github.com/juspay/vira/issues/6
-  let buildLog (msg :: Text) = do
-        let s = "[vira:job:" <> show taskId <> "] " <> msg <> "\n"
-        appendFileText outputLogFile s
-  buildLog $ "Task started: " <> toText cmd
-  outputHandle <- openFile outputLogFile AppendMode
-  let processSettings s =
-        s
-          { cwd = Just pwd
-          , std_out = UseHandle outputHandle
-          , std_err = UseHandle outputHandle
-          }
-      process =
-        -- FIXME: Using `shell` is not considered secure.
-        shell cmd & processSettings
-  (_, _, _, ph) <- createProcess process
-  exitCode <- waitForProcess ph
-  let msg = "Task " <> show taskId <> " finished with exit code " <> show exitCode
-  log Info msg
-  buildLog msg
-  hClose outputHandle
-  h exitCode
-  pure exitCode
+startTask' taskId pwd h = runProcs . toList
+  where
+    -- Send all output to a file under working directory.
+    -- Write vira level log entry to the output log
+    outputLogFile = pwd </> "output.log"
+    -- TODO: In lieu of https://github.com/juspay/vira/issues/6
+    logToWorkspaceOutput (msg :: Text) = do
+      let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
+      appendFileText outputLogFile s
+
+    -- Run each process one after another; exiting immediately if any fails
+    runProcs :: [CreateProcess] -> Eff es ExitCode
+    runProcs [] = do
+      log Info $ "All procs for task " <> show taskId <> " finished successfully"
+      h ExitSuccess
+      pure ExitSuccess
+    runProcs (proc : rest) =
+      runProc proc >>= \case
+        ExitSuccess -> runProcs rest
+        exitCode -> do
+          log Info $ "A proc for task " <> show taskId <> " failed with exitCode " <> show exitCode
+          h exitCode
+          pure exitCode
+
+    runProc :: CreateProcess -> Eff es ExitCode
+    runProc proc = do
+      logToWorkspaceOutput $ "Task started: " <> show (cmdspec proc)
+      outputHandle <- openFile outputLogFile AppendMode
+      let processSettings =
+            Process.alwaysUnderPath pwd
+              >>> Process.redirectOutputTo outputHandle
+      (_, _, _, ph) <- createProcess $ proc & processSettings
+      exitCode <- waitForProcess ph
+      logToWorkspaceOutput $ "A task finished with exit code " <> show exitCode
+      hClose outputHandle
+      pure exitCode
 
 -- | Kill a task
 killTask :: TaskSupervisor -> TaskId -> Eff App.AppStack ()

@@ -96,7 +96,7 @@ addNewJobA jobRepo jobBranch jobCommit baseWorkDir = do
       let ids = T.jobId <$> jobs
        in if Prelude.null ids then JobId 1 else JobId 1 + maximum ids
     jobStatus = JobPending
-    jobWorkingDir = baseWorkDir </> show jobId
+    jobWorkingDir = baseWorkDir </> toString jobRepo </> show jobId
     job = Job {..}
   modify $ \s ->
     s
