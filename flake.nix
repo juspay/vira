@@ -18,6 +18,9 @@
     safe-coloured-text.url = "github:NorfairKing/safe-coloured-text";
     safe-coloured-text.flake = false;
     co-log-effectful.url = "github:eldritch-cookie/co-log-effectful";
+
+    # Runtime dependencies
+    omnix.url = "github:juspay/omnix";
   };
 
   outputs = inputs:
