@@ -4,7 +4,7 @@ module Vira.Page.JobPage where
 
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
-import Effectful.Process (CreateProcess (cwd), shell)
+import Effectful.Process (CreateProcess (cwd), proc)
 import Effectful.Reader.Dynamic (ask, asks)
 import GHC.IO.Exception (ExitCode (..))
 import Htmx.Servant.Response
@@ -93,7 +93,10 @@ triggerNewBuild repoName branchName = do
   asks App.supervisor >>= \supervisor -> do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
-    let stages = stageClone repo branch :| [stageBuild]
+    let stages =
+          stageCreateProjectDir
+            :| stagesClone repo branch
+            <> [stageBuild]
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \exitCode -> do
       let status = case exitCode of
             ExitSuccess -> St.JobFinished St.JobSuccess
@@ -102,9 +105,11 @@ triggerNewBuild repoName branchName = do
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId
   where
-    stageClone repo branch =
-      -- TODO: Avoid shell command for security
-      shell ("git clone " <> toString repo.cloneUrl <> " project && cd project && git checkout " <> toString branch.headCommit)
+    stageCreateProjectDir =
+      proc "mkdir" ["project"]
+    stagesClone repo branch =
+      Git.cloneAtCommit repo.cloneUrl branch.branchName branch.headCommit
+        <&> \p -> p {cwd = Just "project"}
     stageBuild =
       Omnix.omnixCiProcess
         { cwd = Just "project"
