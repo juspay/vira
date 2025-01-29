@@ -8,7 +8,7 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar, modifyMVar_, readMVar)
 import Effectful.FileSystem (FileSystem, createDirectory)
-import Effectful.FileSystem.IO (openFile)
+import Effectful.FileSystem.IO (hClose, openFile)
 import Effectful.Process (CreateProcess (cwd, std_err, std_out), Process, StdStream (UseHandle), createProcess, shell, waitForProcess)
 import System.Directory (createDirectoryIfMissing, getCurrentDirectory, makeAbsolute)
 import System.Exit (ExitCode)
@@ -68,17 +68,29 @@ startTask supervisor taskId cmd h = do
         createDirectory pwd
         task <- async $ do
           -- Send all output to a file under working directory.
-          outputHandle <- openFile (pwd </> "output.log") WriteMode
-          let process =
-                -- FIXME: Using `shell` is not considered secure.
-                (shell cmd)
+          -- Write vira level log entry to the output log
+          let outputLogFile = pwd </> "output.log"
+          -- TODO: In lieu of https://github.com/juspay/vira/issues/6
+          let buildLog (msg :: Text) = do
+                let s = "[vira:job:" <> show taskId <> "] " <> msg <> "\n"
+                appendFileText outputLogFile s
+          buildLog $ "Task started: " <> toText cmd
+          outputHandle <- openFile outputLogFile AppendMode
+          let processSettings s =
+                s
                   { cwd = Just pwd
                   , std_out = UseHandle outputHandle
                   , std_err = UseHandle outputHandle
                   }
+              process =
+                -- FIXME: Using `shell` is not considered secure.
+                shell cmd & processSettings
           (_, _, _, ph) <- createProcess process
           exitCode <- waitForProcess ph
-          log Info $ "Task " <> show taskId <> " finished with exit code " <> show exitCode
+          let msg = "Task " <> show taskId <> " finished with exit code " <> show exitCode
+          log Info msg
+          buildLog msg
+          hClose outputHandle
           h pwd exitCode
           pure exitCode
         pure (Map.insert taskId task tasks, pwd)
