@@ -74,6 +74,8 @@ data Job = Job
   -- ^ The commit this job is running on
   , jobId :: JobId
   -- ^ The unique identifier of the job
+  , jobWorkingDir :: FilePath
+  -- ^ The working directory of the job
   , jobStatus :: JobStatus
   -- ^ The status of the job
   }
@@ -92,20 +94,13 @@ instance Indexable JobIxs Job where
 
 data JobStatus
   = JobPending
-  | JobRunning FilePath
-  | JobFinished FilePath JobResult
-  | JobKilled FilePath
+  | JobRunning
+  | JobFinished JobResult
+  | JobKilled
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
 data JobResult = JobSuccess | JobFailure
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
-
-jobWorkingDir :: JobStatus -> Maybe FilePath
-jobWorkingDir = \case
-  JobPending -> Nothing
-  JobRunning dir -> Just dir
-  JobFinished dir _ -> Just dir
-  JobKilled dir -> Just dir
 
 $(deriveSafeCopy 0 'base ''JobResult)
 $(deriveSafeCopy 0 'base ''JobStatus)

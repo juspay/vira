@@ -1,6 +1,7 @@
+{-# HLINT ignore "Use next" #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
-{-# HLINT ignore "Use next" #-}
 module Vira.Supervisor where
 
 import Data.Map.Strict qualified as Map
@@ -45,17 +46,17 @@ startTask ::
   ) =>
   TaskSupervisor ->
   TaskId ->
+  -- The working directory of the job (will be created)
+  FilePath ->
   -- The shell command to run
   String ->
   -- Handler to call after the task finishes
-  ( -- \| Working directory
-    FilePath ->
-    -- \| Exit code
+  ( -- Exit code
     ExitCode ->
     Eff es ()
   ) ->
-  Eff es FilePath
-startTask supervisor taskId cmd h = do
+  Eff es ()
+startTask supervisor taskId pwd cmd h = do
   logSupervisorState supervisor
   log Info $ "Starting task: " <> toText cmd
   modifyMVar (tasks supervisor) $ \tasks -> do
@@ -64,43 +65,53 @@ startTask supervisor taskId cmd h = do
         log Error $ "Task " <> show taskId <> " already exists"
         die $ "Task " <> show taskId <> " already exists"
       else do
-        let pwd = workDir supervisor </> show taskId
         createDirectory pwd
-        task <- async $ do
-          -- Send all output to a file under working directory.
-          -- Write vira level log entry to the output log
-          let outputLogFile = pwd </> "output.log"
-          -- TODO: In lieu of https://github.com/juspay/vira/issues/6
-          let buildLog (msg :: Text) = do
-                let s = "[vira:job:" <> show taskId <> "] " <> msg <> "\n"
-                appendFileText outputLogFile s
-          buildLog $ "Task started: " <> toText cmd
-          outputHandle <- openFile outputLogFile AppendMode
-          let processSettings s =
-                s
-                  { cwd = Just pwd
-                  , std_out = UseHandle outputHandle
-                  , std_err = UseHandle outputHandle
-                  }
-              process =
-                -- FIXME: Using `shell` is not considered secure.
-                shell cmd & processSettings
-          (_, _, _, ph) <- createProcess process
-          exitCode <- waitForProcess ph
-          let msg = "Task " <> show taskId <> " finished with exit code " <> show exitCode
-          log Info msg
-          buildLog msg
-          hClose outputHandle
-          h pwd exitCode
-          pure exitCode
-        pure (Map.insert taskId task tasks, pwd)
+        asyncHandle <- Effectful.Concurrent.Async.async $ startTask' taskId pwd cmd h
+        let task = Task {workDir = pwd, asyncHandle}
+        pure (Map.insert taskId task tasks, ())
+
+startTask' ::
+  (Process :> es, Log Message :> es, IOE :> es, FileSystem :> es) =>
+  TaskId ->
+  FilePath ->
+  String ->
+  (ExitCode -> Eff es ()) ->
+  Eff es ExitCode
+startTask' taskId pwd cmd h = do
+  -- Send all output to a file under working directory.
+  -- Write vira level log entry to the output log
+  let outputLogFile = pwd </> "output.log"
+  -- TODO: In lieu of https://github.com/juspay/vira/issues/6
+  let buildLog (msg :: Text) = do
+        let s = "[vira:job:" <> show taskId <> "] " <> msg <> "\n"
+        appendFileText outputLogFile s
+  buildLog $ "Task started: " <> toText cmd
+  outputHandle <- openFile outputLogFile AppendMode
+  let processSettings s =
+        s
+          { cwd = Just pwd
+          , std_out = UseHandle outputHandle
+          , std_err = UseHandle outputHandle
+          }
+      process =
+        -- FIXME: Using `shell` is not considered secure.
+        shell cmd & processSettings
+  (_, _, _, ph) <- createProcess process
+  exitCode <- waitForProcess ph
+  let msg = "Task " <> show taskId <> " finished with exit code " <> show exitCode
+  log Info msg
+  buildLog msg
+  hClose outputHandle
+  h exitCode
+  pure exitCode
 
 -- | Kill a task
 killTask :: TaskSupervisor -> TaskId -> Eff App.AppStack ()
 killTask supervisor taskId = do
   log Info $ "Killing task " <> show taskId
   modifyMVar_ (tasks supervisor) $ \tasks -> do
-    for_ (Map.lookup taskId tasks) cancel
+    for_ (Map.lookup taskId tasks) $ \Task {..} ->
+      cancel asyncHandle
     pure $ Map.delete taskId tasks
 
 -- | Get the status of a task
@@ -109,8 +120,8 @@ getTaskStatus supervisor taskId = do
   tasks <- readMVar (tasks supervisor)
   case Map.lookup taskId tasks of
     Nothing -> pure Killed
-    Just task -> do
-      status <- poll task
+    Just Task {..} -> do
+      status <- poll asyncHandle
       case status of
         Nothing -> pure Running
         Just (Right output) -> pure $ Finished output

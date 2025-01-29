@@ -21,6 +21,7 @@ import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (JobId, RepoName, jobWorkingDir)
 import Vira.Supervisor qualified as Supervisor
+import Vira.Supervisor.Type (TaskSupervisor (baseWorkDir))
 import Vira.Widgets qualified as W
 import Prelude hiding (ask, asks)
 
@@ -48,11 +49,9 @@ viewHandler :: JobId -> Eff App.AppServantStack (Html ())
 viewHandler jobId = do
   cfg <- ask
   job <- App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
-  logText <- case jobWorkingDir job.jobStatus of
-    Nothing -> pure ""
-    Just workDir -> do
-      -- TODO: Streaming!
-      liftIO $ readFileBS $ workDir </> "output.log"
+  logText <-
+    -- TODO: Streaming!
+    liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
   pure $ W.layout cfg.linkTo (show jobId) [LinkTo.Job jobId] $ do
     viewJob cfg.linkTo job
     div_ $ do
@@ -75,11 +74,11 @@ viewCommit (Git.CommitID commit) = do
 viewJobStatus :: St.JobStatus -> Html ()
 viewJobStatus status = do
   case status of
-    St.JobRunning _ -> span_ [class_ "text-blue-700"] "🚧 Running"
+    St.JobRunning -> span_ [class_ "text-blue-700"] "🚧 Running"
     St.JobPending -> span_ [class_ "text-yellow-700"] "⏳ Pending"
-    St.JobFinished _ St.JobSuccess -> span_ [class_ "text-green-700"] "✅ Success"
-    St.JobFinished _ St.JobFailure -> span_ [class_ "text-red-700"] "❌ Failure"
-    St.JobKilled _ -> span_ [class_ "text-red-700"] "💀 Killed"
+    St.JobFinished St.JobSuccess -> span_ [class_ "text-green-700"] "✅ Success"
+    St.JobFinished St.JobFailure -> span_ [class_ "text-red-700"] "❌ Failure"
+    St.JobKilled -> span_ [class_ "text-red-700"] "💀 Killed"
 
 -- TODO:
 -- 1. Fail if a build is already happening (until we support queuing)
@@ -90,15 +89,15 @@ triggerNewBuild repoName branchName = do
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
   asks App.supervisor >>= \supervisor -> do
-    job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit
+    job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
     let cmd = "nix build -L --no-link --print-out-paths " <> toString (gitFlakeUrl repo.cloneUrl) <> "/" <> toString branch.headCommit
-    workDir <- Supervisor.startTask supervisor job.jobId cmd $ \workDir exitCode -> do
+    Supervisor.startTask supervisor job.jobId job.jobWorkingDir cmd $ \exitCode -> do
       let status = case exitCode of
-            ExitSuccess -> St.JobFinished workDir St.JobSuccess
-            ExitFailure _code -> St.JobFinished workDir St.JobFailure
+            ExitSuccess -> St.JobFinished St.JobSuccess
+            ExitFailure _code -> St.JobFinished St.JobFailure
       App.update $ St.JobUpdateStatusA job.jobId status
-    App.update $ St.JobUpdateStatusA job.jobId $ St.JobRunning workDir
+    App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId
   where
     gitFlakeUrl :: Text -> Text

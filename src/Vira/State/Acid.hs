@@ -14,6 +14,7 @@ import Data.IxSet.Typed qualified as Ix
 import Data.List (maximum)
 import Data.Map.Strict qualified as Map
 import Data.SafeCopy (base, deriveSafeCopy)
+import System.FilePath ((</>))
 import Vira.Lib.Git (BranchName, CommitID)
 import Vira.State.Type
 import Vira.State.Type qualified as T
@@ -87,14 +88,15 @@ getJobA jobId = do
   pure $ Ix.getOne $ jobs @= jobId
 
 -- | Create a new job returning it.
-addNewJobA :: RepoName -> BranchName -> CommitID -> Update ViraState Job
-addNewJobA jobRepo jobBranch jobCommit = do
+addNewJobA :: RepoName -> BranchName -> CommitID -> FilePath -> Update ViraState Job
+addNewJobA jobRepo jobBranch jobCommit baseWorkDir = do
   jobs <- Ix.toList <$> gets jobs
   let
     jobId =
       let ids = T.jobId <$> jobs
        in if Prelude.null ids then JobId 1 else JobId 1 + maximum ids
     jobStatus = JobPending
+    jobWorkingDir = baseWorkDir </> show jobId
     job = Job {..}
   modify $ \s ->
     s
@@ -115,8 +117,8 @@ markRunningJobsAsStaleA = do
   jobs <- Ix.toList <$> gets jobs
   forM_ jobs $ \job -> do
     case job.jobStatus of
-      JobRunning path -> do
-        jobUpdateStatusA job.jobId $ JobKilled path
+      JobRunning -> do
+        jobUpdateStatusA job.jobId JobKilled
       _ -> pass
 
 $( makeAcidic
