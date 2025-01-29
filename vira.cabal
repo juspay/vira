@@ -106,6 +106,7 @@ library
     Vira.App.Servant
     Vira.App.Stack
     Vira.Lib.Git
+    Vira.Lib.Process
     Vira.Page.JobPage
     Vira.Page.RegistryPage
     Vira.Page.RepoPage

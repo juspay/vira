@@ -4,6 +4,7 @@ module Vira.Page.JobPage where
 
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
+import Effectful.Process (CreateProcess (cwd), shell)
 import Effectful.Reader.Dynamic (ask, asks)
 import GHC.IO.Exception (ExitCode (..))
 import Htmx.Servant.Response
@@ -91,8 +92,8 @@ triggerNewBuild repoName branchName = do
   asks App.supervisor >>= \supervisor -> do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
-    let cmd = "nix build -L --no-link --print-out-paths " <> toString (gitFlakeUrl repo.cloneUrl) <> "/" <> toString branch.headCommit
-    Supervisor.startTask supervisor job.jobId job.jobWorkingDir cmd $ \exitCode -> do
+    let stages = stageClone repo branch :| [stageBuild]
+    Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \exitCode -> do
       let status = case exitCode of
             ExitSuccess -> St.JobFinished St.JobSuccess
             ExitFailure _code -> St.JobFinished St.JobFailure
@@ -100,7 +101,10 @@ triggerNewBuild repoName branchName = do
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId
   where
-    gitFlakeUrl :: Text -> Text
-    gitFlakeUrl _url =
-      -- TODO: Implement this more generally
-      "github:srid/emanote"
+    -- TODO: Avoid shell command for security
+    stageClone repo branch =
+      shell ("git clone " <> toString repo.cloneUrl <> " project && cd project && git checkout " <> toString branch.headCommit)
+    stageBuild =
+      (shell "nix build -L --no-link --print-out-paths .")
+        { cwd = Just "project"
+        }

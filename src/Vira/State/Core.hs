@@ -27,6 +27,10 @@ openViraState = do
     sampleRepos =
       Ix.fromList
         [ Repo "emanote" "https://github.com/srid/emanote.git"
+        , Repo "omnix" "https://github.com/juspay/omnix.git"
+        , Repo "haskell-flake" "https://github.com/srid/haskell-flake.git"
+        , Repo "hyperswitch" "https://github.com/juspay/hyperswitch.git"
+        , Repo "superposition" "https://github.com/juspay/superposition.git"
         ]
 
 {- | Close vira database
