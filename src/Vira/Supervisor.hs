@@ -45,6 +45,7 @@ startTask ::
   ) =>
   TaskSupervisor ->
   TaskId ->
+  -- The shell command to run
   String ->
   -- Handler to call after the task finishes
   ( -- \| Working directory
@@ -69,6 +70,7 @@ startTask supervisor taskId cmd h = do
           -- Send all output to a file under working directory.
           outputHandle <- openFile (pwd </> "output.log") WriteMode
           let process =
+                -- FIXME: Using `shell` is not considered secure.
                 (shell cmd)
                   { cwd = Just pwd
                   , std_out = UseHandle outputHandle
