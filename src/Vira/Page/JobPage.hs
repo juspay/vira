@@ -18,6 +18,7 @@ import Vira.App.LinkTo qualified as LinkTo
 import Vira.App.Logging
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
+import Vira.Lib.Omnix qualified as Omnix
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (JobId, RepoName, jobWorkingDir)
@@ -101,10 +102,10 @@ triggerNewBuild repoName branchName = do
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId
   where
-    -- TODO: Avoid shell command for security
     stageClone repo branch =
+      -- TODO: Avoid shell command for security
       shell ("git clone " <> toString repo.cloneUrl <> " project && cd project && git checkout " <> toString branch.headCommit)
     stageBuild =
-      (shell "nix build -L --no-link --print-out-paths .")
+      Omnix.omnixCiProcess
         { cwd = Just "project"
         }

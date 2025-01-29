@@ -4,7 +4,7 @@
     inputs.haskell-flake.flakeModule
     inputs.process-compose-flake.flakeModule
   ];
-  perSystem = { self', lib, config, pkgs, ... }: {
+  perSystem = { self', inputs', lib, config, pkgs, ... }: {
     # Our only Haskell project. You can have multiple projects, but this template
     # has only one.
     # See https://github.com/srid/haskell-flake/blob/master/example/flake.nix
@@ -47,7 +47,10 @@
       # Add your package overrides here
       settings = {
         vira = {
-          extraBuildDepends = [ pkgs.git ];
+          extraBuildDepends = [
+            pkgs.git
+            inputs'.omnix.packages.default
+          ];
           stan = true;
         };
         safe-coloured-text-layout = {

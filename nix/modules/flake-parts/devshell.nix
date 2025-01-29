@@ -1,5 +1,5 @@
 {
-  perSystem = { config, pkgs, ... }: {
+  perSystem = { inputs', config, pkgs, ... }: {
     # Default shell.
     devShells.default = pkgs.mkShell {
       name = "vira-devshell";
@@ -13,6 +13,7 @@
         just
         nixd
         ghciwatch
+        inputs'.omnix.packages.default
       ];
     };
   };
