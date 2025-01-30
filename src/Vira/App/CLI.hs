@@ -16,8 +16,14 @@ data Settings = Settings
   , port :: Int
   -- ^ The port to bind the HTTP server to
   , dbPath :: FilePath
-  -- ^ Path to vira db
-  , repos :: [Text]
+  -- ^ Path to the vira db
+  , repo :: RepoSettings
+  -- ^ Repositories settings
+  }
+  deriving stock (Show)
+
+data RepoSettings = RepoSettings
+  { cloneUrls :: [Text]
   -- ^ Repositories (git clone URL) to watch and build
   , branchWhitelist :: Set Text
   -- ^ Limit to building these branches to build
@@ -50,12 +56,17 @@ instance HasParser Settings where
         , name "db-path"
         , value "vira.db"
         ]
-    repos <-
+    repo <- subSettings "repo"
+    pure Settings {..}
+
+instance HasParser RepoSettings where
+  settingsParser = withoutConfig $ do
+    cloneUrls <-
       setting
         [ reader (commaSeparatedList $ fmap (toText @String) str)
-        , metavar "REPOS"
-        , help "Repositories to watch and build (comma-separated Git clone URLs)"
-        , name "repos"
+        , metavar "CLONE_URLS"
+        , help "Repositories (git clone URL) to watch and build"
+        , name "clone-urls"
         , value defaultRepos
         ]
     branchWhitelist <-
@@ -66,7 +77,7 @@ instance HasParser Settings where
         , name "branch-whitelist"
         , value defaultBranchesToBuild
         ]
-    pure Settings {..}
+    pure RepoSettings {..}
 
 defaultRepos :: [Text]
 defaultRepos =

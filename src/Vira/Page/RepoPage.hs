@@ -62,7 +62,7 @@ updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   allBranches <- liftIO $ Git.remoteBranches repo.cloneUrl
-  branchWhitelist <- asks $ App.branchWhitelist . App.settings
+  branchWhitelist <- asks $ App.branchWhitelist . App.repo . App.settings
   let branches = Map.filterWithKey (\k _ -> (toText . toString) k `Set.member` branchWhitelist) allBranches
   App.update $ St.SetRepoBranchesA repo.name branches
   pure $ addHeader True "Ok"
