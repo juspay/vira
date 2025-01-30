@@ -84,12 +84,7 @@ runVira = do
     -- Like `app` but in `IO`
     appIO :: Settings -> IO ()
     appIO settings = do
-      let
-        takeBaseName = T.reverse . T.takeWhile (/= '/') . T.reverse
-        repos =
-          settings.repos <&> \url ->
-            let name = let s = takeBaseName url in fromMaybe s $ T.stripSuffix ".git" s
-             in State.Repo (fromString . toString $ name) (toText url)
+      let repos = settings.repos <&> repoFromUrl
       bracket (openViraState repos) closeViraState $ \acid -> do
         supervisor <- Vira.Supervisor.newSupervisor
         let st = App.AppState {linkTo = linkTo, ..}
@@ -104,6 +99,23 @@ runVira = do
       cfg <- ask
       let servantApp = genericServe $ handlers cfg
       liftIO $ Warp.run settings.port $ staticMiddleware servantApp
+
+-- | Convert a git repository URL to a `State.Repo` record.
+repoFromUrl :: Text -> State.Repo
+repoFromUrl url =
+  State.Repo (nameForGitUrl url) (toText url)
+
+{- | Convert a git repository URL to a name representing it.
+
+For example, `https://github.com/user/foo.git` becomes `foo`.
+-}
+nameForGitUrl :: Text -> State.RepoName
+nameForGitUrl url =
+  let
+    takeBaseName = T.reverse . T.takeWhile (/= '/') . T.reverse
+    name = let s = takeBaseName url in fromMaybe s $ T.stripSuffix ".git" s
+   in
+    (fromString . toString) name
 
 -- | Define application link hints (`LinkTo`) here.
 linkTo :: LinkTo -> Link
