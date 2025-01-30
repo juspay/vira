@@ -49,6 +49,7 @@
         vira = {
           extraBuildDepends = [
             pkgs.git
+            pkgs.cachix
             inputs'.omnix.packages.default
           ];
           stan = true;

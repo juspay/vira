@@ -27,6 +27,16 @@ data RepoSettings = RepoSettings
   -- ^ Repositories (git clone URL) to watch and build
   , branchWhitelist :: Set Text
   -- ^ Limit to building these branches to build
+  , cachix :: Maybe CachixSettings
+  -- ^ Cachix settings
+  }
+  deriving stock (Show)
+
+data CachixSettings = CachixSettings
+  { cachixName :: Text
+  -- ^ Name of the cachix cache
+  , authToken :: Text
+  -- ^ Auth token for the cachix cache
   }
   deriving stock (Show)
 
@@ -77,7 +87,39 @@ instance HasParser RepoSettings where
         , name "branch-whitelist"
         , value defaultBranchesToBuild
         ]
+    cachix <- Just <$> subSettings "cachix"
     pure RepoSettings {..}
+
+instance HasParser CachixSettings where
+  settingsParser = withoutConfig $ do
+    cachixName <-
+      setting
+        [ reader str
+        , metavar "CACHIX_NAME"
+        , help "Name of the cachix cache"
+        , name "name"
+        , value $ cachixName dummyCachix
+        ]
+    authToken <-
+      setting
+        [ reader str
+        , metavar "CACHIX_AUTH_TOKEN"
+        , help "Auth token for the cachix cache"
+        , name "auth-token"
+        , value $ authToken dummyCachix
+        ]
+    pure CachixSettings {..}
+
+{- | A dummy cache used in development only
+
+Managed by Srid: https://app.cachix.org/cache/scratch-vira-dev
+-}
+dummyCachix :: CachixSettings
+dummyCachix =
+  CachixSettings
+    { cachixName = "scratch-vira-dev"
+    , authToken = "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U"
+    }
 
 defaultRepos :: [Text]
 defaultRepos =
