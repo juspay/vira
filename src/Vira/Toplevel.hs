@@ -7,6 +7,7 @@ module Vira.Toplevel (
 ) where
 
 import Control.Exception (bracket)
+import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (ask)
 import Lucid
@@ -33,6 +34,7 @@ import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.State.Core (closeViraState, openViraState)
+import Vira.State.Type qualified as State
 import Vira.Supervisor qualified
 import Vira.Widgets qualified as W
 import Prelude hiding (Reader, ask, runReader)
@@ -82,7 +84,13 @@ runVira = do
     -- Like `app` but in `IO`
     appIO :: Settings -> IO ()
     appIO settings = do
-      bracket openViraState closeViraState $ \acid -> do
+      let
+        takeBaseName = T.reverse . T.takeWhile (/= '/') . T.reverse
+        repos =
+          settings.repos <&> \url ->
+            let name = let s = takeBaseName url in fromMaybe s $ T.stripSuffix ".git" s
+             in State.Repo (fromString . toString $ name) (toText url)
+      bracket (openViraState repos) closeViraState $ \acid -> do
         supervisor <- Vira.Supervisor.newSupervisor
         let st = App.AppState {linkTo = linkTo, ..}
         App.runApp st $ app settings

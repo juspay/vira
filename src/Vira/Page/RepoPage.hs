@@ -2,9 +2,11 @@
 
 module Vira.Page.RepoPage where
 
+import Data.Map.Strict qualified as Map
+import Data.Set qualified as Set
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
-import Effectful.Reader.Dynamic (ask)
+import Effectful.Reader.Dynamic (ask, asks)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Lucid (hxPostSafe_)
 import Htmx.Servant.Response
@@ -59,7 +61,9 @@ viewHandler name = do
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  branches <- liftIO $ Git.remoteBranches repo.cloneUrl
+  allBranches <- liftIO $ Git.remoteBranches repo.cloneUrl
+  branchWhitelist <- asks $ App.branchWhitelist . App.settings
+  let branches = Map.filterWithKey (\k _ -> (toText . toString) k `Set.member` branchWhitelist) allBranches
   App.update $ St.SetRepoBranchesA repo.name branches
   pure $ addHeader True "Ok"
 
@@ -75,6 +79,7 @@ viewRepo linkTo repo branches = do
     p_ "To clone this repo"
     pre_ [class_ "bg-black text-white"] $ code_ $ toHtml $ "git clone " <> repo.cloneUrl
     h2_ [class_ "text-3xl font-bold my-8"] "Branches"
+    p_ "NOTE: Displaying only whitelisted branches"
     div_ [class_ "my-8"] $ do
       forM_ branches $ \(branch, jobs) -> do
         h2_ [class_ "text-2xl py-2 my-4 border-b-2"] $ code_ $ toHtml $ toString branch.branchName

@@ -3,17 +3,24 @@
 
 module Vira.App.CLI where
 
+import Data.Set qualified as Set
 import OptEnvConf
-import Prelude hiding (reader)
+import Prelude hiding (Reader, reader)
 
--- | CLI settings
+{- | CLI settings
+TODO: Use Severity from co-log
+-}
 data Settings = Settings
-  { -- Minimum logging level
-    logLevel :: String -- TODO: Use `Colog.Core.Severity`
-    -- The port to bind the HTTP server to
+  { logLevel :: String
+  -- ^ Minimum logging level
   , port :: Int
-  , -- Path to vira db
-    dbPath :: FilePath
+  -- ^ The port to bind the HTTP server to
+  , dbPath :: FilePath
+  -- ^ Path to vira db
+  , repos :: [Text]
+  -- ^ Repositories (git clone URL) to watch and build
+  , branchWhitelist :: Set Text
+  -- ^ Limit to building these branches to build
   }
   deriving stock (Show)
 
@@ -43,4 +50,33 @@ instance HasParser Settings where
         , name "db-path"
         , value "vira.db"
         ]
+    repos <-
+      setting
+        [ reader (commaSeparatedList $ fmap (toText @String) str)
+        , metavar "REPOS"
+        , help "Repositories to watch and build (comma-separated Git clone URLs)"
+        , name "repos"
+        , value defaultRepos
+        ]
+    branchWhitelist <-
+      setting
+        [ reader (Set.fromList <$> commaSeparatedList str)
+        , metavar "BRANCH_WHITELIST"
+        , help "Limit to building these branches"
+        , name "branch-whitelist"
+        , value defaultBranchesToBuild
+        ]
     pure Settings {..}
+
+defaultRepos :: [Text]
+defaultRepos =
+  [ "https://github.com/srid/emanote.git"
+  , "https://github.com/juspay/omnix.git"
+  , "https://github.com/srid/haskell-flake.git"
+  , "https://github.com/juspay/hyperswitch.git"
+  , "https://github.com/juspay/superposition.git"
+  , "https://github.com/juspay/services-flake.git"
+  ]
+
+defaultBranchesToBuild :: Set Text
+defaultBranchesToBuild = Set.fromList ["main", "master", "staging", "develop", "trunk"]
