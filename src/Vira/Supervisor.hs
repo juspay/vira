@@ -114,8 +114,8 @@ startTask' taskId pwd h = runProcs . toList
               >>> Process.redirectOutputTo outputHandle
       (_, _, _, ph) <- createProcess $ proc & processSettings
       exitCode <- waitForProcess ph
-      logToWorkspaceOutput $ "A task finished with exit code " <> show exitCode
       hClose outputHandle
+      logToWorkspaceOutput $ "A task finished with exit code " <> show exitCode
       pure exitCode
 
 -- | Kill a task
