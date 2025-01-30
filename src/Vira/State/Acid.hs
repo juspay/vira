@@ -36,6 +36,13 @@ data ViraState = ViraState
 
 $(deriveSafeCopy 0 'base ''ViraState)
 
+setAllReposA :: [Repo] -> Update ViraState ()
+setAllReposA repos = do
+  modify $ \s ->
+    s
+      { repos = Ix.fromList repos
+      }
+
 -- | Get all repositories
 getAllReposA :: Query ViraState [Repo]
 getAllReposA = do
@@ -123,7 +130,8 @@ markRunningJobsAsStaleA = do
 
 $( makeAcidic
     ''ViraState
-    [ 'getAllReposA
+    [ 'setAllReposA
+    , 'getAllReposA
     , 'getRepoByNameA
     , 'getBranchesByRepoA
     , 'getBranchByNameA

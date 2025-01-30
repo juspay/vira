@@ -12,7 +12,10 @@ data TaskState
   | Killed
   deriving stock (Generic, Show)
 
--- TODO Use ixset-typed
+{- | Supervisor for managing tasks
+
+TODO Use ixset-typed
+-}
 data TaskSupervisor = TaskSupervisor
   { tasks :: MVar (Map TaskId Task)
   -- ^ Current tasks, running or not
