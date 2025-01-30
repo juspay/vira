@@ -27,6 +27,16 @@ data RepoSettings = RepoSettings
   -- ^ Repositories (git clone URL) to watch and build
   , branchWhitelist :: Set Text
   -- ^ Limit to building these branches to build
+  , cachix :: Maybe CachixSettings
+  -- ^ Cachix settings
+  }
+  deriving stock (Show)
+
+data CachixSettings = CachixSettings
+  { cachixName :: Text
+  -- ^ Name of the cachix cache
+  , authToken :: Text
+  -- ^ Auth token for the cachix cache
   }
   deriving stock (Show)
 
@@ -77,7 +87,26 @@ instance HasParser RepoSettings where
         , name "branch-whitelist"
         , value defaultBranchesToBuild
         ]
+    cachix <- optional $ subSettings "cachix"
     pure RepoSettings {..}
+
+instance HasParser CachixSettings where
+  settingsParser = withoutConfig $ do
+    cachixName <-
+      setting
+        [ reader str
+        , metavar "CACHIX_NAME"
+        , help "Name of the cachix cache"
+        , name "name"
+        ]
+    authToken <-
+      setting
+        [ reader str
+        , metavar "CACHIX_AUTH_TOKEN"
+        , help "Auth token for the cachix cache"
+        , name "auth-token"
+        ]
+    pure CachixSettings {..}
 
 defaultRepos :: [Text]
 defaultRepos =

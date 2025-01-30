@@ -49,6 +49,7 @@
         vira = {
           extraBuildDepends = [
             pkgs.git
+            pkgs.cachix
             inputs'.omnix.packages.default
           ];
           stan = true;
@@ -76,7 +77,12 @@
     process-compose."vira-dev" = {
       settings = {
         processes = {
-          haskell.command = "ghcid -c 'cabal repl exe:vira --flags=ghcid' -T :main";
+          # The cachix token here is for a dummy cache, managed by Srid.
+          haskell.command = ''
+            set -x
+            ghcid -c 'cabal repl exe:vira --flags=ghcid' -T Main.main \
+                --setup ':set args --repo-cachix-name scratch-vira-dev --repo-cachix-auth-token eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U'
+          '';
           tailwind = {
             # Suppress tailwind output so only ghcid log comes through
             command = "echo Running tailwind silently.; ${lib.getExe pkgs.haskellPackages.tailwind} -w -o ./static/tailwind.css './src/**/*.hs' > tailwind.log 2>&1";

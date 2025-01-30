@@ -15,6 +15,7 @@
         ghciwatch
         # vira extraBuildDepends from haskell.nix
         git
+        cachix
         inputs'.omnix.packages.default
       ];
     };

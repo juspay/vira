@@ -4,7 +4,7 @@ module Vira.Page.JobPage where
 
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
-import Effectful.Process (CreateProcess (cwd), proc)
+import Effectful.Process (CreateProcess (cwd), env, proc)
 import Effectful.Reader.Dynamic (ask, asks)
 import GHC.IO.Exception (ExitCode (..))
 import Htmx.Servant.Response
@@ -90,6 +90,7 @@ triggerNewBuild repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
+  mCachix <- asks $ App.cachix . App.repo . App.settings
   asks App.supervisor >>= \supervisor -> do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
@@ -97,6 +98,7 @@ triggerNewBuild repoName branchName = do
           stageCreateProjectDir
             :| stagesClone repo branch
             <> [stageBuild]
+            <> maybe mempty (one . stageCachix) mCachix
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \exitCode -> do
       let status = case exitCode of
             ExitSuccess -> St.JobFinished St.JobSuccess
@@ -113,4 +115,9 @@ triggerNewBuild repoName branchName = do
     stageBuild =
       Omnix.omnixCiProcess
         { cwd = Just "project"
+        }
+    stageCachix cachix =
+      (proc "cachix" ["push", toString cachix.cachixName, "result"])
+        { env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]
+        , cwd = Just "project"
         }
