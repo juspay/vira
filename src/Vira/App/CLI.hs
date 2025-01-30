@@ -87,7 +87,7 @@ instance HasParser RepoSettings where
         , name "branch-whitelist"
         , value defaultBranchesToBuild
         ]
-    cachix <- Just <$> subSettings "cachix"
+    cachix <- optional $ subSettings "cachix"
     pure RepoSettings {..}
 
 instance HasParser CachixSettings where
@@ -98,7 +98,6 @@ instance HasParser CachixSettings where
         , metavar "CACHIX_NAME"
         , help "Name of the cachix cache"
         , name "name"
-        , value $ cachixName dummyCachix
         ]
     authToken <-
       setting
@@ -106,20 +105,8 @@ instance HasParser CachixSettings where
         , metavar "CACHIX_AUTH_TOKEN"
         , help "Auth token for the cachix cache"
         , name "auth-token"
-        , value $ authToken dummyCachix
         ]
     pure CachixSettings {..}
-
-{- | A dummy cache used in development only
-
-Managed by Srid: https://app.cachix.org/cache/scratch-vira-dev
--}
-dummyCachix :: CachixSettings
-dummyCachix =
-  CachixSettings
-    { cachixName = "scratch-vira-dev"
-    , authToken = "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U"
-    }
 
 defaultRepos :: [Text]
 defaultRepos =
