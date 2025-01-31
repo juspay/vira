@@ -14,4 +14,4 @@ omnixBin :: FilePath
 omnixBin = $(staticWhich "om")
 
 omnixCiProcess :: CreateProcess
-omnixCiProcess = proc omnixBin ["ci", "run"]
+omnixCiProcess = proc omnixBin ["ci", "run", "-d"]
