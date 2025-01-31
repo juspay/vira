@@ -68,7 +68,7 @@ startTask supervisor taskId pwd procs h = do
         die $ "Task " <> show taskId <> " already exists"
       else do
         createDirectoryIfMissing True pwd
-        asyncHandle <- Effectful.Concurrent.Async.async $ startTask' taskId pwd h procs
+        asyncHandle <- async $ startTask' taskId pwd h procs
         let task = Task {workDir = pwd, asyncHandle}
         pure (Map.insert taskId task tasks, ())
 
