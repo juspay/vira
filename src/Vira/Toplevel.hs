@@ -93,12 +93,13 @@ runVira = do
     -- Vira application for given `Settings`
     app :: (HasCallStack) => Settings -> Eff AppStack ()
     app settings = do
-      log Info $ "Launching vira at http://localhost:" <> show settings.port
+      log Info $ "Launching vira at http://" <> settings.host <> ":" <> show settings.port
       log Debug $ "Settings: " <> show settings
       let staticMiddleware = staticPolicy $ noDots >-> addBase "static"
       cfg <- ask
       let servantApp = genericServe $ handlers cfg
-      let warpSettings = Warp.defaultSettings & Warp.setHost "0.0.0.0" & Warp.setPort settings.port
+      let host = fromString $ toString settings.host
+      let warpSettings = Warp.defaultSettings & Warp.setHost host & Warp.setPort settings.port
       liftIO $ Warp.runSettings warpSettings $ staticMiddleware servantApp
 
 -- | Convert a git repository URL to a `State.Repo` record.

@@ -4,6 +4,7 @@
 module Vira.App.CLI where
 
 import Data.Set qualified as Set
+import Network.Wai.Handler.Warp (Port)
 import OptEnvConf
 import Prelude hiding (Reader, reader)
 
@@ -13,8 +14,10 @@ TODO: Use Severity from co-log
 data Settings = Settings
   { logLevel :: String
   -- ^ Minimum logging level
-  , port :: Int
+  , port :: Port
   -- ^ The port to bind the HTTP server to
+  , host :: Text
+  -- ^ The host to bind the HTTP server to
   , dbPath :: FilePath
   -- ^ Path to the vira db
   , repo :: RepoSettings
@@ -57,6 +60,14 @@ instance HasParser Settings where
         , help "Port to bind the HTTP server to"
         , name "port"
         , value 5005
+        ]
+    host <-
+      setting
+        [ reader str
+        , metavar "HOST"
+        , help "Host"
+        , name "host"
+        , value "127.0.0.1"
         ]
     dbPath <-
       setting
