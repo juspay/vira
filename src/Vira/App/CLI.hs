@@ -112,6 +112,7 @@ defaultRepos :: [Text]
 defaultRepos =
   [ "https://github.com/srid/emanote.git"
   , "https://github.com/juspay/omnix.git"
+  , "https://github.com/juspay/vira.git"
   , "https://github.com/srid/haskell-flake.git"
   , "https://github.com/juspay/hyperswitch.git"
   , "https://github.com/juspay/superposition.git"
