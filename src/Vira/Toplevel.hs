@@ -98,7 +98,8 @@ runVira = do
       let staticMiddleware = staticPolicy $ noDots >-> addBase "static"
       cfg <- ask
       let servantApp = genericServe $ handlers cfg
-      liftIO $ Warp.run settings.port $ staticMiddleware servantApp
+      let warpSettings = Warp.defaultSettings & Warp.setHost "0.0.0.0" & Warp.setPort settings.port
+      liftIO $ Warp.runSettings warpSettings $ staticMiddleware servantApp
 
 -- | Convert a git repository URL to a `State.Repo` record.
 repoFromUrl :: Text -> State.Repo
