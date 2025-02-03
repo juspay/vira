@@ -34,3 +34,9 @@ just run
 # Or, if you need to start from empty database (useful if you have changed the acid-state types)
 just resetdb run
 ```
+
+## Beta Testing
+
+```
+nix run github:juspay/vira -- --host <interface-ip> --port 5005
+```
