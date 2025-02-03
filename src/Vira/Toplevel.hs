@@ -20,7 +20,7 @@ import Network.Wai.Middleware.Static (
   (>->),
  )
 import OptEnvConf qualified
-import Paths_vira (version)
+import Paths_vira qualified
 import Servant.API (Get, NamedRoutes, (:>))
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.API.Generic (GenericMode (type (:-)))
@@ -78,7 +78,7 @@ runVira = do
   Utf8.withUtf8 $ do
     hSetBuffering stdout LineBuffering
     hSetBuffering stderr LineBuffering
-    settings :: Settings <- OptEnvConf.runSettingsParser version "Nix CI & Cache for teams"
+    settings :: Settings <- OptEnvConf.runSettingsParser Paths_vira.version "Nix CI & Cache for teams"
     appIO settings
   where
     -- Like `app` but in `IO`
@@ -95,7 +95,9 @@ runVira = do
     app settings = do
       log Info $ "Launching vira at http://" <> settings.host <> ":" <> show settings.port
       log Debug $ "Settings: " <> show settings
-      let staticMiddleware = staticPolicy $ noDots >-> addBase "static"
+      staticDir <- liftIO Paths_vira.getDataDir
+      log Debug $ "Serving static files from: " <> show staticDir
+      let staticMiddleware = staticPolicy $ noDots >-> addBase staticDir
       cfg <- ask
       let servantApp = genericServe $ handlers cfg
       let host = fromString $ toString settings.host
