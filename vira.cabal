@@ -17,6 +17,9 @@ flag ghcid
   default: False
   manual:  True
 
+data-dir:           static
+data-files:         tailwind.css
+
 common shared
   default-language:   GHC2021
   ghc-options:
