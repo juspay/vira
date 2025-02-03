@@ -40,3 +40,5 @@ just resetdb run
 ```
 nix run github:juspay/vira -- --host <interface-ip> --port 5005
 ```
+
+This uses samples repos, but you can pass your own in the command line.
