@@ -79,9 +79,13 @@ setRepoA repo = do
 setRepoBranchesA :: RepoName -> Map BranchName CommitID -> Update ViraState ()
 setRepoBranchesA repo branches = do
   modify $ \s ->
-    s
-      { branches = Ix.fromList (Map.toList branches <&> uncurry (Branch repo))
-      }
+    let
+      otherBranches = s.branches & Ix.deleteIx repo
+      repoBranches = Map.toList branches <&> uncurry (Branch repo)
+     in
+      s
+        { branches = Ix.insertList repoBranches otherBranches
+        }
 
 -- | Get all jobs of a repo's branch
 getJobsByBranchA :: RepoName -> BranchName -> Query ViraState [Job]
