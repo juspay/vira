@@ -21,6 +21,7 @@
           (root + /LICENSE)
           (root + /README.md)
           (root + /.stan.toml)
+          (root + /static)
         ];
       });
 
