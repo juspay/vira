@@ -80,11 +80,10 @@ setRepoBranchesA :: RepoName -> Map BranchName CommitID -> Update ViraState ()
 setRepoBranchesA repo branches = do
   modify $ \s ->
     let
-      otherRepoBranches = traceShowId $ s.branches & deleteIxMulti repo
       repoBranches = Map.toList branches <&> uncurry (Branch repo)
      in
       s
-        { branches = Ix.insertList repoBranches otherRepoBranches
+        { branches = updateIxMulti repo (Ix.fromList repoBranches) s.branches
         }
 
 -- | Get all jobs of a repo's branch in descending order
@@ -131,6 +130,18 @@ markRunningJobsAsStaleA = do
       JobRunning -> do
         jobUpdateStatusA job.jobId JobKilled
       _ -> pass
+
+-- | Like `Ix.updateIx`, but works for multiple items.
+updateIxMulti ::
+  (Ix.IsIndexOf ix ixs, Ix.Indexable ixs a) =>
+  ix ->
+  Ix.IxSet ixs a ->
+  Ix.IxSet ixs a ->
+  Ix.IxSet ixs a
+updateIxMulti r new rels =
+  let old = rels @= r
+      deleteMany = foldr Ix.delete
+   in new `Ix.union` (rels `deleteMany` old)
 
 -- | Like `Ix.deleteIx`, but works for multiple items
 deleteIxMulti ::
