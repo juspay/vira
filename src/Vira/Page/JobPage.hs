@@ -117,7 +117,7 @@ triggerNewBuild repoName branchName = do
         { cwd = Just "project"
         }
     stageCachix cachix =
-      (proc "cachix" ["push", toString cachix.cachixName, "result"])
+      (proc "cachix" ["push", "-v", toString cachix.cachixName, "result"])
         { env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]
         , cwd = Just "project"
         }
