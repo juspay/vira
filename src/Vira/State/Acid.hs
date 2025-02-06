@@ -87,11 +87,11 @@ setRepoBranchesA repo branches = do
         { branches = Ix.insertList repoBranches otherBranches
         }
 
--- | Get all jobs of a repo's branch
+-- | Get all jobs of a repo's branch in descending order
 getJobsByBranchA :: RepoName -> BranchName -> Query ViraState [Job]
 getJobsByBranchA repo branch = do
   ViraState {jobs} <- ask
-  pure $ Ix.toList $ jobs @= repo @= branch
+  pure $ Ix.toDescList (Proxy @JobId) $ jobs @= repo @= branch
 
 getJobA :: JobId -> Query ViraState (Maybe Job)
 getJobA jobId = do
