@@ -87,7 +87,6 @@ common library-shared
     , servant-server
     , shower
     , sqlite-simple
-    , tailwind               >=0.4
     , time
     , wai-extra
     , wai-middleware-static

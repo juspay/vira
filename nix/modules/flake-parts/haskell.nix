@@ -9,10 +9,6 @@
     # has only one.
     # See https://github.com/srid/haskell-flake/blob/master/example/flake.nix
     haskellProjects.default = {
-      imports = [
-        inputs.tailwind-haskell.haskellFlakeProjectModules.output
-      ];
-
       # To avoid unnecessary rebuilds, we filter projectRoot:
       # https://community.flake.parts/haskell-flake/local#rebuild
       projectRoot = builtins.toString (lib.fileset.toSource {
@@ -92,10 +88,11 @@
             depends_on.tailwind.condition = "process_started";
           };
           tailwind =
-            let tailwind = config.haskellProjects.default.outputs.finalPackages.tailwind;
-            in {
-              # Suppress tailwind output so only ghcid log comes through
-              command = "echo \"Running tailwind-haskell (${tailwind.version}) silently.\"; ${lib.getExe tailwind} -w -o ./static/tailwind.css './src/**/*.hs' > tailwind.log 2>&1";
+            let
+              tailwind = pkgs.tailwindcss_4;
+            in
+            {
+              command = "${lib.getExe tailwind} -w -o ../static/tailwind.css --cwd ./src";
               is_tty = true;
             };
         };

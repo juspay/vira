@@ -63,7 +63,7 @@ hyperscript_ = makeAttributes "_"
 viraButton_ :: forall {result}. (Term [Attributes] result) => [Attributes] -> result
 viraButton_ attrs =
   button_
-    ( [ class_ "p-2 border-2 bg-blue-50 font-bold"
+    ( [ class_ "p-2 border-1 bg-blue-50 font-bold"
       , hyperscript_ "on click toggle .bg-red-200 until htmx:afterOnLoad"
       ]
         <> attrs
