@@ -83,16 +83,21 @@
       settings = {
         processes = {
           # The cachix token here is for a dummy cache, managed by Srid.
-          haskell.command = ''
-            set -x
-            ghcid -c 'cabal repl exe:vira --flags=ghcid' -T Main.main \
-                --setup ':set args --repo-cachix-name scratch-vira-dev --repo-cachix-auth-token eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U'
-          '';
-          tailwind = {
-            # Suppress tailwind output so only ghcid log comes through
-            command = "echo Running tailwind silently.; ${lib.getExe config.haskellProjects.default.outputs.finalPackages.tailwind} -w -o ./static/tailwind.css './src/**/*.hs' > tailwind.log 2>&1";
-            is_tty = true;
+          haskell = {
+            command = ''
+              set -x
+              ghcid -c 'cabal repl exe:vira --flags=ghcid' -T Main.main \
+                  --setup ':set args --repo-cachix-name scratch-vira-dev --repo-cachix-auth-token eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U'
+            '';
+            depends_on.tailwind.condition = "process_started";
           };
+          tailwind =
+            let tailwind = config.haskellProjects.default.outputs.finalPackages.tailwind;
+            in {
+              # Suppress tailwind output so only ghcid log comes through
+              command = "echo \"Running tailwind-haskell (${tailwind.version}) silently.\"; ${lib.getExe tailwind} -w -o ./static/tailwind.css './src/**/*.hs' > tailwind.log 2>&1";
+              is_tty = true;
+            };
         };
       };
     };
