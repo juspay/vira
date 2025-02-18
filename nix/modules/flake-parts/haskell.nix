@@ -9,6 +9,10 @@
     # has only one.
     # See https://github.com/srid/haskell-flake/blob/master/example/flake.nix
     haskellProjects.default = {
+      imports = [
+        inputs.tailwind-haskell.haskellFlakeProjectModules.output
+      ];
+
       # To avoid unnecessary rebuilds, we filter projectRoot:
       # https://community.flake.parts/haskell-flake/local#rebuild
       projectRoot = builtins.toString (lib.fileset.toSource {

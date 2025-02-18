@@ -107,7 +107,7 @@
 }
 
 /*
-! tailwindcss v3.4.12 | MIT License | https://tailwindcss.com
+! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com
 */
 
 /*
@@ -550,7 +550,7 @@ video {
 
 /* Make elements with the HTML hidden attribute stay hidden by default */
 
-[hidden] {
+[hidden]:where(:not([hidden="until-found"])) {
   display: none;
 }
 
@@ -872,32 +872,32 @@ select {
 
 .bg-black {
   --tw-bg-opacity: 1;
-  background-color: rgb(0 0 0 / var(--tw-bg-opacity));
+  background-color: rgb(0 0 0 / var(--tw-bg-opacity, 1));
 }
 
 .bg-blue-100 {
   --tw-bg-opacity: 1;
-  background-color: rgb(219 234 254 / var(--tw-bg-opacity));
+  background-color: rgb(219 234 254 / var(--tw-bg-opacity, 1));
 }
 
 .bg-blue-50 {
   --tw-bg-opacity: 1;
-  background-color: rgb(239 246 255 / var(--tw-bg-opacity));
+  background-color: rgb(239 246 255 / var(--tw-bg-opacity, 1));
 }
 
 .bg-gray-100 {
   --tw-bg-opacity: 1;
-  background-color: rgb(243 244 246 / var(--tw-bg-opacity));
+  background-color: rgb(243 244 246 / var(--tw-bg-opacity, 1));
 }
 
 .bg-red-200 {
   --tw-bg-opacity: 1;
-  background-color: rgb(254 202 202 / var(--tw-bg-opacity));
+  background-color: rgb(254 202 202 / var(--tw-bg-opacity, 1));
 }
 
 .bg-white {
   --tw-bg-opacity: 1;
-  background-color: rgb(255 255 255 / var(--tw-bg-opacity));
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
 }
 
 .p-2 {
@@ -943,42 +943,42 @@ select {
 
 .text-blue-700 {
   --tw-text-opacity: 1;
-  color: rgb(29 78 216 / var(--tw-text-opacity));
+  color: rgb(29 78 216 / var(--tw-text-opacity, 1));
 }
 
 .text-gray-500 {
   --tw-text-opacity: 1;
-  color: rgb(107 114 128 / var(--tw-text-opacity));
+  color: rgb(107 114 128 / var(--tw-text-opacity, 1));
 }
 
 .text-gray-600 {
   --tw-text-opacity: 1;
-  color: rgb(75 85 99 / var(--tw-text-opacity));
+  color: rgb(75 85 99 / var(--tw-text-opacity, 1));
 }
 
 .text-gray-700 {
   --tw-text-opacity: 1;
-  color: rgb(55 65 81 / var(--tw-text-opacity));
+  color: rgb(55 65 81 / var(--tw-text-opacity, 1));
 }
 
 .text-green-700 {
   --tw-text-opacity: 1;
-  color: rgb(21 128 61 / var(--tw-text-opacity));
+  color: rgb(21 128 61 / var(--tw-text-opacity, 1));
 }
 
 .text-red-700 {
   --tw-text-opacity: 1;
-  color: rgb(185 28 28 / var(--tw-text-opacity));
+  color: rgb(185 28 28 / var(--tw-text-opacity, 1));
 }
 
 .text-white {
   --tw-text-opacity: 1;
-  color: rgb(255 255 255 / var(--tw-text-opacity));
+  color: rgb(255 255 255 / var(--tw-text-opacity, 1));
 }
 
 .text-yellow-700 {
   --tw-text-opacity: 1;
-  color: rgb(161 98 7 / var(--tw-text-opacity));
+  color: rgb(161 98 7 / var(--tw-text-opacity, 1));
 }
 
 .filter {
@@ -993,17 +993,17 @@ select {
 
 .hover\:bg-blue-100:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(219 234 254 / var(--tw-bg-opacity));
+  background-color: rgb(219 234 254 / var(--tw-bg-opacity, 1));
 }
 
 .hover\:bg-gray-100:hover {
   --tw-bg-opacity: 1;
-  background-color: rgb(243 244 246 / var(--tw-bg-opacity));
+  background-color: rgb(243 244 246 / var(--tw-bg-opacity, 1));
 }
 
 .hover\:text-black:hover {
   --tw-text-opacity: 1;
-  color: rgb(0 0 0 / var(--tw-text-opacity));
+  color: rgb(0 0 0 / var(--tw-text-opacity, 1));
 }
 
 .hover\:underline:hover {

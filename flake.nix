@@ -10,6 +10,10 @@
     git-hooks.url = "github:cachix/git-hooks.nix";
     git-hooks.flake = false;
     process-compose-flake.url = "github:Platonic-Systems/process-compose-flake";
+    tailwind-haskell.url = "github:srid/tailwind-haskell";
+    tailwind-haskell.inputs.nixpkgs.follows = "nixpkgs";
+    tailwind-haskell.inputs.flake-parts.follows = "flake-parts";
+    tailwind-haskell.inputs.haskell-flake.follows = "haskell-flake";
 
     htmx.url = "github:JonathanLorimer/htmx";
     htmx.flake = false;
