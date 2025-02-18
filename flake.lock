@@ -536,8 +536,7 @@
         "nixpkgs": "nixpkgs_2",
         "omnix": "omnix",
         "process-compose-flake": "process-compose-flake",
-        "safe-coloured-text": "safe-coloured-text",
-        "tailwind-haskell": "tailwind-haskell"
+        "safe-coloured-text": "safe-coloured-text"
       }
     },
     "rust-flake": {
@@ -613,32 +612,6 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
-        "type": "github"
-      }
-    },
-    "tailwind-haskell": {
-      "inputs": {
-        "flake-parts": [
-          "flake-parts"
-        ],
-        "haskell-flake": [
-          "haskell-flake"
-        ],
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1739903499,
-        "narHash": "sha256-4HwaHJVGuSnYjhjZHVS9wZRFMgjP5Z0zkh75WCEfaVg=",
-        "owner": "srid",
-        "repo": "tailwind-haskell",
-        "rev": "2d2926a41f8b7145b796308f9e69ac730afca043",
-        "type": "github"
-      },
-      "original": {
-        "owner": "srid",
-        "repo": "tailwind-haskell",
         "type": "github"
       }
     },
