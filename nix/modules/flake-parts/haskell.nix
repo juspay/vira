@@ -90,7 +90,7 @@
           '';
           tailwind = {
             # Suppress tailwind output so only ghcid log comes through
-            command = "echo Running tailwind silently.; ${lib.getExe pkgs.haskellPackages.tailwind} -w -o ./static/tailwind.css './src/**/*.hs' > tailwind.log 2>&1";
+            command = "echo Running tailwind silently.; ${lib.getExe config.haskellProjects.default.outputs.finalPackages.tailwind} -w -o ./static/tailwind.css './src/**/*.hs' > tailwind.log 2>&1";
             is_tty = true;
           };
         };
