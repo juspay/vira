@@ -1,14 +1,14 @@
 -- | Common Lucid rendering helpers
 module Vira.Widgets (
   layout,
-  hyperscript_,
   viraButton_,
 ) where
 
 import Lucid
-import Lucid.Base (makeAttributes)
 import Servant.Links (Link, URI (..), linkURI)
 import Vira.App.LinkTo (LinkTo, linkShortTitle)
+import Vira.Lib.HTMX
+import Vira.Status qualified as Status
 
 -- | Common HTML layout for all routes.
 layout :: (LinkTo -> Link) -> Html () -> [LinkTo] -> Html () -> Html ()
@@ -33,8 +33,9 @@ layout linkTo heading crumbs content = do
       meta_ [charset_ "utf-8", name_ "viewport", content_ "width=device-width, initial-scale=1"]
     -- JavaScript include for HTMX
     htmx = do
-      script_ [src_ "https://unpkg.com/htmx.org@2.0.3", integrity_ "sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq", crossorigin_ "anonymous"] $ fromString @Text ""
-      script_ [src_ "https://unpkg.com/hyperscript.org@0.9.13"] $ fromString @Text ""
+      script_ [src_ "https://unpkg.com/htmx.org@2.0.3", integrity_ "sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq", crossorigin_ "anonymous"] $ mempty @Text
+      script_ [src_ "https://unpkg.com/hyperscript.org@0.9.13"] $ mempty @Text
+      script_ [src_ "https://unpkg.com/htmx-ext-sse@2.2.2"] $ mempty @Text
 
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
 breadcrumbs :: [(Html (), URI)] -> Html ()
@@ -42,10 +43,12 @@ breadcrumbs rs' = do
   let home = URI {uriScheme = "", uriAuthority = Nothing, uriPath = "/", uriQuery = [], uriFragment = ""}
   let rs = (span_ "Vira", home) :| rs'
   nav_ [id_ "breadcrumbs", class_ "flex items-center space-x-2 text-sm text-gray-600 p-3 mb-4 bg-blue-100"] $ do
-    forM_ (init rs) $ \(s, r) -> do
-      renderCrumb (s, Just r)
-      span_ [class_ "text-gray-500"] ">"
-    renderCrumb (fst $ last rs, Nothing)
+    div_ [class_ "flex flex-1 items-center space-x-2 text-gray-600"] $ do
+      forM_ (init rs) $ \(s, r) -> do
+        renderCrumb (s, Just r)
+        span_ [class_ "text-gray-500"] ">"
+      renderCrumb (fst $ last rs, Nothing)
+    Status.view
   where
     renderCrumb :: (Html (), Maybe URI) -> Html ()
     renderCrumb (s, mr) = li_ [class_ "flex"] $ do
@@ -55,10 +58,6 @@ breadcrumbs rs' = do
                in [href_ url, class_ "hover:underline"]
             Nothing -> [class_ "font-bold"]
       a_ attr $ toHtml s
-
--- | The [hyperscript](https://hyperscript.org/) attribute
-hyperscript_ :: Text -> Attributes
-hyperscript_ = makeAttributes "_"
 
 viraButton_ :: forall {result}. (Term [Attributes] result) => [Attributes] -> result
 viraButton_ attrs =

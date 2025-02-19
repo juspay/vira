@@ -21,8 +21,9 @@ import Network.Wai.Middleware.Static (
  )
 import OptEnvConf qualified
 import Paths_vira qualified
-import Servant.API (Get, NamedRoutes, (:>))
+import Servant.API (Get, NamedRoutes, SourceIO, (:>))
 import Servant.API.ContentTypes.Lucid (HTML)
+import Servant.API.EventStream (ServerSentEvents)
 import Servant.API.Generic (GenericMode (type (:-)))
 import Servant.Links (Link, fieldLink, linkURI)
 import Servant.Server.Generic (AsServer, genericServe)
@@ -35,6 +36,7 @@ import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.State.Core (closeViraState, openViraState)
 import Vira.State.Type qualified as State
+import Vira.Status qualified as Status
 import Vira.Supervisor qualified
 import Vira.Widgets qualified as W
 import Prelude hiding (Reader, ask, runReader)
@@ -44,6 +46,7 @@ data Routes mode = Routes
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _about :: mode :- "about" Servant.API.:> Get '[HTML] (Html ())
+  , _status :: mode :- "status" Servant.API.:> ServerSentEvents (SourceIO Status.Status)
   }
   deriving stock (Generic)
 
@@ -63,6 +66,7 @@ handlers cfg =
         pure $ W.layout cfg.linkTo "About Vira" [About] $ do
           div_ $ do
             a_ [href_ "https://github.com/juspay/vira"] "GitHub Repo"
+    , _status = pure $ Status.handler cfg
     }
   where
     linkText = show . linkURI
