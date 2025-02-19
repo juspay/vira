@@ -66,7 +66,7 @@ handlers cfg =
         pure $ W.layout cfg.linkTo "About Vira" [About] $ do
           div_ $ do
             a_ [href_ "https://github.com/juspay/vira"] "GitHub Repo"
-    , _status = pure Status.handler
+    , _status = pure $ Status.handler cfg
     }
   where
     linkText = show . linkURI

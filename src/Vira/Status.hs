@@ -2,11 +2,12 @@
 module Vira.Status where
 
 import Control.Concurrent (threadDelay)
+import Effectful (Eff)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
-import Servant.API (SourceIO)
 import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S
+import Vira.App qualified as App
 import Vira.Lib.HTMX
 import Prelude hiding (Reader, ask, runReader)
 
@@ -19,17 +20,21 @@ instance ToServerEvent Status where
       (Just $ show ident)
       (Lucid.renderBS t)
 
-handler :: SourceIO Status
-handler = S.fromStepT $ step 0
+handler :: App.AppState -> S.SourceT IO Status
+handler cfg = S.fromStepT $ step 0
   where
     step (n :: Int) = S.Effect $ do
-      when (n > 0) $
-        threadDelay 1000000
+      when (n > 0) $ do
+        App.runApp cfg demo
+        liftIO $ threadDelay 1000000
       let msg = Status n $ do
             div_ [class_ "flex items-center space-x-4"] $ do
               b_ "Count"
               code_ $ toHtml @Text $ show n
       pure $ S.Yield msg $ step (n + 1)
+
+demo :: Eff App.AppStack ()
+demo = pass
 
 view :: Html ()
 view = do
