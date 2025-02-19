@@ -26,17 +26,20 @@ handler cfg = S.fromStepT $ step 0
     step (n :: Int) = S.Effect $ do
       when (n > 0) $ do
         App.runApp cfg demo
-        liftIO $ threadDelay 1000000
-      let msg = Status n $ do
-            div_ [class_ "flex items-center space-x-4"] $ do
-              b_ "Count"
-              code_ $ toHtml @Text $ show n
+      let msg = Status n $ viewInner n
       pure $ S.Yield msg $ step (n + 1)
 
 demo :: Eff App.AppStack ()
-demo = pass
+demo = do
+  liftIO $ threadDelay 1000000
 
 view :: Html ()
 view = do
   div_ [hxExt_ "sse", hxSseConnect_ "/status", hxSseSwap_ "status"] $ do
     "Loading status..."
+
+viewInner :: Int -> Html ()
+viewInner n = do
+  div_ [class_ "flex items-center space-x-4"] $ do
+    b_ "Count"
+    code_ $ toHtml @Text $ show n
