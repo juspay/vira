@@ -55,6 +55,9 @@
           ];
           stan = true;
         };
+        servant-event-stream = {
+          broken = false;
+        };
         safe-coloured-text-layout = {
           check = false;
           broken = false;

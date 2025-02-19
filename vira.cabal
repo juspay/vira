@@ -84,9 +84,12 @@ common library-shared
     , relude                 >=1.0
     , safecopy
     , servant
+    , servant-event-stream
     , servant-server
     , shower
     , sqlite-simple
+    , stm
+    , streaming
     , time
     , wai-extra
     , wai-middleware-static
@@ -108,6 +111,7 @@ library
     Vira.App.Servant
     Vira.App.Stack
     Vira.Lib.Git
+    Vira.Lib.HTMX
     Vira.Lib.Omnix
     Vira.Lib.Process
     Vira.Page.JobPage
@@ -116,6 +120,7 @@ library
     Vira.State.Acid
     Vira.State.Core
     Vira.State.Type
+    Vira.Status
     Vira.Supervisor
     Vira.Supervisor.Type
     Vira.Toplevel
