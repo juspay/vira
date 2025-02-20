@@ -27,11 +27,14 @@
             ];
           };
           sourceOutside = pkgs.writeTextDir "static/htmx-extensions/src/sse/sse.js" (builtins.readFile (inputs.htmx-extensions + /src/sse/sse.js));
+          # Sadly, we can't use buildEnv or symlinkJoin here (build failure on Linux)
+          combined = pkgs.runCommandNoCC "vira-src-combined" { } ''
+            cp -r ${sourceHere} $out
+            chmod -R u+w $out
+            cp -r ${sourceOutside}/* $out/
+          '';
         in
-        pkgs.symlinkJoin {
-          name = "vira";
-          paths = [ sourceHere sourceOutside ];
-        };
+        builtins.trace "${combined}" combined;
 
       packages = {
         htmx.source = inputs.htmx + /htmx;
