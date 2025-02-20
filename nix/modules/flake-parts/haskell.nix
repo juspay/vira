@@ -11,19 +11,27 @@
     haskellProjects.default = {
       # To avoid unnecessary rebuilds, we filter projectRoot:
       # https://community.flake.parts/haskell-flake/local#rebuild
-      projectRoot = builtins.toString (lib.fileset.toSource {
-        inherit root;
-        fileset = lib.fileset.unions [
-          (root + /src)
-          (root + /app)
-          (root + /test)
-          (root + /vira.cabal)
-          (root + /LICENSE)
-          (root + /README.md)
-          (root + /.stan.toml)
-          (root + /static)
-        ];
-      });
+      projectRoot =
+        let
+          sourceHere = lib.fileset.toSource {
+            inherit root;
+            fileset = lib.fileset.unions [
+              (root + /src)
+              (root + /app)
+              (root + /test)
+              (root + /vira.cabal)
+              (root + /LICENSE)
+              (root + /README.md)
+              (root + /.stan.toml)
+              (root + /static)
+            ];
+          };
+          sourceOutside = pkgs.writeTextDir "static/htmx-extensions/src/sse/sse.js" (builtins.readFile (inputs.htmx-extensions + /src/sse/sse.js));
+        in
+        pkgs.symlinkJoin {
+          name = "vira";
+          paths = [ sourceHere sourceOutside ];
+        };
 
       packages = {
         htmx.source = inputs.htmx + /htmx;
