@@ -1,3 +1,4 @@
+{ inputs, ... }:
 {
   perSystem = { inputs', config, pkgs, ... }: {
     # Default shell.
@@ -9,6 +10,9 @@
         config.haskellProjects.default.outputs.devShell # See ./nix/modules/haskell.nix
         config.pre-commit.devShell # See ./nix/modules/formatter.nix
       ];
+      shellHook = ''
+        ln -sf ${inputs.htmx-extensions} ./static/htmx-extensions
+      '';
       packages = with pkgs; [
         just
         nixd
