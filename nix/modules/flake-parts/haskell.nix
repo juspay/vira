@@ -83,6 +83,9 @@
           stan = pkgs.haskellPackages.stan;
           vira-dev = config.process-compose."vira-dev".outputs.package;
         };
+        mkShellArgs.shellHook = ''
+          ln -sf ${inputs.htmx-extensions} ./static/htmx-extensions
+        '';
       };
 
       # What should haskell-flake add to flake outputs?
