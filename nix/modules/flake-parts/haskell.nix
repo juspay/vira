@@ -11,19 +11,30 @@
     haskellProjects.default = {
       # To avoid unnecessary rebuilds, we filter projectRoot:
       # https://community.flake.parts/haskell-flake/local#rebuild
-      projectRoot = builtins.toString (lib.fileset.toSource {
-        inherit root;
-        fileset = lib.fileset.unions [
-          (root + /src)
-          (root + /app)
-          (root + /test)
-          (root + /vira.cabal)
-          (root + /LICENSE)
-          (root + /README.md)
-          (root + /.stan.toml)
-          (root + /static)
-        ];
-      });
+      projectRoot =
+        let
+          sourceHere = lib.fileset.toSource {
+            inherit root;
+            fileset = lib.fileset.unions [
+              (root + /src)
+              (root + /app)
+              (root + /test)
+              (root + /vira.cabal)
+              (root + /LICENSE)
+              (root + /README.md)
+              (root + /.stan.toml)
+              (root + /static)
+            ];
+          };
+          sourceOutside = pkgs.writeTextDir "static/htmx-extensions/src/sse/sse.js" (builtins.readFile (inputs.htmx-extensions + /src/sse/sse.js));
+          # Sadly, we can't use buildEnv or symlinkJoin here (build failure on Linux)
+          combined = pkgs.runCommandNoCC "vira-src-combined" { } ''
+            cp -r ${sourceHere} $out
+            chmod -R u+w $out
+            cp -r ${sourceOutside}/* $out/
+          '';
+        in
+        combined;
 
       packages = {
         htmx.source = inputs.htmx + /htmx;
@@ -72,6 +83,9 @@
           stan = pkgs.haskellPackages.stan;
           vira-dev = config.process-compose."vira-dev".outputs.package;
         };
+        mkShellArgs.shellHook = ''
+          ln -sf ${inputs.htmx-extensions} ./static/htmx-extensions
+        '';
       };
 
       # What should haskell-flake add to flake outputs?

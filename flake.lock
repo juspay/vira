@@ -314,6 +314,23 @@
         "type": "github"
       }
     },
+    "htmx-extensions": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1740062719,
+        "narHash": "sha256-KW8ahQdu1pevghnKNL+Idie2o6TtKlUqwES2kpmqOVs=",
+        "owner": "juspay",
+        "repo": "htmx-extensions",
+        "rev": "0f7b0b569651c259af0fa81d78530f0f540d709b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "juspay",
+        "ref": "sse-unload",
+        "repo": "htmx-extensions",
+        "type": "github"
+      }
+    },
     "inspect": {
       "flake": false,
       "locked": {
@@ -532,6 +549,7 @@
         "git-hooks": "git-hooks",
         "haskell-flake": "haskell-flake_2",
         "htmx": "htmx",
+        "htmx-extensions": "htmx-extensions",
         "nixos-unified": "nixos-unified",
         "nixpkgs": "nixpkgs_2",
         "omnix": "omnix",

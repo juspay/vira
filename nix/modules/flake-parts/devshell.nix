@@ -1,3 +1,4 @@
+{ inputs, ... }:
 {
   perSystem = { inputs', config, pkgs, ... }: {
     # Default shell.

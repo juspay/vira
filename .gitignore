@@ -14,6 +14,7 @@ result-*
 /.pre-commit-config.yaml
 
 /tailwind.log
+/static/htmx-extensions
 
 # acid-state
 /state
