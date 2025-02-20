@@ -32,7 +32,7 @@ handler cfg = S.fromStepT $ step 0
   where
     step (n :: Int) = S.Effect $ do
       when (n > 0) $ do
-        liftIO $ threadDelay 1_000_000_000
+        liftIO $ threadDelay 1_000_000
       jobs <- App.runApp cfg runningJobs
       let msg = Status n $ viewInner cfg.linkTo jobs
       pure $ S.Yield msg $ step (n + 1)
