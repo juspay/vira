@@ -34,7 +34,7 @@
             cp -r ${sourceOutside}/* $out/
           '';
         in
-        builtins.trace "${combined}" combined;
+        combined;
 
       packages = {
         htmx.source = inputs.htmx + /htmx;
