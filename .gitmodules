@@ -1,0 +1,4 @@
+[submodule "static/htmx-extensions"]
+	path = static/htmx-extensions
+	url = git@github.com:juspay/htmx-extensions.git
+	branch = sse-unload
