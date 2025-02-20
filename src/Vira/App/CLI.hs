@@ -22,6 +22,8 @@ data Settings = Settings
   -- ^ Path to the vira db
   , repo :: RepoSettings
   -- ^ Repositories settings
+  , instanceName :: Text
+  -- ^ Name of the instance; uses hostname if unspecified
   }
   deriving stock (Show)
 
@@ -78,6 +80,14 @@ instance HasParser Settings where
         , value "vira.db"
         ]
     repo <- subSettings "repo"
+    instanceName <-
+      setting
+        [ reader str
+        , metavar "INSTANCE_NAME"
+        , help "Name of the instance; uses hostname if unspecified"
+        , name "instance-name"
+        , value ""
+        ]
     pure Settings {..}
 
 instance HasParser RepoSettings where

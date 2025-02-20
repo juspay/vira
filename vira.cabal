@@ -70,6 +70,7 @@ common library-shared
     , effectful-th
     , filepath
     , gitlib
+    , hostname
     , hspec
     , hspec-discover
     , htmx

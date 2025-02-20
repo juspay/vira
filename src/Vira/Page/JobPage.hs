@@ -55,7 +55,7 @@ viewHandler jobId = do
     -- TODO: Streaming!
     liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
   let crumbs = [LinkTo.RepoListing, LinkTo.Repo job.jobRepo, LinkTo.Job jobId]
-  pure $ W.layout cfg.linkTo (show jobId) crumbs $ do
+  pure $ W.layout cfg (show jobId) crumbs $ do
     viewJob cfg.linkTo job
     div_ $ do
       pre_ [class_ "bg-black text-white p-2 text-xs"] $ code_ $ do

@@ -52,7 +52,7 @@ viewHandler name = do
     pure (branch, jobs)
   pure
     $ W.layout
-      cfg.linkTo
+      cfg
       (toHtml . toString $ name)
       (crumbs <> [LinkTo.Repo name])
     $ do

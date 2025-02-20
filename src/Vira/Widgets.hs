@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 -- | Common Lucid rendering helpers
 module Vira.Widgets (
   layout,
@@ -5,25 +7,26 @@ module Vira.Widgets (
 ) where
 
 import Lucid
-import Servant.Links (Link, URI (..), linkURI)
+import Servant.Links (URI (..), linkURI)
+import Vira.App (AppState (linkTo, settings), instanceName)
 import Vira.App.LinkTo (LinkTo, linkShortTitle)
 import Vira.Lib.HTMX
 import Vira.Status qualified as Status
 
 -- | Common HTML layout for all routes.
-layout :: (LinkTo -> Link) -> Html () -> [LinkTo] -> Html () -> Html ()
-layout linkTo heading crumbs content = do
+layout :: AppState -> Html () -> [LinkTo] -> Html () -> Html ()
+layout cfg heading crumbs content = do
   doctype_
   html_ $ do
     head_ $ do
       mobileFriendly
-      title_ "Vira"
+      title_ $ toHtml @Text $ "Vira (" <> cfg.settings.instanceName <> ")"
       base_ [href_ "/"]
       htmx
       link_ [rel_ "stylesheet", type_ "text/css", href_ "/tailwind.css"]
     body_ [class_ "bg-gray-100"] $ do
       div_ [class_ "container mx-auto p-4 mt-8 bg-white"] $ do
-        let crumbs' = crumbs <&> \l -> (toHtml $ linkShortTitle l, linkURI $ linkTo l)
+        let crumbs' = crumbs <&> \l -> (toHtml $ linkShortTitle l, linkURI $ cfg.linkTo l)
         breadcrumbs crumbs'
         h1_ [class_ "text-3xl border-b-2 mb-2"] heading
         content

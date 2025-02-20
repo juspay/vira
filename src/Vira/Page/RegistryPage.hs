@@ -35,7 +35,7 @@ handleListing = do
   cfg <- ask
   samples <- App.query St.GetAllReposA
   let crumbs = [LinkTo.RepoListing]
-  pure $ W.layout cfg.linkTo "Repositories" crumbs $ do
+  pure $ W.layout cfg "Repositories" crumbs $ do
     viewRepoList cfg.linkTo samples
 
 viewRepoList :: (LinkTo.LinkTo -> Link) -> [St.Repo] -> Html ()

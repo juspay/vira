@@ -12,6 +12,7 @@ import Effectful (Eff)
 import Effectful.Reader.Dynamic (ask)
 import Lucid
 import Main.Utf8 qualified as Utf8
+import Network.HostName (getHostName)
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Middleware.Static (
   addBase,
@@ -55,7 +56,7 @@ handlers :: App.AppState -> Routes AsServer
 handlers cfg =
   Routes
     { _home = App.runAppInServant cfg $ do
-        pure $ W.layout cfg.linkTo "Welcome" [] $ do
+        pure $ W.layout cfg "Welcome" [] $ do
           nav_ [class_ "space-y-2"] $ do
             forM_ menu $ \(name, url) -> do
               a_ [href_ url, class_ "flex items-center p-3 space-x-3 text-blue-700 font-bold transition-colors rounded-md hover:bg-gray-100"] $ do
@@ -63,7 +64,7 @@ handlers cfg =
     , _repos = RegistryPage.handlers cfg
     , _jobs = JobPage.handlers cfg
     , _about = do
-        pure $ W.layout cfg.linkTo "About Vira" [About] $ do
+        pure $ W.layout cfg "About Vira" [About] $ do
           div_ $ do
             a_ [href_ "https://github.com/juspay/vira"] "GitHub Repo"
     , _status = pure $ Status.handler cfg
@@ -82,7 +83,9 @@ runVira = do
   Utf8.withUtf8 $ do
     hSetBuffering stdout LineBuffering
     hSetBuffering stderr LineBuffering
-    settings :: Settings <- OptEnvConf.runSettingsParser Paths_vira.version "Nix CI & Cache for teams"
+    settings' :: Settings <- OptEnvConf.runSettingsParser Paths_vira.version "Nix CI & Cache for teams"
+    hostName <- liftIO getHostName
+    let settings = if settings'.instanceName == "" then settings' {instanceName = toText hostName} else settings'
     appIO settings
   where
     -- Like `app` but in `IO`
@@ -97,7 +100,7 @@ runVira = do
     -- Vira application for given `Settings`
     app :: (HasCallStack) => Settings -> Eff AppStack ()
     app settings = do
-      log Info $ "Launching vira at http://" <> settings.host <> ":" <> show settings.port
+      log Info $ "Launching vira (" <> settings.instanceName <> ") at http://" <> settings.host <> ":" <> show settings.port
       log Debug $ "Settings: " <> show settings
       staticDir <- liftIO Paths_vira.getDataDir
       log Debug $ "Serving static files from: " <> show staticDir
