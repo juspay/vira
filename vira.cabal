@@ -14,7 +14,9 @@ extra-source-files:
   README.md
 
 data-dir:           static
-data-files:         tailwind.css
+data-files:
+  htmx-extensions/src/sse/sse.js
+  tailwind.css
 
 flag ghcid
   default: False
