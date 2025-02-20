@@ -81,7 +81,7 @@ data Job = Job
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
-type JobIxs = '[RepoName, BranchName, CommitID, JobId]
+type JobIxs = '[RepoName, BranchName, CommitID, JobId, JobStatus]
 type IxJob = IxSet JobIxs Job
 
 instance Indexable JobIxs Job where
@@ -91,6 +91,7 @@ instance Indexable JobIxs Job where
       (ixFun $ \Job {jobBranch} -> [jobBranch])
       (ixFun $ \Job {jobCommit} -> [jobCommit])
       (ixFun $ \Job {jobId} -> [jobId])
+      (ixFun $ \Job {jobStatus} -> [jobStatus])
 
 data JobStatus
   = JobPending

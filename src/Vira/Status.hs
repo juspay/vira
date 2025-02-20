@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 -- | Real-time status of the Vira system.
 module Vira.Status where
 
@@ -5,11 +7,16 @@ import Control.Concurrent (threadDelay)
 import Effectful (Eff)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
+import Servant (Link, linkURI)
 import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S
 import Vira.App qualified as App
+import Vira.App.LinkTo (LinkTo)
+import Vira.App.LinkTo qualified as LinkTo
 import Vira.Lib.HTMX
-import Prelude hiding (Reader, ask, runReader)
+import Vira.State.Acid qualified as Acid
+import Vira.State.Type
+import Prelude hiding (Reader, ask, asks, runReader)
 
 data Status = Status Int (Html ())
 
@@ -25,21 +32,28 @@ handler cfg = S.fromStepT $ step 0
   where
     step (n :: Int) = S.Effect $ do
       when (n > 0) $ do
-        App.runApp cfg demo
-      let msg = Status n $ viewInner n
+        liftIO $ threadDelay 1_000_000_000
+      jobs <- App.runApp cfg runningJobs
+      let msg = Status n $ viewInner cfg.linkTo jobs
       pure $ S.Yield msg $ step (n + 1)
 
-demo :: Eff App.AppStack ()
-demo = do
-  liftIO $ threadDelay 1000000
+runningJobs :: Eff App.AppStack [(RepoName, JobId)]
+runningJobs = do
+  jobs <- App.query Acid.GetRunningJobs
+  pure $
+    jobs <&> \job ->
+      (job.jobRepo, job.jobId)
 
 view :: Html ()
 view = do
   div_ [hxExt_ "sse", hxSseConnect_ "/status", hxSseSwap_ "status"] $ do
     "Loading status..."
 
-viewInner :: Int -> Html ()
-viewInner n = do
-  div_ [class_ "flex items-center space-x-4"] $ do
-    b_ "Count"
-    code_ $ toHtml @Text $ show n
+viewInner :: (LinkTo -> Link) -> [(RepoName, JobId)] -> Html ()
+viewInner linkTo jobs = do
+  div_ [class_ "flex items-center space-x-2"] $ do
+    forM_ jobs $ \(repo, jobId) -> do
+      a_ [href_ $ show . linkURI $ linkTo $ LinkTo.Job jobId] $ do
+        span_ $ b_ $ toHtml $ unRepoName repo
+        "/"
+        span_ $ code_ $ toHtml @Text $ show jobId
