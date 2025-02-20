@@ -33,9 +33,9 @@ logSupervisorState :: (HasCallStack, Concurrent :> es, Log Message :> es) => Tas
 logSupervisorState supervisor = do
   tasks <- readMVar (tasks supervisor)
   withFrozenCallStack $ log Debug $ "Current tasks: " <> show (Map.keys tasks)
-  forM_ (Map.toList tasks) $ \(taskId, _) -> do
-    taskState <- getTaskStatus supervisor taskId
-    withFrozenCallStack $ log Debug $ "Task " <> show taskId <> " state: " <> show taskState
+  forM_ (Map.toList tasks) $ \(taskId, task) -> do
+    st <- taskState task
+    withFrozenCallStack $ log Debug $ "Task " <> show taskId <> " state: " <> show st
 
 -- | Start a new a task, returning its working directory.
 startTask ::
@@ -127,15 +127,10 @@ killTask supervisor taskId = do
       cancel asyncHandle
     pure $ Map.delete taskId tasks
 
--- | Get the status of a task
-getTaskStatus :: (Concurrent :> es) => TaskSupervisor -> TaskId -> Eff es TaskState
-getTaskStatus supervisor taskId = do
-  tasks <- readMVar (tasks supervisor)
-  case Map.lookup taskId tasks of
-    Nothing -> pure Killed
-    Just Task {..} -> do
-      status <- poll asyncHandle
-      case status of
-        Nothing -> pure Running
-        Just (Right output) -> pure $ Finished output
-        Just (Left _) -> pure Killed
+taskState :: (Concurrent :> es) => Task -> Eff es TaskState
+taskState Task {..} = do
+  status <- poll asyncHandle
+  case status of
+    Nothing -> pure Running
+    Just (Right _) -> pure $ Finished ExitSuccess
+    Just (Left _) -> pure Killed

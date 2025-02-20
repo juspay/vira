@@ -92,6 +92,12 @@ getJobsByBranchA repo branch = do
   ViraState {jobs} <- ask
   pure $ Ix.toDescList (Proxy @JobId) $ jobs @= repo @= branch
 
+-- | Get all running jobs
+getRunningJobs :: Query ViraState [Job]
+getRunningJobs = do
+  ViraState {jobs} <- ask
+  pure $ Ix.toList $ jobs @+ [JobPending, JobRunning]
+
 getJobA :: JobId -> Query ViraState (Maybe Job)
 getJobA jobId = do
   ViraState {jobs} <- ask
@@ -163,6 +169,7 @@ $( makeAcidic
     , 'setRepoA
     , 'setRepoBranchesA
     , 'getJobsByBranchA
+    , 'getRunningJobs
     , 'getJobA
     , 'addNewJobA
     , 'jobUpdateStatusA

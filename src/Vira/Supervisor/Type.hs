@@ -10,7 +10,7 @@ data TaskState
   = Running
   | Finished ExitCode
   | Killed
-  deriving stock (Generic, Show)
+  deriving stock (Eq, Generic, Show)
 
 {- | Supervisor for managing tasks
 
