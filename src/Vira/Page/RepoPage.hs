@@ -89,5 +89,5 @@ viewRepo linkTo repo branches = do
             ]
             "Build"
         ul_ $ forM_ jobs $ \job -> do
-          li_ [class_ "my-4 py-2"] $ do
+          li_ [class_ "my-2 py-1"] $ do
             JobPage.viewJob linkTo job
