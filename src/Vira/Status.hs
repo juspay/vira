@@ -51,9 +51,15 @@ view = do
 
 viewInner :: (LinkTo -> Link) -> [(RepoName, JobId)] -> Html ()
 viewInner linkTo jobs = do
-  div_ [class_ "flex items-center space-x-2"] $ do
+  div_ [class_ "flex items-center space-x-2", title_ "Build Status"] $ do
+    indicator $ not $ null jobs
     forM_ jobs $ \(repo, jobId) -> do
       a_ [href_ $ show . linkURI $ linkTo $ LinkTo.Job jobId] $ do
         span_ $ b_ $ toHtml $ unRepoName repo
         "/"
         span_ $ code_ $ toHtml @Text $ show jobId
+
+indicator :: Bool -> Html ()
+indicator active = do
+  let classes = if not active then "border-blue-300" else "border-blue-500 animate-ping"
+  div_ [class_ $ "w-4 h-4 border-2 rounded-full " <> classes] ""
