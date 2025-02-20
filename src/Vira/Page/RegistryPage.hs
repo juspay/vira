@@ -34,13 +34,14 @@ handleListing :: Eff App.AppServantStack (Html ())
 handleListing = do
   cfg <- ask
   samples <- App.query St.GetAllReposA
-  pure $ W.layout cfg.linkTo "Repositories" [] $ do
+  let crumbs = [LinkTo.RepoListing]
+  pure $ W.layout cfg.linkTo "Repositories" crumbs $ do
     viewRepoList cfg.linkTo samples
 
 viewRepoList :: (LinkTo.LinkTo -> Link) -> [St.Repo] -> Html ()
 viewRepoList linkTo registry = do
-  div_ $ do
+  ul_ [class_ "max-w-md divide-y divide-blue-200"] $ do
     forM_ registry $ \repo -> do
-      li_ $ do
+      li_ [class_ "py-3 hover:bg-blue-50 font-bold text-xl"] $ do
         let url = linkURI $ linkTo $ LinkTo.Repo repo.name
         a_ [href_ $ show url] $ toHtml . toString $ repo.name

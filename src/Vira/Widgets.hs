@@ -66,8 +66,9 @@ breadcrumbs rs' = do
 viraButton_ :: forall {result}. (Term [Attributes] result) => [Attributes] -> result
 viraButton_ attrs =
   button_
-    ( [ class_ "p-2 border-1 bg-blue-50 font-bold"
-      , hyperscript_ "on click toggle .bg-red-200 until htmx:afterOnLoad"
+    ( [ class_ "inline-flex h-12 items-center justify-center rounded-md bg-blue-950 px-4 my-2 font-medium text-neutral-50 shadow-lg shadow-blue-500/20 transition active:scale-95"
+      , type_ "button"
+      , hyperscript_ "on click toggle .bg-green-500 until htmx:afterOnLoad"
       ]
         <> attrs
     )

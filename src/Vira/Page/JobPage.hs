@@ -71,7 +71,7 @@ viewJob linkTo job = do
 
 viewCommit :: Git.CommitID -> Html ()
 viewCommit (Git.CommitID commit) = do
-  code_ [class_ "text-gray-700 hover:text-black"] $ toHtml commit
+  code_ [class_ "text-gray-700 text-sm hover:text-black"] $ toHtml commit
 
 viewJobStatus :: St.JobStatus -> Html ()
 viewJobStatus status = do

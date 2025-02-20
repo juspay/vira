@@ -70,20 +70,18 @@ updateHandler name = do
 -- TODO: Can we use `HtmlT (ReaderT ..) ()` to avoid threading the linkTo function?
 viewRepo :: (LinkTo.LinkTo -> Link) -> St.Repo -> [(St.Branch, [St.Job])] -> Html ()
 viewRepo linkTo repo branches = do
-  W.viraButton_
-    [ hxPostSafe_ $ linkTo $ RepoUpdate repo.name
-    , hxSwapS_ AfterEnd
-    ]
-    "Refresh repo"
   div_ $ do
-    p_ "To clone this repo"
-    pre_ [class_ "bg-black text-white"] $ code_ $ toHtml $ "git clone " <> repo.cloneUrl
-    h2_ [class_ "text-3xl font-bold my-8"] "Branches"
-    p_ "NOTE: Displaying only whitelisted branches"
-    div_ [class_ "my-8"] $ do
+    pre_ [class_ "bg-neutral-600 rounded text-neutral-50 p-2 my-4"] $ code_ $ toHtml repo.cloneUrl
+    W.viraButton_
+      [ hxPostSafe_ $ linkTo $ RepoUpdate repo.name
+      , hxSwapS_ AfterEnd
+      ]
+      "Refresh branches"
+    div_ [class_ ""] $ do
       forM_ branches $ \(branch, jobs) -> do
-        h2_ [class_ "text-2xl py-2 my-4 border-b-2"] $ code_ $ toHtml $ toString branch.branchName
-        "Head Commit: " <> JobPage.viewCommit branch.headCommit
+        h2_ [class_ "text-2xl py-2 my-4 border-b-2 flex items-start flex-col"] $ do
+          div_ $ toHtml $ toString branch.branchName
+          div_ $ JobPage.viewCommit branch.headCommit
         div_ $
           W.viraButton_
             [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
