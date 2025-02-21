@@ -109,7 +109,8 @@ startTask' taskId pwd h = runProcs . toList
 
     runProc :: CreateProcess -> Eff es (Maybe Pid, ExitCode)
     runProc proc = do
-      logToWorkspaceOutput $ "Task started: " <> show (cmdspec proc)
+      log Debug $ "Starting task: " <> show (cmdspec proc)
+      logToWorkspaceOutput $ "Starting task: " <> show (cmdspec proc)
       outputHandle <- openFile outputLogFile AppendMode
       let processSettings =
             Process.alwaysUnderPath pwd
