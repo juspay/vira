@@ -16,6 +16,7 @@ import System.FilePath ((</>))
 import Vira.App qualified as App
 import Vira.App.LinkTo qualified as LinkTo
 import Vira.App.Logging
+import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Lib.Omnix qualified as Omnix
@@ -118,7 +119,7 @@ triggerNewBuild repoName branchName = do
         { cwd = Just "project"
         }
     stageCachix cachix =
-      (proc "cachix" ["push", "-v", toString cachix.cachixName, "result"])
+      (cachixPushProcess cachix.cachixName "result")
         { env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]
         , cwd = Just "project"
         }
