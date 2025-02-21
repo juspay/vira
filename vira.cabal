@@ -108,12 +108,12 @@ library
     Paths_vira
     Vira.App
     Vira.App.AcidState
-    Vira.App.Cachix
     Vira.App.CLI
     Vira.App.LinkTo
     Vira.App.Logging
     Vira.App.Servant
     Vira.App.Stack
+    Vira.Lib.Cachix
     Vira.Lib.Git
     Vira.Lib.HTMX
     Vira.Lib.Omnix
