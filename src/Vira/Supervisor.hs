@@ -10,7 +10,7 @@ import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar, modifyMVar_, readMVar)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.FileSystem.IO (hClose, openFile)
-import Effectful.Process (CreateProcess (cmdspec), Process, createProcess, waitForProcess)
+import Effectful.Process (CreateProcess (cmdspec), Pid, Process, createProcess, getPid, waitForProcess)
 import System.Directory (getCurrentDirectory, makeAbsolute)
 import System.Directory qualified
 import System.Exit (ExitCode (ExitSuccess))
@@ -99,13 +99,15 @@ startTask' taskId pwd h = runProcs . toList
       pure ExitSuccess
     runProcs (proc : rest) =
       runProc proc >>= \case
-        ExitSuccess -> runProcs rest
-        exitCode -> do
-          log Info $ "A proc for task " <> show taskId <> " failed with exitCode " <> show exitCode
+        (pid, ExitSuccess) -> do
+          log Debug $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") successfully finished."
+          runProcs rest
+        (pid, exitCode) -> do
+          log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") failed with exitCode " <> show exitCode
           h exitCode
           pure exitCode
 
-    runProc :: CreateProcess -> Eff es ExitCode
+    runProc :: CreateProcess -> Eff es (Maybe Pid, ExitCode)
     runProc proc = do
       logToWorkspaceOutput $ "Task started: " <> show (cmdspec proc)
       outputHandle <- openFile outputLogFile AppendMode
@@ -113,10 +115,12 @@ startTask' taskId pwd h = runProcs . toList
             Process.alwaysUnderPath pwd
               >>> Process.redirectOutputTo outputHandle
       (_, _, _, ph) <- createProcess $ proc & processSettings
+      pid <- getPid ph
+      log Debug $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
       exitCode <- waitForProcess ph
       hClose outputHandle
-      logToWorkspaceOutput $ "A task finished with exit code " <> show exitCode
-      pure exitCode
+      logToWorkspaceOutput $ "A task (pid=" <> show pid <> ") finished with exit code " <> show exitCode
+      pure (pid, exitCode)
 
 -- | Kill a task
 killTask :: TaskSupervisor -> TaskId -> Eff App.AppStack ()
