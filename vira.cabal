@@ -57,6 +57,7 @@ common library-shared
     , async
     , autodocodec
     , base                   >=4   && <5
+    , bytestring
     , co-log
     , co-log-core
     , co-log-effectful

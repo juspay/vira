@@ -33,6 +33,8 @@ data Routes mode = Routes
     _build :: mode :- "new" :> Capture "repo" RepoName :> Capture "branch" BranchName :> Post '[HTML] (Headers '[HXRefresh] Text)
   , -- View a job
     _view :: mode :- Capture "job" JobId :> Get '[HTML] (Html ())
+  , -- Raw build log
+    _rawLog :: mode :- Capture "job" JobId :> "log" :> Get '[PlainText] Text
   }
   deriving stock (Generic)
 
@@ -41,7 +43,15 @@ handlers cfg = do
   Routes
     { _build = \x -> App.runAppInServant cfg . buildHandler x
     , _view = App.runAppInServant cfg . viewHandler
+    , _rawLog = App.runAppInServant cfg . rawLogHandler
     }
+
+rawLogHandler :: JobId -> Eff App.AppServantStack Text
+rawLogHandler jobId = do
+  job <- App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
+  logText <-
+    liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
+  pure $ decodeUtf8 logText
 
 buildHandler :: RepoName -> BranchName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 buildHandler repoName branch = do
@@ -54,13 +64,28 @@ viewHandler jobId = do
   job <- App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
   logText <-
     -- TODO: Streaming!
-    liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
+    liftIO $ fmap (decodeUtf8 @Text) . readFileBS $ job.jobWorkingDir </> "output.log"
   let crumbs = [LinkTo.RepoListing, LinkTo.Repo job.jobRepo, LinkTo.Job jobId]
   pure $ W.layout cfg (show jobId) crumbs $ do
     viewJob cfg.linkTo job
     div_ $ do
+      let linesToShow = 20
+      div_ [class_ "my-2"] $ do
+        p_ $ do
+          "Displaying only last " <> show linesToShow <> " lines of the log. "
+          a_
+            [target_ "blank", class_ "underline text-blue-500", href_ $ show . linkURI $ cfg.linkTo $ LinkTo.JobLog job.jobId]
+            "View Full Log"
+        p_ "NOTE: You must refresh this page, since logs are not being streamed (yet)"
       pre_ [class_ "bg-black text-white p-2 text-xs"] $ code_ $ do
-        toHtml logText
+        "[..]\n"
+        toHtml $ getLastNLines linesToShow logText
+
+getLastNLines :: Int -> Text -> Text
+getLastNLines n = unlines . lastN n . lines
+  where
+    lastN :: Int -> [a] -> [a]
+    lastN n' xs = drop (length xs - n') xs
 
 viewJob :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewJob linkTo job = do
