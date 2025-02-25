@@ -138,3 +138,4 @@ linkTo = \case
   RepoUpdate name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._update
   Build repo branch -> fieldLink _jobs // JobPage._build /: repo /: branch
   Job jobId -> fieldLink _jobs // JobPage._view /: jobId
+  JobLog jobId -> fieldLink _jobs // JobPage._rawLog /: jobId
