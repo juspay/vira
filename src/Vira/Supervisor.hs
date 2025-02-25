@@ -60,7 +60,8 @@ startTask ::
   Eff es ()
 startTask supervisor taskId pwd procs h = do
   logSupervisorState supervisor
-  log Info $ "Starting task group: " <> show (cmdspec <$> procs) <> " in " <> toText pwd
+  let msg = "Starting task group: " <> show (cmdspec <$> procs) <> " in " <> toText pwd
+  log Info msg
   modifyMVar (tasks supervisor) $ \tasks -> do
     if Map.member taskId tasks
       then do
@@ -68,9 +69,21 @@ startTask supervisor taskId pwd procs h = do
         die $ "Task " <> show taskId <> " already exists"
       else do
         createDirectoryIfMissing True pwd
+        logToWorkspaceOutput taskId pwd msg
         asyncHandle <- async $ startTask' taskId pwd h procs
         let task = Task {workDir = pwd, asyncHandle}
         pure (Map.insert taskId task tasks, ())
+
+-- Send all output to a file under working directory.
+-- Write vira level log entry to the output log
+outputLogFile :: FilePath -> FilePath
+outputLogFile base = base </> "output.log"
+
+-- TODO: In lieu of https://github.com/juspay/vira/issues/6
+logToWorkspaceOutput :: (IOE :> es) => TaskId -> FilePath -> Text -> Eff es ()
+logToWorkspaceOutput taskId base (msg :: Text) = do
+  let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
+  appendFileText (outputLogFile base) s
 
 startTask' ::
   forall es.
@@ -83,14 +96,6 @@ startTask' ::
   Eff es ExitCode
 startTask' taskId pwd h = runProcs . toList
   where
-    -- Send all output to a file under working directory.
-    -- Write vira level log entry to the output log
-    outputLogFile = pwd </> "output.log"
-    -- TODO: In lieu of https://github.com/juspay/vira/issues/6
-    logToWorkspaceOutput (msg :: Text) = do
-      let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
-      appendFileText outputLogFile s
-
     -- Run each process one after another; exiting immediately if any fails
     runProcs :: [CreateProcess] -> Eff es ExitCode
     runProcs [] = do
@@ -110,8 +115,8 @@ startTask' taskId pwd h = runProcs . toList
     runProc :: CreateProcess -> Eff es (Maybe Pid, ExitCode)
     runProc proc = do
       log Debug $ "Starting task: " <> show (cmdspec proc)
-      logToWorkspaceOutput $ "Starting task: " <> show (cmdspec proc)
-      outputHandle <- openFile outputLogFile AppendMode
+      logToWorkspaceOutput taskId pwd $ "Starting task: " <> show (cmdspec proc)
+      outputHandle <- openFile (outputLogFile pwd) AppendMode
       let processSettings =
             Process.alwaysUnderPath pwd
               >>> Process.redirectOutputTo outputHandle
@@ -120,7 +125,7 @@ startTask' taskId pwd h = runProcs . toList
       log Debug $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
       exitCode <- waitForProcess ph
       hClose outputHandle
-      logToWorkspaceOutput $ "A task (pid=" <> show pid <> ") finished with exit code " <> show exitCode
+      logToWorkspaceOutput taskId pwd $ "A task (pid=" <> show pid <> ") finished with exit code " <> show exitCode
       pure (pid, exitCode)
 
 -- | Kill a task
