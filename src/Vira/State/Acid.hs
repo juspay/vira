@@ -128,11 +128,13 @@ jobUpdateStatusA jobId status = do
       { jobs = Ix.updateIx jobId (job {jobStatus = status}) s.jobs
       }
 
-markRunningJobsAsStaleA :: Update ViraState ()
-markRunningJobsAsStaleA = do
+markUnfinishedJobsAsStaleA :: Update ViraState ()
+markUnfinishedJobsAsStaleA = do
   jobs <- Ix.toList <$> gets jobs
   forM_ jobs $ \job -> do
     case job.jobStatus of
+      JobPending -> do
+        jobUpdateStatusA job.jobId JobKilled
       JobRunning -> do
         jobUpdateStatusA job.jobId JobKilled
       _ -> pass
@@ -173,6 +175,6 @@ $( makeAcidic
     , 'getJobA
     , 'addNewJobA
     , 'jobUpdateStatusA
-    , 'markRunningJobsAsStaleA
+    , 'markUnfinishedJobsAsStaleA
     ]
  )

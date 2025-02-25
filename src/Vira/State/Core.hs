@@ -21,7 +21,7 @@ openViraState :: [Repo] -> IO (AcidState ViraState)
 openViraState repos = do
   st <- openLocalState $ ViraState mempty mempty mempty
   update st $ SetAllReposA repos
-  update st MarkRunningJobsAsStaleA
+  update st MarkUnfinishedJobsAsStaleA
   pure st
 
 {- | Close vira database
