@@ -110,6 +110,7 @@ library
     Vira.App
     Vira.App.AcidState
     Vira.App.CLI
+    Vira.App.LinkTo.Resolve
     Vira.App.LinkTo.Type
     Vira.App.Logging
     Vira.App.Servant
@@ -122,6 +123,7 @@ library
     Vira.Page.JobPage
     Vira.Page.RegistryPage
     Vira.Page.RepoPage
+    Vira.Routes
     Vira.State.Acid
     Vira.State.Core
     Vira.State.Type
