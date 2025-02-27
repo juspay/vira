@@ -20,6 +20,7 @@ import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Lib.Omnix qualified as Omnix
+import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (JobId, RepoName, jobWorkingDir)
@@ -33,8 +34,8 @@ data Routes mode = Routes
     _build :: mode :- "new" :> Capture "repo" RepoName :> Capture "branch" BranchName :> Post '[HTML] (Headers '[HXRefresh] Text)
   , -- View a job
     _view :: mode :- Capture "job" JobId :> Get '[HTML] (Html ())
-  , -- Raw build log
-    _rawLog :: mode :- Capture "job" JobId :> "log" :> Get '[PlainText] Text
+  , -- Log routes
+    _log :: mode :- Capture "job" JobId :> "log" :> NamedRoutes JobLog.Routes
   }
   deriving stock (Generic)
 
@@ -43,15 +44,8 @@ handlers cfg = do
   Routes
     { _build = \x -> App.runAppInServant cfg . buildHandler x
     , _view = App.runAppInServant cfg . viewHandler
-    , _rawLog = App.runAppInServant cfg . rawLogHandler
+    , _log = JobLog.handlers cfg
     }
-
-rawLogHandler :: JobId -> Eff App.AppServantStack Text
-rawLogHandler jobId = do
-  job <- App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
-  logText <-
-    liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
-  pure $ decodeUtf8 logText
 
 buildHandler :: RepoName -> BranchName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 buildHandler repoName branch = do
