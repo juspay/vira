@@ -14,7 +14,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import System.FilePath ((</>))
 import Vira.App qualified as App
-import Vira.App.LinkTo qualified as LinkTo
+import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging
 import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)

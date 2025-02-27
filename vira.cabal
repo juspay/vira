@@ -110,7 +110,7 @@ library
     Vira.App
     Vira.App.AcidState
     Vira.App.CLI
-    Vira.App.LinkTo
+    Vira.App.LinkTo.Type
     Vira.App.Logging
     Vira.App.Servant
     Vira.App.Stack

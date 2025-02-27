@@ -9,7 +9,7 @@ module Vira.Widgets (
 import Lucid
 import Servant.Links (Link, URI (..), linkURI)
 import Vira.App (AppState (linkTo, settings), instanceName)
-import Vira.App.LinkTo (LinkTo, linkShortTitle)
+import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
 import Vira.Lib.HTMX
 import Vira.Status qualified as Status
 

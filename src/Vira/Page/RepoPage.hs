@@ -16,8 +16,8 @@ import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
-import Vira.App.LinkTo (LinkTo (RepoUpdate))
-import Vira.App.LinkTo qualified as LinkTo
+import Vira.App.LinkTo.Type (LinkTo (RepoUpdate))
+import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Git qualified as Git
 import Vira.Page.JobPage qualified as JobPage
 import Vira.State.Acid qualified as St

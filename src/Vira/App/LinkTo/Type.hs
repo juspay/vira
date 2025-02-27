@@ -1,5 +1,5 @@
 -- | Hints from across the apps to link to any route, but without needing a direct reference to all the routes (avoiding cylicic imports in Haskell)
-module Vira.App.LinkTo where
+module Vira.App.LinkTo.Type where
 
 import Vira.Lib.Git (BranchName)
 import Vira.State.Type (JobId, RepoName)

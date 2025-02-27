@@ -29,7 +29,7 @@ import Servant.Links (Link, fieldLink, linkURI)
 import Servant.Server.Generic (AsServer, genericServe)
 import Vira.App (AppStack, Settings (..), (//), (/:))
 import Vira.App qualified as App
-import Vira.App.LinkTo (LinkTo (..))
+import Vira.App.LinkTo.Type (LinkTo (..))
 import Vira.App.Logging
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
