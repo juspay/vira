@@ -22,4 +22,5 @@ linkTo = \case
   Build repo branch -> fieldLink _jobs // JobPage._build /: repo /: branch
   Job jobId -> fieldLink _jobs // JobPage._view /: jobId
   JobLog jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._rawLog
+  JobLogStream jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._streamLog
   StatusGet -> fieldLink _status // Status._get

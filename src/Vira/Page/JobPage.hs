@@ -7,18 +7,19 @@ import Effectful.Error.Static (throwError)
 import Effectful.Process (CreateProcess (cwd), env, proc)
 import Effectful.Reader.Dynamic (ask, asks)
 import GHC.IO.Exception (ExitCode (..))
+import Htmx.Lucid.Extra (hxExt_)
 import Htmx.Servant.Response
 import Lucid
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
-import System.FilePath ((</>))
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging
 import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
+import Vira.Lib.HTMX (hxSseConnect_, hxSseSwap_)
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
@@ -43,7 +44,7 @@ handlers :: App.AppState -> Routes AsServer
 handlers cfg = do
   Routes
     { _build = \x -> App.runAppInServant cfg . buildHandler x
-    , _view = App.runAppInServant cfg . viewHandler
+    , _view = App.runAppInServant cfg . viewHandler cfg.linkTo
     , _log = JobLog.handlers cfg
     }
 
@@ -52,28 +53,24 @@ buildHandler repoName branch = do
   triggerNewBuild repoName branch
   pure $ addHeader True "Ok"
 
-viewHandler :: JobId -> Eff App.AppServantStack (Html ())
-viewHandler jobId = do
+viewHandler :: (LinkTo.LinkTo -> Link) -> JobId -> Eff App.AppServantStack (Html ())
+viewHandler linkTo jobId = do
   cfg <- ask
   job <- App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
-  logText <-
-    -- TODO: Streaming!
-    liftIO $ fmap (decodeUtf8 @Text) . readFileBS $ job.jobWorkingDir </> "output.log"
   let crumbs = [LinkTo.RepoListing, LinkTo.Repo job.jobRepo, LinkTo.Job jobId]
   pure $ W.layout cfg (show jobId) crumbs $ do
     viewJob cfg.linkTo job
     div_ $ do
-      let linesToShow = 20
       div_ [class_ "my-2"] $ do
         p_ $ do
-          "Displaying only last " <> show linesToShow <> " lines of the log. "
           a_
             [target_ "blank", class_ "underline text-blue-500", href_ $ show . linkURI $ cfg.linkTo $ LinkTo.JobLog job.jobId]
             "View Full Log"
         p_ "NOTE: You must refresh this page, since logs are not being streamed (yet)"
       pre_ [class_ "bg-black text-white p-2 text-xs"] $ code_ $ do
-        "[..]\n"
-        toHtml $ getLastNLines linesToShow logText
+        let streamLink = show . linkURI $ linkTo $ LinkTo.JobLogStream job.jobId
+        div_ [hxExt_ "sse", hxSseConnect_ streamLink, hxSseSwap_ "logchunk"] $ do
+          "Loading log ..."
 
 getLastNLines :: Int -> Text -> Text
 getLastNLines n = unlines . lastN n . lines
