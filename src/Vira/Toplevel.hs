@@ -22,9 +22,8 @@ import Network.Wai.Middleware.Static (
  )
 import OptEnvConf qualified
 import Paths_vira qualified
-import Servant.API (Get, NamedRoutes, SourceIO, (:>))
+import Servant.API (Get, NamedRoutes, (:>))
 import Servant.API.ContentTypes.Lucid (HTML)
-import Servant.API.EventStream (ServerSentEvents)
 import Servant.API.Generic (GenericMode (type (:-)))
 import Servant.Links (Link, fieldLink, linkURI)
 import Servant.Server.Generic (AsServer, genericServe)
@@ -47,7 +46,7 @@ data Routes mode = Routes
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _about :: mode :- "about" Servant.API.:> Get '[HTML] (Html ())
-  , _status :: mode :- "status" Servant.API.:> ServerSentEvents (SourceIO Status.Status)
+  , _status :: mode :- "status" Servant.API.:> NamedRoutes Status.Routes
   }
   deriving stock (Generic)
 
@@ -67,7 +66,7 @@ handlers cfg =
         pure $ W.layout cfg "About Vira" [About] $ do
           div_ $ do
             a_ [href_ "https://github.com/juspay/vira"] "GitHub Repo"
-    , _status = pure $ Status.handler cfg
+    , _status = Status.handlers cfg
     }
   where
     linkText = show . linkURI
@@ -139,3 +138,4 @@ linkTo = \case
   Build repo branch -> fieldLink _jobs // JobPage._build /: repo /: branch
   Job jobId -> fieldLink _jobs // JobPage._view /: jobId
   JobLog jobId -> fieldLink _jobs // JobPage._rawLog /: jobId
+  StatusGet -> fieldLink _status // Status._get

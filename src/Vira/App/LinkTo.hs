@@ -16,6 +16,7 @@ data LinkTo
   | Build RepoName BranchName
   | Job JobId
   | JobLog JobId
+  | StatusGet
   | About
 
 linkShortTitle :: LinkTo -> Text
@@ -27,4 +28,5 @@ linkShortTitle = \case
   Build _ _ -> "Build" -- unused
   Job jobId -> "Job " <> show jobId
   JobLog jobId -> "Job Log " <> show jobId
+  StatusGet -> "Status"
   About -> "About"

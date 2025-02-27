@@ -7,7 +7,7 @@ module Vira.Widgets (
 ) where
 
 import Lucid
-import Servant.Links (URI (..), linkURI)
+import Servant.Links (Link, URI (..), linkURI)
 import Vira.App (AppState (linkTo, settings), instanceName)
 import Vira.App.LinkTo (LinkTo, linkShortTitle)
 import Vira.Lib.HTMX
@@ -27,7 +27,7 @@ layout cfg heading crumbs content = do
     body_ [class_ "bg-gray-100"] $ do
       div_ [class_ "container mx-auto p-4 mt-8 bg-white"] $ do
         let crumbs' = crumbs <&> \l -> (toHtml $ linkShortTitle l, linkURI $ cfg.linkTo l)
-        breadcrumbs crumbs'
+        breadcrumbs cfg.linkTo crumbs'
         h1_ [class_ "text-3xl border-b-2 mb-2"] heading
         content
   where
@@ -45,8 +45,8 @@ layout cfg heading crumbs content = do
       script_ [src_ "/htmx-extensions/src/sse/sse.js"] $ mempty @Text
 
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
-breadcrumbs :: [(Html (), URI)] -> Html ()
-breadcrumbs rs' = do
+breadcrumbs :: (LinkTo -> Link) -> [(Html (), URI)] -> Html ()
+breadcrumbs linkTo rs' = do
   let home = URI {uriScheme = "", uriAuthority = Nothing, uriPath = "/", uriQuery = [], uriFragment = ""}
   let rs = (span_ "Vira", home) :| rs'
   nav_ [id_ "breadcrumbs", class_ "flex items-center space-x-2 text-sm text-gray-600 p-3 mb-4 bg-blue-100"] $ do
@@ -55,7 +55,7 @@ breadcrumbs rs' = do
         renderCrumb (s, Just r)
         span_ [class_ "text-gray-500"] ">"
       renderCrumb (fst $ last rs, Nothing)
-    Status.view
+    Status.view linkTo
   where
     renderCrumb :: (Html (), Maybe URI) -> Html ()
     renderCrumb (s, mr) = li_ [class_ "flex"] $ do
