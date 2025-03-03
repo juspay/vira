@@ -13,3 +13,6 @@ hxSseConnect_ = makeAttributes "sse-connect"
 
 hxSseSwap_ :: Text -> Attributes
 hxSseSwap_ = makeAttributes "sse-swap"
+
+hxSseClose_ :: Text -> Attributes
+hxSseClose_ = makeAttributes "sse-close"

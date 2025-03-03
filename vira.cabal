@@ -95,6 +95,7 @@ common library-shared
     , stm
     , streaming
     , time
+    , uuid
     , wai-extra
     , wai-middleware-static
     , warp

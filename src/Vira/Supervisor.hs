@@ -9,7 +9,7 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar, modifyMVar_, readMVar)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
-import Effectful.FileSystem.IO (hClose, openFile)
+import Effectful.FileSystem.IO (openFile)
 import Effectful.Process (CreateProcess (cmdspec), Pid, Process, createProcess, getPid, waitForProcess)
 import System.Directory (getCurrentDirectory, makeAbsolute)
 import System.Directory qualified
@@ -124,7 +124,8 @@ startTask' taskId pwd h = runProcs . toList
       pid <- getPid ph
       log Debug $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
       exitCode <- waitForProcess ph
-      hClose outputHandle
+      log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec proc)
+      -- hClose outputHandle
       logToWorkspaceOutput taskId pwd $ "A task (pid=" <> show pid <> ") finished with exit code " <> show exitCode
       pure (pid, exitCode)
 

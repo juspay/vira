@@ -1,8 +1,15 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# OPTIONS_GHC -Wno-deprecations #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use infinitely" #-}
 
 module Vira.Page.JobLog where
 
+import Control.Concurrent (threadDelay)
+import Control.Exception (catch, ioError)
+import Data.UUID (UUID)
+import Data.UUID.V4 qualified as UUID4
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Lucid
@@ -12,9 +19,11 @@ import Servant.Server.Generic (AsServer)
 import Servant.Types.SourceT qualified as S
 import System.FilePath ((</>))
 import System.IO (hClose, hGetLine, openFile)
+import System.IO.Error (isEOFError)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId, jobWorkingDir)
+import Vira.State.Type qualified as St
 import Prelude hiding (ask, asks)
 
 data Routes mode = Routes
@@ -29,7 +38,9 @@ handlers :: App.AppState -> JobId -> Routes AsServer
 handlers cfg jobId = do
   Routes
     { _rawLog = App.runAppInServant cfg $ rawLogHandler jobId
-    , _streamLog = pure $ streamHandler cfg jobId
+    , _streamLog = do
+        uuid <- liftIO UUID4.nextRandom
+        pure $ streamHandler cfg uuid jobId
     }
 
 rawLogHandler :: JobId -> Eff App.AppServantStack Text
@@ -39,30 +50,74 @@ rawLogHandler jobId = do
     liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
   pure $ decodeUtf8 logText
 
-data LogChunk = LogChunk Int (Maybe Handle) (Html ())
+data LogChunk = LogChunk Int LogChunkMsg
+
+data LogChunkMsg = Close | Chunk (Html ())
+
+sseType :: LogChunkMsg -> LByteString
+sseType Close = "close"
+sseType (Chunk _) = "chunk"
+
+sseContent :: LogChunkMsg -> LByteString
+sseContent Close = ""
+sseContent (Chunk html) = Lucid.renderBS html
 
 instance ToServerEvent LogChunk where
-  toServerEvent (LogChunk ident _handle t) =
+  toServerEvent (LogChunk ident t) =
     ServerEvent
-      (Just "logchunk")
+      (Just $ sseType t)
       (Just $ show ident)
-      (Lucid.renderBS t)
+      (sseContent t)
 
-streamHandler :: App.AppState -> JobId -> S.SourceT IO LogChunk
-streamHandler cfg jobId = S.fromStepT $ step 0 Nothing
+streamHandler :: App.AppState -> UUID -> JobId -> S.SourceT IO LogChunk
+streamHandler cfg uuid jobId = S.fromStepT $ step 0 Nothing
   where
     step (n :: Int) (mh :: Maybe Handle) = S.Effect $ do
-      job :: Job <- App.runApp cfg $ App.query (St.GetJobA jobId) >>= maybe undefined pure
+      job :: Job <- App.runApp cfg $ do
+        App.query (St.GetJobA jobId) >>= maybe (error "WHASUP") pure
       let logFile = job.jobWorkingDir </> "output.log"
-      h <- maybe (liftIO $ openFile logFile ReadMode) pure mh
+      h <-
+        maybe
+          ( liftIO $ do
+              putStrLn $ show uuid <> " Opening log file: " ++ logFile
+              openFile logFile ReadMode
+          )
+          pure
+          mh
       -- TODO:
       -- 1. Read last N lines, rather than reading from scratch
       -- 2. Send chunks, not single line. And delay?
-      liftIO (hIsEOF h) >>= \case
-        True -> do
-          liftIO $ hClose h
-          pure S.Stop
-        False -> do
-          chunk <- liftIO $ hGetLine h
-          let msg = LogChunk n (Just h) (pre_ $ toHtml chunk)
+      mchunk <- liftIO $ getLineSafe h
+      case mchunk of
+        Just chunk -> do
+          let msg = LogChunk n $ Chunk $ pre_ $ toHtml chunk
+          -- putStrLn $ show uuid <> " === " ++ logFile
           pure $ S.Yield msg $ step (n + 1) (Just h)
+        Nothing -> do
+          if job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
+            then
+              ( do
+                  -- liftIO $ putStrLn "Waiting for log output..."
+                  liftIO $ threadDelay 1_000_000
+                  pure $ step n (Just h)
+              )
+            else
+              ( do
+                  putStrLn $ show uuid <> " Closing log file: " ++ logFile
+                  liftIO $ hClose h
+                  liftIO $ forever $ threadDelay 1000_000_000
+              )
+
+-- Function to safely read a line and handle EOF
+getLineSafe :: Handle -> IO (Maybe String)
+getLineSafe handle = do
+  eof <- hIsEOF handle -- Check if we're at EOF
+  if eof
+    then return Nothing -- Return Nothing if EOF is reached
+    else do
+      line <- hGetLine handle -- Read the line
+      return (Just line) -- Return the line wrapped in Just
+        `catch` \e ->
+          if isEOFError e -- Catch EOF exception
+            then return Nothing
+            else ioError e -- Re-throw other IO errors

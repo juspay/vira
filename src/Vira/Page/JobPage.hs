@@ -7,6 +7,7 @@ import Effectful.Error.Static (throwError)
 import Effectful.Process (CreateProcess (cwd), env, proc)
 import Effectful.Reader.Dynamic (ask, asks)
 import GHC.IO.Exception (ExitCode (..))
+import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
 import Htmx.Servant.Response
 import Lucid
@@ -19,7 +20,7 @@ import Vira.App.Logging
 import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
-import Vira.Lib.HTMX (hxSseConnect_, hxSseSwap_)
+import Vira.Lib.HTMX (hxSseClose_, hxSseConnect_, hxSseSwap_)
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
@@ -66,12 +67,27 @@ viewHandler linkTo jobId = do
           a_
             [target_ "blank", class_ "underline text-blue-500", href_ $ show . linkURI $ cfg.linkTo $ LinkTo.JobLog job.jobId]
             "View Full Log"
-        p_ "NOTE: You must refresh this page, since logs are not being streamed (yet)"
+      let streamLink = show . linkURI $ linkTo $ LinkTo.JobLogStream job.jobId
+      let sseAttrs =
+            [ hxExt_ "sse"
+            , hxSseConnect_ streamLink
+            , hxSseSwap_ "chunk"
+            , hxSseClose_ "close"
+            , hxTarget_ "#logchunks"
+            , hxSwap_ "beforeend scroll:top"
+            ]
       pre_ [class_ "bg-black text-white p-2 text-xs"] $ code_ $ do
-        let streamLink = show . linkURI $ linkTo $ LinkTo.JobLogStream job.jobId
-        div_ [hxExt_ "sse", hxSseConnect_ streamLink, hxSseSwap_ "logchunk"] $ do
-          "Loading log ..."
+        div_ [id_ "logchunks"] $ do
+          div_ sseAttrs ""
+          "..."
+      div_ $ do
+        indicator True
 
+-- TODO: move
+indicator :: Bool -> Html ()
+indicator active = do
+  let classes = if not active then "border-blue-300" else "border-blue-500 animate-ping"
+  div_ [class_ $ "w-4 h-4 border-2 rounded-full " <> classes] ""
 getLastNLines :: Int -> Text -> Text
 getLastNLines n = unlines . lastN n . lines
   where
