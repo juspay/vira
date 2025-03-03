@@ -24,6 +24,8 @@ data Settings = Settings
   -- ^ Repositories settings
   , instanceName :: Text
   -- ^ Name of the instance; uses hostname if unspecified
+  , basePath :: Text
+  -- ^ Base URL path for the http server
   }
   deriving stock (Show)
 
@@ -87,6 +89,14 @@ instance HasParser Settings where
         , help "Name of the instance; uses hostname if unspecified"
         , name "instance-name"
         , value ""
+        ]
+    basePath <-
+      setting
+        [ reader str
+        , metavar "BASE_PATH"
+        , help "Base URL path for the http server"
+        , name "base-path"
+        , value "/"
         ]
     pure Settings {..}
 
