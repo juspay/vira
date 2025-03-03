@@ -18,7 +18,7 @@ import Servant.API.EventStream (ServerEvent (ServerEvent), ServerSentEvents, ToS
 import Servant.Server.Generic (AsServer)
 import Servant.Types.SourceT qualified as S
 import System.FilePath ((</>))
-import System.IO (hClose, hGetLine, openFile)
+import System.IO (hGetLine)
 import System.IO.Error (isEOFError)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
@@ -70,43 +70,27 @@ instance ToServerEvent LogChunk where
       (sseContent t)
 
 streamHandler :: App.AppState -> UUID -> JobId -> S.SourceT IO LogChunk
-streamHandler cfg uuid jobId = S.fromStepT $ step 0 Nothing
+streamHandler cfg uuid jobId = S.fromStepT $ step 0 True
   where
-    step (n :: Int) (mh :: Maybe Handle) = S.Effect $ do
+    step (n :: Int) (initial :: Bool) = S.Effect $ do
       job :: Job <- App.runApp cfg $ do
         App.query (St.GetJobA jobId) >>= maybe (error "WHASUP") pure
-      let logFile = job.jobWorkingDir </> "output.log"
-      h <-
-        maybe
-          ( liftIO $ do
-              putStrLn $ show uuid <> " Opening log file: " ++ logFile
-              openFile logFile ReadMode
-          )
-          pure
-          mh
-      -- TODO:
-      -- 1. Read last N lines, rather than reading from scratch
-      -- 2. Send chunks, not single line. And delay?
-      mchunk <- liftIO $ getLineSafe h
-      case mchunk of
-        Just chunk -> do
-          let msg = LogChunk n $ Chunk $ pre_ $ toHtml chunk
-          -- putStrLn $ show uuid <> " === " ++ logFile
-          pure $ S.Yield msg $ step (n + 1) (Just h)
-        Nothing -> do
-          if job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
-            then
-              ( do
-                  -- liftIO $ putStrLn "Waiting for log output..."
-                  liftIO $ threadDelay 1_000_000
-                  pure $ step n (Just h)
-              )
-            else
-              ( do
-                  putStrLn $ show uuid <> " Closing log file: " ++ logFile
-                  liftIO $ hClose h
-                  liftIO $ forever $ threadDelay 1000_000_000
-              )
+      if not initial && not (job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending)
+        then do
+          putStrLn $ show uuid <> "Closing"
+          pure $ S.Yield (LogChunk n Close) $ step (n + 1) False
+        else do
+          let logFile = job.jobWorkingDir </> "output.log"
+          -- TODO:
+          -- 1. Read last N lines, rather than reading from scratch
+          -- 2. Send chunks, not single line. And delay?
+          unless initial $ do
+            putStrLn $ show uuid <> " Waiting: " ++ logFile
+            liftIO $ threadDelay 1_000_000
+          putStrLn $ show uuid <> " Tailing log file: " ++ logFile
+          contents <- readFileText logFile
+          let tailc = take 12 $ reverse $ lines contents
+          pure $ S.Yield (LogChunk n $ Chunk $ pre_ $ toHtml $ unlines tailc) $ step (n + 1) False
 
 -- Function to safely read a line and handle EOF
 getLineSafe :: Handle -> IO (Maybe String)

@@ -554,6 +554,9 @@
   .mb-4 {
     margin-bottom: calc(var(--spacing) * 4);
   }
+  .contents {
+    display: contents;
+  }
   .flex {
     display: flex;
   }

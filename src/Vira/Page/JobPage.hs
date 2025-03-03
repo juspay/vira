@@ -74,7 +74,7 @@ viewHandler linkTo jobId = do
             , hxSseSwap_ "chunk"
             , hxSseClose_ "close"
             , hxTarget_ "#logchunks"
-            , hxSwap_ "beforeend scroll:top"
+            , hxSwap_ "innerHTML scroll:top"
             ]
       pre_ [class_ "bg-black text-white p-2 text-xs"] $ code_ $ do
         div_ [id_ "logchunks"] $ do
