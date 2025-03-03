@@ -9,6 +9,7 @@ module Vira.Widgets (
 import Lucid
 import Servant.Links (Link, URI (..), linkURI)
 import Vira.App (AppState (linkTo, settings), instanceName)
+import Vira.App.CLI (Settings (basePath))
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
 import Vira.Lib.HTMX
 import Vira.Status qualified as Status
@@ -21,9 +22,9 @@ layout cfg heading crumbs content = do
     head_ $ do
       mobileFriendly
       title_ $ toHtml @Text $ "Vira (" <> cfg.settings.instanceName <> ")"
-      base_ [href_ "/"]
+      base_ [href_ cfg.settings.basePath]
       htmx
-      link_ [rel_ "stylesheet", type_ "text/css", href_ "/tailwind.css"]
+      link_ [rel_ "stylesheet", type_ "text/css", href_ "tailwind.css"]
     body_ [class_ "bg-gray-100"] $ do
       div_ [class_ "container mx-auto p-4 mt-8 bg-white"] $ do
         let crumbs' = crumbs <&> \l -> (toHtml $ linkShortTitle l, linkURI $ cfg.linkTo l)
@@ -42,7 +43,7 @@ layout cfg heading crumbs content = do
       -- We use a fork of htmx-ext-sse
       -- See https://github.com/bigskysoftware/htmx-extensions/pull/147
       -- script_ [src_ "https://unpkg.com/htmx-ext-sse@2.2.2"] $ mempty @Text
-      script_ [src_ "/htmx-extensions/src/sse/sse.js"] $ mempty @Text
+      script_ [src_ "htmx-extensions/src/sse/sse.js"] $ mempty @Text
 
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
 breadcrumbs :: (LinkTo -> Link) -> [(Html (), URI)] -> Html ()
