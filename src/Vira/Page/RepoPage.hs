@@ -8,7 +8,6 @@ import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Reader.Dynamic (ask, asks)
 import Htmx.Lucid.Core (hxSwapS_)
-import Htmx.Servant.Lucid (hxPostSafe_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
 import Lucid
@@ -19,6 +18,7 @@ import Vira.App qualified as App
 import Vira.App.LinkTo.Type (LinkTo (RepoUpdate))
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Git qualified as Git
+import Vira.Lib.HTMX (hxPostSafe_)
 import Vira.Page.JobPage qualified as JobPage
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
