@@ -48,7 +48,7 @@ layout cfg heading crumbs content = do
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
 breadcrumbs :: (LinkTo -> Link) -> [(Html (), URI)] -> Html ()
 breadcrumbs linkTo rs' = do
-  let home = URI {uriScheme = "", uriAuthority = Nothing, uriPath = "/", uriQuery = [], uriFragment = ""}
+  let home = URI {uriScheme = "", uriAuthority = Nothing, uriPath = "", uriQuery = [], uriFragment = ""}
   let rs = (span_ "Vira", home) :| rs'
   nav_ [id_ "breadcrumbs", class_ "flex items-center space-x-2 text-sm text-gray-600 p-3 mb-4 bg-blue-100"] $ do
     div_ [class_ "flex flex-1 items-center space-x-2 text-gray-600"] $ do
@@ -62,8 +62,7 @@ breadcrumbs linkTo rs' = do
     renderCrumb (s, mr) = li_ [class_ "flex"] $ do
       let attr = case mr of
             Just r ->
-              let url = if show @Text r == "" then "/" else show r
-               in [href_ url, class_ "hover:underline"]
+              [href_ (show r), class_ "hover:underline"]
             Nothing -> [class_ "font-bold"]
       a_ attr $ toHtml s
 
