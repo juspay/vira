@@ -70,7 +70,10 @@ startTask supervisor taskId pwd procs h = do
       else do
         createDirectoryIfMissing True pwd
         logToWorkspaceOutput taskId pwd msg
-        asyncHandle <- async $ startTask' taskId pwd h procs
+        asyncHandle <- async $ do
+          hdl <- startTask' taskId pwd h procs
+          logToWorkspaceOutput taskId pwd "CI finished"
+          pure hdl
         let task = Task {workDir = pwd, asyncHandle}
         pure (Map.insert taskId task tasks, ())
 
@@ -124,8 +127,10 @@ startTask' taskId pwd h = runProcs . toList
       pid <- getPid ph
       log Debug $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
       exitCode <- waitForProcess ph
+      log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec proc)
       hClose outputHandle
       logToWorkspaceOutput taskId pwd $ "A task (pid=" <> show pid <> ") finished with exit code " <> show exitCode
+      log Debug "Workspace log done"
       pure (pid, exitCode)
 
 -- | Kill a task
