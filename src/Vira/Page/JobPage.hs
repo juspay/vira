@@ -100,11 +100,7 @@ triggerNewBuild repoName branchName = do
   asks App.supervisor >>= \supervisor -> do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
-    let stages =
-          stageCreateProjectDir
-            :| stagesClone repo branch
-            <> [stageBuild]
-            <> maybe mempty (one . stageCachix) mCachix
+    let stages = getStages repo branch mCachix
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \exitCode -> do
       let status = case exitCode of
             ExitSuccess -> St.JobFinished St.JobSuccess
@@ -112,10 +108,18 @@ triggerNewBuild repoName branchName = do
       App.update $ St.JobUpdateStatusA job.jobId status
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId
+
+-- | Get all build stages
+getStages :: St.Repo -> St.Branch -> Maybe App.CachixSettings -> NonEmpty CreateProcess
+getStages repo branch mCachix = do
+  stageCreateProjectDir
+    :| stagesClone
+    <> [stageBuild]
+    <> maybe mempty (one . stageCachix) mCachix
   where
     stageCreateProjectDir =
       proc "mkdir" ["project"]
-    stagesClone repo branch =
+    stagesClone =
       Git.cloneAtCommit repo.cloneUrl branch.branchName branch.headCommit
         <&> \p -> p {cwd = Just "project"}
     stageBuild =
