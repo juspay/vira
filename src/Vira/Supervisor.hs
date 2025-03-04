@@ -1,15 +1,14 @@
-{-# HLINT ignore "Use next" #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module Vira.Supervisor where
 
+import Control.Concurrent (forkIO)
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar, modifyMVar_, readMVar)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
-import Effectful.FileSystem.IO (openFile)
 import Effectful.Process (CreateProcess (cmdspec), Pid, Process, createProcess, getPid, waitForProcess)
 import System.Directory (getCurrentDirectory, makeAbsolute)
 import System.Directory qualified
@@ -17,6 +16,8 @@ import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import Vira.App qualified as App
 import Vira.App.Logging
+import Vira.Lib.Logplex (LogPlex (writeHandle))
+import Vira.Lib.Logplex qualified as Logplex
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type
 import Prelude hiding (readMVar)
@@ -69,32 +70,34 @@ startTask supervisor taskId pwd procs h = do
         die $ "Task " <> show taskId <> " already exists"
       else do
         createDirectoryIfMissing True pwd
-        logToWorkspaceOutput taskId pwd msg
-        asyncHandle <- async $ startTask' taskId pwd h procs
-        let task = Task {workDir = pwd, asyncHandle}
+        logplex <- liftIO $ Logplex.newLogPlex $ pwd </> "output.log"
+        _ <- liftIO $ forkIO $ Logplex.runLogPlex logplex
+
+        logToWorkspaceOutput taskId logplex msg
+
+        asyncHandle <- async $ startTask' taskId pwd logplex h procs
+
+        let task = Task {workDir = pwd, asyncHandle, logplex}
         pure (Map.insert taskId task tasks, ())
 
--- Send all output to a file under working directory.
--- Write vira level log entry to the output log
-outputLogFile :: FilePath -> FilePath
-outputLogFile base = base </> "output.log"
-
 -- TODO: In lieu of https://github.com/juspay/vira/issues/6
-logToWorkspaceOutput :: (IOE :> es) => TaskId -> FilePath -> Text -> Eff es ()
-logToWorkspaceOutput taskId base (msg :: Text) = do
+logToWorkspaceOutput :: (IOE :> es) => TaskId -> Logplex.LogPlex -> Text -> Eff es ()
+logToWorkspaceOutput taskId logplex (msg :: Text) = do
   let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
-  appendFileText (outputLogFile base) s
+  liftIO $ Logplex.write logplex s
 
 startTask' ::
   forall es.
   (Process :> es, Log Message :> es, IOE :> es, FileSystem :> es) =>
   TaskId ->
   FilePath ->
+  Logplex.LogPlex ->
   (ExitCode -> Eff es ()) ->
   -- List of processes to run in sequence
   NonEmpty CreateProcess ->
   Eff es ExitCode
-startTask' taskId pwd h = runProcs . toList
+startTask' taskId pwd logplex h procs = do
+  runProcs $ toList procs
   where
     -- Run each process one after another; exiting immediately if any fails
     runProcs :: [CreateProcess] -> Eff es ExitCode
@@ -115,18 +118,18 @@ startTask' taskId pwd h = runProcs . toList
     runProc :: CreateProcess -> Eff es (Maybe Pid, ExitCode)
     runProc proc = do
       log Debug $ "Starting task: " <> show (cmdspec proc)
-      logToWorkspaceOutput taskId pwd $ "Starting task: " <> show (cmdspec proc)
-      outputHandle <- openFile (outputLogFile pwd) AppendMode
+      logToWorkspaceOutput taskId logplex $ "Starting task: " <> show (cmdspec proc)
+      -- outputHandle <- openFile (outputLogFile pwd) AppendMode
       let processSettings =
             Process.alwaysUnderPath pwd
-              >>> Process.redirectOutputTo outputHandle
+              >>> Process.redirectOutputTo logplex.writeHandle
       (_, _, _, ph) <- createProcess $ proc & processSettings
       pid <- getPid ph
       log Debug $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
       exitCode <- waitForProcess ph
       log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec proc)
       -- hClose outputHandle
-      logToWorkspaceOutput taskId pwd $ "A task (pid=" <> show pid <> ") finished with exit code " <> show exitCode
+      logToWorkspaceOutput taskId logplex $ "A task (pid=" <> show pid <> ") finished with exit code " <> show exitCode
       pure (pid, exitCode)
 
 -- | Kill a task

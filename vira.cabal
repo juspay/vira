@@ -93,7 +93,6 @@ common library-shared
     , shower
     , sqlite-simple
     , stm
-    , streaming
     , time
     , uuid
     , wai-extra
@@ -119,6 +118,7 @@ library
     Vira.Lib.Cachix
     Vira.Lib.Git
     Vira.Lib.HTMX
+    Vira.Lib.Logplex
     Vira.Lib.Omnix
     Vira.Lib.Process
     Vira.Page.JobLog
