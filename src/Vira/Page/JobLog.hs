@@ -6,7 +6,7 @@
 module Vira.Page.JobLog where
 
 import Control.Concurrent (forkIO, threadDelay)
-import Control.Concurrent.STM (TChan, newTChanIO, tryReadTChan, writeTChan)
+import Control.Concurrent.STM (TQueue, flushTQueue, newTQueueIO, writeTQueue)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Htmx.Lucid.Core (hxSwap_)
@@ -59,31 +59,36 @@ instance ToServerEvent LogChunk where
       (Lucid.renderBS t)
 
 -- Represent a `tail -f` process along with its output gathered up in TChat
-data TailF = TailF Int FilePath (TChan Text)
+data TailF = TailF Int FilePath (TQueue Text)
 
 newTailF :: Int -> FilePath -> IO TailF
 newTailF n filePath = do
-  TailF n filePath <$> newTChanIO
+  TailF n filePath <$> newTQueueIO
 
 runTailF :: TailF -> IO ProcessHandle
 runTailF (TailF n filePath chan) = do
   -- Run `tail -f` using System.Process and stream its output to chan
   (_, Just hOut, _, ph) <- createProcess (proc "tail" ["-n", show n, "-f", filePath]) {std_out = CreatePipe}
   hSetBuffering hOut LineBuffering
-  -- hSeek hOut AbsoluteSeek 0
   void $ forkIO $ do
     let loop = do
           hIsEOF hOut >>= \case
             True -> pass
             False -> do
               line <- hGetLine hOut
-              atomically $ writeTChan chan $ toText line
+              atomically $ writeTQueue chan $ toText line
               loop
     loop
+  -- Give the process a chance to start up
+  threadDelay 100_000
   pure ph
 
 tryReadTailF :: TailF -> IO (Maybe Text)
-tryReadTailF (TailF _ _ chan) = atomically $ tryReadTChan chan
+tryReadTailF (TailF _ _ chan) = do
+  ls <- atomically $ flushTQueue chan
+  if null ls
+    then pure Nothing
+    else pure $ Just $ unlines ls
 
 streamHandler :: App.AppState -> JobId -> S.SourceT IO LogChunk
 streamHandler cfg jobId = S.fromStepT $ step 0 Nothing
