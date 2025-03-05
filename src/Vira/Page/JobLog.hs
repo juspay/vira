@@ -15,7 +15,7 @@ import Servant.Types.SourceT qualified as S
 import System.FilePath ((</>))
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Lib.HTMX (hxSseConnect_, hxSseSwap_)
+import Vira.Lib.HTMX (hxSseClose_, hxSseConnect_, hxSseSwap_)
 import Vira.Lib.Process.TailF (TailF)
 import Vira.Lib.Process.TailF qualified as TailF
 import Vira.State.Acid qualified as St
@@ -45,14 +45,22 @@ rawLogHandler jobId = do
     liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
   pure $ decodeUtf8 logText
 
-data LogChunk = LogChunk Int (Maybe TailF) (Html ())
+data LogChunk
+  = Chunk Int (Maybe TailF) (Html ())
+  | Stop Int
 
 instance ToServerEvent LogChunk where
-  toServerEvent (LogChunk ident _handle t) =
-    ServerEvent
-      (Just "logchunk")
-      (Just $ show ident)
-      (Lucid.renderBS t)
+  toServerEvent = \case
+    Chunk ident _handle t ->
+      ServerEvent
+        (Just "logchunk")
+        (Just $ show ident)
+        (Lucid.renderBS t)
+    Stop ident ->
+      ServerEvent
+        (Just "logstop")
+        (Just $ show ident)
+        (Lucid.renderBS "Log stopped")
 
 streamHandler :: App.AppState -> JobId -> S.SourceT IO LogChunk
 streamHandler cfg jobId = S.fromStepT $ step 0 Nothing
@@ -78,15 +86,14 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Nothing
         (Nothing, False) -> do
           -- Job ended
           -- TODO: Drain all of tail -f's output first
+          putStrLn "Job ended; ending stream"
           TailF.stop logTail
-          -- FIXME:
-          -- pure S.Stop
-          putStrLn "!!!!!! Due to sse bug, waiting infinitely"
-          void $ infinitely $ do
-            threadDelay 1_000_000_000
-          pure S.Stop -- Never reached
+          -- This delay is required lest we are called again.
+          threadDelay 1000_000
+          -- FIXME: Why poll after this?
+          pure $ S.Yield (Stop n) $ step (n + 1) (Just logTail)
         (Just line, _) -> do
-          let msg = LogChunk n (Just logTail) (pre_ $ toHtml line)
+          let msg = Chunk n (Just logTail) (pre_ $ toHtml line)
           pure $ S.Yield msg $ step (n + 1) (Just logTail)
 
 viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
@@ -103,6 +110,7 @@ viewStream linkTo job = do
           , hxSseConnect_ streamLink
           , hxSwap_ "beforeend show:window:bottom"
           , hxSseSwap_ "logchunk"
+          , hxSseClose_ "logstop"
           ]
     pre_ (sseAttrs <> [class_ "bg-black text-white p-2 text-xs", style_ "white-space: pre-wrap;"]) $ code_ $ do
       "Loading log ..."
