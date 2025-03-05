@@ -98,29 +98,30 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Init
             StreamEnding -> do
               pure $ S.Yield (Stop n) $ step (n + 1) Stopping
             Stopping -> do
-              -- Keep going unless client has time to catch up.
+              -- Keep going until the htmx client has time to catch up.
               threadDelay 1_000_000
               pure $ S.Yield (Stop n) $ step (n + 1) st
     streamLog n job logTail = do
       let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
-      mLine <- TailF.tryRead logTail
-      case (mLine, jobActive) of
-        (Nothing, True) -> do
-          -- Job is active, but log yet to be updated; retry.
-          threadDelay 100_000
-          pure $ S.Skip $ step n (Streaming logTail)
-        (Nothing, False) -> do
-          -- Job ended
-          App.runApp cfg $ do
-            App.log Info $ "Job " <> show job.jobId <> " ended; ending stream"
-          TailF.stop logTail >>= \case
-            Nothing ->
-              pure $ S.Yield (Stop n) $ step (n + 1) Stopping
-            Just s ->
-              pure $ S.Yield (Chunk n s) $ step (n + 1) StreamEnding
-        (Just line, _) -> do
+      TailF.tryRead logTail >>= \case
+        Just line -> do
           let msg = Chunk n line
           pure $ S.Yield msg $ step (n + 1) (Streaming logTail)
+        Nothing -> case jobActive of
+          True -> do
+            -- Job is active, but no log available now; retry.
+            threadDelay 100_000
+            pure $ S.Skip $ step n (Streaming logTail)
+          False -> do
+            -- Job ended; let's wrap up.
+            App.runApp cfg $ do
+              App.log Info $ "Job " <> show job.jobId <> " ended; ending stream"
+            TailF.stop logTail >>= \case
+              Nothing ->
+                pure $ S.Yield (Stop n) $ step (n + 1) Stopping
+              Just s ->
+                -- Flush last set of log lines.
+                pure $ S.Yield (Chunk n s) $ step (n + 1) StreamEnding
 
 viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewStream linkTo job = do

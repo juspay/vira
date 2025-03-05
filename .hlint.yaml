@@ -16,6 +16,8 @@
       - "-XTypeApplications"
       - "-XViewPatterns"
 - ignore:
+      name: Use if
+- ignore:
       name: Use head
 - ignore:
       name: Use Foldable.forM_

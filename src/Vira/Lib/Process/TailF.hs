@@ -4,11 +4,20 @@ module Vira.Lib.Process.TailF where
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Concurrent.STM (TQueue, flushTQueue, newTQueueIO, writeTQueue)
 import System.IO (hGetLine)
-import System.Process (CreateProcess (std_out), ProcessHandle, StdStream (CreatePipe), createProcess, proc, terminateProcess, waitForProcess)
+import System.Process (
+  CreateProcess (std_out),
+  ProcessHandle,
+  StdStream (CreatePipe),
+  createProcess,
+  proc,
+  terminateProcess,
+  waitForProcess,
+ )
 
--- Represent a `tail -f` process along with its output gathered up in TChat
+-- | Represent a `tail -f` process along with its output gathered up in TQueue
 data TailF = TailF FilePath ProcessHandle (TQueue Text)
 
+-- | Spawn a new tail process
 new :: FilePath -> IO TailF
 new filePath = do
   queue <- newTQueueIO
@@ -43,6 +52,7 @@ run filePath chan = do
   threadDelay 100_000
   pure ph
 
+-- | Read from `tail -f` if available. Nothing if no logs are available to read.
 tryRead :: TailF -> IO (Maybe Text)
 tryRead (TailF _ _ chan) = do
   ls <- atomically $ flushTQueue chan
@@ -50,10 +60,11 @@ tryRead (TailF _ _ chan) = do
     then pure Nothing
     else pure $ Just $ unlines ls
 
--- | Stop the tail process, and then returning the unread lines (the last lines, generally)
+-- | Stop the tail process, returning the unread lines (the last lines, generally)
 stop :: TailF -> IO (Maybe Text)
 stop t@(TailF _ ph _) = do
   -- HACK: Give the process a chance to finish writing to the queue
+  -- If we don't do this, we will miss out on the last few lines of log.
   threadDelay 1000_000
   s <- tryRead t
   -- Then terminate.
