@@ -46,24 +46,27 @@ rawLogHandler jobId = do
     liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
   pure $ decodeUtf8 logText
 
+-- SSE message for log streaming
 data LogChunk
-  = Chunk Int (Html ())
-  | Stop Int (Html ())
+  = -- A chunk of log data
+    Chunk Int Text
+  | -- Last message indicating streaming as ended
+    Stop Int
 
 logChunkType :: LogChunk -> Text
 logChunkType = \case
   Chunk _ _ -> "logchunk"
-  Stop _ _ -> "logstop"
+  Stop _ -> "logstop"
 
 logChunkId :: LogChunk -> LByteString
 logChunkId = \case
   Chunk ident _ -> show ident
-  Stop ident _ -> show ident
+  Stop ident -> show ident
 
 logChunkMsg :: LogChunk -> LByteString
 logChunkMsg = \case
-  Chunk _ html -> Lucid.renderBS html
-  Stop _ html -> Lucid.renderBS html
+  Chunk _ line -> Lucid.renderBS $ pre_ $ toHtml line
+  Stop _ -> Lucid.renderBS $ Status.indicator False
 
 instance ToServerEvent LogChunk where
   toServerEvent chunk =
@@ -92,7 +95,7 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Init
         Stopping -> do
           -- Keep going unless client has time to catch up.
           threadDelay 1000_000
-          pure $ S.Yield (stopStep n) $ step (n + 1) st
+          pure $ S.Yield (Stop n) $ step (n + 1) st
     streamLog n job logTail = do
       let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
       mLine <- TailF.tryRead logTail
@@ -107,12 +110,10 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Init
           -- Otherwise, we will miss last few lines of logs!
           putStrLn "Job ended; ending stream"
           TailF.stop logTail
-          pure $ S.Yield (stopStep n) $ step (n + 1) Stopping
+          pure $ S.Yield (Stop n) $ step (n + 1) Stopping
         (Just line, _) -> do
-          let msg = Chunk n (pre_ $ toHtml line)
+          let msg = Chunk n line
           pure $ S.Yield msg $ step (n + 1) (Streaming logTail)
-    stopStep n = Stop n $ do
-      Status.indicator False
 
 viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewStream linkTo job = do
@@ -127,7 +128,7 @@ viewStream linkTo job = do
           [ hxExt_ "sse"
           , hxSseConnect_ streamLink
           , hxSwap_ "beforeend show:window:bottom"
-          , hxSseClose_ $ logChunkType $ Stop 0 mempty
+          , hxSseClose_ $ logChunkType $ Stop 0
           ]
     div_ sseAttrs $ do
       pre_
@@ -139,7 +140,7 @@ viewStream linkTo job = do
         $ do
           "Loading log ..."
       div_
-        [ hxSseSwap_ $ logChunkType $ Stop 0 mempty
+        [ hxSseSwap_ $ logChunkType $ Stop 0
         , hxSwap_ "innerHTML"
         ]
         $ do
