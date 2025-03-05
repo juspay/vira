@@ -1,7 +1,4 @@
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
-{-# HLINT ignore "Use infinitely" #-}
 
 module Vira.Page.JobLog where
 
@@ -126,17 +123,19 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Nothing
       mLine <- tryReadTailF h
       case (mLine, jobActive) of
         (Nothing, True) -> do
+          -- Job is active, but log yet to be updated; retry.
           threadDelay 100_000
           pure $ S.Skip $ step (n + 1) (Just (h, p))
         (Nothing, False) -> do
+          -- Job ended
           -- TODO: Drain all of tail -f's output first
           terminateProcess p
           -- FIXME:
           -- pure S.Stop
           putStrLn "!!!!!! Due to sse bug, waiting infinitely"
-          forever $ do
+          void $ infinitely $ do
             threadDelay 1_000_000_000
-            pure S.Stop
+          pure S.Stop -- Never reached
         (Just line, _) -> do
           let msg = LogChunk n (Just h) (pre_ $ toHtml line)
           pure $ S.Yield msg $ step (n + 1) (Just (h, p))
