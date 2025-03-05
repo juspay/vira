@@ -4,6 +4,7 @@
 module Vira.Status (
   -- * Views
   view,
+  indicator,
 
   -- * Route handlers
   Routes (..),

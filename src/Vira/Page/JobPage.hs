@@ -12,7 +12,6 @@ import Lucid
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
-import System.FilePath ((</>))
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging
@@ -54,26 +53,12 @@ buildHandler repoName branch = do
 
 viewHandler :: JobId -> Eff App.AppServantStack (Html ())
 viewHandler jobId = do
-  cfg <- ask
   job <- App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
-  logText <-
-    -- TODO: Streaming!
-    liftIO $ fmap (decodeUtf8 @Text) . readFileBS $ job.jobWorkingDir </> "output.log"
   let crumbs = [LinkTo.RepoListing, LinkTo.Repo job.jobRepo, LinkTo.Job jobId]
+  cfg <- ask
   pure $ W.layout cfg (show jobId) crumbs $ do
     viewJob cfg.linkTo job
-    div_ $ do
-      let linesToShow = 20
-      div_ [class_ "my-2"] $ do
-        p_ $ do
-          "Displaying only last " <> show linesToShow <> " lines of the log. "
-          a_
-            [target_ "blank", class_ "underline text-blue-500", href_ $ show . linkURI $ cfg.linkTo $ LinkTo.JobLog job.jobId]
-            "View Full Log"
-        p_ "NOTE: You must refresh this page, since logs are not being streamed (yet)"
-      pre_ [class_ "bg-black text-white p-2 text-xs"] $ code_ $ do
-        "[..]\n"
-        toHtml $ getLastNLines linesToShow logText
+    JobLog.viewStream cfg.linkTo job
 
 getLastNLines :: Int -> Text -> Text
 getLastNLines n = unlines . lastN n . lines
@@ -115,11 +100,7 @@ triggerNewBuild repoName branchName = do
   asks App.supervisor >>= \supervisor -> do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
-    let stages =
-          stageCreateProjectDir
-            :| stagesClone repo branch
-            <> [stageBuild]
-            <> maybe mempty (one . stageCachix) mCachix
+    let stages = getStages repo branch mCachix
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \exitCode -> do
       let status = case exitCode of
             ExitSuccess -> St.JobFinished St.JobSuccess
@@ -127,10 +108,18 @@ triggerNewBuild repoName branchName = do
       App.update $ St.JobUpdateStatusA job.jobId status
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId
+
+-- | Get all build stages
+getStages :: St.Repo -> St.Branch -> Maybe App.CachixSettings -> NonEmpty CreateProcess
+getStages repo branch mCachix = do
+  stageCreateProjectDir
+    :| stagesClone
+    <> [stageBuild]
+    <> maybe mempty (one . stageCachix) mCachix
   where
     stageCreateProjectDir =
       proc "mkdir" ["project"]
-    stagesClone repo branch =
+    stagesClone =
       Git.cloneAtCommit repo.cloneUrl branch.branchName branch.headCommit
         <&> \p -> p {cwd = Just "project"}
     stageBuild =

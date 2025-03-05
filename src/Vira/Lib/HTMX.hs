@@ -17,6 +17,9 @@ hxSseConnect_ = makeAttributes "sse-connect"
 hxSseSwap_ :: Text -> Attributes
 hxSseSwap_ = makeAttributes "sse-swap"
 
+hxSseClose_ :: Text -> Attributes
+hxSseClose_ = makeAttributes "sse-close"
+
 -- Fixed version of functions in htmx-servant
 -- https://github.com/JonathanLorimer/htmx/issues/16
 

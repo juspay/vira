@@ -120,6 +120,7 @@ library
     Vira.Lib.HTMX
     Vira.Lib.Omnix
     Vira.Lib.Process
+    Vira.Lib.Process.TailF
     Vira.Page.JobLog
     Vira.Page.JobPage
     Vira.Page.RegistryPage
