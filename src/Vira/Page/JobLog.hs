@@ -15,6 +15,7 @@ import Servant.Types.SourceT qualified as S
 import System.FilePath ((</>))
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.App.Logging (Severity (Error, Info))
 import Vira.Lib.HTMX (hxSseClose_, hxSseConnect_, hxSseSwap_)
 import Vira.Lib.Process.TailF (TailF)
 import Vira.Lib.Process.TailF qualified as TailF
@@ -46,11 +47,11 @@ rawLogHandler jobId = do
     liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
   pure $ decodeUtf8 logText
 
--- SSE message for log streaming
+-- | SSE message for log streaming
 data LogChunk
   = -- A chunk of log data
     Chunk Int Text
-  | -- Last message indicating streaming as ended
+  | -- Last message, indicating streaming has ended
     Stop Int
 
 logChunkType :: LogChunk -> Text
@@ -81,21 +82,23 @@ streamHandler :: App.AppState -> JobId -> S.SourceT IO LogChunk
 streamHandler cfg jobId = S.fromStepT $ step 0 Init
   where
     step (n :: Int) (st :: StreamState) = S.Effect $ do
-      job :: Job <-
-        App.runApp cfg $
-          App.query (St.GetJobA jobId)
-            >>= maybe (error "Job not found") pure
-      let logFile = job.jobWorkingDir </> "output.log"
-      case st of
-        Init -> do
-          logTail <- liftIO $ TailF.new logFile
-          streamLog n job logTail
-        Streaming logTail -> do
-          streamLog n job logTail
-        Stopping -> do
-          -- Keep going unless client has time to catch up.
-          threadDelay 1000_000
-          pure $ S.Yield (Stop n) $ step (n + 1) st
+      mJob :: Maybe Job <- App.runApp cfg $ App.query (St.GetJobA jobId)
+      case mJob of
+        Nothing -> do
+          App.runApp cfg $ App.log Error "Job not found"
+          pure $ S.Error "Job not found"
+        Just job -> do
+          case st of
+            Init -> do
+              let logFile = job.jobWorkingDir </> "output.log"
+              logTail <- liftIO $ TailF.new logFile
+              streamLog n job logTail
+            Streaming logTail -> do
+              streamLog n job logTail
+            Stopping -> do
+              -- Keep going unless client has time to catch up.
+              threadDelay 1_000_000
+              pure $ S.Yield (Stop n) $ step (n + 1) st
     streamLog n job logTail = do
       let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
       mLine <- TailF.tryRead logTail
@@ -108,7 +111,8 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Init
           -- Job ended
           -- TODO: Drain all of tail -f's output first
           -- Otherwise, we will miss last few lines of logs!
-          putStrLn "Job ended; ending stream"
+          App.runApp cfg $ do
+            App.log Info $ "Job " <> show job.jobId <> " ended; ending stream"
           TailF.stop logTail
           pure $ S.Yield (Stop n) $ step (n + 1) Stopping
         (Just line, _) -> do

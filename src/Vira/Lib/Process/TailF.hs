@@ -31,7 +31,7 @@ run filePath chan = do
         }
   hSetBuffering hOut LineBuffering
   void $ forkIO $ do
-    let loop = do
+    let loop =
           hIsEOF hOut >>= \case
             True -> pass
             False -> do
