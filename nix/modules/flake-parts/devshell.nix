@@ -16,6 +16,7 @@
         # vira extraBuildDepends from haskell.nix
         git
         cachix
+        coreutils # For `tail`
         inputs'.omnix.packages.default
       ];
     };
