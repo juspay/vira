@@ -46,12 +46,12 @@ rawLogHandler jobId = do
   pure $ decodeUtf8 logText
 
 data LogChunk
-  = Chunk Int (Maybe TailF) (Html ())
+  = Chunk Int (Html ())
   | Stop Int
 
 instance ToServerEvent LogChunk where
   toServerEvent = \case
-    Chunk ident _handle t ->
+    Chunk ident t ->
       ServerEvent
         (Just "logchunk")
         (Just $ show ident)
@@ -93,7 +93,7 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Nothing
           -- FIXME: Why poll after this?
           pure $ S.Yield (Stop n) $ step (n + 1) (Just logTail)
         (Just line, _) -> do
-          let msg = Chunk n (Just logTail) (pre_ $ toHtml line)
+          let msg = Chunk n (pre_ $ toHtml line)
           pure $ S.Yield msg $ step (n + 1) (Just logTail)
 
 viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
