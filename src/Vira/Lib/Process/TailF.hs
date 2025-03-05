@@ -4,18 +4,19 @@ module Vira.Lib.Process.TailF where
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Concurrent.STM (TQueue, flushTQueue, newTQueueIO, writeTQueue)
 import System.IO (hGetLine)
-import System.Process (CreateProcess (std_out), ProcessHandle, StdStream (CreatePipe), createProcess, proc)
+import System.Process (CreateProcess (std_out), ProcessHandle, StdStream (CreatePipe), createProcess, proc, terminateProcess, waitForProcess)
 
 -- Represent a `tail -f` process along with its output gathered up in TChat
-data TailF = TailF FilePath (TQueue Text)
+data TailF = TailF FilePath ProcessHandle (TQueue Text)
 
 new :: FilePath -> IO TailF
 new filePath = do
-  TailF filePath <$> newTQueueIO
+  queue <- newTQueueIO
+  ph <- run filePath queue
+  pure $ TailF filePath ph queue
 
-run :: TailF -> IO ProcessHandle
-run (TailF filePath chan) = do
-  -- Run `tail -f` using System.Process and stream its output to chan
+run :: FilePath -> TQueue Text -> IO ProcessHandle
+run filePath chan = do
   (_, Just hOut, _, ph) <-
     createProcess
       ( proc
@@ -43,8 +44,13 @@ run (TailF filePath chan) = do
   pure ph
 
 tryRead :: TailF -> IO (Maybe Text)
-tryRead (TailF _ chan) = do
+tryRead (TailF _ _ chan) = do
   ls <- atomically $ flushTQueue chan
   if null ls
     then pure Nothing
     else pure $ Just $ unlines ls
+
+stop :: TailF -> IO ()
+stop (TailF _ ph _) = do
+  terminateProcess ph
+  void $ waitForProcess ph

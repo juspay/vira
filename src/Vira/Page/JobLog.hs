@@ -13,7 +13,6 @@ import Servant.API.EventStream (ServerEvent (ServerEvent), ServerSentEvents, ToS
 import Servant.Server.Generic (AsServer)
 import Servant.Types.SourceT qualified as S
 import System.FilePath ((</>))
-import System.Process (ProcessHandle, terminateProcess)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.HTMX (hxSseConnect_, hxSseSwap_)
@@ -58,35 +57,28 @@ instance ToServerEvent LogChunk where
 streamHandler :: App.AppState -> JobId -> S.SourceT IO LogChunk
 streamHandler cfg jobId = S.fromStepT $ step 0 Nothing
   where
-    step (n :: Int) (mh :: Maybe (TailF, ProcessHandle)) = S.Effect $ do
+    step (n :: Int) (mh :: Maybe TailF) = S.Effect $ do
       job :: Job <-
         App.runApp cfg $
           App.query (St.GetJobA jobId)
             >>= maybe (error "Job not found") pure
       let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
       let logFile = job.jobWorkingDir </> "output.log"
-      (h, p) <-
-        maybe
-          ( liftIO $ do
-              t <- TailF.new logFile
-              p <- TailF.run t
-              pure (t, p)
-          )
-          pure
-          mh
+      logTail <-
+        maybe (liftIO $ TailF.new logFile) pure mh
       -- TODO:
       -- 1. Read last N lines, rather than reading from scratch
       -- 2. Send chunks, not single line. And delay?
-      mLine <- TailF.tryRead h
+      mLine <- TailF.tryRead logTail
       case (mLine, jobActive) of
         (Nothing, True) -> do
           -- Job is active, but log yet to be updated; retry.
           threadDelay 100_000
-          pure $ S.Skip $ step (n + 1) (Just (h, p))
+          pure $ S.Skip $ step (n + 1) (Just logTail)
         (Nothing, False) -> do
           -- Job ended
           -- TODO: Drain all of tail -f's output first
-          terminateProcess p
+          TailF.stop logTail
           -- FIXME:
           -- pure S.Stop
           putStrLn "!!!!!! Due to sse bug, waiting infinitely"
@@ -94,8 +86,8 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Nothing
             threadDelay 1_000_000_000
           pure S.Stop -- Never reached
         (Just line, _) -> do
-          let msg = LogChunk n (Just h) (pre_ $ toHtml line)
-          pure $ S.Yield msg $ step (n + 1) (Just (h, p))
+          let msg = LogChunk n (Just logTail) (pre_ $ toHtml line)
+          pure $ S.Yield msg $ step (n + 1) (Just logTail)
 
 viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewStream linkTo job = do
@@ -109,7 +101,7 @@ viewStream linkTo job = do
     let sseAttrs =
           [ hxExt_ "sse"
           , hxSseConnect_ streamLink
-          , hxSwap_ "beforeend"
+          , hxSwap_ "beforeend show:window:bottom"
           , hxSseSwap_ "logchunk"
           ]
     pre_ (sseAttrs <> [class_ "bg-black text-white p-2 text-xs", style_ "white-space: pre-wrap;"]) $ code_ $ do
