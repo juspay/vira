@@ -21,6 +21,7 @@ import Vira.Lib.Process.TailF qualified as TailF
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId, jobWorkingDir)
 import Vira.State.Type qualified as St
+import Vira.Status qualified as Status
 import Prelude hiding (ask, asks)
 
 data Routes mode = Routes
@@ -47,22 +48,22 @@ rawLogHandler jobId = do
 
 data LogChunk
   = Chunk Int (Html ())
-  | Stop Int
+  | Stop Int (Html ())
 
 logChunkType :: LogChunk -> Text
 logChunkType = \case
   Chunk _ _ -> "logchunk"
-  Stop _ -> "logstop"
+  Stop _ _ -> "logstop"
 
 logChunkId :: LogChunk -> LByteString
 logChunkId = \case
   Chunk ident _ -> show ident
-  Stop ident -> show ident
+  Stop ident _ -> show ident
 
 logChunkMsg :: LogChunk -> LByteString
 logChunkMsg = \case
   Chunk _ html -> Lucid.renderBS html
-  Stop _ -> "Log stopped"
+  Stop _ html -> Lucid.renderBS html
 
 instance ToServerEvent LogChunk where
   toServerEvent chunk =
@@ -91,7 +92,7 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Init
         Stopping -> do
           -- Keep going unless client has time to catch up.
           threadDelay 1000_000
-          pure $ S.Yield (Stop n) $ step (n + 1) st
+          pure $ S.Yield (stopStep n) $ step (n + 1) st
     streamLog n job logTail = do
       let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
       mLine <- TailF.tryRead logTail
@@ -103,12 +104,15 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Init
         (Nothing, False) -> do
           -- Job ended
           -- TODO: Drain all of tail -f's output first
+          -- Otherwise, we will miss last few lines of logs!
           putStrLn "Job ended; ending stream"
           TailF.stop logTail
-          pure $ S.Yield (Stop n) $ step (n + 1) Stopping
+          pure $ S.Yield (stopStep n) $ step (n + 1) Stopping
         (Just line, _) -> do
           let msg = Chunk n (pre_ $ toHtml line)
           pure $ S.Yield msg $ step (n + 1) (Streaming logTail)
+    stopStep n = Stop n $ do
+      Status.indicator False
 
 viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewStream linkTo job = do
@@ -123,9 +127,20 @@ viewStream linkTo job = do
           [ hxExt_ "sse"
           , hxSseConnect_ streamLink
           , hxSwap_ "beforeend show:window:bottom"
-          , hxSseSwap_ $ logChunkType $ Chunk 0 mempty
-          , hxSseClose_ $ logChunkType $ Stop 0
+          , hxSseClose_ $ logChunkType $ Stop 0 mempty
           ]
-    pre_ (sseAttrs <> [class_ "bg-black text-white p-2 text-xs", style_ "white-space: pre-wrap;"]) $ code_ $ do
-      "Loading log ..."
-    div_ "TODO: add running or finished indicator"
+    div_ sseAttrs $ do
+      pre_
+        [ hxSseSwap_ $ logChunkType $ Chunk 0 mempty
+        , class_ "bg-black text-white p-2 text-xs"
+        , style_ "white-space: pre-wrap;"
+        ]
+        $ code_
+        $ do
+          "Loading log ..."
+      div_
+        [ hxSseSwap_ $ logChunkType $ Stop 0 mempty
+        , hxSwap_ "innerHTML"
+        ]
+        $ do
+          Status.indicator True
