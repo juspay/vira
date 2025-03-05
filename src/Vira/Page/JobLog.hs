@@ -59,16 +59,27 @@ instance ToServerEvent LogChunk where
       (Lucid.renderBS t)
 
 -- Represent a `tail -f` process along with its output gathered up in TChat
-data TailF = TailF Int FilePath (TQueue Text)
+data TailF = TailF FilePath (TQueue Text)
 
-newTailF :: Int -> FilePath -> IO TailF
-newTailF n filePath = do
-  TailF n filePath <$> newTQueueIO
+newTailF :: FilePath -> IO TailF
+newTailF filePath = do
+  TailF filePath <$> newTQueueIO
 
 runTailF :: TailF -> IO ProcessHandle
-runTailF (TailF n filePath chan) = do
+runTailF (TailF filePath chan) = do
   -- Run `tail -f` using System.Process and stream its output to chan
-  (_, Just hOut, _, ph) <- createProcess (proc "tail" ["-n", show n, "-f", filePath]) {std_out = CreatePipe}
+  (_, Just hOut, _, ph) <-
+    createProcess
+      ( proc
+          "tail"
+          [ "-n"
+          , "+1" -- This reads whole file; cf. https://askubuntu.com/a/509915/26624
+          , "-f"
+          , filePath
+          ]
+      )
+        { std_out = CreatePipe
+        }
   hSetBuffering hOut LineBuffering
   void $ forkIO $ do
     let loop = do
@@ -84,7 +95,7 @@ runTailF (TailF n filePath chan) = do
   pure ph
 
 tryReadTailF :: TailF -> IO (Maybe Text)
-tryReadTailF (TailF _ _ chan) = do
+tryReadTailF (TailF _ chan) = do
   ls <- atomically $ flushTQueue chan
   if null ls
     then pure Nothing
@@ -103,7 +114,7 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Nothing
       (h, p) <-
         maybe
           ( liftIO $ do
-              t <- newTailF 1000 logFile
+              t <- newTailF logFile
               p <- runTailF t
               pure (t, p)
           )
