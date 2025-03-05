@@ -76,7 +76,7 @@ instance ToServerEvent LogChunk where
       (Just $ logChunkId chunk)
       (logChunkMsg chunk)
 
-data StreamState = Init | Streaming TailF | Stopping
+data StreamState = Init | Streaming TailF | StreamEnding | Stopping
 
 streamHandler :: App.AppState -> JobId -> S.SourceT IO LogChunk
 streamHandler cfg jobId = S.fromStepT $ step 0 Init
@@ -95,6 +95,8 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Init
               streamLog n job logTail
             Streaming logTail -> do
               streamLog n job logTail
+            StreamEnding -> do
+              pure $ S.Yield (Stop n) $ step (n + 1) Stopping
             Stopping -> do
               -- Keep going unless client has time to catch up.
               threadDelay 1_000_000
@@ -109,12 +111,13 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Init
           pure $ S.Skip $ step n (Streaming logTail)
         (Nothing, False) -> do
           -- Job ended
-          -- TODO: Drain all of tail -f's output first
-          -- Otherwise, we will miss last few lines of logs!
           App.runApp cfg $ do
             App.log Info $ "Job " <> show job.jobId <> " ended; ending stream"
-          TailF.stop logTail
-          pure $ S.Yield (Stop n) $ step (n + 1) Stopping
+          TailF.stop logTail >>= \case
+            Nothing ->
+              pure $ S.Yield (Stop n) $ step (n + 1) Stopping
+            Just s ->
+              pure $ S.Yield (Chunk n s) $ step (n + 1) StreamEnding
         (Just line, _) -> do
           let msg = Chunk n line
           pure $ S.Yield msg $ step (n + 1) (Streaming logTail)

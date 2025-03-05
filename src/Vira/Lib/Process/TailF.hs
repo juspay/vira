@@ -50,7 +50,13 @@ tryRead (TailF _ _ chan) = do
     then pure Nothing
     else pure $ Just $ unlines ls
 
-stop :: TailF -> IO ()
-stop (TailF _ ph _) = do
+-- | Stop the tail process, and then returning the unread lines (the last lines, generally)
+stop :: TailF -> IO (Maybe Text)
+stop t@(TailF _ ph _) = do
+  -- HACK: Give the process a chance to finish writing to the queue
+  threadDelay 1000_000
+  s <- tryRead t
+  -- Then terminate.
   terminateProcess ph
   void $ waitForProcess ph
+  pure s
