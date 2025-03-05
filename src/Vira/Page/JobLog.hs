@@ -2,8 +2,7 @@
 
 module Vira.Page.JobLog where
 
-import Control.Concurrent (forkIO, threadDelay)
-import Control.Concurrent.STM (TQueue, flushTQueue, newTQueueIO, writeTQueue)
+import Control.Concurrent (threadDelay)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Htmx.Lucid.Core (hxSwap_)
@@ -14,11 +13,12 @@ import Servant.API.EventStream (ServerEvent (ServerEvent), ServerSentEvents, ToS
 import Servant.Server.Generic (AsServer)
 import Servant.Types.SourceT qualified as S
 import System.FilePath ((</>))
-import System.IO (hGetLine)
-import System.Process (CreateProcess (std_out), ProcessHandle, StdStream (CreatePipe), createProcess, proc, terminateProcess)
+import System.Process (ProcessHandle, terminateProcess)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.HTMX (hxSseConnect_, hxSseSwap_)
+import Vira.Lib.Process.TailF (TailF)
+import Vira.Lib.Process.TailF qualified as TailF
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId, jobWorkingDir)
 import Vira.State.Type qualified as St
@@ -55,49 +55,6 @@ instance ToServerEvent LogChunk where
       (Just $ show ident)
       (Lucid.renderBS t)
 
--- Represent a `tail -f` process along with its output gathered up in TChat
-data TailF = TailF FilePath (TQueue Text)
-
-newTailF :: FilePath -> IO TailF
-newTailF filePath = do
-  TailF filePath <$> newTQueueIO
-
-runTailF :: TailF -> IO ProcessHandle
-runTailF (TailF filePath chan) = do
-  -- Run `tail -f` using System.Process and stream its output to chan
-  (_, Just hOut, _, ph) <-
-    createProcess
-      ( proc
-          "tail"
-          [ "-n"
-          , "+1" -- This reads whole file; cf. https://askubuntu.com/a/509915/26624
-          , "-f"
-          , filePath
-          ]
-      )
-        { std_out = CreatePipe
-        }
-  hSetBuffering hOut LineBuffering
-  void $ forkIO $ do
-    let loop = do
-          hIsEOF hOut >>= \case
-            True -> pass
-            False -> do
-              line <- hGetLine hOut
-              atomically $ writeTQueue chan $ toText line
-              loop
-    loop
-  -- Give the process a chance to start up
-  threadDelay 100_000
-  pure ph
-
-tryReadTailF :: TailF -> IO (Maybe Text)
-tryReadTailF (TailF _ chan) = do
-  ls <- atomically $ flushTQueue chan
-  if null ls
-    then pure Nothing
-    else pure $ Just $ unlines ls
-
 streamHandler :: App.AppState -> JobId -> S.SourceT IO LogChunk
 streamHandler cfg jobId = S.fromStepT $ step 0 Nothing
   where
@@ -111,8 +68,8 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Nothing
       (h, p) <-
         maybe
           ( liftIO $ do
-              t <- newTailF logFile
-              p <- runTailF t
+              t <- TailF.new logFile
+              p <- TailF.run t
               pure (t, p)
           )
           pure
@@ -120,7 +77,7 @@ streamHandler cfg jobId = S.fromStepT $ step 0 Nothing
       -- TODO:
       -- 1. Read last N lines, rather than reading from scratch
       -- 2. Send chunks, not single line. And delay?
-      mLine <- tryReadTailF h
+      mLine <- TailF.tryRead h
       case (mLine, jobActive) of
         (Nothing, True) -> do
           -- Job is active, but log yet to be updated; retry.
