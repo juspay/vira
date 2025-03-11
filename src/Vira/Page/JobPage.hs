@@ -23,7 +23,6 @@ import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (JobId, RepoName, jobWorkingDir)
-import Vira.Stream.Log qualified as Log
 import Vira.Supervisor qualified as Supervisor
 import Vira.Supervisor.Type (TaskSupervisor (baseWorkDir))
 import Vira.Widgets qualified as W
@@ -57,18 +56,17 @@ viewHandler jobId = do
   job <- App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
   let crumbs = [LinkTo.RepoListing, LinkTo.Repo job.jobRepo, LinkTo.Job jobId]
   cfg <- ask
-  pure $ W.layout cfg (show jobId) crumbs $ do
-    viewJob cfg.linkTo job
-    Log.viewStream cfg.linkTo job
+  W.layout cfg (show jobId) crumbs <$> viewJob cfg.linkTo job
 
-getLastNLines :: Int -> Text -> Text
-getLastNLines n = unlines . lastN n . lines
-  where
-    lastN :: Int -> [a] -> [a]
-    lastN n' xs = drop (length xs - n') xs
-
-viewJob :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
+viewJob :: (LinkTo.LinkTo -> Link) -> St.Job -> Eff App.AppServantStack (Html ())
 viewJob linkTo job = do
+  logView <- JobLog.view linkTo job
+  pure $ do
+    viewJobHeader linkTo job
+    logView
+
+viewJobHeader :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
+viewJobHeader linkTo job = do
   a_ [title_ "View Job Details", href_ $ show . linkURI $ linkTo $ LinkTo.Job job.jobId] $ do
     div_ [class_ "flex items-center justify-start space-x-4 hover:bg-blue-100"] $ do
       div_ [class_ "w-24"] $ do

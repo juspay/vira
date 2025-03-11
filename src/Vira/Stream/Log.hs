@@ -8,10 +8,11 @@ module Vira.Stream.Log (
 
   -- * View
   viewStream,
+  logViewerWidget,
 ) where
 
 import Control.Concurrent (threadDelay)
-import Htmx.Lucid.Core (hxSwap_)
+import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
 import Servant hiding (throwError)
@@ -111,31 +112,47 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
 
 viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewStream linkTo job = do
+  let streamLink = show . linkURI $ linkTo $ LinkTo.JobLogStream job.jobId
+      sseAttrs =
+        [ hxExt_ "sse"
+        , hxSseConnect_ streamLink
+        , hxSseClose_ $ logChunkType $ Stop 0
+        ]
+  div_ sseAttrs $ do
+    -- Div containing log messages
+    div_
+      [ hxSseSwap_ $ logChunkType $ Chunk 0 mempty
+      , hxSwap_ "beforeend show:window:bottom"
+      , hxTarget_ ("#" <> sseTarget)
+      ]
+      $ do
+        logViewerWidget linkTo job $ do
+          "Loading log ..."
+    -- Div containing streaming status
+    div_
+      [ hxSseSwap_ $ logChunkType $ Stop 0
+      , hxSwap_ "innerHTML"
+      ]
+      $ do
+        Status.indicator True
+
+-- | Log viewer widget agnostic to static or streaming nature.
+logViewerWidget :: (LinkTo.LinkTo -> Link) -> Job -> Html () -> Html ()
+logViewerWidget linkTo job w = do
   div_ $ do
     div_ [class_ "my-2"] $ do
       p_ $ do
         a_
           [target_ "blank", class_ "underline text-blue-500", href_ $ show . linkURI $ linkTo $ LinkTo.JobLog job.jobId]
           "View Full Log"
-    let streamLink = show . linkURI $ linkTo $ LinkTo.JobLogStream job.jobId
-    let sseAttrs =
-          [ hxExt_ "sse"
-          , hxSseConnect_ streamLink
-          , hxSwap_ "beforeend show:window:bottom"
-          , hxSseClose_ $ logChunkType $ Stop 0
-          ]
-    div_ sseAttrs $ do
-      pre_
-        [ hxSseSwap_ $ logChunkType $ Chunk 0 mempty
-        , class_ "bg-black text-white p-2 text-xs"
-        , style_ "white-space: pre-wrap;"
-        ]
-        $ code_
-        $ do
-          "Loading log ..."
-      div_
-        [ hxSseSwap_ $ logChunkType $ Stop 0
-        , hxSwap_ "innerHTML"
-        ]
-        $ do
-          Status.indicator True
+    pre_
+      [ id_ sseTarget
+      , class_ "bg-black text-white p-2 text-xs"
+      , style_ "white-space: pre-wrap;"
+      ]
+      $ do
+        code_ w
+
+-- | ID of the HTML element targetted by SSE message swaps (log streaming)
+sseTarget :: Text
+sseTarget = "logViewerWidget-pre"
