@@ -4,12 +4,15 @@ module Vira.Page.JobLog where
 
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
+import Lucid
 import Servant hiding (throwError)
 import Servant.Server.Generic (AsServer)
 import System.FilePath ((</>))
 import Vira.App qualified as App
+import Vira.App.LinkTo.Type (LinkTo)
 import Vira.State.Acid qualified as St
-import Vira.State.Type (JobId, jobWorkingDir)
+import Vira.State.Type (Job, JobId, jobWorkingDir)
+import Vira.State.Type qualified as St
 import Vira.Stream.Log qualified as Log
 import Prelude hiding (ask, asks)
 
@@ -34,3 +37,28 @@ rawLogHandler jobId = do
   logText <-
     liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
   pure $ decodeUtf8 logText
+
+readJobLogFull :: (MonadIO m) => Job -> m Text
+readJobLogFull job = do
+  logText <-
+    liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
+  pure $ decodeUtf8 logText
+
+view :: (LinkTo -> Link) -> Job -> Eff App.AppServantStack (Html ())
+view linkTo job = do
+  let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
+  if jobActive
+    then pure $ Log.viewStream linkTo job
+    else viewStaticLog linkTo job
+
+viewStaticLog :: (LinkTo -> Link) -> Job -> Eff App.AppServantStack (Html ())
+viewStaticLog linkTo job = do
+  logText <- readJobLogFull job
+  pure $ Log.viewLogWith linkTo job $ do
+    pre_
+      [ class_ "bg-black text-white p-2 text-xs"
+      , style_ "white-space: pre-wrap;"
+      ]
+      $ code_
+      $ do
+        toHtml logText

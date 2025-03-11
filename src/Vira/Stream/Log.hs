@@ -8,6 +8,7 @@ module Vira.Stream.Log (
 
   -- * View
   viewStream,
+  viewLogWith,
 ) where
 
 import Control.Concurrent (threadDelay)
@@ -111,12 +112,7 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
 
 viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewStream linkTo job = do
-  div_ $ do
-    div_ [class_ "my-2"] $ do
-      p_ $ do
-        a_
-          [target_ "blank", class_ "underline text-blue-500", href_ $ show . linkURI $ linkTo $ LinkTo.JobLog job.jobId]
-          "View Full Log"
+  viewLogWith linkTo job $ do
     let streamLink = show . linkURI $ linkTo $ LinkTo.JobLogStream job.jobId
     let sseAttrs =
           [ hxExt_ "sse"
@@ -139,3 +135,13 @@ viewStream linkTo job = do
         ]
         $ do
           Status.indicator True
+
+viewLogWith :: (LinkTo.LinkTo -> Link) -> Job -> Html () -> Html ()
+viewLogWith linkTo job w = do
+  div_ $ do
+    div_ [class_ "my-2"] $ do
+      p_ $ do
+        a_
+          [target_ "blank", class_ "underline text-blue-500", href_ $ show . linkURI $ linkTo $ LinkTo.JobLog job.jobId]
+          "View Full Log"
+    w
