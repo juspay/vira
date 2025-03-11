@@ -72,19 +72,21 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
           App.runApp cfg $ App.log Error "Job not found"
           pure $ S.Error "Job not found"
         Just job -> do
-          case st of
-            Init -> do
-              let logFile = job.jobWorkingDir </> "output.log"
-              logTail <- liftIO $ TailF.new logFile
-              streamLog n job logTail
-            Streaming logTail -> do
-              streamLog n job logTail
-            StreamEnding -> do
-              pure $ S.Yield (Stop n) $ step (n + 1) Stopping
-            Stopping -> do
-              -- Keep going until the htmx client has time to catch up.
-              threadDelay 1_000_000
-              pure $ S.Yield (Stop n) $ step (n + 1) st
+          handleState job n st
+    handleState job n st =
+      case st of
+        Init -> do
+          let logFile = job.jobWorkingDir </> "output.log"
+          logTail <- liftIO $ TailF.new logFile
+          streamLog n job logTail
+        Streaming logTail -> do
+          streamLog n job logTail
+        StreamEnding -> do
+          pure $ S.Yield (Stop n) $ step (n + 1) Stopping
+        Stopping -> do
+          -- Keep going until the htmx client has time to catch up.
+          threadDelay 1_000_000
+          pure $ S.Yield (Stop n) $ step (n + 1) st
     streamLog n job logTail = do
       let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
       TailF.tryRead logTail >>= \case
