@@ -12,7 +12,7 @@ module Vira.Stream.Log (
 ) where
 
 import Control.Concurrent (threadDelay)
-import Htmx.Lucid.Core (hxSwap_)
+import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
 import Servant hiding (throwError)
@@ -116,12 +116,17 @@ viewStream linkTo job = do
       sseAttrs =
         [ hxExt_ "sse"
         , hxSseConnect_ streamLink
-        , hxSwap_ "beforeend show:window:bottom"
         , hxSseClose_ $ logChunkType $ Stop 0
         ]
   div_ sseAttrs $ do
-    logViewerWidget linkTo job [hxSseSwap_ $ logChunkType $ Chunk 0 mempty] $ do
-      "Loading log ..."
+    div_
+      [ hxSseSwap_ $ logChunkType $ Chunk 0 mempty
+      , hxSwap_ "beforeend show:window:bottom"
+      , hxTarget_ ("#" <> sseTarget)
+      ]
+      $ do
+        logViewerWidget linkTo job [] $ do
+          "Loading log ..."
     div_
       [ hxSseSwap_ $ logChunkType $ Stop 0
       , hxSwap_ "innerHTML"
@@ -138,5 +143,9 @@ logViewerWidget linkTo job attrs w = do
         a_
           [target_ "blank", class_ "underline text-blue-500", href_ $ show . linkURI $ linkTo $ LinkTo.JobLog job.jobId]
           "View Full Log"
-    pre_ (attrs <> [class_ "bg-black text-white p-2 text-xs", style_ "white-space: pre-wrap;"]) $ do
+    pre_ (attrs <> [id_ sseTarget, class_ "bg-black text-white p-2 text-xs", style_ "white-space: pre-wrap;"]) $ do
       code_ w
+
+-- | ID of the HTML element targetted by SSE message swaps (log streaming)
+sseTarget :: Text
+sseTarget = "logViewerWidget-pre"
