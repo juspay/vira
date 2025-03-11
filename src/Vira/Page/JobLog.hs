@@ -38,12 +38,6 @@ rawLogHandler jobId = do
     liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
   pure $ decodeUtf8 logText
 
-readJobLogFull :: (MonadIO m) => Job -> m Text
-readJobLogFull job = do
-  logText <-
-    liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
-  pure $ decodeUtf8 logText
-
 view :: (LinkTo -> Link) -> Job -> Eff App.AppServantStack (Html ())
 view linkTo job = do
   let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
@@ -56,3 +50,9 @@ viewStaticLog linkTo job = do
   logText <- readJobLogFull job
   pure $ Log.logViewerWidget linkTo job $ do
     toHtml logText
+
+readJobLogFull :: (MonadIO m) => Job -> m Text
+readJobLogFull job = do
+  logText <-
+    liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
+  pure $ decodeUtf8 logText

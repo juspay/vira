@@ -119,6 +119,7 @@ viewStream linkTo job = do
         , hxSseClose_ $ logChunkType $ Stop 0
         ]
   div_ sseAttrs $ do
+    -- Div containing log messages
     div_
       [ hxSseSwap_ $ logChunkType $ Chunk 0 mempty
       , hxSwap_ "beforeend show:window:bottom"
@@ -127,6 +128,7 @@ viewStream linkTo job = do
       $ do
         logViewerWidget linkTo job $ do
           "Loading log ..."
+    -- Div containing streaming status
     div_
       [ hxSseSwap_ $ logChunkType $ Stop 0
       , hxSwap_ "innerHTML"
