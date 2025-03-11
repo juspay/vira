@@ -125,7 +125,7 @@ viewStream linkTo job = do
       , hxTarget_ ("#" <> sseTarget)
       ]
       $ do
-        logViewerWidget linkTo job [] $ do
+        logViewerWidget linkTo job $ do
           "Loading log ..."
     div_
       [ hxSseSwap_ $ logChunkType $ Stop 0
@@ -135,16 +135,21 @@ viewStream linkTo job = do
         Status.indicator True
 
 -- | Log viewer widget agnostic to static or streaming nature.
-logViewerWidget :: (LinkTo.LinkTo -> Link) -> Job -> [Attributes] -> Html () -> Html ()
-logViewerWidget linkTo job attrs w = do
+logViewerWidget :: (LinkTo.LinkTo -> Link) -> Job -> Html () -> Html ()
+logViewerWidget linkTo job w = do
   div_ $ do
     div_ [class_ "my-2"] $ do
       p_ $ do
         a_
           [target_ "blank", class_ "underline text-blue-500", href_ $ show . linkURI $ linkTo $ LinkTo.JobLog job.jobId]
           "View Full Log"
-    pre_ (attrs <> [id_ sseTarget, class_ "bg-black text-white p-2 text-xs", style_ "white-space: pre-wrap;"]) $ do
-      code_ w
+    pre_
+      [ id_ sseTarget
+      , class_ "bg-black text-white p-2 text-xs"
+      , style_ "white-space: pre-wrap;"
+      ]
+      $ do
+        code_ w
 
 -- | ID of the HTML element targetted by SSE message swaps (log streaming)
 sseTarget :: Text

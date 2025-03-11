@@ -54,5 +54,5 @@ view linkTo job = do
 viewStaticLog :: (LinkTo -> Link) -> Job -> Eff App.AppServantStack (Html ())
 viewStaticLog linkTo job = do
   logText <- readJobLogFull job
-  pure $ Log.logViewerWidget linkTo job mempty $ do
+  pure $ Log.logViewerWidget linkTo job $ do
     toHtml logText
