@@ -2,13 +2,13 @@
 
 -- | Real-time status of the Vira system.
 module Vira.Stream.Status (
-  -- * Views
-  view,
-  indicator,
+  -- * Routes and handlers
+  StreamRoute,
+  streamRouteHandler,
 
-  -- * Route handlers
-  Routes (..),
-  handlers,
+  -- * Views
+  viewStream,
+  indicator,
 ) where
 
 import Control.Concurrent (threadDelay)
@@ -18,7 +18,6 @@ import Lucid
 import Servant.API
 import Servant.API.EventStream
 import Servant.Links (linkURI)
-import Servant.Server.Generic (AsServer)
 import Servant.Types.SourceT qualified as S
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type (LinkTo)
@@ -41,8 +40,8 @@ instance ToServerEvent Status where
       (Just $ show ident)
       (Lucid.renderBS t)
 
-view :: (LinkTo.LinkTo -> Link) -> Html ()
-view linkTo = do
+viewStream :: (LinkTo.LinkTo -> Link) -> Html ()
+viewStream linkTo = do
   div_ [hxExt_ "sse", hxSseConnect_ link, hxSseSwap_ "status"] $ do
     "Loading status..."
   where
@@ -63,19 +62,10 @@ indicator active = do
   let classes = if not active then "border-blue-300" else "border-blue-500 animate-ping"
   div_ [class_ $ "w-4 h-4 border-2 rounded-full " <> classes] ""
 
-newtype Routes mode = Routes
-  { _get :: mode :- "get" :> ServerSentEvents (SourceIO Status)
-  }
-  deriving stock (Generic)
+type StreamRoute = ServerSentEvents (SourceIO Status)
 
-handlers :: App.AppState -> Routes AsServer
-handlers cfg = do
-  Routes
-    { _get = pure $ handler cfg
-    }
-
-handler :: App.AppState -> SourceIO Status
-handler cfg = S.fromStepT $ step 0
+streamRouteHandler :: App.AppState -> SourceIO Status
+streamRouteHandler cfg = S.fromStepT $ step 0
   where
     step (n :: Int) = S.Effect $ do
       when (n > 0) $ do

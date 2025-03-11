@@ -21,7 +21,7 @@ data Routes mode = Routes
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _about :: mode :- "about" Servant.API.:> Get '[HTML] (Html ())
-  , _status :: mode :- "status" Servant.API.:> NamedRoutes Status.Routes
+  , _status :: mode :- "status" Servant.API.:> Status.StreamRoute
   }
   deriving stock (Generic)
 
@@ -41,7 +41,7 @@ handlers cfg =
         pure $ W.layout cfg "About Vira" [About] $ do
           div_ $ do
             a_ [href_ "https://github.com/juspay/vira"] "GitHub Repo"
-    , _status = Status.handlers cfg
+    , _status = pure $ Status.streamRouteHandler cfg
     }
   where
     linkText = show . linkURI

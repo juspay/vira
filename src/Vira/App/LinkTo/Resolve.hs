@@ -9,7 +9,6 @@ import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.Routes
-import Vira.Stream.Status qualified as Status
 
 -- | Resolve a `LinkTo` into a servant `Link`
 linkTo :: LinkTo -> Link
@@ -23,4 +22,4 @@ linkTo = \case
   Job jobId -> fieldLink _jobs // JobPage._view /: jobId
   JobLog jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._rawLog
   JobLogStream jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._streamLog
-  StatusGet -> fieldLink _status // Status._get
+  StatusGet -> fieldLink _status

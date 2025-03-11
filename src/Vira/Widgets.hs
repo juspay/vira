@@ -56,7 +56,7 @@ breadcrumbs linkTo rs' = do
         renderCrumb (s, Just r)
         span_ [class_ "text-gray-500"] ">"
       renderCrumb (fst $ last rs, Nothing)
-    Status.view linkTo
+    Status.viewStream linkTo
   where
     renderCrumb :: (Html (), Maybe URI) -> Html ()
     renderCrumb (s, mr) = li_ [class_ "flex"] $ do

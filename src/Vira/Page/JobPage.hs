@@ -23,6 +23,7 @@ import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (JobId, RepoName, jobWorkingDir)
+import Vira.Stream.Log qualified as Log
 import Vira.Supervisor qualified as Supervisor
 import Vira.Supervisor.Type (TaskSupervisor (baseWorkDir))
 import Vira.Widgets qualified as W
@@ -58,7 +59,7 @@ viewHandler jobId = do
   cfg <- ask
   pure $ W.layout cfg (show jobId) crumbs $ do
     viewJob cfg.linkTo job
-    JobLog.viewStream cfg.linkTo job
+    Log.viewStream cfg.linkTo job
 
 getLastNLines :: Int -> Text -> Text
 getLastNLines n = unlines . lastN n . lines
