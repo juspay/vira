@@ -129,7 +129,7 @@ library
     Vira.State.Acid
     Vira.State.Core
     Vira.State.Type
-    Vira.Status
+    Vira.Stream.Status
     Vira.Supervisor
     Vira.Supervisor.Type
     Vira.Toplevel

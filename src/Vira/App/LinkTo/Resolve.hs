@@ -9,7 +9,7 @@ import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.Routes
-import Vira.Status qualified as Status
+import Vira.Stream.Status qualified as Status
 
 -- | Resolve a `LinkTo` into a servant `Link`
 linkTo :: LinkTo -> Link

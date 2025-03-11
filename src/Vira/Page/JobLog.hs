@@ -22,7 +22,7 @@ import Vira.Lib.Process.TailF qualified as TailF
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId, jobWorkingDir)
 import Vira.State.Type qualified as St
-import Vira.Status qualified as Status
+import Vira.Stream.Status qualified as Status
 import Prelude hiding (ask, asks)
 
 data Routes mode = Routes

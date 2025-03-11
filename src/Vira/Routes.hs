@@ -12,7 +12,7 @@ import Vira.App qualified as App
 import Vira.App.LinkTo.Type (LinkTo (..))
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
-import Vira.Status qualified as Status
+import Vira.Stream.Status qualified as Status
 import Vira.Widgets qualified as W
 import Prelude hiding (Reader, ask, runReader)
 

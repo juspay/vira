@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
 -- | Real-time status of the Vira system.
-module Vira.Status (
+module Vira.Stream.Status (
   -- * Views
   view,
   indicator,
