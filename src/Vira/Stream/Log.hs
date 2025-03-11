@@ -8,7 +8,7 @@ module Vira.Stream.Log (
 
   -- * View
   viewStream,
-  viewLogWith,
+  logViewerWidget,
 ) where
 
 import Control.Concurrent (threadDelay)
@@ -112,36 +112,31 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
 
 viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewStream linkTo job = do
-  viewLogWith linkTo job $ do
-    let streamLink = show . linkURI $ linkTo $ LinkTo.JobLogStream job.jobId
-    let sseAttrs =
-          [ hxExt_ "sse"
-          , hxSseConnect_ streamLink
-          , hxSwap_ "beforeend show:window:bottom"
-          , hxSseClose_ $ logChunkType $ Stop 0
-          ]
-    div_ sseAttrs $ do
-      pre_
-        [ hxSseSwap_ $ logChunkType $ Chunk 0 mempty
-        , class_ "bg-black text-white p-2 text-xs"
-        , style_ "white-space: pre-wrap;"
+  let streamLink = show . linkURI $ linkTo $ LinkTo.JobLogStream job.jobId
+      sseAttrs =
+        [ hxExt_ "sse"
+        , hxSseConnect_ streamLink
+        , hxSwap_ "beforeend show:window:bottom"
+        , hxSseClose_ $ logChunkType $ Stop 0
         ]
-        $ code_
-        $ do
-          "Loading log ..."
-      div_
-        [ hxSseSwap_ $ logChunkType $ Stop 0
-        , hxSwap_ "innerHTML"
-        ]
-        $ do
-          Status.indicator True
+  div_ sseAttrs $ do
+    logViewerWidget linkTo job [hxSseSwap_ $ logChunkType $ Chunk 0 mempty] $ do
+      "Loading log ..."
+    div_
+      [ hxSseSwap_ $ logChunkType $ Stop 0
+      , hxSwap_ "innerHTML"
+      ]
+      $ do
+        Status.indicator True
 
-viewLogWith :: (LinkTo.LinkTo -> Link) -> Job -> Html () -> Html ()
-viewLogWith linkTo job w = do
+-- | Log viewer widget agnostic to static or streaming nature.
+logViewerWidget :: (LinkTo.LinkTo -> Link) -> Job -> [Attributes] -> Html () -> Html ()
+logViewerWidget linkTo job attrs w = do
   div_ $ do
     div_ [class_ "my-2"] $ do
       p_ $ do
         a_
           [target_ "blank", class_ "underline text-blue-500", href_ $ show . linkURI $ linkTo $ LinkTo.JobLog job.jobId]
           "View Full Log"
-    w
+    pre_ (attrs <> [class_ "bg-black text-white p-2 text-xs", style_ "white-space: pre-wrap;"]) $ do
+      code_ w
