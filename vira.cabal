@@ -55,7 +55,6 @@ common library-shared
     , acid-state
     , aeson
     , async
-    , autodocodec
     , base                   >=4   && <5
     , bytestring
     , co-log
@@ -69,6 +68,7 @@ common library-shared
     , effectful-core
     , effectful-plugin
     , effectful-th
+    , envparse
     , filepath
     , gitlib
     , hostname
@@ -80,8 +80,8 @@ common library-shared
     , ixset-typed
     , lucid2
     , mtl
-    , opt-env-conf
     , optics-core
+    , optparse-applicative
     , process
     , profunctors
     , QuickCheck

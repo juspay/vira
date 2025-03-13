@@ -1,21 +1,5 @@
 {
   "nodes": {
-    "autodocodec": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1739562397,
-        "narHash": "sha256-BKjXbyGWov9WUrLQEL1NwpWSVOQF+gwl4zBkUFe+240=",
-        "owner": "NorfairKing",
-        "repo": "autodocodec",
-        "rev": "8e3abb322773df1699eef0b1fcd3359b54b8d18b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NorfairKing",
-        "repo": "autodocodec",
-        "type": "github"
-      }
-    },
     "cachix-push": {
       "locked": {
         "lastModified": 1725315090,
@@ -542,7 +526,6 @@
     },
     "root": {
       "inputs": {
-        "autodocodec": "autodocodec",
         "co-log-effectful": "co-log-effectful",
         "flake-parts": "flake-parts_2",
         "fourmolu-nix": "fourmolu-nix",
@@ -553,8 +536,7 @@
         "nixos-unified": "nixos-unified",
         "nixpkgs": "nixpkgs_2",
         "omnix": "omnix",
-        "process-compose-flake": "process-compose-flake",
-        "safe-coloured-text": "safe-coloured-text"
+        "process-compose-flake": "process-compose-flake"
       }
     },
     "rust-flake": {
@@ -599,22 +581,6 @@
       "original": {
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "type": "github"
-      }
-    },
-    "safe-coloured-text": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1728774106,
-        "narHash": "sha256-Xfv5izJtsdQ9MFhglkcEjJH4LlZ2m4Wmq+JJgMvnytc=",
-        "owner": "NorfairKing",
-        "repo": "safe-coloured-text",
-        "rev": "9ed65a40b3b2fade447c9d5fcb941d58f6367308",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NorfairKing",
-        "repo": "safe-coloured-text",
         "type": "github"
       }
     },
