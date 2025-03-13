@@ -102,7 +102,13 @@
               tailwind = pkgs.tailwindcss_4;
             in
             {
-              command = "${lib.getExe tailwind} -w -o ../static/tailwind.css --cwd ./src";
+              command = pkgs.writeShellApplication {
+                name = "tailwind-dev";
+                runtimeInputs = [ pkgs.watchman ];
+                text = ''
+                  exec ${lib.getExe tailwind} -w -o ../static/tailwind.css --cwd ./src
+                '';
+              };
               is_tty = true;
             };
         };
