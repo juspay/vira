@@ -10,7 +10,6 @@ import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (ask)
 import Main.Utf8 qualified as Utf8
-import Network.HostName (getHostName)
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Middleware.Static (
   addBase,
@@ -18,11 +17,11 @@ import Network.Wai.Middleware.Static (
   staticPolicy,
   (>->),
  )
-import OptEnvConf qualified
 import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
 import Vira.App (AppStack, Settings (..))
 import Vira.App qualified as App
+import Vira.App.CLI qualified as CLI
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Logging
 import Vira.Routes qualified as Routes
@@ -37,10 +36,7 @@ runVira = do
   Utf8.withUtf8 $ do
     hSetBuffering stdout LineBuffering
     hSetBuffering stderr LineBuffering
-    settings' :: Settings <- OptEnvConf.runSettingsParser Paths_vira.version "Nix CI & Cache for teams"
-    hostName <- liftIO getHostName
-    let settings = if settings'.instanceName == "" then settings' {instanceName = toText hostName} else settings'
-    appIO settings
+    appIO =<< CLI.parseCLI
   where
     -- Like `app` but in `IO`
     appIO :: Settings -> IO ()

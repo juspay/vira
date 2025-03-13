@@ -13,10 +13,6 @@
 
     htmx.url = "github:JonathanLorimer/htmx";
     htmx.flake = false;
-    autodocodec.url = "github:NorfairKing/autodocodec";
-    autodocodec.flake = false;
-    safe-coloured-text.url = "github:NorfairKing/safe-coloured-text";
-    safe-coloured-text.flake = false;
     co-log-effectful.url = "github:eldritch-cookie/co-log-effectful";
 
     # Runtime dependencies

@@ -43,17 +43,6 @@
 
         # effectful
         co-log-effectful.source = inputs.co-log-effectful;
-
-        # Syd's libs
-        autodocodec.source = inputs.autodocodec + /autodocodec;
-        autodocodec-nix.source = inputs.autodocodec + /autodocodec-nix;
-        autodocodec-schema.source = inputs.autodocodec + /autodocodec-schema;
-        autodocodec-yaml.source = inputs.autodocodec + /autodocodec-yaml;
-        safe-coloured-text.source = inputs.safe-coloured-text + /safe-coloured-text;
-        safe-coloured-text-layout.source = inputs.safe-coloured-text + /safe-coloured-text-layout;
-        safe-coloured-text-gen.source = inputs.safe-coloured-text + /safe-coloured-text-gen;
-        safe-coloured-text-layout-gen.source = inputs.safe-coloured-text + /safe-coloured-text-layout-gen;
-        safe-coloured-text-terminfo.source = inputs.safe-coloured-text + /safe-coloured-text-terminfo;
       };
 
       # Add your package overrides here
@@ -101,7 +90,10 @@
             command = ''
               set -x
               ghcid -c 'cabal repl exe:vira --flags=ghcid' -T Main.main \
-                  --setup ':set args --repo-cachix-name scratch-vira-dev --repo-cachix-auth-token eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U'
+                  --setup ':set args
+                    --cachix-name scratch-vira-dev
+                    --cachix-auth-token eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U
+                  '
             '';
             depends_on.tailwind.condition = "process_started";
           };

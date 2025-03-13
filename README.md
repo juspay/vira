@@ -19,7 +19,6 @@ The project is currently in prototype phase. Contact [@srid](https://github.com/
 | Logging       | [co-log](https://kowainik.github.io/projects/co-log)        |
 | HTML DSL      | Lucid2                                                      |
 | CSS           | TailwindCSS                                                 |
-| CLI / Config  | [opt-env-conf](https://github.com/NorfairKing/opt-env-conf) |
 | Nix CI        | [Omnix](https://omnix.page/om/ci.html) |
 
 ## Roadmap
