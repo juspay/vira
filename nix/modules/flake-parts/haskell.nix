@@ -87,13 +87,10 @@
         processes = {
           # The cachix token here is for a dummy cache, managed by Srid.
           haskell = {
-            command = ''
+            command = pkgs.writeShellScriptBin "haskell-dev" ''
               set -x
               ghcid -c 'cabal repl exe:vira --flags=ghcid' -T Main.main \
-                  --setup ':set args
-                    --cachix-name scratch-vira-dev
-                    --cachix-auth-token eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U
-                  '
+                  --setup ":set args --cachix-name scratch-vira-dev --cachix-auth-token eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U --base-path ''${BASE_PATH:-/}"
             '';
             depends_on.tailwind.condition = "process_started";
           };
