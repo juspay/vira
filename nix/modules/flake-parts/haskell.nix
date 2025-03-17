@@ -74,6 +74,7 @@
           vira-dev = config.process-compose."vira-dev".outputs.package;
         };
         mkShellArgs.shellHook = ''
+          rm -f ./static/htmx-extensions
           ln -sf ${inputs.htmx-extensions} ./static/htmx-extensions
         '';
       };
