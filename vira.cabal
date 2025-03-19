@@ -17,6 +17,7 @@ data-dir:           static
 data-files:
   htmx-extensions/src/sse/sse.js
   tailwind.css
+  vira-logo.jpg
 
 flag ghcid
   default: False

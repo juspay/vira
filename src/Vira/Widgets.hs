@@ -23,6 +23,8 @@ layout cfg heading crumbs content = do
       mobileFriendly
       title_ $ toHtml @Text $ "Vira (" <> cfg.settings.instanceName <> ")"
       base_ [href_ cfg.settings.basePath]
+      -- favicon
+      link_ [rel_ "icon", type_ "image/jpg", href_ "vira-logo.jpg"]
       htmx
       link_ [rel_ "stylesheet", type_ "text/css", href_ "tailwind.css"]
     body_ [class_ "bg-gray-100"] $ do
@@ -49,7 +51,8 @@ layout cfg heading crumbs content = do
 breadcrumbs :: (LinkTo -> Link) -> [(Html (), URI)] -> Html ()
 breadcrumbs linkTo rs' = do
   let home = URI {uriScheme = "", uriAuthority = Nothing, uriPath = "", uriQuery = [], uriFragment = ""}
-  let rs = (span_ "Vira", home) :| rs'
+      logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", style_ "height: 24px;"]
+      rs = (logo, home) :| rs'
   nav_ [id_ "breadcrumbs", class_ "flex items-center space-x-2 text-sm text-gray-600 p-3 mb-4 bg-blue-100"] $ do
     div_ [class_ "flex flex-1 items-center space-x-2 text-gray-600"] $ do
       forM_ (init rs) $ \(s, r) -> do
