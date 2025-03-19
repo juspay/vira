@@ -4,6 +4,8 @@ _/வீரா/_
 
 TBD
 
+<img src="static/vira-logo.jpg" style="height: 64px;" />
+
 ## Status
 
 The project is currently in prototype phase. Contact [@srid](https://github.com/srid) for details.
