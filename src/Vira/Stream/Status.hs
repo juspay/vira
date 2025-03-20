@@ -59,8 +59,8 @@ viewInner linkTo jobs = do
 
 indicator :: Bool -> Html ()
 indicator active = do
-  let classes = if not active then "border-blue-300" else "border-blue-500 animate-ping"
-  div_ [class_ $ "w-4 h-4 border-2 rounded-full " <> classes] ""
+  let classes = if not active then "border-orange-300" else "border-orange-100 animate-ping"
+  div_ [class_ $ "w-4 h-4 border-4 rounded-full " <> classes] ""
 
 type StreamRoute = ServerSentEvents (SourceIO Status)
 

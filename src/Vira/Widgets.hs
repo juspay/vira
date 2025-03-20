@@ -27,8 +27,8 @@ layout cfg heading crumbs content = do
       link_ [rel_ "icon", type_ "image/jpg", href_ "vira-logo.jpg"]
       htmx
       link_ [rel_ "stylesheet", type_ "text/css", href_ "tailwind.css"]
-    body_ [class_ "bg-gray-100"] $ do
-      div_ [class_ "container mx-auto p-4 mt-8 bg-white"] $ do
+    body_ [class_ "bg-orange-50"] $ do
+      div_ [class_ "container mx-auto p-4 mt-8 bg-white rounded shadow-lg"] $ do
         let crumbs' = crumbs <&> \l -> (toHtml $ linkShortTitle l, linkURI $ cfg.linkTo l)
         breadcrumbs cfg.linkTo crumbs'
         h1_ [class_ "text-3xl border-b-2 mb-2"] heading
@@ -53,11 +53,11 @@ breadcrumbs linkTo rs' = do
   let home = URI {uriScheme = "", uriAuthority = Nothing, uriPath = "", uriQuery = [], uriFragment = ""}
       logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", style_ "height: 24px;"]
       rs = (logo, home) :| rs'
-  nav_ [id_ "breadcrumbs", class_ "flex items-center space-x-2 text-sm text-gray-600 p-3 mb-4 bg-blue-100"] $ do
-    div_ [class_ "flex flex-1 items-center space-x-2 text-gray-600"] $ do
+  nav_ [id_ "breadcrumbs", class_ "flex items-center space-x-2 text-sm text-gray-200 p-3 mb-4 bg-orange-700"] $ do
+    div_ [class_ "flex flex-1 items-center space-x-2 text-l"] $ do
       forM_ (init rs) $ \(s, r) -> do
         renderCrumb (s, Just r)
-        span_ [class_ "text-gray-500"] ">"
+        span_ [class_ "text-gray-300"] ">"
       renderCrumb (fst $ last rs, Nothing)
     Status.viewStream linkTo
   where
