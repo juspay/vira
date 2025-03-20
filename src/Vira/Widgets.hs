@@ -21,7 +21,13 @@ layout cfg crumbs content = do
   html_ $ do
     head_ $ do
       mobileFriendly
-      title_ $ toHtml @Text $ "Vira (" <> cfg.settings.instanceName <> ")"
+      title_ $ do
+        case viaNonEmpty last crumbs of
+          Nothing -> mempty
+          Just link -> do
+            toHtml $ linkShortTitle link
+            " - "
+        toHtml siteTitle
       base_ [href_ cfg.settings.basePath]
       -- favicon
       link_ [rel_ "icon", type_ "image/jpg", href_ "vira-logo.jpg"]
@@ -33,6 +39,7 @@ layout cfg crumbs content = do
         breadcrumbs cfg.linkTo crumbs'
         content
   where
+    siteTitle = "Vira (" <> cfg.settings.instanceName <> ")"
     -- Mobile friendly head tags
     mobileFriendly = do
       meta_ [charset_ "utf-8", name_ "viewport", content_ "width=device-width, initial-scale=1"]
