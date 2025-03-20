@@ -56,7 +56,7 @@ viewHandler jobId = do
   job <- App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
   let crumbs = [LinkTo.RepoListing, LinkTo.Repo job.jobRepo, LinkTo.Job jobId]
   cfg <- ask
-  W.layout cfg (show jobId) crumbs <$> viewJob cfg.linkTo job
+  W.layout cfg crumbs <$> viewJob cfg.linkTo job
 
 viewJob :: (LinkTo.LinkTo -> Link) -> St.Job -> Eff App.AppServantStack (Html ())
 viewJob linkTo job = do

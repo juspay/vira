@@ -23,7 +23,7 @@ data LinkTo
 linkShortTitle :: LinkTo -> Text
 linkShortTitle = \case
   Home -> "Vira"
-  RepoListing -> "Repos"
+  RepoListing -> "Repositories"
   Repo name -> toText . toString $ name
   RepoUpdate _ -> "Update" -- unused
   Build _ _ -> "Build" -- unused

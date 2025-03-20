@@ -15,8 +15,8 @@ import Vira.Lib.HTMX
 import Vira.Stream.Status qualified as Status
 
 -- | Common HTML layout for all routes.
-layout :: AppState -> Html () -> [LinkTo] -> Html () -> Html ()
-layout cfg heading crumbs content = do
+layout :: AppState -> [LinkTo] -> Html () -> Html ()
+layout cfg crumbs content = do
   doctype_
   html_ $ do
     head_ $ do
@@ -31,7 +31,6 @@ layout cfg heading crumbs content = do
       div_ [class_ "container mx-auto p-4 mt-8 bg-white rounded shadow-lg"] $ do
         let crumbs' = crumbs <&> \l -> (toHtml $ linkShortTitle l, linkURI $ cfg.linkTo l)
         breadcrumbs cfg.linkTo crumbs'
-        h1_ [class_ "text-3xl border-b-2 mb-2"] heading
         content
   where
     -- Mobile friendly head tags
@@ -51,10 +50,10 @@ layout cfg heading crumbs content = do
 breadcrumbs :: (LinkTo -> Link) -> [(Html (), URI)] -> Html ()
 breadcrumbs linkTo rs' = do
   let home = URI {uriScheme = "", uriAuthority = Nothing, uriPath = "", uriQuery = [], uriFragment = ""}
-      logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", style_ "height: 24px;"]
+      logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", style_ "height: 32px;"]
       rs = (logo, home) :| rs'
-  nav_ [id_ "breadcrumbs", class_ "flex items-center space-x-2 text-sm text-gray-200 p-3 mb-4 bg-orange-700"] $ do
-    div_ [class_ "flex flex-1 items-center space-x-2 text-l"] $ do
+  nav_ [id_ "breadcrumbs", class_ "flex items-center space-x-2 text-sm text-gray-200 p-3 mb-4 bg-orange-700 rounded"] $ do
+    div_ [class_ "flex flex-1 items-center space-x-2 text-xl"] $ do
       forM_ (init rs) $ \(s, r) -> do
         renderCrumb (s, Just r)
         span_ [class_ "text-gray-300"] ">"

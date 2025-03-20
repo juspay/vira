@@ -50,13 +50,8 @@ viewHandler name = do
   xs <- forM branches $ \branch -> do
     jobs <- App.query $ St.GetJobsByBranchA repo.name branch.branchName
     pure (branch, jobs)
-  pure
-    $ W.layout
-      cfg
-      (toHtml . toString $ name)
-      (crumbs <> [LinkTo.Repo name])
-    $ do
-      viewRepo cfg.linkTo repo xs
+  pure $ W.layout cfg (crumbs <> [LinkTo.Repo name]) $ do
+    viewRepo cfg.linkTo repo xs
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
@@ -71,7 +66,7 @@ updateHandler name = do
 viewRepo :: (LinkTo.LinkTo -> Link) -> St.Repo -> [(St.Branch, [St.Job])] -> Html ()
 viewRepo linkTo repo branches = do
   div_ $ do
-    pre_ [class_ "bg-neutral-600 rounded text-neutral-50 p-2 my-4"] $ code_ $ toHtml repo.cloneUrl
+    pre_ [class_ "rounded py-2 my-4"] $ code_ $ toHtml repo.cloneUrl
     W.viraButton_
       [ hxPostSafe_ $ linkTo $ RepoUpdate repo.name
       , hxSwapS_ AfterEnd
