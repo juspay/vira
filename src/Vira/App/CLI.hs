@@ -65,6 +65,7 @@ defaultRepos =
   , "https://github.com/juspay/omnix.git"
   , "https://github.com/juspay/vira.git"
   , "https://github.com/srid/haskell-flake.git"
+  , "https://github.com/juspay/nix-common.git"
   , "https://github.com/juspay/hyperswitch.git"
   , "https://github.com/juspay/superposition.git"
   , "https://github.com/juspay/services-flake.git"
