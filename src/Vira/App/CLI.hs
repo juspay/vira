@@ -18,6 +18,7 @@ import Network.HostName (HostName, getHostName)
 import Network.Wai.Handler.Warp (Port)
 import Options.Applicative
 import Paths_vira qualified
+import Vira.State.Type (Repo (Repo), RepoName)
 import Prelude hiding (Reader, reader, runReader)
 
 {- | CLI settings
@@ -42,7 +43,7 @@ data Settings = Settings
   deriving stock (Show)
 
 data RepoSettings = RepoSettings
-  { cloneUrls :: [Text]
+  { cloneUrls :: [Repo]
   -- ^ Repositories (git clone URL) to watch and build
   , branchWhitelist :: Set Text
   -- ^ Limit to building these branches to build
@@ -131,14 +132,15 @@ settingsParser hostName = do
 repoSettingsParser :: Parser RepoSettings
 repoSettingsParser = do
   cloneUrls <-
-    option
-      commaSeparatedTextList
-      ( long "clone-urls"
-          <> metavar "CLONE_URLS"
-          <> help "Repositories to watch and build, as comma-separated `git clone` URLs"
-          <> value defaultRepos
-          <> showDefault
-      )
+    fmap repoFromUrl
+      <$> option
+        commaSeparatedTextList
+        ( long "clone-urls"
+            <> metavar "CLONE_URLS"
+            <> help "Repositories to watch and build, as comma-separated `git clone` URLs"
+            <> value defaultRepos
+            <> showDefault
+        )
   branchWhitelist <-
     option
       (Set.fromList <$> commaSeparatedTextList)
@@ -193,3 +195,20 @@ parseCLI :: IO Settings
 parseCLI = do
   hostName <- liftIO getHostName
   execParser $ parseSettings hostName
+
+-- | Convert a git repository URL to a `State.Repo` record.
+repoFromUrl :: Text -> Repo
+repoFromUrl url =
+  Repo (nameForGitUrl url) url
+  where
+    --  Convert a git repository URL to a name representing it.
+    --
+    --    For example, `https://github.com/user/foo.git` becomes `foo`.
+    --
+    nameForGitUrl :: Text -> RepoName
+    nameForGitUrl gitUrl =
+      let
+        takeBaseName = T.reverse . T.takeWhile (/= '/') . T.reverse
+        name = let s = takeBaseName gitUrl in fromMaybe s $ T.stripSuffix ".git" s
+       in
+        (fromString . toString) name

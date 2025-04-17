@@ -6,7 +6,6 @@ module Vira.Toplevel (
 ) where
 
 import Control.Exception (bracket)
-import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (ask)
 import Main.Utf8 qualified as Utf8
@@ -26,7 +25,6 @@ import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Logging
 import Vira.Routes qualified as Routes
 import Vira.State.Core (closeViraState, openViraState)
-import Vira.State.Type qualified as State
 import Vira.Supervisor qualified
 import Prelude hiding (Reader, ask, runReader)
 
@@ -41,7 +39,7 @@ runVira = do
     -- Like `app` but in `IO`
     appIO :: Settings -> IO ()
     appIO settings = do
-      let repos = settings.repo.cloneUrls <&> repoFromUrl
+      let repos = settings.repo.cloneUrls
       bracket (openViraState repos) closeViraState $ \acid -> do
         supervisor <- Vira.Supervisor.newSupervisor
         let st = App.AppState {linkTo = linkTo, ..}
@@ -60,20 +58,3 @@ runVira = do
       let host = fromString $ toString settings.host
       let warpSettings = Warp.defaultSettings & Warp.setHost host & Warp.setPort settings.port
       liftIO $ Warp.runSettings warpSettings $ staticMiddleware servantApp
-
--- | Convert a git repository URL to a `State.Repo` record.
-repoFromUrl :: Text -> State.Repo
-repoFromUrl url =
-  State.Repo (nameForGitUrl url) (toText url)
-
-{- | Convert a git repository URL to a name representing it.
-
-For example, `https://github.com/user/foo.git` becomes `foo`.
--}
-nameForGitUrl :: Text -> State.RepoName
-nameForGitUrl url =
-  let
-    takeBaseName = T.reverse . T.takeWhile (/= '/') . T.reverse
-    name = let s = takeBaseName url in fromMaybe s $ T.stripSuffix ".git" s
-   in
-    (fromString . toString) name
