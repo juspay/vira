@@ -12,14 +12,16 @@ import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
 import Lucid
 import Servant hiding (throwError)
+import Servant.API ((:>))
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type (LinkTo (RepoUpdate))
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Lib.HTMX (hxPostSafe_)
-import Vira.Page.JobPage qualified as JobPage
+import Vira.Page.BranchJobsPage qualified as BranchJobsPage
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -29,6 +31,7 @@ import Prelude hiding (ask, asks)
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
   , _update :: mode :- "fetch" :> Post '[HTML] (Headers '[HXRefresh] Text)
+  , _branchJobs :: mode :- "branches" Servant.API.:> Capture "name" BranchName :> NamedRoutes BranchJobsPage.Routes
   }
   deriving stock (Generic)
 
@@ -40,6 +43,7 @@ handlers cfg name = do
   Routes
     { _view = App.runAppInServant cfg $ viewHandler name
     , _update = App.runAppInServant cfg $ updateHandler name
+    , _branchJobs = BranchJobsPage.handlers cfg name
     }
 
 viewHandler :: RepoName -> Eff App.AppServantStack (Html ())
@@ -72,17 +76,8 @@ viewRepo linkTo repo branches = do
       , hxSwapS_ AfterEnd
       ]
       "Refresh branches"
-    div_ [class_ ""] $ do
-      forM_ branches $ \(branch, jobs) -> do
-        h2_ [class_ "text-2xl py-2 my-4 border-b-2 flex items-start flex-col"] $ do
-          div_ $ toHtml $ toString branch.branchName
-          div_ $ JobPage.viewCommit branch.headCommit
-        div_ $
-          W.viraButton_
-            [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
-            , hxSwapS_ AfterEnd
-            ]
-            "Build"
-        ul_ $ forM_ jobs $ \job -> do
-          li_ [class_ "my-2 py-1"] $ do
-            JobPage.viewJobHeader linkTo job
+    ul_ [class_ "max-w-md divide-y divide-blue-200"] $ do
+      forM_ branches $ \(branch, _jobs) -> do
+        li_ [class_ "py-3 hover:bg-blue-50 font-bold text-xl"] $ do
+          let url = linkURI $ linkTo $ LinkTo.BranchJobs repo.name branch.branchName
+          a_ [href_ $ show url] $ toHtml $ toString branch.branchName
