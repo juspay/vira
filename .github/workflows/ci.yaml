@@ -21,4 +21,4 @@ jobs:
       - name: Haskell Tests
         run: nix --option system "${{ matrix.system }}" run .#vira-tests
       - name: Push to Attic cache
-        run: attic push chtueny:oss ${{ steps.om_ci.outputs.result }}
+        run: attic push oss ${{ steps.om_ci.outputs.result }}
