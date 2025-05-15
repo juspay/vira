@@ -92,6 +92,12 @@ getJobsByBranchA repo branch = do
   ViraState {jobs} <- ask
   pure $ Ix.toDescList (Proxy @JobId) $ jobs @= repo @= branch
 
+-- | Get all jobs of a repo in descending order
+getJobsByRepoA :: RepoName -> Query ViraState [Job]
+getJobsByRepoA repo = do
+  ViraState {jobs} <- ask
+  pure $ Ix.toDescList (Proxy @JobId) $ jobs @= repo
+
 -- | Get all running jobs
 getRunningJobs :: Query ViraState [Job]
 getRunningJobs = do
@@ -171,6 +177,7 @@ $( makeAcidic
     , 'setRepoA
     , 'setRepoBranchesA
     , 'getJobsByBranchA
+    , 'getJobsByRepoA
     , 'getRunningJobs
     , 'getJobA
     , 'addNewJobA

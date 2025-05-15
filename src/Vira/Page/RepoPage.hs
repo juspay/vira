@@ -22,6 +22,7 @@ import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Lib.HTMX (hxPostSafe_)
 import Vira.Page.BranchJobsPage qualified as BranchJobsPage
+import Vira.Page.JobPage qualified as JobPage
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -51,11 +52,9 @@ viewHandler name = do
   cfg <- ask
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   branches <- App.query $ St.GetBranchesByRepoA name
-  xs <- forM branches $ \branch -> do
-    jobs <- App.query $ St.GetJobsByBranchA repo.name branch.branchName
-    pure (branch, jobs)
+  jobs <- App.query $ St.GetJobsByRepoA name
   pure $ W.layout cfg (crumbs <> [LinkTo.Repo name]) $ do
-    viewRepo cfg.linkTo repo xs
+    viewRepo cfg.linkTo repo branches (take 5 jobs)
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
@@ -67,8 +66,8 @@ updateHandler name = do
   pure $ addHeader True "Ok"
 
 -- TODO: Can we use `HtmlT (ReaderT ..) ()` to avoid threading the linkTo function?
-viewRepo :: (LinkTo.LinkTo -> Link) -> St.Repo -> [(St.Branch, [St.Job])] -> Html ()
-viewRepo linkTo repo branches = do
+viewRepo :: (LinkTo.LinkTo -> Link) -> St.Repo -> [St.Branch] -> [St.Job] -> Html ()
+viewRepo linkTo repo branches jobs = do
   div_ $ do
     pre_ [class_ "rounded py-2 my-4"] $ code_ $ toHtml repo.cloneUrl
     W.viraButton_
@@ -77,7 +76,10 @@ viewRepo linkTo repo branches = do
       ]
       "Refresh branches"
     ul_ [class_ "max-w-md divide-y divide-blue-200"] $ do
-      forM_ branches $ \(branch, _jobs) -> do
+      forM_ branches $ \branch -> do
         li_ [class_ "py-3 hover:bg-blue-50 font-bold text-xl"] $ do
           let url = linkURI $ linkTo $ LinkTo.BranchJobs repo.name branch.branchName
           a_ [href_ $ show url] $ toHtml $ toString branch.branchName
+    ul_ $ forM_ jobs $ \job -> do
+      li_ [class_ "my-2 py-1"] $ do
+        JobPage.viewJobHeader linkTo job
