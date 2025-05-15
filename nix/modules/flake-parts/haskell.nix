@@ -52,7 +52,7 @@
             pkgs.git
             pkgs.cachix
             pkgs.coreutils # For `tail`
-            inputs'.omnix.packages.default
+            pkgs.omnix
           ];
           stan = true;
         };
