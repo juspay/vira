@@ -20,5 +20,7 @@ jobs:
           echo "result=$(readlink result)" >> "$GITHUB_OUTPUT"
       - name: Haskell Tests
         run: nix --option system "${{ matrix.system }}" run .#vira-tests
-      - name: Push to Attic cache
-        run: attic push oss ${{ steps.om_ci.outputs.result }}
+      - name: Setup Cache
+        run: attic login chutney https://cache.nixos.asia ${{ secrets.ATTIC_LOGIN_TOKEN }}
+      - name: Cache results
+        run: attic push chutney:oss ${{ steps.om_ci.outputs.result }}
