@@ -16,7 +16,7 @@
     co-log-effectful.url = "github:eldritch-cookie/co-log-effectful";
 
     # Runtime dependencies
-    omnix.url = "github:juspay/omnix";
+    omnix.url = "github:juspay/omnix/1.0.3";
     htmx-extensions.url = "github:juspay/htmx-extensions/sse-unload"; # https://github.com/bigskysoftware/htmx-extensions/pull/147
     htmx-extensions.flake = false;
   };
