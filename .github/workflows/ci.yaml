@@ -14,6 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build all flake outputs
-        run: om ci run --systems "${{ matrix.system }}"
+        id: om_ci
+        run: |
+          om ci run --systems "${{ matrix.system }}"
+          echo "result=$(readlink result)" >> "$GITHUB_OUTPUT"
       - name: Haskell Tests
         run: nix --option system "${{ matrix.system }}" run .#vira-tests
+      - name: Push to Attic cache
+        run: attic push chtueny:oss ${{ steps.om_ci.outputs.result }}
