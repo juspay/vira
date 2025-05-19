@@ -74,10 +74,6 @@ viewJobHeader linkTo job = do
       viewCommit job.jobCommit
       viewJobStatus job.jobStatus
 
-viewBranch :: Git.BranchName -> Html ()
-viewBranch (Git.BranchName branch) = do
-  code_ [class_ "text-gray-700 text-sm hover:text-black"] $ toHtml branch
-
 viewCommit :: Git.CommitID -> Html ()
 viewCommit (Git.CommitID commit) = do
   code_ [class_ "text-gray-700 text-sm hover:text-black"] $ toHtml commit
