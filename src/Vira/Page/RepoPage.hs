@@ -54,7 +54,8 @@ viewHandler name = do
   branches <- App.query $ St.GetBranchesByRepoA name
   xs <- forM branches $ \branch -> do
     jobs <- App.query $ St.GetJobsByBranchA repo.name branch.branchName
-    pure (branch, take 5 jobs)
+    let recentJobs = take 5 jobs
+    pure (branch, recentJobs)
   pure $ W.layout cfg (crumbs <> [LinkTo.Repo name]) $ do
     viewRepo cfg.linkTo repo xs
 
