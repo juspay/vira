@@ -39,7 +39,7 @@ just resetdb run
 ## Beta Testing
 
 ```
-nix run github:juspay/vira -- --host <interface-ip> --port 5005
+nix run github:juspay/vira --accept-flake-config -- --host <interface-ip> --port 5005
 ```
 
 This uses samples repos, but you can pass your own in the command line.
