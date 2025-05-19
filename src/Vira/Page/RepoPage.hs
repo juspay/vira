@@ -52,9 +52,11 @@ viewHandler name = do
   cfg <- ask
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   branches <- App.query $ St.GetBranchesByRepoA name
-  jobs <- App.query $ St.GetJobsByRepoA name
+  xs <- forM branches $ \branch -> do
+    jobs <- App.query $ St.GetJobsByBranchA repo.name branch.branchName
+    pure (branch, take 5 jobs)
   pure $ W.layout cfg (crumbs <> [LinkTo.Repo name]) $ do
-    viewRepo cfg.linkTo repo branches (take 5 jobs)
+    viewRepo cfg.linkTo repo xs
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
@@ -66,8 +68,8 @@ updateHandler name = do
   pure $ addHeader True "Ok"
 
 -- TODO: Can we use `HtmlT (ReaderT ..) ()` to avoid threading the linkTo function?
-viewRepo :: (LinkTo.LinkTo -> Link) -> St.Repo -> [St.Branch] -> [St.Job] -> Html ()
-viewRepo linkTo repo branches jobs = do
+viewRepo :: (LinkTo.LinkTo -> Link) -> St.Repo -> [(St.Branch, [St.Job])] -> Html ()
+viewRepo linkTo repo branches = do
   div_ $ do
     pre_ [class_ "rounded py-2 my-4"] $ code_ $ toHtml repo.cloneUrl
     W.viraButton_
@@ -75,12 +77,20 @@ viewRepo linkTo repo branches jobs = do
       , hxSwapS_ AfterEnd
       ]
       "Refresh branches"
-    ul_ [class_ "my-2 max-w-md divide-y divide-blue-200"] $ do
-      forM_ branches $ \branch -> do
-        li_ [class_ "py-3 hover:bg-blue-50 font-bold text-xl"] $ do
+    div_ [class_ ""] $ do
+      forM_ branches $ \(branch, jobs) -> do
+        h2_ [class_ "text-2xl py-2 my-4 border-b-2 flex items-start flex-col"] $ do
+          div_ $ toHtml $ toString branch.branchName
+          div_ $ JobPage.viewCommit branch.headCommit
+        div_ $
+          W.viraButton_
+            [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
+            , hxSwapS_ AfterEnd
+            ]
+            "Build"
+        ul_ $ forM_ jobs $ \job -> do
+          li_ [class_ "my-2 py-1"] $ do
+            JobPage.viewJobHeader linkTo job
+        div_ [class_ "py-3 hover:bg-blue-50 font-bold"] $ do
           let url = linkURI $ linkTo $ LinkTo.BranchJobs repo.name branch.branchName
-          a_ [href_ $ show url] $ toHtml $ toString branch.branchName
-    pre_ [class_ "font-bold text-xl py-2 my-4"] "Last 5 Jobs"
-    ul_ $ forM_ jobs $ \job -> do
-      li_ [class_ "my-2 py-1"] $ do
-        JobPage.viewJobHeader linkTo job
+          a_ [href_ $ show url] "...See all jobs"

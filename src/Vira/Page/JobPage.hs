@@ -72,9 +72,7 @@ viewJobHeader linkTo job = do
     div_ [class_ "flex items-center justify-start space-x-4 hover:bg-blue-100"] $ do
       div_ [class_ "w-24"] $ do
         b_ $ "Job #" <> toHtml (show @Text job.jobId)
-      div_ [class_ "w-24"] $ do
-        viewBranch job.jobBranch
-      viewShortCommit job.jobCommit
+      viewCommit job.jobCommit
       viewJobStatus job.jobStatus
 
 viewBranch :: Git.BranchName -> Html ()
@@ -84,11 +82,6 @@ viewBranch (Git.BranchName branch) = do
 viewCommit :: Git.CommitID -> Html ()
 viewCommit (Git.CommitID commit) = do
   code_ [class_ "text-gray-700 text-sm hover:text-black"] $ toHtml commit
-
--- TODO: Create `Git.ShortCommitID` for clarity
-viewShortCommit :: Git.CommitID -> Html ()
-viewShortCommit (Git.CommitID commit) = do
-  code_ [class_ "text-gray-700 text-sm hover:text-black"] $ toHtml (T.take 8 commit)
 
 viewJobStatus :: St.JobStatus -> Html ()
 viewJobStatus status = do
