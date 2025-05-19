@@ -35,17 +35,6 @@ newtype CommitID = CommitID {unCommitID :: Text}
     , FromHttpApiData
     )
 
--- | Git short commit hash
-newtype ShortCommitID = ShortCommitID {unShortCommitID :: Text}
-  deriving stock (Generic, Show, Eq, Ord, Data)
-  deriving newtype
-    ( IsString
-    , ToJSON
-    , ToString
-    , ToHttpApiData
-    , FromHttpApiData
-    )
-
 -- | Git branch name
 newtype BranchName = BranchName {unBranchName :: Text}
   deriving stock (Generic, Data)
@@ -59,7 +48,6 @@ newtype BranchName = BranchName {unBranchName :: Text}
     )
 
 $(deriveSafeCopy 0 'base ''CommitID)
-$(deriveSafeCopy 0 'base ''ShortCommitID)
 $(deriveSafeCopy 0 'base ''BranchName)
 
 {- | Get all branches available in the remote.
