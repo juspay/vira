@@ -75,11 +75,12 @@ viewRepo linkTo repo branches jobs = do
       , hxSwapS_ AfterEnd
       ]
       "Refresh branches"
-    ul_ [class_ "max-w-md divide-y divide-blue-200"] $ do
+    ul_ [class_ "my-2 max-w-md divide-y divide-blue-200"] $ do
       forM_ branches $ \branch -> do
         li_ [class_ "py-3 hover:bg-blue-50 font-bold text-xl"] $ do
           let url = linkURI $ linkTo $ LinkTo.BranchJobs repo.name branch.branchName
           a_ [href_ $ show url] $ toHtml $ toString branch.branchName
+    pre_ [class_ "font-bold text-xl py-2 my-4"] "Last 5 Jobs"
     ul_ $ forM_ jobs $ \job -> do
       li_ [class_ "my-2 py-1"] $ do
         JobPage.viewJobHeader linkTo job
