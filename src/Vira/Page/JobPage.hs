@@ -2,7 +2,6 @@
 
 module Vira.Page.JobPage where
 
-import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Process (CreateProcess (cwd), env, proc)
