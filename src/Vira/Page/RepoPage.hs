@@ -12,13 +12,16 @@ import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
 import Lucid
 import Servant hiding (throwError)
+import Servant.API ((:>))
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type (LinkTo (RepoUpdate))
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Lib.HTMX (hxPostSafe_)
+import Vira.Page.BranchPage qualified as BranchPage
 import Vira.Page.JobPage qualified as JobPage
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
@@ -29,6 +32,7 @@ import Prelude hiding (ask, asks)
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
   , _update :: mode :- "fetch" :> Post '[HTML] (Headers '[HXRefresh] Text)
+  , _branch :: mode :- "branches" Servant.API.:> Capture "name" BranchName :> NamedRoutes BranchPage.Routes
   }
   deriving stock (Generic)
 
@@ -40,6 +44,7 @@ handlers cfg name = do
   Routes
     { _view = App.runAppInServant cfg $ viewHandler name
     , _update = App.runAppInServant cfg $ updateHandler name
+    , _branch = BranchPage.handlers cfg name
     }
 
 viewHandler :: RepoName -> Eff App.AppServantStack (Html ())
@@ -49,7 +54,8 @@ viewHandler name = do
   branches <- App.query $ St.GetBranchesByRepoA name
   xs <- forM branches $ \branch -> do
     jobs <- App.query $ St.GetJobsByBranchA repo.name branch.branchName
-    pure (branch, jobs)
+    let recentJobs = take 5 jobs
+    pure (branch, recentJobs)
   pure $ W.layout cfg (crumbs <> [LinkTo.Repo name]) $ do
     viewRepo cfg.linkTo repo xs
 
@@ -86,3 +92,6 @@ viewRepo linkTo repo branches = do
         ul_ $ forM_ jobs $ \job -> do
           li_ [class_ "my-2 py-1"] $ do
             JobPage.viewJobHeader linkTo job
+        div_ [class_ "py-3 hover:bg-blue-50 font-bold"] $ do
+          let url = linkURI $ linkTo $ LinkTo.RepoBranch repo.name branch.branchName
+          a_ [href_ $ show url] "...See all jobs"

@@ -122,6 +122,7 @@ library
     Vira.Lib.Omnix
     Vira.Lib.Process
     Vira.Lib.Process.TailF
+    Vira.Page.BranchPage
     Vira.Page.JobLog
     Vira.Page.JobPage
     Vira.Page.RegistryPage
