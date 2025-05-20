@@ -21,7 +21,7 @@ import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Lib.HTMX (hxPostSafe_)
-import Vira.Page.BranchJobsPage qualified as BranchJobsPage
+import Vira.Page.BranchPage qualified as BranchPage
 import Vira.Page.JobPage qualified as JobPage
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
@@ -32,7 +32,7 @@ import Prelude hiding (ask, asks)
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
   , _update :: mode :- "fetch" :> Post '[HTML] (Headers '[HXRefresh] Text)
-  , _branchJobs :: mode :- "branches" Servant.API.:> Capture "name" BranchName :> NamedRoutes BranchJobsPage.Routes
+  , _branch :: mode :- "branches" Servant.API.:> Capture "name" BranchName :> NamedRoutes BranchPage.Routes
   }
   deriving stock (Generic)
 
@@ -44,7 +44,7 @@ handlers cfg name = do
   Routes
     { _view = App.runAppInServant cfg $ viewHandler name
     , _update = App.runAppInServant cfg $ updateHandler name
-    , _branchJobs = BranchJobsPage.handlers cfg name
+    , _branch = BranchPage.handlers cfg name
     }
 
 viewHandler :: RepoName -> Eff App.AppServantStack (Html ())
@@ -93,5 +93,5 @@ viewRepo linkTo repo branches = do
           li_ [class_ "my-2 py-1"] $ do
             JobPage.viewJobHeader linkTo job
         div_ [class_ "py-3 hover:bg-blue-50 font-bold"] $ do
-          let url = linkURI $ linkTo $ LinkTo.BranchJobs repo.name branch.branchName
+          let url = linkURI $ linkTo $ LinkTo.RepoBranch repo.name branch.branchName
           a_ [href_ $ show url] "...See all jobs"

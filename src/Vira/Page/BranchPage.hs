@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
-module Vira.Page.BranchJobsPage where
+module Vira.Page.BranchPage where
 
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
@@ -34,7 +34,7 @@ viewHandler repoName branchName = do
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError err404) pure
   jobs <- App.query $ St.GetJobsByBranchA repoName branchName
   cfg <- ask
-  let crumbs = [LinkTo.RepoListing, LinkTo.Repo repoName, LinkTo.BranchJobs repoName branchName]
+  let crumbs = [LinkTo.RepoListing, LinkTo.Repo repoName, LinkTo.RepoBranch repoName branchName]
   pure $ W.layout cfg crumbs $ do
     viewRepo cfg.linkTo repo (branch, jobs)
 
