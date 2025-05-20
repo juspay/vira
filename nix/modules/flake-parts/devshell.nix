@@ -17,7 +17,7 @@
         git
         cachix
         coreutils # For `tail`
-        inputs'.omnix.packages.default
+        omnix
       ];
     };
   };
