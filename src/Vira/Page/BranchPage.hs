@@ -36,11 +36,11 @@ viewHandler repoName branchName = do
   cfg <- ask
   let crumbs = [LinkTo.RepoListing, LinkTo.Repo repoName, LinkTo.RepoBranch repoName branchName]
   pure $ W.layout cfg crumbs $ do
-    viewRepo cfg.linkTo repo (branch, jobs)
+    viewRepoBranch cfg.linkTo repo (branch, jobs)
 
 -- TODO: Can we use `HtmlT (ReaderT ..) ()` to avoid threading the linkTo function?
-viewRepo :: (LinkTo.LinkTo -> Link) -> St.Repo -> (St.Branch, [St.Job]) -> Html ()
-viewRepo linkTo repo (branch, jobs) = do
+viewRepoBranch :: (LinkTo.LinkTo -> Link) -> St.Repo -> (St.Branch, [St.Job]) -> Html ()
+viewRepoBranch linkTo repo (branch, jobs) = do
   div_ [class_ ""] $ do
     h2_ [class_ "text-2xl py-2 my-4 border-b-2 flex items-start flex-col"] $ do
       div_ $ toHtml $ toString branch.branchName
