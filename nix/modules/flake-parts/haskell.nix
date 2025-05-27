@@ -48,6 +48,7 @@
       # Add your package overrides here
       settings = {
         vira = {
+          generateOptparseApplicativeCompletions = [ "vira" ];
           extraBuildDepends = [
             pkgs.git
             pkgs.cachix
