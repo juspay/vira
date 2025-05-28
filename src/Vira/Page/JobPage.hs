@@ -138,6 +138,6 @@ getStages repo branch mCachix mAttic = do
         , cwd = Just "project"
         }
     stageAtticPush attic =
-      (atticPushProcess (attic.atticLoginName <> ":" <> attic.atticCacheUrl) "result")
+      (atticPushProcess (attic.atticLoginName <> ":" <> attic.atticCacheName) "result")
         { cwd = Just "project"
         }

@@ -59,6 +59,8 @@ data AtticSettings = AtticSettings
   -- ^ Login name for attic
   , atticCacheUrl :: Text
   -- ^ URL of the attic cache
+  , atticCacheName :: Text
+  -- ^ Name of the cache in atticCacheUrl
   , atticToken :: Text
   -- ^ Auth token for the attic cache
   }
@@ -183,9 +185,15 @@ atticSettingsParser = do
       )
   atticToken <-
     strOption
-      ( long "attic-token"
-          <> metavar "ATTIC_TOKEN"
+      ( long "attic-login-token"
+          <> metavar "ATTIC_LOGIN_TOKEN"
           <> help "Auth token for the attic cache"
+      )
+  atticCacheName <-
+    strOption
+      ( long "attic-cache-name"
+          <> metavar "ATTIC_CACHE_NAME"
+          <> help "Name of the cache in ATTIC_CACHE_URL"
       )
   pure AtticSettings {..}
 
