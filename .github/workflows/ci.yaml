@@ -7,18 +7,22 @@ on:
   pull_request:
 jobs:
   build:
-    runs-on: ${{ matrix.system }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        # Our Mac Studios are b0rked, so we use GitHub mac runner.
-        system: [x86_64-linux, macos-latest]
+        include:
+          - runner: x86_64-linux
+            system: x86_64-linux
+            # Our Mac Studios are b0rked, so we use GitHub mac runner.
+          - runner: macos-latest
+            system: aarch64-darwin
     steps:
       - uses: actions/checkout@v4
       - name: "Install Nix"
-        if: matrix.system == 'macos-latest'
+        if: matrix.runner == 'macos-latest'
         uses: DeterminateSystems/nix-installer-action@main
       - name: "Install attic and omnix"
-        if: matrix.system == 'macos-latest'
+        if: matrix.runner == 'macos-latest'
         run: |
           nix profile install nixpkgs#attic-client nixpkgs#omnix
       - name: "Attic: Configure"
