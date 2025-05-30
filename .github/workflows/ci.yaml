@@ -13,6 +13,10 @@ jobs:
         system: [x86_64-linux, aarch64-darwin]
     steps:
       - uses: actions/checkout@v4
+      - name: "Attic: Configure"
+        run: |
+          attic login chutney https://cache.nixos.asia ${{ secrets.ATTIC_LOGIN_TOKEN }}
+          attic use chutney:oss
       - name: Build all flake outputs
         id: om_ci
         run: |
@@ -21,7 +25,6 @@ jobs:
       - name: Run Tests
         run: |
           nix --option system "${{ matrix.system }}" run .#vira-tests
-      - name: Push to Attic
+      - name: "Attic: Push"
         run: |
-          attic login chutney https://cache.nixos.asia ${{ secrets.ATTIC_LOGIN_TOKEN }}
           attic push chutney:oss ${{ steps.om_ci.outputs.result }}
