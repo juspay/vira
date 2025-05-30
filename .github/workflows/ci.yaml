@@ -14,6 +14,13 @@ jobs:
         system: [x86_64-linux, macos-latest]
     steps:
       - uses: actions/checkout@v4
+      - name: "Install Nix"
+        if: matrix.system == 'macos-latest'
+        uses: DeterminateSystems/nix-installer-action@main
+      - name: "Install attic and omnix"
+        if: matrix.system == 'macos-latest'
+        run: |
+          nix profile install nixpkgs#attic-client nixpkgs#omnix
       - name: "Attic: Configure"
         run: |
           attic login chutney https://cache.nixos.asia ${{ secrets.ATTIC_LOGIN_TOKEN }}
