@@ -10,7 +10,8 @@ jobs:
     runs-on: ${{ matrix.system }}
     strategy:
       matrix:
-        system: [x86_64-linux, aarch64-darwin]
+        # Our Mac Studios are b0rked, so we use GitHub mac runner.
+        system: [x86_64-linux, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - name: "Attic: Configure"
