@@ -18,6 +18,8 @@ jobs:
             system: aarch64-darwin
     steps:
       - uses: actions/checkout@v4
+
+      # ⤵️ The steps are run only on GitHub runners
       - name: "Install Nix"
         if: matrix.runner == 'macos-latest'
         uses: DeterminateSystems/nix-installer-action@main
@@ -25,18 +27,22 @@ jobs:
         if: matrix.runner == 'macos-latest'
         run: |
           nix profile install nixpkgs#attic-client nixpkgs#omnix
+      # ⤴️
+
       - name: "Attic: Configure"
         run: |
           attic login chutney https://cache.nixos.asia ${{ secrets.ATTIC_LOGIN_TOKEN }}
           attic use chutney:oss
+
       - name: Build all flake outputs
-        id: om_ci
+        id: om-ci
         run: |
           om ci run --systems "${{ matrix.system }}"
           echo "result=$(readlink result)" >> "$GITHUB_OUTPUT"
       - name: Run Tests
         run: |
           nix --option system "${{ matrix.system }}" run .#vira-tests
+
       - name: "Attic: Push"
         run: |
-          attic push chutney:oss ${{ steps.om_ci.outputs.result }}
+          attic push chutney:oss ${{ steps.om-ci.outputs.result }}
