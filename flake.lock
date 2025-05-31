@@ -119,15 +119,16 @@
     "git-hooks": {
       "flake": false,
       "locked": {
-        "lastModified": 1747372754,
-        "narHash": "sha256-2Y53NGIX2vxfie1rOW0Qb86vjRZ7ngizoo+bnXU9D9k=",
-        "owner": "cachix",
+        "lastModified": 1748731770,
+        "narHash": "sha256-++eAISyF3JzxbTBg3RnjVtB1Sgh1K5cTTDT2giG916Y=",
+        "owner": "bmrips",
         "repo": "git-hooks.nix",
-        "rev": "80479b6ec16fefd9c1db3ea13aeb038c60530f46",
+        "rev": "6007ee9515d68f90df845e831456a646725a7288",
         "type": "github"
       },
       "original": {
-        "owner": "cachix",
+        "owner": "bmrips",
+        "ref": "typos-improvements",
         "repo": "git-hooks.nix",
         "type": "github"
       }
