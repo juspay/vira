@@ -4,7 +4,7 @@
     (inputs.git-hooks + /flake-module.nix)
     inputs.fourmolu-nix.flakeModule
   ];
-  perSystem = { config, pkgs, ... }: {
+  perSystem = { config, ... }: {
     pre-commit.settings = {
       hooks = {
         nixpkgs-fmt.enable = true;
@@ -14,6 +14,13 @@
           package = config.fourmolu.wrapper;
         };
         hlint.enable = true;
+        typos = {
+          enable = true;
+          settings.config.files.extend-exclude = [
+            "*.nix"
+            ".hlint.yaml"
+          ];
+        };
       };
     };
 
