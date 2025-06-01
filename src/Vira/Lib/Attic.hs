@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
--- | Working with cachix
+-- | Working with attic cache servers
 module Vira.Lib.Attic where
 
 import System.Process (CreateProcess, proc)
