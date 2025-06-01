@@ -15,6 +15,7 @@ import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging
+import Vira.Lib.Attic
 import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
@@ -115,7 +116,7 @@ getStages :: St.Repo -> St.Branch -> Maybe App.CachixSettings -> Maybe App.Attic
 getStages repo branch mCachix mAttic = do
   stageCreateProjectDir
     :| stagesClone
-    <> maybe [] (one . stageAtticLogin) mAttic -- Add attic login stage if configured
+    <> maybe [] (one . stageAtticLogin) mAttic
     <> [stageBuild]
     <> (maybe mempty (one . stageCachixPush) mCachix <> maybe mempty (one . stageAtticPush) mAttic)
   where
@@ -128,9 +129,10 @@ getStages repo branch mCachix mAttic = do
       Omnix.omnixCiProcess
         { cwd = Just "project"
         }
+    -- Run the stage before any other attic processes
     stageAtticLogin attic =
-      (atticLoginProcess attic.atticLoginName attic.atticCacheUrl attic.atticToken)
-        { cwd = Just "project" -- Assuming login is run in the project directory context
+      (atticLoginProcess attic.atticServerName attic.atticServerUrl attic.atticToken)
+        { cwd = Just "project"
         }
     stageCachixPush cachix =
       (cachixPushProcess cachix.cachixName "result")
@@ -138,6 +140,6 @@ getStages repo branch mCachix mAttic = do
         , cwd = Just "project"
         }
     stageAtticPush attic =
-      (atticPushProcess (attic.atticLoginName <> ":" <> attic.atticCacheName) "result")
+      (atticPushProcess attic.atticServerName attic.atticCacheName "result")
         { cwd = Just "project"
         }

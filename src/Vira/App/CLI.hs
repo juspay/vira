@@ -55,14 +55,14 @@ data RepoSettings = RepoSettings
   deriving stock (Show)
 
 data AtticSettings = AtticSettings
-  { atticLoginName :: Text
-  -- ^ Login name for attic
-  , atticCacheUrl :: Text
-  -- ^ URL of the attic cache
+  { atticServerName :: Text
+  -- ^ A shorthand for `atticServerUrl`
+  , atticServerUrl :: Text
+  -- ^ Server address (eg. https://cache.example.org)
   , atticCacheName :: Text
-  -- ^ Name of the cache in atticCacheUrl
+  -- ^ Name of the cache hosted in `atticServerUrl`
   , atticToken :: Text
-  -- ^ Auth token for the attic cache
+  -- ^ Access token for `atticServerUrl`
   }
   deriving stock (Show)
 
@@ -171,29 +171,30 @@ repoSettingsParser = do
 -- | Parser for AtticSettings
 atticSettingsParser :: Parser AtticSettings
 atticSettingsParser = do
-  atticLoginName <-
+  atticServerName <-
     strOption
-      ( long "attic-login-name"
-          <> metavar "ATTIC_LOGIN_NAME"
-          <> help "Login name for attic"
+      ( long "attic-server-name"
+          <> metavar "ATTIC_SERVER_NAME"
+          <> help "A shorthand for ATTIC_SERVER_URL"
       )
-  atticCacheUrl <-
+  atticServerUrl <-
     strOption
-      ( long "attic-cache-url"
-          <> metavar "ATTIC_CACHE_URL"
-          <> help "URL of the attic cache"
+      ( long "attic-server-url"
+          <> metavar "ATTIC_SERVER_URL"
+          <> help "Server address (e.g., https://cache.example.org)"
       )
-  atticToken <-
-    strOption
-      ( long "attic-login-token"
-          <> metavar "ATTIC_LOGIN_TOKEN"
-          <> help "Auth token for the attic cache"
-      )
+
   atticCacheName <-
     strOption
       ( long "attic-cache-name"
           <> metavar "ATTIC_CACHE_NAME"
-          <> help "Name of the cache in ATTIC_CACHE_URL"
+          <> help "Name of the cache hosted in ATTIC_SERVER_URL"
+      )
+  atticToken <-
+    strOption
+      ( long "attic-token"
+          <> metavar "ATTIC_TOKEN"
+          <> help "Access token for ATTIC_SERVER_URL"
       )
   pure AtticSettings {..}
 
