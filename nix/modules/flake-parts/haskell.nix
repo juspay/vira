@@ -52,6 +52,7 @@
           extraBuildDepends = [
             pkgs.git
             pkgs.cachix
+            pkgs.attic-client
             pkgs.coreutils # For `tail`
             pkgs.omnix
           ];
