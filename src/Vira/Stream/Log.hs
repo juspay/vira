@@ -153,6 +153,6 @@ logViewerWidget linkTo job w = do
       $ do
         code_ w
 
--- | ID of the HTML element targetted by SSE message swaps (log streaming)
+-- | ID of the HTML element targeted by SSE message swaps (log streaming)
 sseTarget :: Text
 sseTarget = "logViewerWidget-pre"
