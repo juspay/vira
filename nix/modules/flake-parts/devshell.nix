@@ -16,6 +16,7 @@
         # vira extraBuildDepends from haskell.nix
         git
         cachix
+        attic-client
         coreutils # For `tail`
         omnix
       ];
