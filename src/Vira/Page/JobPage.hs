@@ -131,7 +131,7 @@ getStages repo branch mCachix mAttic = do
         }
     -- Run the stage before any other attic processes
     stageAtticLogin attic =
-      (atticLoginProcess attic.atticServerName attic.atticServerUrl attic.atticToken)
+      (atticLoginProcess attic.atticServer attic.atticToken)
         { cwd = Just "project"
         }
     stageCachixPush cachix =
@@ -140,6 +140,6 @@ getStages repo branch mCachix mAttic = do
         , cwd = Just "project"
         }
     stageAtticPush attic =
-      (atticPushProcess attic.atticServerName attic.atticCacheName "result")
+      (atticPushProcess attic.atticServer attic.atticCacheName "result")
         { cwd = Just "project"
         }
