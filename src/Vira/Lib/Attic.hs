@@ -32,7 +32,7 @@ atticBin = $(staticWhich "attic")
 
 {- | Push the given path to the attic server cache
 
-NOTE: `atticLogiProcess` should be run before this to set the access token
+NOTE: `atticLoginProcess` should be run before this to set the access token
 -}
 atticPushProcess :: AtticServer -> AtticCache -> FilePath -> CreateProcess
 atticPushProcess AtticServer {serverName} cacheName path =
