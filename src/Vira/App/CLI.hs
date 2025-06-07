@@ -19,6 +19,7 @@ import Network.HostName (HostName, getHostName)
 import Network.Wai.Handler.Warp (Port)
 import Options.Applicative
 import Paths_vira qualified
+import Vira.Lib.Attic (AtticCache, AtticServer (AtticServer), AtticToken)
 import Vira.State.Type (Repo (Repo), RepoName)
 import Prelude hiding (Reader, reader, runReader)
 
@@ -55,13 +56,11 @@ data RepoSettings = RepoSettings
   deriving stock (Show)
 
 data AtticSettings = AtticSettings
-  { atticServerName :: Text
-  -- ^ A shorthand for `atticServerUrl`
-  , atticServerUrl :: Text
-  -- ^ Server address (eg. https://cache.example.org)
-  , atticCacheName :: Text
-  -- ^ Name of the cache hosted in `atticServerUrl`
-  , atticToken :: Text
+  { atticServer :: AtticServer
+  -- ^ Attic server information
+  , atticCacheName :: AtticCache
+  -- ^ Name of the attic cache
+  , atticToken :: AtticToken
   -- ^ Access token for `atticServerUrl`
   }
   deriving stock (Show)
@@ -171,19 +170,18 @@ repoSettingsParser = do
 -- | Parser for AtticSettings
 atticSettingsParser :: Parser AtticSettings
 atticSettingsParser = do
-  atticServerName <-
-    strOption
-      ( long "attic-server-name"
-          <> metavar "ATTIC_SERVER_NAME"
-          <> help "A shorthand for ATTIC_SERVER_URL"
-      )
-  atticServerUrl <-
-    strOption
-      ( long "attic-server-url"
-          <> metavar "ATTIC_SERVER_URL"
-          <> help "Server address (e.g., https://cache.example.org)"
-      )
-
+  atticServer <-
+    AtticServer
+      <$> strOption
+        ( long "attic-server-name"
+            <> metavar "ATTIC_SERVER_NAME"
+            <> help "A shorthand for ATTIC_SERVER_URL"
+        )
+      <*> strOption
+        ( long "attic-server-url"
+            <> metavar "ATTIC_SERVER_URL"
+            <> help "Server address (e.g., https://cache.example.org)"
+        )
   atticCacheName <-
     strOption
       ( long "attic-cache-name"
