@@ -12,7 +12,6 @@ module Vira.App.CLI (
   parseCLI,
 ) where
 
-import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Version (showVersion)
 import Network.HostName (HostName, getHostName)
@@ -47,8 +46,6 @@ data Settings = Settings
 data RepoSettings = RepoSettings
   { cloneUrls :: [Repo]
   -- ^ Repositories (git clone URL) to watch and build
-  , branchWhitelist :: Set Text
-  -- ^ Limit to building these branches to build
   , cachix :: Maybe CachixSettings
   -- ^ Cachix settings
   , attic :: Maybe AtticSettings
@@ -84,9 +81,6 @@ defaultRepos =
   , "https://github.com/juspay/superposition.git"
   , "https://github.com/juspay/services-flake.git"
   ]
-
-defaultBranchesToBuild :: Set Text
-defaultBranchesToBuild = Set.fromList ["main", "master", "staging", "develop", "trunk"]
 
 -- | Parser for Settings
 settingsParser :: HostName -> Parser Settings
@@ -154,15 +148,6 @@ repoSettingsParser = do
             <> value defaultRepos
             <> showDefault
         )
-  branchWhitelist <-
-    option
-      (Set.fromList <$> commaSeparatedTextList)
-      ( long "branch-whitelist"
-          <> metavar "BRANCH_WHITELIST"
-          <> help "Limit to building these branches (comma-separated list)"
-          <> value defaultBranchesToBuild
-          <> showDefault
-      )
   cachix <- optional cachixSettingsParser
   attic <- optional atticSettingsParser
   pure RepoSettings {..}

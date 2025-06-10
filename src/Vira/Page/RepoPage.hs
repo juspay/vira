@@ -2,11 +2,9 @@
 
 module Vira.Page.RepoPage where
 
-import Data.Map.Strict qualified as Map
-import Data.Set qualified as Set
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
-import Effectful.Reader.Dynamic (ask, asks)
+import Effectful.Reader.Dynamic (ask)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
@@ -63,9 +61,7 @@ updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   allBranches <- liftIO $ Git.remoteBranches repo.cloneUrl
-  branchWhitelist <- asks $ App.branchWhitelist . App.repo . App.settings
-  let branches = Map.filterWithKey (\k _ -> (toText . toString) k `Set.member` branchWhitelist) allBranches
-  App.update $ St.SetRepoBranchesA repo.name branches
+  App.update $ St.SetRepoBranchesA repo.name allBranches
   pure $ addHeader True "Ok"
 
 -- TODO: Can we use `HtmlT (ReaderT ..) ()` to avoid threading the linkTo function?
