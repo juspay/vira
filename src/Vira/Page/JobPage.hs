@@ -7,7 +7,9 @@ import Effectful.Error.Static (throwError)
 import Effectful.Process (CreateProcess (cwd), env, proc)
 import Effectful.Reader.Dynamic (ask, asks)
 import GHC.IO.Exception (ExitCode (..))
+import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
+import Htmx.Swap (Swap (AfterEnd))
 import Lucid
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -19,6 +21,7 @@ import Vira.Lib.Attic
 import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
+import Vira.Lib.HTMX (hxPostSafe_)
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
@@ -36,6 +39,8 @@ data Routes mode = Routes
     _view :: mode :- Capture "job" JobId :> Get '[HTML] (Html ())
   , -- Log routes
     _log :: mode :- Capture "job" JobId :> "log" :> NamedRoutes JobLog.Routes
+  , -- Kill a job
+    _kill :: mode :- Capture "job" JobId :> Post '[HTML] (Headers '[HXRefresh] Text)
   }
   deriving stock (Generic)
 
@@ -45,6 +50,7 @@ handlers cfg = do
     { _build = \x -> App.runAppInServant cfg . buildHandler x
     , _view = App.runAppInServant cfg . viewHandler
     , _log = JobLog.handlers cfg
+    , _kill = App.runAppInServant cfg . killHandler
     }
 
 buildHandler :: RepoName -> BranchName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
@@ -59,12 +65,26 @@ viewHandler jobId = do
   cfg <- ask
   W.layout cfg crumbs <$> viewJob cfg.linkTo job
 
+killHandler :: JobId -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
+killHandler jobId = do
+  supervisor <- asks App.supervisor
+  Supervisor.killTask supervisor jobId
+  log Info $ "Kill signal sent to job " <> show jobId
+  pure $ addHeader True "Killed"
+
 viewJob :: (LinkTo.LinkTo -> Link) -> St.Job -> Eff App.AppServantStack (Html ())
 viewJob linkTo job = do
+  let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
   logView <- JobLog.view linkTo job
   pure $ do
     viewJobHeader linkTo job
     logView
+    when jobActive $
+      W.viraButton_
+        [ hxPostSafe_ $ linkTo $ LinkTo.Kill job.jobId
+        , hxSwapS_ AfterEnd
+        ]
+        "Kill"
 
 viewJobHeader :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewJobHeader linkTo job = do

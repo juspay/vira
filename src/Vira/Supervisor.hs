@@ -15,7 +15,6 @@ import System.Directory (getCurrentDirectory, makeAbsolute)
 import System.Directory qualified
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
-import Vira.App qualified as App
 import Vira.App.Logging
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type
@@ -134,7 +133,7 @@ startTask' taskId pwd h = runProcs . toList
       pure (pid, exitCode)
 
 -- | Kill a task
-killTask :: TaskSupervisor -> TaskId -> Eff App.AppStack ()
+killTask :: (Concurrent :> es, Log Message :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
 killTask supervisor taskId = do
   log Info $ "Killing task " <> show taskId
   modifyMVar_ (tasks supervisor) $ \tasks -> do
