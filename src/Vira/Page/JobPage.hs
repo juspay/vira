@@ -61,7 +61,12 @@ buildHandler repoName branch = do
 viewHandler :: JobId -> Eff App.AppServantStack (Html ())
 viewHandler jobId = do
   job <- App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
-  let crumbs = [LinkTo.RepoListing, LinkTo.Repo job.jobRepo, LinkTo.Job jobId]
+  let crumbs =
+        [ LinkTo.RepoListing
+        , LinkTo.Repo job.jobRepo
+        , LinkTo.RepoBranch job.jobRepo job.jobBranch
+        , LinkTo.Job jobId
+        ]
   cfg <- ask
   W.layout cfg crumbs <$> viewJob cfg.linkTo job
 

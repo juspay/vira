@@ -59,21 +59,31 @@ breadcrumbs linkTo rs' = do
   let home = URI {uriScheme = "", uriAuthority = Nothing, uriPath = "", uriQuery = [], uriFragment = ""}
       logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", style_ "height: 32px;"]
       rs = (logo, home) :| rs'
-  nav_ [id_ "breadcrumbs", class_ "flex items-center space-x-2 text-sm text-gray-200 p-3 mb-4 bg-orange-700 rounded"] $ do
-    div_ [class_ "flex flex-1 items-center space-x-2 text-xl"] $ do
-      forM_ (init rs) $ \(s, r) -> do
-        renderCrumb (s, Just r)
-        span_ [class_ "text-gray-300"] ">"
-      renderCrumb (fst $ last rs, Nothing)
+  nav_ [id_ "breadcrumbs", class_ "flex items-center text-sm p-2 mb-4 bg-orange-700 rounded"] $ do
+    ol_ [class_ "flex flex-1 items-center space-x-1 text-xl list-none"] $
+      renderCrumbs (toList rs)
     Status.viewStream linkTo
   where
+    renderCrumbs = \case
+      [] -> pass
+      [x] -> do
+        li_ [class_ "flex items-center"] $ renderCrumb (fst x, Nothing)
+      (x : xs) -> do
+        li_ [class_ "flex items-center"] $ renderCrumb (second Just x)
+        li_ [class_ "flex items-center"] chevronSvg
+        renderCrumbs xs
     renderCrumb :: (Html (), Maybe URI) -> Html ()
-    renderCrumb (s, mr) = li_ [class_ "flex"] $ do
-      let attr = case mr of
-            Just r ->
-              [href_ (show r), class_ "hover:underline"]
-            Nothing -> [class_ "font-bold"]
-      a_ attr $ toHtml s
+    renderCrumb (s, mr) = case mr of
+      Just r ->
+        a_
+          [ href_ (show r)
+          , class_ "text-gray-100 hover:text-white transition-colors px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-white"
+          ]
+          $ toHtml s
+      Nothing ->
+        span_ [class_ "font-bold text-white px-2 py-1 rounded bg-orange-800"] $ toHtml s
+    chevronSvg =
+      span_ [class_ "mx-1 text-gray-300"] $ toHtmlRaw ("<svg xmlns='http://www.w3.org/2000/svg' class='h-4 w-4' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path stroke-linecap='round' stroke-linejoin='round' d='M9 5l7 7-7 7'/></svg>" :: Text)
 
 viraButton_ :: forall {result}. (Term [Attributes] result) => [Attributes] -> result
 viraButton_ attrs =
