@@ -39,7 +39,7 @@ data Routes mode = Routes
     _view :: mode :- Capture "job" JobId :> Get '[HTML] (Html ())
   , -- Log routes
     _log :: mode :- Capture "job" JobId :> "log" :> NamedRoutes JobLog.Routes
-  , -- Kill a running job
+  , -- Kill an active job
     _kill :: mode :- Capture "job" JobId :> Post '[HTML] (Headers '[HXRefresh] Text)
   }
   deriving stock (Generic)
