@@ -147,7 +147,7 @@ startTask' taskId pwd cph = flip runProcs cph . toList
       log Debug "Workspace log done"
       pure (pid, exitCode)
 
--- | Kill a task
+-- | Kill a running task
 killTask :: (Concurrent :> es, Process :> es, Log Message :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
 killTask supervisor taskId = do
   log Info $ "Killing task " <> show taskId
