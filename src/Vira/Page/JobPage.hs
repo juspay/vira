@@ -28,7 +28,7 @@ import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (JobId, RepoName, jobWorkingDir)
 import Vira.Supervisor qualified as Supervisor
-import Vira.Supervisor.Type (TaskSupervisor (baseWorkDir))
+import Vira.Supervisor.Type (TaskException (UserKilled), TaskSupervisor (baseWorkDir))
 import Vira.Widgets qualified as W
 import Prelude hiding (ask, asks)
 
@@ -123,10 +123,11 @@ triggerNewBuild repoName branchName = do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
     let stages = getStages repo branch mCachix mAttic
-    Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \exitCode -> do
-      let status = case exitCode of
-            ExitSuccess -> St.JobFinished St.JobSuccess
-            ExitFailure _code -> St.JobFinished St.JobFailure
+    Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \result -> do
+      let status = case result of
+            Right ExitSuccess -> St.JobFinished St.JobSuccess
+            Right (ExitFailure _code) -> St.JobFinished St.JobFailure
+            Left UserKilled -> St.JobKilled
       App.update $ St.JobUpdateStatusA job.jobId status
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId

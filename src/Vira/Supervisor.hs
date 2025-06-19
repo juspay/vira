@@ -8,9 +8,10 @@ import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar, modifyMVar_, readMVar)
+import Effectful.Exception (catch, finally, throwIO, uninterruptibleMask_)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.FileSystem.IO (hClose, openFile)
-import Effectful.Process (CreateProcess (cmdspec), Pid, Process, createProcess, getPid, waitForProcess)
+import Effectful.Process (CreateProcess (cmdspec), Pid, Process, ProcessHandle, createProcess, getPid, terminateProcess, waitForProcess)
 import System.Directory (getCurrentDirectory, makeAbsolute)
 import System.Directory qualified
 import System.Exit (ExitCode (ExitSuccess))
@@ -53,7 +54,7 @@ startTask ::
   NonEmpty CreateProcess ->
   -- Handler to call after the task finishes
   ( -- Exit code
-    ExitCode ->
+    Either TaskException ExitCode ->
     Eff es ()
   ) ->
   Eff es ()
@@ -69,11 +70,19 @@ startTask supervisor taskId pwd procs h = do
       else do
         createDirectoryIfMissing True pwd
         logToWorkspaceOutput taskId pwd msg
-        asyncHandle <- async $ do
-          hdl <- startTask' taskId pwd h procs
-          logToWorkspaceOutput taskId pwd "CI finished"
-          pure hdl
-        let task = Task {workDir = pwd, asyncHandle}
+        currentProcHandle <- newMVar Nothing
+        asyncHandle <-
+          async $
+            ( do
+                exitCode <- startTask' taskId pwd currentProcHandle procs
+                h (Right exitCode)
+                logToWorkspaceOutput taskId pwd "CI finished"
+                pure exitCode
+            )
+              `catch` \(e :: TaskException) -> do
+                h (Left e)
+                throwIO e -- Re-throw to ensure Async state reflects cancellation
+        let task = Task {workDir = pwd, asyncHandle, currentProcHandle}
         pure (Map.insert taskId task tasks, ())
 
 -- Send all output to a file under working directory.
@@ -89,33 +98,31 @@ logToWorkspaceOutput taskId base (msg :: Text) = do
 
 startTask' ::
   forall es.
-  (Process :> es, Log Message :> es, IOE :> es, FileSystem :> es) =>
+  (Concurrent :> es, Process :> es, Log Message :> es, IOE :> es, FileSystem :> es) =>
   TaskId ->
   FilePath ->
-  (ExitCode -> Eff es ()) ->
+  MVar (Maybe ProcessHandle) ->
   -- List of processes to run in sequence
   NonEmpty CreateProcess ->
   Eff es ExitCode
-startTask' taskId pwd h = runProcs . toList
+startTask' taskId pwd cph = flip runProcs cph . toList
   where
     -- Run each process one after another; exiting immediately if any fails
-    runProcs :: [CreateProcess] -> Eff es ExitCode
-    runProcs [] = do
+    runProcs :: [CreateProcess] -> MVar (Maybe ProcessHandle) -> Eff es ExitCode
+    runProcs [] _ = do
       log Info $ "All procs for task " <> show taskId <> " finished successfully"
-      h ExitSuccess
       pure ExitSuccess
-    runProcs (proc : rest) =
-      runProc proc >>= \case
+    runProcs (proc : rest) currentProcHandle =
+      runProc proc currentProcHandle >>= \case
         (pid, ExitSuccess) -> do
           log Debug $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") successfully finished."
-          runProcs rest
+          runProcs rest currentProcHandle
         (pid, exitCode) -> do
           log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") failed with exitCode " <> show exitCode
-          h exitCode
           pure exitCode
 
-    runProc :: CreateProcess -> Eff es (Maybe Pid, ExitCode)
-    runProc proc = do
+    runProc :: CreateProcess -> MVar (Maybe ProcessHandle) -> Eff es (Maybe Pid, ExitCode)
+    runProc proc currentProcHandle = do
       log Debug $ "Starting task: " <> show (cmdspec proc)
       logToWorkspaceOutput taskId pwd $ "Starting task: " <> show (cmdspec proc)
       outputHandle <- openFile (outputLogFile pwd) AppendMode
@@ -123,9 +130,17 @@ startTask' taskId pwd h = runProcs . toList
             Process.alwaysUnderPath pwd
               >>> Process.redirectOutputTo outputHandle
       (_, _, _, ph) <- createProcess $ proc & processSettings
+      modifyMVar_ currentProcHandle (\_ -> pure $ Just ph)
       pid <- getPid ph
       log Debug $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
-      exitCode <- waitForProcess ph
+
+      -- `uninterruptibleMask_ ensures `waitForProcess` is not interrupted by async exceptions. This is crucial for preventing the process from becoming a zombie
+      --
+      -- NOTE: Use `uninterruptibleMask_` with caution, see <https://hackage.haskell.org/package/base-4.21.0.0/docs/Control-Exception.html#v:uninterruptibleMask>
+      exitCode <-
+        uninterruptibleMask_ $
+          waitForProcess ph `finally` modifyMVar_ currentProcHandle (\_ -> pure Nothing)
+
       log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec proc)
       hClose outputHandle
       logToWorkspaceOutput taskId pwd $ "A task (pid=" <> show pid <> ") finished with exit code " <> show exitCode
@@ -133,12 +148,19 @@ startTask' taskId pwd h = runProcs . toList
       pure (pid, exitCode)
 
 -- | Kill a task
-killTask :: (Concurrent :> es, Log Message :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
+killTask :: (Concurrent :> es, Process :> es, Log Message :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
 killTask supervisor taskId = do
   log Info $ "Killing task " <> show taskId
   modifyMVar_ (tasks supervisor) $ \tasks -> do
-    for_ (Map.lookup taskId tasks) $ \Task {..} ->
-      cancel asyncHandle
+    for_ (Map.lookup taskId tasks) $ \Task {..} -> do
+      ph <- readMVar currentProcHandle
+      case ph of
+        Nothing -> log Info $ "No active process found for task " <> show taskId
+        Just ph' -> do
+          pid <- getPid ph'
+          log Info $ "Terminating active process (pid=" <> show pid <> ") for task " <> show taskId
+          terminateProcess ph'
+      cancelWith asyncHandle UserKilled
     pure $ Map.delete taskId tasks
 
 taskState :: (Concurrent :> es) => Task -> Eff es TaskState
