@@ -108,20 +108,18 @@ startTask' taskId pwd h = runProcs . toList
       h $ Right ExitSuccess
       pure ExitSuccess
     runProcs (proc : rest) =
-      ( do
-          runProc proc >>= \case
-            (pid, ExitSuccess) -> do
-              log Debug $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") successfully finished."
-              runProcs rest
-            (pid, exitCode) -> do
-              log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") failed with exitCode " <> show exitCode
-              h $ Right exitCode
-              pure exitCode
+      ( runProc proc >>= \case
+          (pid, ExitSuccess) -> do
+            log Debug $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") successfully finished."
+            runProcs rest
+          (pid, exitCode) -> do
+            log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") failed with exitCode " <> show exitCode
+            h $ Right exitCode
+            pure exitCode
       )
-        `catch` ( \(e :: TaskException) -> do
-                    h $ Left e
-                    throwIO e
-                )
+        `catch` \(e :: TaskException) -> do
+          h $ Left e
+          throwIO e
 
     runProc :: CreateProcess -> Eff es (Maybe Pid, ExitCode)
     runProc proc = do
