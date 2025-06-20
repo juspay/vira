@@ -74,7 +74,6 @@ killHandler :: JobId -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 killHandler jobId = do
   supervisor <- asks App.supervisor
   Supervisor.killTask supervisor jobId
-  log Info $ "Kill signal sent to job " <> show jobId
   pure $ addHeader True "Killed"
 
 viewJob :: (LinkTo.LinkTo -> Link) -> St.Job -> Eff App.AppServantStack (Html ())
