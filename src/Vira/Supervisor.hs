@@ -8,10 +8,10 @@ import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar, modifyMVar_, readMVar)
-import Effectful.Exception (catch, finally, throwIO, uninterruptibleMask_)
+import Effectful.Exception (catch, finally, mask, throwIO)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.FileSystem.IO (hClose, openFile)
-import Effectful.Process (CreateProcess (cmdspec), Pid, Process, ProcessHandle, createProcess, getPid, terminateProcess, waitForProcess)
+import Effectful.Process (CreateProcess (cmdspec), Pid, Process, createProcess, getPid, terminateProcess, waitForProcess)
 import System.Directory (getCurrentDirectory, makeAbsolute)
 import System.Directory qualified
 import System.Exit (ExitCode (ExitSuccess))
@@ -70,11 +70,10 @@ startTask supervisor taskId pwd procs h = do
       else do
         createDirectoryIfMissing True pwd
         logToWorkspaceOutput taskId pwd msg
-        currentProcHandle <- newMVar Nothing
         asyncHandle <-
           async $
             ( do
-                exitCode <- startTask' taskId pwd currentProcHandle procs
+                exitCode <- startTask' taskId pwd procs
                 h (Right exitCode)
                 logToWorkspaceOutput taskId pwd "CI finished"
                 pure exitCode
@@ -82,7 +81,7 @@ startTask supervisor taskId pwd procs h = do
               `catch` \(e :: TaskException) -> do
                 h (Left e)
                 throwIO e -- Re-throw to ensure Async state reflects cancellation
-        let task = Task {workDir = pwd, asyncHandle, currentProcHandle}
+        let task = Task {workDir = pwd, asyncHandle}
         pure (Map.insert taskId task tasks, ())
 
 -- Send all output to a file under working directory.
@@ -101,65 +100,63 @@ startTask' ::
   (Concurrent :> es, Process :> es, Log Message :> es, IOE :> es, FileSystem :> es) =>
   TaskId ->
   FilePath ->
-  MVar (Maybe ProcessHandle) ->
   -- List of processes to run in sequence
   NonEmpty CreateProcess ->
   Eff es ExitCode
-startTask' taskId pwd cph = flip runProcs cph . toList
+startTask' taskId pwd = runProcs . toList
   where
     -- Run each process one after another; exiting immediately if any fails
-    runProcs :: [CreateProcess] -> MVar (Maybe ProcessHandle) -> Eff es ExitCode
-    runProcs [] _ = do
+    runProcs :: [CreateProcess] -> Eff es ExitCode
+    runProcs [] = do
       log Info $ "All procs for task " <> show taskId <> " finished successfully"
       pure ExitSuccess
-    runProcs (proc : rest) currentProcHandle =
-      runProc proc currentProcHandle >>= \case
+    runProcs (proc : rest) =
+      runProc proc >>= \case
         (pid, ExitSuccess) -> do
           log Debug $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") successfully finished."
-          runProcs rest currentProcHandle
+          runProcs rest
         (pid, exitCode) -> do
           log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") failed with exitCode " <> show exitCode
           pure exitCode
 
-    runProc :: CreateProcess -> MVar (Maybe ProcessHandle) -> Eff es (Maybe Pid, ExitCode)
-    runProc proc currentProcHandle = do
+    runProc :: CreateProcess -> Eff es (Maybe Pid, ExitCode)
+    runProc proc = do
       log Debug $ "Starting task: " <> show (cmdspec proc)
       logToWorkspaceOutput taskId pwd $ "Starting task: " <> show (cmdspec proc)
       outputHandle <- openFile (outputLogFile pwd) AppendMode
-      let processSettings =
-            Process.alwaysUnderPath pwd
-              >>> Process.redirectOutputTo outputHandle
-      (_, _, _, ph) <- createProcess $ proc & processSettings
-      modifyMVar_ currentProcHandle (\_ -> pure $ Just ph)
-      pid <- getPid ph
-      log Debug $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
+      flip finally (hClose outputHandle) $ do
+        let processSettings =
+              Process.alwaysUnderPath pwd
+                >>> Process.redirectOutputTo outputHandle
+        (_, _, _, ph) <- createProcess $ proc & processSettings
+        pid <- getPid ph
+        log Debug $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
 
-      -- `uninterruptibleMask_ ensures `waitForProcess` is not interrupted by async exceptions. This is crucial for preventing the process from becoming a zombie
-      --
-      -- NOTE: Use `uninterruptibleMask_` with caution, see <https://hackage.haskell.org/package/base-4.21.0.0/docs/Control-Exception.html#v:uninterruptibleMask>
-      exitCode <-
-        uninterruptibleMask_ $
-          waitForProcess ph `finally` modifyMVar_ currentProcHandle (\_ -> pure Nothing)
-
-      log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec proc)
-      hClose outputHandle
-      logToWorkspaceOutput taskId pwd $ "A task (pid=" <> show pid <> ") finished with exit code " <> show exitCode
-      log Debug "Workspace log done"
-      pure (pid, exitCode)
+        exitCode <-
+          -- `mask` ensures proper cleanup after `UserKilled`, by protecting from further asynchronous interruptions
+          mask $ \restore ->
+            restore (waitForProcess ph)
+              `catch` \(exc :: TaskException) -> do
+                -- This handler runs with async exceptions masked.
+                case exc of
+                  UserKilled -> do
+                    log Info $ "Terminating process (pid=" <> show pid <> ") for task " <> show taskId
+                    terminateProcess ph `catch` \(e :: SomeException) ->
+                      log Error $ "Failed to terminate process " <> show pid <> " for task " <> show taskId <> ": " <> show e
+                    -- Reap the process to prevent from becoming zombie
+                    _ <- waitForProcess ph
+                    throwIO exc -- re-trhwo `UserKilled` to ensure the task status is updated to `Killed`
+        log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec proc)
+        logToWorkspaceOutput taskId pwd $ "A task (pid=" <> show pid <> ") finished with exit code " <> show exitCode
+        log Debug "Workspace log done"
+        pure (pid, exitCode)
 
 -- | Kill an active task
-killTask :: (Concurrent :> es, Process :> es, Log Message :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
+killTask :: (Concurrent :> es, Log Message :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
 killTask supervisor taskId = do
   modifyMVar_ (tasks supervisor) $ \tasks -> do
     for_ (Map.lookup taskId tasks) $ \Task {..} -> do
       log Info $ "Killing task " <> show taskId
-      ph <- readMVar currentProcHandle
-      case ph of
-        Nothing -> log Info $ "No active process found for task " <> show taskId
-        Just ph' -> do
-          pid <- getPid ph'
-          log Info $ "Terminating active process (pid=" <> show pid <> ") for task " <> show taskId
-          terminateProcess ph'
       cancelWith asyncHandle UserKilled
     pure $ Map.delete taskId tasks
 

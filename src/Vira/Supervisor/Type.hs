@@ -1,7 +1,6 @@
 module Vira.Supervisor.Type where
 
 import Effectful.Concurrent.Async (Async)
-import Effectful.Process (ProcessHandle)
 import System.Exit (ExitCode)
 import Vira.State.Type (JobId)
 
@@ -31,8 +30,6 @@ data Task = Task
   -- ^ Working directory of this task
   , asyncHandle :: Async ExitCode
   -- ^ The `Async` handle for the task
-  , currentProcHandle :: MVar (Maybe ProcessHandle)
-  -- ^ Handle to the process currently running for the task
   }
   deriving stock (Generic)
 
