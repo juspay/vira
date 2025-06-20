@@ -32,3 +32,9 @@ data Task = Task
   -- ^ The `Async` handle for the task
   }
   deriving stock (Generic)
+
+-- | Exceptions thrown during a task
+data TaskException = UserKilled
+  deriving stock (Show)
+
+instance Exception TaskException
