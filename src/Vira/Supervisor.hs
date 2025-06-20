@@ -150,9 +150,9 @@ startTask' taskId pwd cph = flip runProcs cph . toList
 -- | Kill an active task
 killTask :: (Concurrent :> es, Process :> es, Log Message :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
 killTask supervisor taskId = do
-  log Info $ "Killing task " <> show taskId
   modifyMVar_ (tasks supervisor) $ \tasks -> do
     for_ (Map.lookup taskId tasks) $ \Task {..} -> do
+      log Info $ "Killing task " <> show taskId
       ph <- readMVar currentProcHandle
       case ph of
         Nothing -> log Info $ "No active process found for task " <> show taskId
