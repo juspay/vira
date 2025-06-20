@@ -32,6 +32,7 @@ data Task = Task
   , asyncHandle :: Async ExitCode
   -- ^ The `Async` handle for the task
   , currentProcHandle :: MVar (Maybe ProcessHandle)
+  -- ^ Handle to the process currently running for the task
   }
   deriving stock (Generic)
 
