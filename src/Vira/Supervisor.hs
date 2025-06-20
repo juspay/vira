@@ -70,17 +70,10 @@ startTask supervisor taskId pwd procs h = do
       else do
         createDirectoryIfMissing True pwd
         logToWorkspaceOutput taskId pwd msg
-        asyncHandle <-
-          async $
-            ( do
-                exitCode <- startTask' taskId pwd procs
-                h (Right exitCode)
-                logToWorkspaceOutput taskId pwd "CI finished"
-                pure exitCode
-            )
-              `catch` \(e :: TaskException) -> do
-                h (Left e)
-                throwIO e -- Re-throw to ensure Async state reflects cancellation
+        asyncHandle <- async $ do
+          hdl <- startTask' taskId pwd h procs
+          logToWorkspaceOutput taskId pwd "CI finished"
+          pure hdl
         let task = Task {workDir = pwd, asyncHandle}
         pure (Map.insert taskId task tasks, ())
 
@@ -100,24 +93,35 @@ startTask' ::
   (Concurrent :> es, Process :> es, Log Message :> es, IOE :> es, FileSystem :> es) =>
   TaskId ->
   FilePath ->
+  ( Either TaskException ExitCode ->
+    Eff es ()
+  ) ->
   -- List of processes to run in sequence
   NonEmpty CreateProcess ->
   Eff es ExitCode
-startTask' taskId pwd = runProcs . toList
+startTask' taskId pwd h = runProcs . toList
   where
     -- Run each process one after another; exiting immediately if any fails
     runProcs :: [CreateProcess] -> Eff es ExitCode
     runProcs [] = do
       log Info $ "All procs for task " <> show taskId <> " finished successfully"
+      h $ Right ExitSuccess
       pure ExitSuccess
     runProcs (proc : rest) =
-      runProc proc >>= \case
-        (pid, ExitSuccess) -> do
-          log Debug $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") successfully finished."
-          runProcs rest
-        (pid, exitCode) -> do
-          log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") failed with exitCode " <> show exitCode
-          pure exitCode
+      ( do
+          runProc proc >>= \case
+            (pid, ExitSuccess) -> do
+              log Debug $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") successfully finished."
+              runProcs rest
+            (pid, exitCode) -> do
+              log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") failed with exitCode " <> show exitCode
+              h $ Right exitCode
+              pure exitCode
+      )
+        `catch` ( \(e :: TaskException) -> do
+                    h $ Left e
+                    throwIO e
+                )
 
     runProc :: CreateProcess -> Eff es (Maybe Pid, ExitCode)
     runProc proc = do
