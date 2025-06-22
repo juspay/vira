@@ -98,30 +98,29 @@ startTask' ::
   ) ->
   -- List of processes to run in sequence
   NonEmpty CreateProcess ->
-  Eff es ExitCode
+  Eff es (Either TaskException ExitCode)
 startTask' taskId pwd h = runProcs . toList
   where
     -- Run each process one after another; exiting immediately if any fails
-    runProcs :: [CreateProcess] -> Eff es ExitCode
+    runProcs :: [CreateProcess] -> Eff es (Either TaskException ExitCode)
     runProcs [] = do
       log Info $ "All procs for task " <> show taskId <> " finished successfully"
       h $ Right ExitSuccess
-      pure ExitSuccess
+      pure $ Right ExitSuccess
     runProcs (proc : rest) =
-      ( runProc proc >>= \case
-          (pid, ExitSuccess) -> do
-            log Debug $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") successfully finished."
-            runProcs rest
-          (pid, exitCode) -> do
-            log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") failed with exitCode " <> show exitCode
-            h $ Right exitCode
-            pure exitCode
-      )
-        `catch` \(e :: TaskException) -> do
+      runProc proc >>= \case
+        (pid, Right ExitSuccess) -> do
+          log Debug $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") successfully finished."
+          runProcs rest
+        (pid, Right exitCode) -> do
+          log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") failed with exitCode " <> show exitCode
+          h $ Right exitCode
+          pure $ Right exitCode
+        (_, Left e) -> do
           h $ Left e
-          throwIO e
+          pure $ Left e
 
-    runProc :: CreateProcess -> Eff es (Maybe Pid, ExitCode)
+    runProc :: CreateProcess -> Eff es (Maybe Pid, Either TaskException ExitCode)
     runProc proc = do
       log Debug $ "Starting task: " <> show (cmdspec proc)
       logToWorkspaceOutput taskId pwd $ "Starting task: " <> show (cmdspec proc)
@@ -134,32 +133,32 @@ startTask' taskId pwd h = runProcs . toList
         pid <- getPid ph
         log Debug $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
 
-        exitCode <-
-          -- `mask` ensures proper cleanup after `UserKilled`, by protecting from further asynchronous interruptions
+        exitcode <-
+          -- `mask` ensures proper cleanup after `KilledByUser`, by protecting from further asynchronous interruptions
           mask $ \restore ->
-            restore (waitForProcess ph)
+            restore (Right <$> waitForProcess ph)
               `catch` \(exc :: TaskException) -> do
                 -- This handler runs with async exceptions masked.
                 case exc of
-                  UserKilled -> do
+                  KilledByUser -> do
                     log Info $ "Terminating process (pid=" <> show pid <> ") for task " <> show taskId
                     terminateProcess ph `catch` \(e :: SomeException) ->
                       log Error $ "Failed to terminate process " <> show pid <> " for task " <> show taskId <> ": " <> show e
                     -- Reap the process to prevent from becoming zombie
                     _ <- waitForProcess ph
-                    throwIO exc -- re-trhwo `UserKilled` to ensure the task status is updated to `Killed`
+                    pure (Left exc)
         log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec proc)
-        logToWorkspaceOutput taskId pwd $ "A task (pid=" <> show pid <> ") finished with exit code " <> show exitCode
+        logToWorkspaceOutput taskId pwd $ "A task (pid=" <> show pid <> ") finished with exit code " <> show exitcode
         log Debug "Workspace log done"
-        pure (pid, exitCode)
+        pure (pid, exitcode)
 
 -- | Kill an active task
 killTask :: (Concurrent :> es, Log Message :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
 killTask supervisor taskId = do
   modifyMVar_ (tasks supervisor) $ \tasks -> do
-    for_ (Map.lookup taskId tasks) $ \Task {..} -> do
+    whenJust (Map.lookup taskId tasks) $ \Task {..} -> do
       log Info $ "Killing task " <> show taskId
-      cancelWith asyncHandle UserKilled
+      cancelWith asyncHandle KilledByUser
     pure $ Map.delete taskId tasks
 
 taskState :: (Concurrent :> es) => Task -> Eff es TaskState
