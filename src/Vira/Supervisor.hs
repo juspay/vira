@@ -149,7 +149,7 @@ startTask' taskId pwd h = runProcs . toList
                     pure (Left exc)
         log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec proc)
         logToWorkspaceOutput taskId pwd $
-          "A task (pid=" <> show pid <> ") finished with " <> either (("exception: " <>) . show) (("exitcode: " <>) . show) result
+          "A task (pid=" <> show pid <> ") finished with " <> either (("exception: " <>) . toText . displayException) (("exitcode: " <>) . show) result
         log Debug "Workspace log done"
         pure (pid, result)
 

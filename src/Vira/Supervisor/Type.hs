@@ -35,8 +35,8 @@ data Task = Task
 
 -- | Exceptions that occurred during a task
 data TaskException
-  = -- | An active task was explicitly terminated by a user
-    KilledByUser
+  = KilledByUser
   deriving stock (Show)
 
-instance Exception TaskException
+instance Exception TaskException where
+  displayException KilledByUser = "Task was killed by user"
