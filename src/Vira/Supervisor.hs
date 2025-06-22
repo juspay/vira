@@ -133,7 +133,7 @@ startTask' taskId pwd h = runProcs . toList
         pid <- getPid ph
         log Debug $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
 
-        exitcode <-
+        result <-
           -- `mask` ensures proper cleanup after `KilledByUser`, by protecting from further asynchronous interruptions
           mask $ \restore ->
             restore (Right <$> waitForProcess ph)
@@ -148,9 +148,10 @@ startTask' taskId pwd h = runProcs . toList
                     _ <- waitForProcess ph
                     pure (Left exc)
         log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec proc)
-        logToWorkspaceOutput taskId pwd $ "A task (pid=" <> show pid <> ") finished with exit code " <> show exitcode
+        logToWorkspaceOutput taskId pwd $
+          "A task (pid=" <> show pid <> ") finished with " <> either (("exception: " <>) . show) (("exitcode: " <>) . show) result
         log Debug "Workspace log done"
-        pure (pid, exitcode)
+        pure (pid, result)
 
 -- | Kill an active task
 killTask :: (Concurrent :> es, Log Message :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
