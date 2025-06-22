@@ -8,7 +8,7 @@ import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar, modifyMVar_, readMVar)
-import Effectful.Exception (catch, finally, mask, throwIO)
+import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.FileSystem.IO (hClose, openFile)
 import Effectful.Process (CreateProcess (cmdspec), Pid, Process, createProcess, getPid, terminateProcess, waitForProcess)
