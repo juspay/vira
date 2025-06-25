@@ -13,6 +13,7 @@ data LinkTo
   | RepoListing
   | Repo RepoName
   | RepoUpdate RepoName
+  | RepoBranchUpdate RepoName BranchName
   | Build RepoName BranchName
   | RepoBranch RepoName BranchName
   | Job JobId
@@ -27,6 +28,7 @@ linkShortTitle = \case
   RepoListing -> "Repositories"
   Repo name -> toText . toString $ name
   RepoUpdate _ -> "Update" -- unused
+  RepoBranchUpdate _ _ -> "Branch Update" -- unused
   Build _ _ -> "Build" -- unused
   RepoBranch _ branchName -> toText . toString $ branchName
   Job jobId -> "Job " <> show jobId

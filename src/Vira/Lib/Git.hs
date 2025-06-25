@@ -47,23 +47,36 @@ newtype BranchName = BranchName {unBranchName :: Text}
     , FromHttpApiData
     )
 
+-- | Glob pattern specifying branch name/s
+newtype BranchNameGlob = BranchNameGlob {unBranchNameGlob :: Text}
+  deriving stock (Generic, Data)
+  deriving newtype (Show, Eq, Ord)
+  deriving newtype
+    ( IsString
+    , ToJSON
+    , ToString
+    , ToHttpApiData
+    , FromHttpApiData
+    )
+
 $(deriveSafeCopy 0 'base ''CommitID)
 $(deriveSafeCopy 0 'base ''BranchName)
+$(deriveSafeCopy 0 'base ''BranchNameGlob)
 
-{- | Get all branches available in the remote.
+{- | Get branches that match a glob pattern in the remote.
 
 Run `git ls-remote` and filter it to only include branches.
 
 https://git-scm.com/docs/git-ls-remote
 -}
-remoteBranches :: Text -> IO (Map BranchName CommitID)
-remoteBranches url = do
+remoteBranchesByGlob :: BranchNameGlob -> Text -> IO (Map BranchName CommitID)
+remoteBranchesByGlob g url = do
   -- Use System.Process to run and parse output
   output <- readProcess git ["ls-remote", "--exit-code", "--branches", toString url, refsPattern] ""
   return $ Map.fromList $ mapMaybe parseLine $ lines $ toText output
   where
     knownPrefix :: ByteString = "refs/heads/"
-    refsPattern = decodeUtf8 $ knownPrefix <> "*"
+    refsPattern = decodeUtf8 knownPrefix <> toString (unBranchNameGlob g)
     parseLine :: Text -> Maybe (BranchName, CommitID)
     parseLine line = case T.splitOn "\t" line of
       [hash, name'] ->
@@ -83,5 +96,5 @@ spec = do
   describe "Git" $ do
     it "remoteBranches" $ do
       let archivedRepo = "https://github.com/srid/leptos-nix-template" -- Archived; won't change
-      branches <- remoteBranches archivedRepo
-      Map.lookup "main" branches `shouldBe` Just "68506f5bf0a5883e737c0f8b7bab4c651a0d5fc0"
+      allBranches <- remoteBranchesByGlob "*" archivedRepo
+      Map.lookup "main" allBranches `shouldBe` Just "68506f5bf0a5883e737c0f8b7bab4c651a0d5fc0"

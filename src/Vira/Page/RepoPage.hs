@@ -60,7 +60,7 @@ viewHandler name = do
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  allBranches <- liftIO $ Git.remoteBranches repo.cloneUrl
+  allBranches <- liftIO $ Git.remoteBranchesByGlob "*" repo.cloneUrl
   App.update $ St.SetRepoBranchesA repo.name allBranches
   pure $ addHeader True "Ok"
 

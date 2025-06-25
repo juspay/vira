@@ -19,6 +19,7 @@ linkTo = \case
   RepoListing -> fieldLink _repos // RegistryPage._listing
   Repo name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._view
   RepoUpdate name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._update
+  RepoBranchUpdate repo branch -> fieldLink _repos // RegistryPage._repo /: repo // RepoPage._branch /: branch // BranchPage._update
   Build repo branch -> fieldLink _jobs // JobPage._build /: repo /: branch
   RepoBranch repo branch -> fieldLink _repos // RegistryPage._repo /: repo // RepoPage._branch /: branch // BranchPage._view
   Job jobId -> fieldLink _jobs // JobPage._view /: jobId
