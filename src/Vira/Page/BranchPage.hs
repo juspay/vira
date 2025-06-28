@@ -46,6 +46,8 @@ viewRepoBranch linkTo repo branch jobs = do
     h2_ [class_ "text-2xl py-2 my-4 border-b-2 flex items-start flex-col"] $ do
       div_ $ toHtml $ toString branch.branchName
       div_ $ JobPage.viewCommit branch.headCommit
+    -- TODO: Replace this with parent UX flow
+    -- cf. https://github.com/juspay/vira/issues/47#issuecomment-3014376804
     W.viraButton_
       [ hxPostSafe_ $ linkTo $ RepoUpdate repo.name
       , hxSwapS_ AfterEnd
