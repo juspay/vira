@@ -12,6 +12,7 @@ import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
+import Vira.App.LinkTo.Type (LinkTo (RepoUpdate))
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.HTMX (hxPostSafe_)
@@ -45,6 +46,13 @@ viewRepoBranch linkTo repo branch jobs = do
     h2_ [class_ "text-2xl py-2 my-4 border-b-2 flex items-start flex-col"] $ do
       div_ $ toHtml $ toString branch.branchName
       div_ $ JobPage.viewCommit branch.headCommit
+    -- TODO: Replace this with parent UX flow
+    -- cf. https://github.com/juspay/vira/issues/47#issuecomment-3014376804
+    W.viraButton_
+      [ hxPostSafe_ $ linkTo $ RepoUpdate repo.name
+      , hxSwapS_ AfterEnd
+      ]
+      "Refresh branches"
     div_ $
       W.viraButton_
         [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
