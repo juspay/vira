@@ -11,7 +11,7 @@ import Effectful.Concurrent.MVar (modifyMVar, modifyMVar_, readMVar)
 import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.FileSystem.IO (hClose, openFile)
-import Effectful.Process (CreateProcess (cmdspec), Pid, Process, createProcess, getPid, terminateProcess, waitForProcess)
+import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
 import System.Directory (getCurrentDirectory, makeAbsolute)
 import System.Directory qualified
 import System.Exit (ExitCode (ExitSuccess))
@@ -129,23 +129,23 @@ startTask' taskId pwd h = runProcs . toList
         let processSettings =
               Process.alwaysUnderPath pwd
                 >>> Process.redirectOutputTo outputHandle
+                >>> (\cp -> cp {create_group = True}) -- For `interruptProcessGroupOf`, when the process is `KilledByUser`
         (_, _, _, ph) <- createProcess $ proc & processSettings
         pid <- getPid ph
         log Debug $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
 
         result <-
-          -- `mask` ensures proper cleanup after `KilledByUser`, by protecting from further asynchronous interruptions
+          -- `mask` cleanup from asynchronous interruptions
           mask $ \restore ->
             restore (Right <$> waitForProcess ph)
               `catch` \(exc :: TaskException) -> do
-                -- This handler runs with async exceptions masked.
                 case exc of
                   KilledByUser -> do
                     log Info $ "Terminating process (pid=" <> show pid <> ") for task " <> show taskId
-                    terminateProcess ph `catch` \(e :: SomeException) ->
+                    interruptProcessGroupOf ph `catch` \(e :: SomeException) ->
+                      -- Analogous to `Control-C`'ing the process in an interactive shell
                       log Error $ "Failed to terminate process " <> show pid <> " for task " <> show taskId <> ": " <> show e
-                    -- Reap the process to prevent from becoming zombie
-                    _ <- waitForProcess ph
+                    _ <- waitForProcess ph -- Reap to prevent zombies
                     pure (Left exc)
         log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec proc)
         logToWorkspaceOutput taskId pwd $
