@@ -28,7 +28,15 @@ data TaskSupervisor = TaskSupervisor
 data Task = Task
   { workDir :: FilePath
   -- ^ Working directory of this task
-  , asyncHandle :: Async ExitCode
+  , asyncHandle :: Async (Either TaskException ExitCode)
   -- ^ The `Async` handle for the task
   }
   deriving stock (Generic)
+
+-- | Exceptions that occurred during a task
+data TaskException
+  = KilledByUser
+  deriving stock (Show)
+
+instance Exception TaskException where
+  displayException KilledByUser = "Task was killed by user"

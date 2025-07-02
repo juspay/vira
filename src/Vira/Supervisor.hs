@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# HLINT ignore "Use next" #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
@@ -8,14 +9,14 @@ import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar, modifyMVar_, readMVar)
+import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.FileSystem.IO (hClose, openFile)
-import Effectful.Process (CreateProcess (cmdspec), Pid, Process, createProcess, getPid, waitForProcess)
+import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
 import System.Directory (getCurrentDirectory, makeAbsolute)
 import System.Directory qualified
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
-import Vira.App qualified as App
 import Vira.App.Logging
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type
@@ -54,7 +55,7 @@ startTask ::
   NonEmpty CreateProcess ->
   -- Handler to call after the task finishes
   ( -- Exit code
-    ExitCode ->
+    Either TaskException ExitCode ->
     Eff es ()
   ) ->
   Eff es ()
@@ -90,57 +91,80 @@ logToWorkspaceOutput taskId base (msg :: Text) = do
 
 startTask' ::
   forall es.
-  (Process :> es, Log Message :> es, IOE :> es, FileSystem :> es) =>
+  (Concurrent :> es, Process :> es, Log Message :> es, IOE :> es, FileSystem :> es) =>
   TaskId ->
   FilePath ->
-  (ExitCode -> Eff es ()) ->
+  ( Either TaskException ExitCode ->
+    Eff es ()
+  ) ->
   -- List of processes to run in sequence
   NonEmpty CreateProcess ->
-  Eff es ExitCode
+  Eff es (Either TaskException ExitCode)
 startTask' taskId pwd h = runProcs . toList
   where
     -- Run each process one after another; exiting immediately if any fails
-    runProcs :: [CreateProcess] -> Eff es ExitCode
+    runProcs :: [CreateProcess] -> Eff es (Either TaskException ExitCode)
     runProcs [] = do
       log Info $ "All procs for task " <> show taskId <> " finished successfully"
-      h ExitSuccess
-      pure ExitSuccess
+      h $ Right ExitSuccess
+      pure $ Right ExitSuccess
     runProcs (proc : rest) =
       runProc proc >>= \case
-        (pid, ExitSuccess) -> do
+        (pid, Right ExitSuccess) -> do
           log Debug $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") successfully finished."
           runProcs rest
-        (pid, exitCode) -> do
+        (pid, Right exitCode) -> do
           log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") failed with exitCode " <> show exitCode
-          h exitCode
-          pure exitCode
+          h $ Right exitCode
+          pure $ Right exitCode
+        (pid, Left e) -> do
+          log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") was interrupted:  " <> show e
+          h $ Left e
+          pure $ Left e
 
-    runProc :: CreateProcess -> Eff es (Maybe Pid, ExitCode)
+    runProc :: CreateProcess -> Eff es (Maybe Pid, Either TaskException ExitCode)
     runProc proc = do
       log Debug $ "Starting task: " <> show (cmdspec proc)
       logToWorkspaceOutput taskId pwd $ "Starting task: " <> show (cmdspec proc)
-      outputHandle <- openFile (outputLogFile pwd) AppendMode
-      let processSettings =
-            Process.alwaysUnderPath pwd
-              >>> Process.redirectOutputTo outputHandle
-      (_, _, _, ph) <- createProcess $ proc & processSettings
-      pid <- getPid ph
-      log Debug $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
-      exitCode <- waitForProcess ph
-      log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec proc)
-      hClose outputHandle
-      logToWorkspaceOutput taskId pwd $ "A task (pid=" <> show pid <> ") finished with exit code " <> show exitCode
-      log Debug "Workspace log done"
-      pure (pid, exitCode)
+      withFileHandle (outputLogFile pwd) AppendMode $ \outputHandle -> do
+        let processSettings =
+              Process.alwaysUnderPath pwd
+                >>> Process.redirectOutputTo outputHandle
+                >>> (\cp -> cp {create_group = True}) -- For `interruptProcessGroupOf`, when the process is `KilledByUser`
+        (_, _, _, ph) <- createProcess $ proc & processSettings
+        pid <- getPid ph
+        log Debug $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
 
--- | Kill a task
-killTask :: TaskSupervisor -> TaskId -> Eff App.AppStack ()
+        result <-
+          -- `mask` cleanup from asynchronous interruptions
+          mask $ \restore ->
+            restore (Right <$> waitForProcess ph)
+              `catch` \case
+                KilledByUser -> do
+                  log Info $ "Terminating process (pid=" <> show pid <> ") for task " <> show taskId
+                  interruptProcessGroupOf ph `catch` \(e :: SomeException) ->
+                    -- Analogous to `Control-C`'ing the process in an interactive shell
+                    log Error $ "Failed to terminate process " <> show pid <> " for task " <> show taskId <> ": " <> show e
+                  _ <- waitForProcess ph -- Reap to prevent zombies
+                  pure $ Left KilledByUser
+        log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec proc)
+        logToWorkspaceOutput taskId pwd $
+          "A task (pid=" <> show pid <> ") finished with " <> either (("exception: " <>) . toText . displayException) (("exitcode: " <>) . show) result
+        log Debug "Workspace log done"
+        pure (pid, result)
+
+-- | Kill an active task
+killTask :: (Concurrent :> es, Log Message :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
 killTask supervisor taskId = do
-  log Info $ "Killing task " <> show taskId
   modifyMVar_ (tasks supervisor) $ \tasks -> do
-    for_ (Map.lookup taskId tasks) $ \Task {..} ->
-      cancel asyncHandle
-    pure $ Map.delete taskId tasks
+    case Map.lookup taskId tasks of
+      Nothing -> do
+        log Warning $ "Attempted to kill non-existent task " <> show taskId
+        pure tasks -- Don't modify the map if task doesn't exist
+      Just task -> do
+        log Info $ "Killing task " <> show taskId
+        cancelWith task.asyncHandle KilledByUser
+        pure $ Map.delete taskId tasks
 
 taskState :: (Concurrent :> es) => Task -> Eff es TaskState
 taskState Task {..} = do
@@ -149,3 +173,9 @@ taskState Task {..} = do
     Nothing -> pure Running
     Just (Right _) -> pure $ Finished ExitSuccess
     Just (Left _) -> pure Killed
+
+-- | Helper function that provides withFile-like behavior for Effectful
+withFileHandle :: (FileSystem :> es, IOE :> es) => FilePath -> IOMode -> (Handle -> Eff es a) -> Eff es a
+withFileHandle path mode action = do
+  handle <- openFile path mode
+  finally (action handle) (hClose handle)

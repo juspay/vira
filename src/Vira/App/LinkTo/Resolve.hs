@@ -24,4 +24,5 @@ linkTo = \case
   Job jobId -> fieldLink _jobs // JobPage._view /: jobId
   JobLog jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._rawLog
   JobLogStream jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._streamLog
+  Kill jobId -> fieldLink _jobs // JobPage._kill /: jobId
   StatusGet -> fieldLink _status
