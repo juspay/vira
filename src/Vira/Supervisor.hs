@@ -116,7 +116,8 @@ startTask' taskId pwd h = runProcs . toList
           log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") failed with exitCode " <> show exitCode
           h $ Right exitCode
           pure $ Right exitCode
-        (_, Left e) -> do
+        (pid, Left e) -> do
+          log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") was interrupted:  " <> show e
           h $ Left e
           pure $ Left e
 
