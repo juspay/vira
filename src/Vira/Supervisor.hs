@@ -124,8 +124,7 @@ startTask' taskId pwd h = runProcs . toList
     runProc proc = do
       log Debug $ "Starting task: " <> show (cmdspec proc)
       logToWorkspaceOutput taskId pwd $ "Starting task: " <> show (cmdspec proc)
-      outputHandle <- openFile (outputLogFile pwd) AppendMode
-      flip finally (hClose outputHandle) $ do
+      withFileHandle (outputLogFile pwd) AppendMode $ \outputHandle -> do
         let processSettings =
               Process.alwaysUnderPath pwd
                 >>> Process.redirectOutputTo outputHandle
@@ -138,15 +137,14 @@ startTask' taskId pwd h = runProcs . toList
           -- `mask` cleanup from asynchronous interruptions
           mask $ \restore ->
             restore (Right <$> waitForProcess ph)
-              `catch` \(exc :: TaskException) -> do
-                case exc of
-                  KilledByUser -> do
-                    log Info $ "Terminating process (pid=" <> show pid <> ") for task " <> show taskId
-                    interruptProcessGroupOf ph `catch` \(e :: SomeException) ->
-                      -- Analogous to `Control-C`'ing the process in an interactive shell
-                      log Error $ "Failed to terminate process " <> show pid <> " for task " <> show taskId <> ": " <> show e
-                    _ <- waitForProcess ph -- Reap to prevent zombies
-                    pure (Left exc)
+              `catch` \case
+                KilledByUser -> do
+                  log Info $ "Terminating process (pid=" <> show pid <> ") for task " <> show taskId
+                  interruptProcessGroupOf ph `catch` \(e :: SomeException) ->
+                    -- Analogous to `Control-C`'ing the process in an interactive shell
+                    log Error $ "Failed to terminate process " <> show pid <> " for task " <> show taskId <> ": " <> show e
+                  _ <- waitForProcess ph -- Reap to prevent zombies
+                  pure $ Left KilledByUser
         log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec proc)
         logToWorkspaceOutput taskId pwd $
           "A task (pid=" <> show pid <> ") finished with " <> either (("exception: " <>) . toText . displayException) (("exitcode: " <>) . show) result
@@ -169,3 +167,9 @@ taskState Task {..} = do
     Nothing -> pure Running
     Just (Right _) -> pure $ Finished ExitSuccess
     Just (Left _) -> pure Killed
+
+-- | Helper function that provides withFile-like behavior for Effectful
+withFileHandle :: (FileSystem :> es, IOE :> es) => FilePath -> IOMode -> (Handle -> Eff es a) -> Eff es a
+withFileHandle path mode action = do
+  handle <- openFile path mode
+  finally (action handle) (hClose handle)
