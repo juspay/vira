@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# HLINT ignore "Use next" #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
@@ -156,10 +157,14 @@ startTask' taskId pwd h = runProcs . toList
 killTask :: (Concurrent :> es, Log Message :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
 killTask supervisor taskId = do
   modifyMVar_ (tasks supervisor) $ \tasks -> do
-    whenJust (Map.lookup taskId tasks) $ \Task {..} -> do
-      log Info $ "Killing task " <> show taskId
-      cancelWith asyncHandle KilledByUser
-    pure $ Map.delete taskId tasks
+    case Map.lookup taskId tasks of
+      Nothing -> do
+        log Warning $ "Attempted to kill non-existent task " <> show taskId
+        pure tasks -- Don't modify the map if task doesn't exist
+      Just task -> do
+        log Info $ "Killing task " <> show taskId
+        cancelWith task.asyncHandle KilledByUser
+        pure $ Map.delete taskId tasks
 
 taskState :: (Concurrent :> es) => Task -> Eff es TaskState
 taskState Task {..} = do
