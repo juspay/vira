@@ -7,42 +7,21 @@ on:
   pull_request:
 jobs:
   build:
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.system }}
     strategy:
       matrix:
-        include:
-          - runner: x86_64-linux
-            system: x86_64-linux
-            # Our Mac Studios are b0rked, so we use GitHub mac runner.
-          - runner: macos-latest
-            system: aarch64-darwin
+        system: [x86_64-linux, aarch64-darwin]
     steps:
       - uses: actions/checkout@v4
-
-      # ⤵️ The steps are run only on GitHub runners
-      - name: "Install Nix"
-        if: matrix.runner == 'macos-latest'
-        uses: DeterminateSystems/nix-installer-action@main
-      - name: "Install attic and omnix"
-        if: matrix.runner == 'macos-latest'
-        run: |
-          nix profile install nixpkgs#attic-client nixpkgs#omnix
-      # ⤴️
-
-      - name: "Attic: Configure"
-        run: |
-          attic login chutney https://cache.nixos.asia ${{ secrets.ATTIC_LOGIN_TOKEN }}
-          attic use chutney:oss
-
       - name: Build all flake outputs
-        id: om-ci
+        id: om_ci
         run: |
           om ci run --systems "${{ matrix.system }}"
           echo "result=$(readlink result)" >> "$GITHUB_OUTPUT"
       - name: Run Tests
         run: |
           nix --option system "${{ matrix.system }}" run .#vira-tests
-
-      - name: "Attic: Push"
+      - name: Push to Attic
         run: |
-          attic push chutney:oss ${{ steps.om-ci.outputs.result }}
+          attic login chutney https://cache.nixos.asia ${{ secrets.ATTIC_LOGIN_TOKEN }}
+          attic push chutney:oss ${{ steps.om_ci.outputs.result }}
