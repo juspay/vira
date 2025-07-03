@@ -53,12 +53,16 @@ viewRepoBranch linkTo repo branch jobs = do
       , hxSwapS_ AfterEnd
       ]
       "Refresh branches"
-    div_ $
+    div_ [class_ "mb-4"] $
       W.viraButton_
         [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
         , hxSwapS_ AfterEnd
         ]
         "Build"
-    ul_ $ forM_ jobs $ \job -> do
-      li_ [class_ "my-2 py-1"] $ do
-        JobPage.viewJobHeader linkTo job
+    viewJobListing linkTo jobs
+
+viewJobListing :: (LinkTo.LinkTo -> Link) -> [St.Job] -> Html ()
+viewJobListing linkTo jobs = do
+  ul_ [class_ "space-y-2 mb-4"] $ forM_ jobs $ \job -> do
+    li_ [class_ "bg-gray-50 rounded px-3 py-2 border-l-4 border-gray-300 hover:bg-blue-100 transition-all duration-300"] $ do
+      JobPage.viewJobHeader linkTo job

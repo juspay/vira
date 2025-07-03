@@ -93,7 +93,7 @@ viewJob linkTo job = do
 viewJobHeader :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewJobHeader linkTo job = do
   a_ [title_ "View Job Details", href_ $ show . linkURI $ linkTo $ LinkTo.Job job.jobId] $ do
-    div_ [class_ "flex items-center justify-start space-x-4 hover:bg-blue-100"] $ do
+    div_ [class_ "flex items-center justify-start space-x-4"] $ do
       div_ [class_ "w-24"] $ do
         b_ $ "Job #" <> toHtml (show @Text job.jobId)
       viewCommit job.jobCommit
@@ -101,7 +101,7 @@ viewJobHeader linkTo job = do
 
 viewCommit :: Git.CommitID -> Html ()
 viewCommit (Git.CommitID commit) = do
-  code_ [class_ "text-gray-700 text-sm hover:text-black"] $ toHtml commit
+  code_ [class_ "text-gray-600 text-sm hover:text-black"] $ toHtml commit
 
 viewJobStatus :: St.JobStatus -> Html ()
 viewJobStatus status = do

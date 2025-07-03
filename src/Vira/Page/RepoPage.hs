@@ -74,20 +74,21 @@ viewRepo linkTo repo branches = do
       , hxSwapS_ AfterEnd
       ]
       "Refresh branches"
-    div_ [class_ ""] $ do
+    div_ [class_ "space-y-8"] $ do
       forM_ branches $ \(branch, jobs) -> do
-        h2_ [class_ "text-2xl py-2 my-4 border-b-2 flex items-start flex-col"] $ do
-          div_ $ toHtml $ toString branch.branchName
-          div_ $ JobPage.viewCommit branch.headCommit
-        div_ $
-          W.viraButton_
-            [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
-            , hxSwapS_ AfterEnd
-            ]
-            "Build"
-        ul_ $ forM_ jobs $ \job -> do
-          li_ [class_ "my-2 py-1"] $ do
-            JobPage.viewJobHeader linkTo job
-        div_ [class_ "py-3 hover:bg-blue-50 font-bold"] $ do
+        section_ [id_ (toText $ "branch-" <> toString branch.branchName), class_ "bg-white border-2 border-gray-300 rounded-xl shadow-md hover:shadow-lg hover:border-blue-400 transition-all duration-300 p-4 my-6"] $ do
           let url = linkURI $ linkTo $ LinkTo.RepoBranch repo.name branch.branchName
-          a_ [href_ $ show url] "...See all jobs"
+          h2_ [class_ "text-2xl font-semibold mb-3 border-b-2 border-blue-100 pb-2"] $ do
+            a_ [href_ $ show url, class_ "text-blue-600 hover:text-blue-800 hover:underline"] $ do
+              toHtml $ toString branch.branchName
+          div_ [class_ "mb-4 text-gray-600"] $ do
+            JobPage.viewCommit branch.headCommit
+          div_ [class_ "mb-4"] $
+            W.viraButton_
+              [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
+              , hxSwapS_ AfterEnd
+              ]
+              "Build"
+          BranchPage.viewJobListing linkTo jobs
+          div_ [class_ "text-right"] $ do
+            a_ [href_ $ show url, class_ "text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"] "View all jobs →"
