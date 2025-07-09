@@ -33,7 +33,7 @@ tailFArgs lastNLines fp =
 
 run :: FilePath -> TQueue Text -> IO ProcessHandle
 run filePath chan = do
-  -- We don't stream whole file for performanc reasons
+  -- We don't stream whole file for performance reasons
   -- See https://github.com/juspay/vira/issues/61
   -- Ideally, we should move away from `tail -f` to native streaming
   let lastNLines = Just 50
