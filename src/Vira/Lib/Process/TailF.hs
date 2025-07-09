@@ -31,7 +31,9 @@ run filePath chan = do
       ( proc
           "tail"
           [ "-n"
-          , "+1" -- This reads whole file; cf. https://askubuntu.com/a/509915/26624
+          , -- , "+1" -- This reads whole file; cf. https://askubuntu.com/a/509915/26624
+            -- Limit, for https://github.com/juspay/vira/issues/61
+            "50"
           , "-f"
           , filePath
           ]
