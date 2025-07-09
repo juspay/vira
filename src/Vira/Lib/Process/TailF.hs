@@ -26,12 +26,10 @@ new filePath = do
 
 tailFArgs :: Maybe Int -> FilePath -> [String]
 tailFArgs lastNLines fp =
-  case lastNLines of
-    Just n ->
-      ["-n", show n, "-f", fp]
-    Nothing ->
-      -- , "+1" -- This reads whole file; cf. https://askubuntu.com/a/509915/26624
-      ["-n", "+1", "-f", fp]
+  -- "+1" will read whole file.
+  -- cf. https://askubuntu.com/a/509915/26624
+  let n = maybe "+1" show lastNLines
+   in ["-n", n, "-f", fp]
 
 run :: FilePath -> TQueue Text -> IO ProcessHandle
 run filePath chan = do
