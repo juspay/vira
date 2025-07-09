@@ -24,17 +24,24 @@ new filePath = do
   ph <- run filePath queue
   pure $ TailF filePath ph queue
 
+tailFArgs :: Maybe Int -> FilePath -> [String]
+tailFArgs lastNLines fp =
+  -- "+1" will read whole file.
+  -- cf. https://askubuntu.com/a/509915/26624
+  let n = maybe "+1" show lastNLines
+   in ["-n", n, "-f", fp]
+
 run :: FilePath -> TQueue Text -> IO ProcessHandle
 run filePath chan = do
+  -- We don't stream whole file for performance reasons
+  -- See https://github.com/juspay/vira/issues/61
+  -- Ideally, we should move away from `tail -f` to native streaming
+  let lastNLines = Just 50
   (_, Just hOut, _, ph) <-
     createProcess
       ( proc
           "tail"
-          [ "-n"
-          , "+1" -- This reads whole file; cf. https://askubuntu.com/a/509915/26624
-          , "-f"
-          , filePath
-          ]
+          (tailFArgs lastNLines filePath)
       )
         { std_out = CreatePipe
         }
