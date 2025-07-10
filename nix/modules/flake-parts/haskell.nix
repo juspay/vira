@@ -31,31 +31,19 @@
       haskellProjects.default = {
         # To avoid unnecessary rebuilds, we filter projectRoot:
         # https://community.flake.parts/haskell-flake/local#rebuild
-        projectRoot =
-          let
-            sourceHere = lib.fileset.toSource {
-              inherit root;
-              fileset = lib.fileset.unions [
-                (root + /src)
-                (root + /app)
-                (root + /test)
-                (root + /vira.cabal)
-                (root + /LICENSE)
-                (root + /README.md)
-                (root + /.stan.toml)
-                (root + /static)
-              ];
-            };
-
-            # Sadly, we can't use buildEnv or symlinkJoin here (build failure on Linux)
-            combined = pkgs.runCommandNoCC "vira-src-combined" { } ''
-              cp -r ${sourceHere} $out
-              chmod -R u+w $out
-              mkdir -p $out/static
-              cp -r ${jsAssets}/* $out/static/
-            '';
-          in
-          combined;
+        projectRoot = lib.fileset.toSource {
+          inherit root;
+          fileset = lib.fileset.unions [
+            (root + /src)
+            (root + /app)
+            (root + /test)
+            (root + /vira.cabal)
+            (root + /LICENSE)
+            (root + /README.md)
+            (root + /.stan.toml)
+            (root + /static)
+          ];
+        };
 
         packages = {
           htmx.source = inputs.htmx + /htmx;
@@ -78,6 +66,11 @@
               pkgs.omnix
             ];
             stan = true;
+            custom = d: d.overrideAttrs (oa: {
+              postUnpack = (oa.postUnpack or "") + ''
+                ln -s ${jsAssets}/js $sourceRoot/static/js
+              '';
+            });
           };
           servant-event-stream = {
             broken = false;
