@@ -15,7 +15,10 @@ extra-source-files:
 
 data-dir:           static
 data-files:
-  htmx-extensions/src/sse/sse.js
+  js/htmx-ext-debug.js
+  js/htmx-extensions/src/sse/sse.js
+  js/htmx.min.js
+  js/hyperscript.min.js
   tailwind.css
   vira-logo.jpg
 

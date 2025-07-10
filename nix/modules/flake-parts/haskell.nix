@@ -4,37 +4,26 @@
     inputs.haskell-flake.flakeModule
     inputs.process-compose-flake.flakeModule
   ];
-  perSystem = { self', inputs', lib, config, pkgs, ... }: {
+  perSystem = { self', lib, config, pkgs, ... }: {
     # Our only Haskell project. You can have multiple projects, but this template
     # has only one.
     # See https://github.com/srid/haskell-flake/blob/master/example/flake.nix
     haskellProjects.default = {
       # To avoid unnecessary rebuilds, we filter projectRoot:
       # https://community.flake.parts/haskell-flake/local#rebuild
-      projectRoot =
-        let
-          sourceHere = lib.fileset.toSource {
-            inherit root;
-            fileset = lib.fileset.unions [
-              (root + /src)
-              (root + /app)
-              (root + /test)
-              (root + /vira.cabal)
-              (root + /LICENSE)
-              (root + /README.md)
-              (root + /.stan.toml)
-              (root + /static)
-            ];
-          };
-          sourceOutside = pkgs.writeTextDir "static/htmx-extensions/src/sse/sse.js" (builtins.readFile (inputs.htmx-extensions + /src/sse/sse.js));
-          # Sadly, we can't use buildEnv or symlinkJoin here (build failure on Linux)
-          combined = pkgs.runCommandNoCC "vira-src-combined" { } ''
-            cp -r ${sourceHere} $out
-            chmod -R u+w $out
-            cp -r ${sourceOutside}/* $out/
-          '';
-        in
-        combined;
+      projectRoot = lib.fileset.toSource {
+        inherit root;
+        fileset = lib.fileset.unions [
+          (root + /src)
+          (root + /app)
+          (root + /test)
+          (root + /vira.cabal)
+          (root + /LICENSE)
+          (root + /README.md)
+          (root + /.stan.toml)
+          (root + /static)
+        ];
+      };
 
       packages = {
         htmx.source = inputs.htmx + /htmx;
@@ -75,10 +64,6 @@
           stan = pkgs.haskellPackages.stan;
           vira-dev = config.process-compose."vira-dev".outputs.package;
         };
-        mkShellArgs.shellHook = ''
-          rm -f ./static/htmx-extensions
-          ln -sf ${inputs.htmx-extensions} ./static/htmx-extensions
-        '';
       };
 
       # What should haskell-flake add to flake outputs?
