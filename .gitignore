@@ -14,7 +14,9 @@ result-*
 /.pre-commit-config.yaml
 
 /tailwind.log
-/static/htmx-extensions
+
+# Managed by Nix
+/static/js
 
 # acid-state
 /state

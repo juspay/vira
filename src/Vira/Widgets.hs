@@ -45,13 +45,13 @@ layout cfg crumbs content = do
       meta_ [charset_ "utf-8", name_ "viewport", content_ "width=device-width, initial-scale=1"]
     -- JavaScript include for HTMX
     htmx = do
-      script_ [src_ "https://unpkg.com/htmx.org@2.0.6"] $ mempty @Text
-      script_ [src_ "https://unpkg.com/hyperscript.org@0.9.14"] $ mempty @Text
-      script_ [src_ "https://unpkg.com/htmx-ext-debug@2.0.1/debug.js"] $ mempty @Text
+      script_ [src_ "js/htmx.min.js"] $ mempty @Text
+      script_ [src_ "js/hyperscript.min.js"] $ mempty @Text
+      script_ [src_ "js/htmx-ext-debug.js"] $ mempty @Text
       -- We use a fork of htmx-ext-sse
       -- See https://github.com/bigskysoftware/htmx-extensions/pull/147
       -- script_ [src_ "https://unpkg.com/htmx-ext-sse@2.2.2"] $ mempty @Text
-      script_ [src_ "htmx-extensions/src/sse/sse.js"] $ mempty @Text
+      script_ [src_ "js/htmx-extensions/src/sse/sse.js"] $ mempty @Text
 
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
 breadcrumbs :: (LinkTo -> Link) -> [(Html (), URI)] -> Html ()
