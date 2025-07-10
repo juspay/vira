@@ -1,3 +1,4 @@
+# Add external JavaScript assets to project.
 { inputs, ... }:
 {
   perSystem = { pkgs, ... }:
@@ -22,6 +23,7 @@
     in
     {
       haskellProjects.default = {
+        # Add it to Haskell Nix package
         settings = {
           vira = {
             custom = d: d.overrideAttrs (oa: {
@@ -32,7 +34,7 @@
           };
         };
 
-        # Development shell configuration
+        # Add it to devShell (./static/js)
         devShell = {
           mkShellArgs.shellHook = ''
             # Set up JavaScript assets from Nix store using the same derivation as build

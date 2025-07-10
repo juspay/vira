@@ -1,5 +1,5 @@
 {
-  perSystem = { inputs', config, pkgs, ... }: {
+  perSystem = { config, pkgs, ... }: {
     # Default shell.
     devShells.default = pkgs.mkShell {
       name = "vira-devshell";
