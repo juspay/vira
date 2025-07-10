@@ -17,6 +17,11 @@ repl *ARGS:
 run:
     vira-dev --no-server --tui=false
 
+# Setup TLS certificates for HTTPS support
+[group('1. vira')]
+setup-tls:
+    nix run .#setup-tls
+
 # Run cabal tests (hspec)
 [group('2. haskell')]
 test:

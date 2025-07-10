@@ -10,6 +10,7 @@ import Effectful (Eff)
 import Effectful.Reader.Dynamic (ask)
 import Main.Utf8 qualified as Utf8
 import Network.Wai.Handler.Warp qualified as Warp
+import Network.Wai.Handler.WarpTLS qualified as WarpTLS
 import Network.Wai.Middleware.Static (
   addBase,
   noDots,
@@ -18,6 +19,7 @@ import Network.Wai.Middleware.Static (
  )
 import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
+import System.Directory (doesFileExist)
 import Vira.App (AppStack, Settings (..))
 import Vira.App qualified as App
 import Vira.App.CLI qualified as CLI
@@ -48,13 +50,34 @@ runVira = do
     -- Vira application for given `Settings`
     app :: (HasCallStack) => Settings -> Eff AppStack ()
     app settings = do
-      log Info $ "Launching vira (" <> settings.instanceName <> ") at http://" <> settings.host <> ":" <> show settings.port
+      -- Check for TLS certificates
+      tlsCertExists <- liftIO $ doesFileExist "./tls/server.crt"
+      tlsKeyExists <- liftIO $ doesFileExist "./tls/server.key"
+
+      let protocol = if tlsCertExists && tlsKeyExists then "https" else "http"
+      log Info $ "Launching vira (" <> settings.instanceName <> ") at " <> protocol <> "://" <> settings.host <> ":" <> show settings.port
       log Debug $ "Settings: " <> show settings
+
+      when (tlsCertExists && tlsKeyExists) $ do
+        log Info "TLS certificates found - enabling HTTPS with HTTP/2 support"
+      when (not tlsCertExists || not tlsKeyExists) $ do
+        log Warning "TLS certificates not found in ./tls/ - running HTTP only"
+        log Warning "Run 'nix run .#setup-tls' to generate self-signed certificates for HTTPS"
+
       staticDir <- liftIO Paths_vira.getDataDir
       log Debug $ "Serving static files from: " <> show staticDir
       let staticMiddleware = staticPolicy $ noDots >-> addBase staticDir
       cfg <- ask
       let servantApp = genericServe $ Routes.handlers cfg
       let host = fromString $ toString settings.host
-      let warpSettings = Warp.defaultSettings & Warp.setHost host & Warp.setPort settings.port
-      liftIO $ Warp.runSettings warpSettings $ staticMiddleware servantApp
+      let warpSettings =
+            Warp.defaultSettings
+              & Warp.setHost host
+              & Warp.setPort settings.port
+
+      if tlsCertExists && tlsKeyExists
+        then do
+          let tlsSettings = WarpTLS.tlsSettings "./tls/server.crt" "./tls/server.key"
+          liftIO $ WarpTLS.runTLS tlsSettings warpSettings $ staticMiddleware servantApp
+        else do
+          liftIO $ Warp.runSettings warpSettings $ staticMiddleware servantApp
