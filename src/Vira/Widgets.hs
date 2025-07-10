@@ -45,9 +45,9 @@ layout cfg crumbs content = do
       meta_ [charset_ "utf-8", name_ "viewport", content_ "width=device-width, initial-scale=1"]
     -- JavaScript include for HTMX
     htmx = do
-      script_ [src_ "https://unpkg.com/htmx.org@2.0.3", integrity_ "sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq", crossorigin_ "anonymous"] $ mempty @Text
-      script_ [src_ "https://unpkg.com/hyperscript.org@0.9.13"] $ mempty @Text
-      script_ [src_ "https://unpkg.com/htmx-ext-debug@2.0.0/debug.js"] $ mempty @Text
+      script_ [src_ "https://unpkg.com/htmx.org@2.0.6"] $ mempty @Text
+      script_ [src_ "https://unpkg.com/hyperscript.org@0.9.14"] $ mempty @Text
+      script_ [src_ "https://unpkg.com/htmx-ext-debug@2.0.1/debug.js"] $ mempty @Text
       -- We use a fork of htmx-ext-sse
       -- See https://github.com/bigskysoftware/htmx-extensions/pull/147
       -- script_ [src_ "https://unpkg.com/htmx-ext-sse@2.2.2"] $ mempty @Text
