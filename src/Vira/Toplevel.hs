@@ -21,11 +21,10 @@ import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
 import Vira.App (AppStack, Settings (..))
 import Vira.App qualified as App
-import Vira.App.CLI (TLSConfig (..))
 import Vira.App.CLI qualified as CLI
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Logging
-import Vira.Lib.TLS (generateTLSCertificatesIfNeeded)
+import Vira.Lib.TLS (TLSConfig (..), ensureTLSCertificates)
 import Vira.Routes qualified as Routes
 import Vira.State.Core (closeViraState, openViraState)
 import Vira.Supervisor qualified
@@ -49,12 +48,11 @@ runVira = do
           pure TLSDisabled
         TLSAuto -> do
           -- Auto-generate certificates for HTTPS
-          (certPath, keyPath) <- generateTLSCertificatesIfNeeded Nothing Nothing settings.host
+          (certPath, keyPath) <- ensureTLSCertificates settings.host
           pure $ TLSExplicit certPath keyPath
-        TLSExplicit certPath keyPath -> do
-          -- Use provided certificates, but ensure they exist
-          (finalCertPath, finalKeyPath) <- generateTLSCertificatesIfNeeded (Just certPath) (Just keyPath) settings.host
-          pure $ TLSExplicit finalCertPath finalKeyPath
+        TLSExplicit certPath keyPath ->
+          -- Use provided certificates as-is
+          pure $ TLSExplicit certPath keyPath
 
       let updatedSettings = settings {tlsConfig = updatedTLSConfig}
 

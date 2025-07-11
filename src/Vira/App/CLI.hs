@@ -4,7 +4,6 @@
 module Vira.App.CLI (
   -- * Types
   Settings (..),
-  TLSConfig (..),
   RepoSettings (..),
   CachixSettings (..),
   AtticSettings (..),
@@ -20,6 +19,7 @@ import Network.Wai.Handler.Warp (Port)
 import Options.Applicative
 import Paths_vira qualified
 import Vira.Lib.Attic (AtticCache, AtticServer (AtticServer), AtticToken)
+import Vira.Lib.TLS (TLSConfig, tlsConfigParser)
 import Vira.State.Type (Repo (Repo), RepoName)
 import Prelude hiding (Reader, reader, runReader)
 
@@ -44,16 +44,6 @@ data Settings = Settings
   , tlsConfig :: TLSConfig
   -- ^ TLS configuration for HTTPS support
   }
-  deriving stock (Show)
-
--- | TLS configuration with HTTPS enabled by default
-data TLSConfig
-  = -- | No TLS - run HTTP only (explicit)
-    TLSDisabled
-  | -- | TLS with auto-generated certificates (default)
-    TLSAuto
-  | -- | TLS with user-provided certificate and key files
-    TLSExplicit FilePath FilePath
   deriving stock (Show)
 
 data RepoSettings = RepoSettings
@@ -151,35 +141,9 @@ settingsParser hostName = do
   tlsConfig <- tlsConfigParser
   pure Settings {..}
 
--- | Parser for TLS configuration with HTTPS enabled by default
-tlsConfigParser :: Parser TLSConfig
-tlsConfigParser =
-  noHttpsMode <|> tlsExplicitMode <|> defaultMode
-  where
-    noHttpsMode =
-      flag'
-        TLSDisabled
-        ( long "no-https"
-            <> help "Disable HTTPS and run HTTP server only"
-        )
-
-    tlsExplicitMode =
-      TLSExplicit
-        <$> strOption
-          ( long "tls-cert"
-              <> metavar "TLS_CERT"
-              <> help "Path to TLS certificate file (requires --tls-key)"
-          )
-        <*> strOption
-          ( long "tls-key"
-              <> metavar "TLS_KEY"
-              <> help "Path to TLS private key file (requires --tls-cert)"
-          )
-
-    -- Default to auto-generation (HTTPS enabled by default)
-    defaultMode = pure TLSAuto
-
--- | Parser for RepoSettings
+{- | Parser for TLS configuration with HTTPS enabled by default
+| Parser for RepoSettings
+-}
 repoSettingsParser :: Parser RepoSettings
 repoSettingsParser = do
   cloneUrls <-

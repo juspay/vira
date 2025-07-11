@@ -52,7 +52,7 @@ Vira automatically generates self-signed TLS certificates for HTTPS with HTTP/2 
 
 3. **Development URLs**:
    - HTTPS: https://localhost:5005 (with auto-generated certificates)
-   - HTTP: http://localhost:5005
+   - HTTP: http://localhost:5005 (if you run via with `--no-https`)
 
 The auto-generated certificates include Subject Alternative Names (SAN) for localhost, 127.0.0.1, and common local network IP ranges, making them suitable for local development and testing across your network.
 

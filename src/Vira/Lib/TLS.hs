@@ -1,10 +1,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Vira.Lib.TLS (
-  generateTLSCertificatesIfNeeded,
-  generateCertificates,
+  ensureTLSCertificates,
+  TLSConfig (..),
+  tlsConfigParser,
 ) where
 
+import Options.Applicative
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.Process (callProcess)
 import System.Which (staticWhich)
@@ -16,37 +18,43 @@ This should be available in the PATH, thanks to Nix and `which` library.
 opensslBin :: FilePath
 opensslBin = $(staticWhich "openssl")
 
--- | Generate TLS certificates automatically if they don't exist
-generateTLSCertificatesIfNeeded ::
-  -- | Explicit cert path (if provided)
-  Maybe FilePath ->
-  -- | Explicit key path (if provided)
-  Maybe FilePath ->
-  -- | Host for certificate SAN
-  Text ->
-  IO (FilePath, FilePath)
-generateTLSCertificatesIfNeeded maybeCert maybeKey hostArg = do
-  -- If user provided explicit TLS paths, use those
-  case (maybeCert, maybeKey) of
-    (Just cert, Just key) -> pure (cert, key)
-    _ -> do
-      -- Auto-generate certificates in ./state/tls/
-      let certDir = "./state/tls"
-      let certPath = certDir <> "/server.crt"
-      let keyPath = certDir <> "/server.key"
+-- | TLS configuration with HTTPS enabled by default
+data TLSConfig
+  = -- | No TLS - run HTTP only (explicit)
+    TLSDisabled
+  | -- | TLS with auto-generated certificates (default)
+    TLSAuto
+  | -- | TLS with user-provided certificate and key files
+    TLSExplicit FilePath FilePath
+  deriving stock (Show)
 
-      certExists <- doesFileExist certPath
-      keyExists <- doesFileExist keyPath
+-- | Parser for TLS configuration with HTTPS enabled by default
+tlsConfigParser :: Parser TLSConfig
+tlsConfigParser =
+  noHttpsMode <|> tlsExplicitMode <|> defaultMode
+  where
+    noHttpsMode =
+      flag'
+        TLSDisabled
+        ( long "no-https"
+            <> help "Disable HTTPS and run HTTP server only"
+        )
 
-      if certExists && keyExists
-        then do
-          putTextLn "Using existing TLS certificates from ./state/tls/"
-          pure (certPath, keyPath)
-        else do
-          putTextLn "Generating TLS certificates for HTTPS support..."
-          createDirectoryIfMissing True certDir
-          generateCertificates certDir hostArg
-          pure (certPath, keyPath)
+    tlsExplicitMode =
+      TLSExplicit
+        <$> strOption
+          ( long "tls-cert"
+              <> metavar "TLS_CERT"
+              <> help "Path to TLS certificate file (requires --tls-key)"
+          )
+        <*> strOption
+          ( long "tls-key"
+              <> metavar "TLS_KEY"
+              <> help "Path to TLS private key file (requires --tls-cert)"
+          )
+
+    -- Default to auto-generation (HTTPS enabled by default)
+    defaultMode = pure TLSAuto
 
 -- | Generate self-signed certificates with proper SAN for local network access
 generateCertificates :: FilePath -> Text -> IO ()
@@ -118,3 +126,25 @@ generateCertificates certDir hostArg = do
   putTextLn $ "  Certificate: " <> toText certPath
   putTextLn $ "  Private key: " <> toText keyPath
   putTextLn $ "  Valid for: localhost, 127.0.0.1, " <> hostArg <> ", and common local network IPs"
+
+{- | Ensure TLS certificates exist for auto-generation mode
+Returns the certificate and key file paths
+-}
+ensureTLSCertificates :: Text -> IO (FilePath, FilePath)
+ensureTLSCertificates hostArg = do
+  let certDir = "./state/tls"
+  let certPath = certDir <> "/server.crt"
+  let keyPath = certDir <> "/server.key"
+
+  certExists <- doesFileExist certPath
+  keyExists <- doesFileExist keyPath
+
+  if certExists && keyExists
+    then do
+      putTextLn "Using existing TLS certificates from ./state/tls/"
+    else do
+      putTextLn "Generating TLS certificates for HTTPS support..."
+      createDirectoryIfMissing True certDir
+      generateCertificates certDir hostArg
+
+  pure (certPath, keyPath)
