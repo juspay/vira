@@ -44,6 +44,7 @@
             pkgs.attic-client
             pkgs.coreutils # For `tail`
             pkgs.omnix
+            pkgs.openssl # For automatic TLS certificate generation
           ];
           stan = true;
         };
@@ -77,17 +78,9 @@
           haskell = {
             command = pkgs.writeShellScriptBin "haskell-dev" ''
               set -x
-              # Check if TLS certificates exist and add TLS arguments if available
-              TLS_ARGS=""
-              if [ -f "./tls/server.crt" ] && [ -f "./tls/server.key" ]; then
-                TLS_ARGS="--tls-cert ./tls/server.crt --tls-key ./tls/server.key"
-                echo "TLS certificates found - enabling HTTPS development server"
-              else
-                echo "No TLS certificates found - running HTTP development server"
-              fi
-              
+              # Vira now auto-generates TLS certificates as needed
               ghcid -c 'cabal repl exe:vira --flags=ghcid' -T Main.main \
-                  --setup ":set args --host 0.0.0.0 --cachix-name scratch-vira-dev --cachix-auth-token eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U --base-path ''${BASE_PATH:-/} $TLS_ARGS"
+                  --setup ":set args --host 0.0.0.0 --cachix-name scratch-vira-dev --cachix-auth-token eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U --base-path ''${BASE_PATH:-/}"
             '';
             depends_on.tailwind.condition = "process_started";
             # Without `SIGINT (2)` Vira doesn't close gracefully

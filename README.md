@@ -33,30 +33,28 @@ TBD
 # Run the development server (HTTP only by default)
 just run
 
-# Setup TLS certificates for HTTPS with HTTP/2 support
-just setup-tls
-
 # Or, if you need to start from empty database (useful if you have changed the acid-state types)
 just resetdb run
 ```
 
 ### HTTPS and HTTP/2 Support
 
-Vira supports HTTPS with HTTP/2 via CLI arguments:
+Vira automatically generates self-signed TLS certificates for HTTPS with HTTP/2 support:
 
-1. **Generate self-signed certificates** (for development):
+1. **Automatic Certificate Generation**: 
+   When you run `nix run github:juspay/vira`, certificates are automatically generated in `./state/tls/` if they don't exist.
+
+2. **Manual Certificate Control** (optional):
    ```sh
-   just setup-tls
+   # Use your own certificates
+   cabal run vira -- --tls-cert /path/to/cert.crt --tls-key /path/to/private.key
    ```
 
-2. **Run with HTTPS**:
-   ```sh
-   # With explicit TLS certificate paths
-   cabal run vira -- --tls-cert ./tls/server.crt --tls-key ./tls/server.key
-   
-   # Or using nix with TLS
-   nix develop --command cabal run vira -- --tls-cert ./tls/server.crt --tls-key ./tls/server.key
-   ```
+3. **Development URLs**:
+   - HTTP: http://localhost:5005
+   - HTTPS: https://localhost:5005 (with auto-generated certificates)
+
+The auto-generated certificates include Subject Alternative Names (SAN) for localhost, 127.0.0.1, and common local network IP ranges, making them suitable for local development and testing across your network.
 
 3. **Run with HTTP only** (default):
    ```sh

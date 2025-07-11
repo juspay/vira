@@ -19,6 +19,7 @@
         attic-client
         coreutils # For `tail`
         omnix
+        openssl # For TLS certificate generation
       ];
     };
   };
