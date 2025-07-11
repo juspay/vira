@@ -46,12 +46,14 @@ data Settings = Settings
   }
   deriving stock (Show)
 
--- | TLS configuration capturing the invariant that both cert and key must be provided together
+-- | TLS configuration with HTTPS enabled by default
 data TLSConfig
-  = -- | No TLS - run HTTP only
+  = -- | No TLS - run HTTP only (explicit)
     TLSDisabled
-  | -- | TLS enabled with certificate and key file paths
-    TLSEnabled FilePath FilePath
+  | -- | TLS with auto-generated certificates (default)
+    TLSAuto
+  | -- | TLS with user-provided certificate and key files
+    TLSExplicit FilePath FilePath
   deriving stock (Show)
 
 data RepoSettings = RepoSettings
@@ -149,31 +151,33 @@ settingsParser hostName = do
   tlsConfig <- tlsConfigParser
   pure Settings {..}
 
--- | Parser for TLS configuration with proper validation
+-- | Parser for TLS configuration with HTTPS enabled by default
 tlsConfigParser :: Parser TLSConfig
 tlsConfigParser =
-  buildTLSConfig
-    <$> optional
-      ( strOption
+  noHttpsMode <|> tlsExplicitMode <|> defaultMode
+  where
+    noHttpsMode =
+      flag'
+        TLSDisabled
+        ( long "no-https"
+            <> help "Disable HTTPS and run HTTP server only"
+        )
+
+    tlsExplicitMode =
+      TLSExplicit
+        <$> strOption
           ( long "tls-cert"
               <> metavar "TLS_CERT"
-              <> help "Path to TLS certificate file (must be provided with --tls-key)"
+              <> help "Path to TLS certificate file (requires --tls-key)"
           )
-      )
-    <*> optional
-      ( strOption
+        <*> strOption
           ( long "tls-key"
               <> metavar "TLS_KEY"
-              <> help "Path to TLS private key file (must be provided with --tls-cert)"
+              <> help "Path to TLS private key file (requires --tls-cert)"
           )
-      )
 
--- | Build TLS config from optional cert and key, ensuring both or neither are provided
-buildTLSConfig :: Maybe FilePath -> Maybe FilePath -> TLSConfig
-buildTLSConfig Nothing Nothing = TLSDisabled
-buildTLSConfig (Just cert) (Just key) = TLSEnabled cert key
-buildTLSConfig (Just _) Nothing = error "TLS certificate provided without private key. Please provide both --tls-cert and --tls-key."
-buildTLSConfig Nothing (Just _) = error "TLS private key provided without certificate. Please provide both --tls-cert and --tls-key."
+    -- Default to auto-generation (HTTPS enabled by default)
+    defaultMode = pure TLSAuto
 
 -- | Parser for RepoSettings
 repoSettingsParser :: Parser RepoSettings

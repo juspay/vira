@@ -42,16 +42,19 @@ runVira = do
     -- Like `app` but in `IO`
     appIO :: Settings -> IO ()
     appIO settings = do
-      -- Generate TLS certificates automatically if needed
+      -- Handle TLS configuration based on explicit mode
       updatedTLSConfig <- case settings.tlsConfig of
-        TLSDisabled -> do
+        TLSDisabled ->
+          -- Explicit HTTP-only mode
+          pure TLSDisabled
+        TLSAuto -> do
           -- Auto-generate certificates for HTTPS
           (certPath, keyPath) <- generateTLSCertificatesIfNeeded Nothing Nothing settings.host
-          pure $ TLSEnabled certPath keyPath
-        TLSEnabled certPath keyPath -> do
+          pure $ TLSExplicit certPath keyPath
+        TLSExplicit certPath keyPath -> do
           -- Use provided certificates, but ensure they exist
           (finalCertPath, finalKeyPath) <- generateTLSCertificatesIfNeeded (Just certPath) (Just keyPath) settings.host
-          pure $ TLSEnabled finalCertPath finalKeyPath
+          pure $ TLSExplicit finalCertPath finalKeyPath
 
       let updatedSettings = settings {tlsConfig = updatedTLSConfig}
 
@@ -67,18 +70,22 @@ app settings = do
   -- Check TLS configuration from CLI arguments
   let protocol = case settings.tlsConfig of
         TLSDisabled -> "http"
-        TLSEnabled _ _ -> "https"
+        TLSAuto -> "https"
+        TLSExplicit _ _ -> "https"
   log Info $ "Launching vira (" <> settings.instanceName <> ") at " <> protocol <> "://" <> settings.host <> ":" <> show settings.port
   log Debug $ "Settings: " <> show settings
 
   case settings.tlsConfig of
-    TLSEnabled certPath keyPath -> do
+    TLSExplicit certPath keyPath -> do
       log Info "TLS certificates configured - enabling HTTPS with HTTP/2 support"
       log Debug $ "TLS certificate: " <> toText certPath
       log Debug $ "TLS key: " <> toText keyPath
+    TLSAuto -> do
+      -- This case should never be reached since TLSAuto is converted to TLSExplicit in appIO
+      log Info "HTTPS enabled with auto-generated certificates - enabling HTTP/2 support"
     TLSDisabled -> do
-      log Info "TLS disabled - running HTTP only"
-      log Info "Use --tls-cert and --tls-key to enable HTTPS with HTTP/2 support"
+      log Info "HTTPS explicitly disabled - running HTTP only"
+      log Info "HTTPS is enabled by default. Use --tls-cert/--tls-key for custom certificates"
 
   staticDir <- liftIO Paths_vira.getDataDir
   log Debug $ "Serving static files from: " <> show staticDir
@@ -92,11 +99,14 @@ app settings = do
           & Warp.setPort settings.port
 
   case settings.tlsConfig of
-    TLSEnabled tlsCertPath tlsKeyPath -> do
+    TLSExplicit tlsCertPath tlsKeyPath -> do
       let tlsSettings = WarpTLS.tlsSettings tlsCertPath tlsKeyPath
       log Info $ "Starting HTTPS server with HTTP/2 support on " <> settings.host <> ":" <> show settings.port
       log Info "Note: Self-signed certificates will show browser warnings - this is normal for development"
       liftIO $ WarpTLS.runTLS tlsSettings warpSettings $ staticMiddleware servantApp
+    TLSAuto -> do
+      -- This case should never be reached since TLSAuto is converted to TLSExplicit in appIO
+      error "Internal error: TLSAuto should have been converted to TLSExplicit"
     TLSDisabled -> do
       log Info $ "Starting HTTP server on " <> settings.host <> ":" <> show settings.port
       liftIO $ Warp.runSettings warpSettings $ staticMiddleware servantApp
