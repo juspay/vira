@@ -40,6 +40,10 @@ data Settings = Settings
   -- ^ Name of the instance; uses hostname if unspecified
   , basePath :: Text
   -- ^ Base URL path for the http server
+  , tlsCert :: Maybe FilePath
+  -- ^ Path to TLS certificate file (enables HTTPS when provided with tlsKey)
+  , tlsKey :: Maybe FilePath
+  -- ^ Path to TLS private key file (enables HTTPS when provided with tlsCert)
   }
   deriving stock (Show)
 
@@ -135,6 +139,20 @@ settingsParser hostName = do
           <> value "/"
           <> showDefault
       )
+  tlsCert <-
+    optional $
+      strOption
+        ( long "tls-cert"
+            <> metavar "TLS_CERT"
+            <> help "Path to TLS certificate file (enables HTTPS when provided with --tls-key)"
+        )
+  tlsKey <-
+    optional $
+      strOption
+        ( long "tls-key"
+            <> metavar "TLS_KEY"
+            <> help "Path to TLS private key file (enables HTTPS when provided with --tls-cert)"
+        )
   pure Settings {..}
 
 -- | Parser for RepoSettings

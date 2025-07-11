@@ -6,6 +6,7 @@ module Vira.Toplevel (
 ) where
 
 import Control.Exception (bracket)
+import Data.Maybe (fromJust)
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (ask)
 import Main.Utf8 qualified as Utf8
@@ -19,7 +20,6 @@ import Network.Wai.Middleware.Static (
  )
 import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
-import System.Directory (doesFileExist)
 import Vira.App (AppStack, Settings (..))
 import Vira.App qualified as App
 import Vira.App.CLI qualified as CLI
@@ -50,19 +50,19 @@ runVira = do
     -- Vira application for given `Settings`
     app :: (HasCallStack) => Settings -> Eff AppStack ()
     app settings = do
-      -- Check for TLS certificates
-      tlsCertExists <- liftIO $ doesFileExist "./tls/server.crt"
-      tlsKeyExists <- liftIO $ doesFileExist "./tls/server.key"
-
-      let protocol = if tlsCertExists && tlsKeyExists then "https" else "http"
+      -- Check TLS configuration from CLI arguments
+      let tlsEnabled = isJust settings.tlsCert && isJust settings.tlsKey
+      let protocol = if tlsEnabled then "https" else "http"
       log Info $ "Launching vira (" <> settings.instanceName <> ") at " <> protocol <> "://" <> settings.host <> ":" <> show settings.port
       log Debug $ "Settings: " <> show settings
 
-      when (tlsCertExists && tlsKeyExists) $ do
-        log Info "TLS certificates found - enabling HTTPS with HTTP/2 support"
-      when (not tlsCertExists || not tlsKeyExists) $ do
-        log Warning "TLS certificates not found in ./tls/ - running HTTP only"
-        log Warning "Run 'nix run .#setup-tls' to generate self-signed certificates for HTTPS"
+      when tlsEnabled $ do
+        log Info "TLS certificates provided - enabling HTTPS with HTTP/2 support"
+        log Debug $ "TLS certificate: " <> toText (fromMaybe "" settings.tlsCert)
+        log Debug $ "TLS key: " <> toText (fromMaybe "" settings.tlsKey)
+      unless tlsEnabled $ do
+        log Info "No TLS certificates provided - running HTTP only"
+        log Info "Use --tls-cert and --tls-key to enable HTTPS with HTTP/2 support"
 
       staticDir <- liftIO Paths_vira.getDataDir
       log Debug $ "Serving static files from: " <> show staticDir
@@ -75,9 +75,11 @@ runVira = do
               & Warp.setHost host
               & Warp.setPort settings.port
 
-      if tlsCertExists && tlsKeyExists
+      if tlsEnabled
         then do
-          let tlsSettings = WarpTLS.tlsSettings "./tls/server.crt" "./tls/server.key"
+          let tlsCertPath = fromJust settings.tlsCert
+          let tlsKeyPath = fromJust settings.tlsKey
+          let tlsSettings = WarpTLS.tlsSettings tlsCertPath tlsKeyPath
           liftIO $ WarpTLS.runTLS tlsSettings warpSettings $ staticMiddleware servantApp
         else do
           liftIO $ Warp.runSettings warpSettings $ staticMiddleware servantApp
