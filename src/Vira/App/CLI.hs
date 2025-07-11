@@ -111,7 +111,7 @@ settingsParser hostName = do
       ( long "host"
           <> metavar "HOST"
           <> help "Host"
-          <> value "127.0.0.1"
+          <> value "0.0.0.0"
           <> showDefault
       )
   dbPath <-
