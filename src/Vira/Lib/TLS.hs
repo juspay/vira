@@ -24,11 +24,11 @@ generateTLSCertificatesIfNeeded ::
   Maybe FilePath ->
   -- | Host for certificate SAN
   Text ->
-  IO (Maybe FilePath, Maybe FilePath)
+  IO (FilePath, FilePath)
 generateTLSCertificatesIfNeeded maybeCert maybeKey hostArg = do
   -- If user provided explicit TLS paths, use those
   case (maybeCert, maybeKey) of
-    (Just cert, Just key) -> pure (Just cert, Just key)
+    (Just cert, Just key) -> pure (cert, key)
     _ -> do
       -- Auto-generate certificates in ./state/tls/
       let certDir = "./state/tls"
@@ -41,12 +41,12 @@ generateTLSCertificatesIfNeeded maybeCert maybeKey hostArg = do
       if certExists && keyExists
         then do
           putTextLn "Using existing TLS certificates from ./state/tls/"
-          pure (Just certPath, Just keyPath)
+          pure (certPath, keyPath)
         else do
           putTextLn "Generating TLS certificates for HTTPS support..."
           createDirectoryIfMissing True certDir
           generateCertificates certDir hostArg
-          pure (Just certPath, Just keyPath)
+          pure (certPath, keyPath)
 
 -- | Generate self-signed certificates with proper SAN for local network access
 generateCertificates :: FilePath -> Text -> IO ()

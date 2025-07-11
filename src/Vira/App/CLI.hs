@@ -4,6 +4,7 @@
 module Vira.App.CLI (
   -- * Types
   Settings (..),
+  TLSConfig (..),
   RepoSettings (..),
   CachixSettings (..),
   AtticSettings (..),
@@ -40,11 +41,17 @@ data Settings = Settings
   -- ^ Name of the instance; uses hostname if unspecified
   , basePath :: Text
   -- ^ Base URL path for the http server
-  , tlsCert :: Maybe FilePath
-  -- ^ Path to TLS certificate file (enables HTTPS when provided with tlsKey)
-  , tlsKey :: Maybe FilePath
-  -- ^ Path to TLS private key file (enables HTTPS when provided with tlsCert)
+  , tlsConfig :: TLSConfig
+  -- ^ TLS configuration for HTTPS support
   }
+  deriving stock (Show)
+
+-- | TLS configuration capturing the invariant that both cert and key must be provided together
+data TLSConfig
+  = -- | No TLS - run HTTP only
+    TLSDisabled
+  | -- | TLS enabled with certificate and key file paths
+    TLSEnabled FilePath FilePath
   deriving stock (Show)
 
 data RepoSettings = RepoSettings
@@ -139,21 +146,34 @@ settingsParser hostName = do
           <> value "/"
           <> showDefault
       )
-  tlsCert <-
-    optional $
-      strOption
-        ( long "tls-cert"
-            <> metavar "TLS_CERT"
-            <> help "Path to TLS certificate file (enables HTTPS when provided with --tls-key)"
-        )
-  tlsKey <-
-    optional $
-      strOption
-        ( long "tls-key"
-            <> metavar "TLS_KEY"
-            <> help "Path to TLS private key file (enables HTTPS when provided with --tls-cert)"
-        )
+  tlsConfig <- tlsConfigParser
   pure Settings {..}
+
+-- | Parser for TLS configuration with proper validation
+tlsConfigParser :: Parser TLSConfig
+tlsConfigParser =
+  buildTLSConfig
+    <$> optional
+      ( strOption
+          ( long "tls-cert"
+              <> metavar "TLS_CERT"
+              <> help "Path to TLS certificate file (must be provided with --tls-key)"
+          )
+      )
+    <*> optional
+      ( strOption
+          ( long "tls-key"
+              <> metavar "TLS_KEY"
+              <> help "Path to TLS private key file (must be provided with --tls-cert)"
+          )
+      )
+
+-- | Build TLS config from optional cert and key, ensuring both or neither are provided
+buildTLSConfig :: Maybe FilePath -> Maybe FilePath -> TLSConfig
+buildTLSConfig Nothing Nothing = TLSDisabled
+buildTLSConfig (Just cert) (Just key) = TLSEnabled cert key
+buildTLSConfig (Just _) Nothing = error "TLS certificate provided without private key. Please provide both --tls-cert and --tls-key."
+buildTLSConfig Nothing (Just _) = error "TLS private key provided without certificate. Please provide both --tls-cert and --tls-key."
 
 -- | Parser for RepoSettings
 repoSettingsParser :: Parser RepoSettings

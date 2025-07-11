@@ -6,7 +6,6 @@ module Vira.Toplevel (
 ) where
 
 import Control.Exception (bracket)
-import Data.Maybe (fromJust)
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (ask)
 import Main.Utf8 qualified as Utf8
@@ -22,6 +21,7 @@ import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
 import Vira.App (AppStack, Settings (..))
 import Vira.App qualified as App
+import Vira.App.CLI (TLSConfig (..))
 import Vira.App.CLI qualified as CLI
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Logging
@@ -43,8 +43,17 @@ runVira = do
     appIO :: Settings -> IO ()
     appIO settings = do
       -- Generate TLS certificates automatically if needed
-      (certPath, keyPath) <- generateTLSCertificatesIfNeeded settings.tlsCert settings.tlsKey settings.host
-      let updatedSettings = settings {tlsCert = certPath, tlsKey = keyPath}
+      updatedTLSConfig <- case settings.tlsConfig of
+        TLSDisabled -> do
+          -- Auto-generate certificates for HTTPS
+          (certPath, keyPath) <- generateTLSCertificatesIfNeeded Nothing Nothing settings.host
+          pure $ TLSEnabled certPath keyPath
+        TLSEnabled certPath keyPath -> do
+          -- Use provided certificates, but ensure they exist
+          (finalCertPath, finalKeyPath) <- generateTLSCertificatesIfNeeded (Just certPath) (Just keyPath) settings.host
+          pure $ TLSEnabled finalCertPath finalKeyPath
+
+      let updatedSettings = settings {tlsConfig = updatedTLSConfig}
 
       let repos = updatedSettings.repo.cloneUrls
       bracket (openViraState repos) closeViraState $ \acid -> do
@@ -56,18 +65,20 @@ runVira = do
 app :: (HasCallStack) => Settings -> Eff AppStack ()
 app settings = do
   -- Check TLS configuration from CLI arguments
-  let tlsEnabled = isJust settings.tlsCert && isJust settings.tlsKey
-  let protocol = if tlsEnabled then "https" else "http"
+  let protocol = case settings.tlsConfig of
+        TLSDisabled -> "http"
+        TLSEnabled _ _ -> "https"
   log Info $ "Launching vira (" <> settings.instanceName <> ") at " <> protocol <> "://" <> settings.host <> ":" <> show settings.port
   log Debug $ "Settings: " <> show settings
 
-  when tlsEnabled $ do
-    log Info "TLS certificates provided - enabling HTTPS with HTTP/2 support"
-    log Debug $ "TLS certificate: " <> toText (fromMaybe "" settings.tlsCert)
-    log Debug $ "TLS key: " <> toText (fromMaybe "" settings.tlsKey)
-  unless tlsEnabled $ do
-    log Info "No TLS certificates provided - running HTTP only"
-    log Info "Use --tls-cert and --tls-key to enable HTTPS with HTTP/2 support"
+  case settings.tlsConfig of
+    TLSEnabled certPath keyPath -> do
+      log Info "TLS certificates configured - enabling HTTPS with HTTP/2 support"
+      log Debug $ "TLS certificate: " <> toText certPath
+      log Debug $ "TLS key: " <> toText keyPath
+    TLSDisabled -> do
+      log Info "TLS disabled - running HTTP only"
+      log Info "Use --tls-cert and --tls-key to enable HTTPS with HTTP/2 support"
 
   staticDir <- liftIO Paths_vira.getDataDir
   log Debug $ "Serving static files from: " <> show staticDir
@@ -80,14 +91,12 @@ app settings = do
           & Warp.setHost host
           & Warp.setPort settings.port
 
-  if tlsEnabled
-    then do
-      let tlsCertPath = fromJust settings.tlsCert
-      let tlsKeyPath = fromJust settings.tlsKey
+  case settings.tlsConfig of
+    TLSEnabled tlsCertPath tlsKeyPath -> do
       let tlsSettings = WarpTLS.tlsSettings tlsCertPath tlsKeyPath
       log Info $ "Starting HTTPS server with HTTP/2 support on " <> settings.host <> ":" <> show settings.port
       log Info "Note: Self-signed certificates will show browser warnings - this is normal for development"
       liftIO $ WarpTLS.runTLS tlsSettings warpSettings $ staticMiddleware servantApp
-    else do
+    TLSDisabled -> do
       log Info $ "Starting HTTP server on " <> settings.host <> ":" <> show settings.port
       liftIO $ Warp.runSettings warpSettings $ staticMiddleware servantApp
