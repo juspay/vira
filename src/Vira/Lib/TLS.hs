@@ -1,4 +1,6 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Vira.Lib.TLS (
@@ -7,9 +9,10 @@ module Vira.Lib.TLS (
   tlsConfigParser,
 
   -- * Self-signed certificate generation
-  ensureTLSCertificates,
+  ensureTLSSettings,
 ) where
 
+import Network.Wai.Handler.WarpTLS qualified as WarpTLS
 import Options.Applicative
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.Process (callProcess)
@@ -61,10 +64,10 @@ tlsConfigParser =
     defaultMode = pure TLSAuto
 
 {- | Ensure TLS certificates exist for auto-generation mode
-Returns the certificate and key file paths
+Returns TLSSettings configured with the certificate and key file paths
 -}
-ensureTLSCertificates :: FilePath -> Text -> IO (FilePath, FilePath)
-ensureTLSCertificates certDir hostArg = do
+ensureTLSSettings :: FilePath -> Text -> IO WarpTLS.TLSSettings
+ensureTLSSettings certDir hostArg = do
   let (certPath, keyPath) = certPaths certDir
 
   certExists <- doesFileExist certPath
@@ -78,7 +81,7 @@ ensureTLSCertificates certDir hostArg = do
       createDirectoryIfMissing True certDir
       generateCertificates certDir hostArg
 
-  pure (certPath, keyPath)
+  pure $ WarpTLS.tlsSettings certPath keyPath
 
 -- | Helper function to construct certificate and key file paths from a directory
 certPaths :: FilePath -> (FilePath, FilePath)
