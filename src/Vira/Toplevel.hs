@@ -11,6 +11,7 @@ import Effectful.Reader.Dynamic (ask)
 import Main.Utf8 qualified as Utf8
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Handler.WarpTLS qualified as WarpTLS
+import Network.Wai.Handler.WarpTLS.Internal qualified as WarpTLS
 import Network.Wai.Middleware.Static (
   addBase,
   noDots,
@@ -54,15 +55,14 @@ app settings = do
   let protocol = case settings.tlsConfig of
         TLSDisabled -> "http"
         TLSAuto -> "https"
-        TLSExplicit _ _ -> "https"
+        TLSExplicit _ -> "https"
   log Info $ "Launching vira (" <> settings.instanceName <> ") at " <> protocol <> "://" <> settings.host <> ":" <> show settings.port
   log Debug $ "Settings: " <> show settings
 
   case settings.tlsConfig of
-    TLSExplicit certPath keyPath -> do
+    TLSExplicit tlsSettings -> do
       log Info "TLS certificates configured - enabling HTTPS with HTTP/2 support"
-      log Debug $ "TLS certificate: " <> toText certPath
-      log Debug $ "TLS key: " <> toText keyPath
+      log Debug $ "TLS cert: " <> show (WarpTLS.getCertSettings tlsSettings)
     TLSAuto -> do
       log Info "HTTPS enabled with auto-generated certificates - enabling HTTP/2 support"
     TLSDisabled -> do
@@ -81,8 +81,7 @@ app settings = do
           & Warp.setPort settings.port
 
   case settings.tlsConfig of
-    TLSExplicit certPath keyPath -> do
-      let tlsSettings = WarpTLS.tlsSettings certPath keyPath
+    TLSExplicit tlsSettings -> do
       log Info $ "Starting HTTPS server with HTTP/2 support on " <> settings.host <> ":" <> show settings.port
       log Info "Note: Self-signed certificates will show browser warnings - this is normal for development"
       liftIO $ WarpTLS.runTLS tlsSettings warpSettings $ staticMiddleware servantApp

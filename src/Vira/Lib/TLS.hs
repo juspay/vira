@@ -13,10 +13,12 @@ module Vira.Lib.TLS (
 ) where
 
 import Network.Wai.Handler.WarpTLS qualified as WarpTLS
+import Network.Wai.Handler.WarpTLS.Internal qualified as WarpTLS
 import Options.Applicative
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.Process (callProcess)
 import System.Which (staticWhich)
+import Text.Show (Show (..))
 
 {- | Path to the `openssl` executable
 
@@ -32,8 +34,13 @@ data TLSConfig
   | -- | TLS with auto-generated certificates (default)
     TLSAuto
   | -- | TLS with user-provided certificate and key files
-    TLSExplicit FilePath FilePath
-  deriving stock (Show)
+    TLSExplicit WarpTLS.TLSSettings
+
+instance Show TLSConfig where
+  show = \case
+    TLSDisabled -> "TLSDisabled"
+    TLSAuto -> "TLSAuto"
+    TLSExplicit tlsSettings -> "TLSExplicit (user-provided certificates): " <> Text.Show.show (WarpTLS.getCertSettings tlsSettings)
 
 -- | Parser for TLS configuration with HTTPS enabled by default
 tlsConfigParser :: Parser TLSConfig
@@ -48,7 +55,7 @@ tlsConfigParser =
         )
 
     tlsExplicitMode =
-      TLSExplicit
+      fmap TLSExplicit . WarpTLS.tlsSettings
         <$> strOption
           ( long "tls-cert"
               <> metavar "TLS_CERT"
@@ -169,7 +176,7 @@ generateCertificateWithRequest certDir request = do
     , "-out"
     , certPath
     , "-days"
-    , show request.certValidityDays
+    , Prelude.show request.certValidityDays
     , "-config"
     , configPath
     ]
@@ -186,12 +193,12 @@ generateOpenSSLConfig request =
   let subject = request.certSubject
       dnsEntries =
         zipWith
-          (\i host -> "DNS." <> show i <> " = " <> host)
+          (\i host -> "DNS." <> Prelude.show i <> " = " <> host)
           [(1 :: Int) ..]
           request.certSANHosts
       ipEntries =
         zipWith
-          (\i ip -> "IP." <> show i <> " = " <> ip)
+          (\i ip -> "IP." <> Prelude.show i <> " = " <> ip)
           [(length request.certSANHosts + 1 :: Int) ..]
           request.certSANIPs
       allSANEntries = dnsEntries <> ipEntries
