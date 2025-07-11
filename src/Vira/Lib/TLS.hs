@@ -1,9 +1,13 @@
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Vira.Lib.TLS (
-  ensureTLSCertificates,
+  -- * CLI parsing
   TLSConfig (..),
   tlsConfigParser,
+
+  -- * Self-signed certificate generation
+  ensureTLSCertificates,
 ) where
 
 import Options.Applicative
@@ -17,13 +21,6 @@ This should be available in the PATH, thanks to Nix and `which` library.
 -}
 opensslBin :: FilePath
 opensslBin = $(staticWhich "openssl")
-
--- | Helper function to construct certificate and key file paths from a directory
-certPaths :: FilePath -> (FilePath, FilePath)
-certPaths certDir =
-  let certPath = certDir <> "/server.crt"
-      keyPath = certDir <> "/server.key"
-   in (certPath, keyPath)
 
 -- | TLS configuration with HTTPS enabled by default
 data TLSConfig
@@ -63,76 +60,6 @@ tlsConfigParser =
     -- Default to auto-generation (HTTPS enabled by default)
     defaultMode = pure TLSAuto
 
--- | Generate self-signed certificates with proper SAN for local network access
-generateCertificates :: FilePath -> Text -> IO ()
-generateCertificates certDir hostArg = do
-  let (certPath, keyPath) = certPaths certDir
-
-  -- Generate private key
-  callProcess opensslBin ["genrsa", "-out", keyPath, "2048"]
-
-  -- Create OpenSSL config with comprehensive SAN list
-  let opensslConfig =
-        unlines
-          [ "[req]"
-          , "distinguished_name = req_distinguished_name"
-          , "req_extensions = v3_req"
-          , "prompt = no"
-          , ""
-          , "[req_distinguished_name]"
-          , "C = US"
-          , "ST = CA"
-          , "L = San Francisco"
-          , "O = Vira Development"
-          , "OU = IT Department"
-          , "CN = localhost"
-          , ""
-          , "[v3_req]"
-          , "basicConstraints = CA:FALSE"
-          , "keyUsage = critical, digitalSignature, keyEncipherment, keyAgreement"
-          , "extendedKeyUsage = critical, serverAuth, clientAuth"
-          , "subjectAltName = @alt_names"
-          , ""
-          , "[alt_names]"
-          , "DNS.1 = localhost"
-          , "DNS.2 = " <> hostArg
-          , "IP.1 = 127.0.0.1"
-          , "IP.2 = ::1"
-          , "IP.3 = 0.0.0.0"
-          , "IP.4 = 192.168.1.1"
-          , "IP.5 = 192.168.1.100"
-          , "IP.6 = 192.168.0.1"
-          , "IP.7 = 192.168.0.100"
-          , "IP.8 = 10.0.0.1"
-          , "IP.9 = 10.0.0.100"
-          , "IP.10 = 172.16.0.1"
-          , "IP.11 = 172.16.0.100"
-          ]
-
-  let configPath = certDir <> "/openssl.conf"
-  writeFileText configPath opensslConfig
-
-  -- Generate self-signed certificate with longer validity
-  callProcess
-    opensslBin
-    [ "req"
-    , "-new"
-    , "-x509"
-    , "-key"
-    , keyPath
-    , "-out"
-    , certPath
-    , "-days"
-    , "3650" -- 10 years for development
-    , "-config"
-    , configPath
-    ]
-
-  putTextLn "Generated TLS certificates:"
-  putTextLn $ "  Certificate: " <> toText certPath
-  putTextLn $ "  Private key: " <> toText keyPath
-  putTextLn $ "  Valid for: localhost, 127.0.0.1, " <> hostArg <> ", and common local network IPs"
-
 {- | Ensure TLS certificates exist for auto-generation mode
 Returns the certificate and key file paths
 -}
@@ -152,3 +79,144 @@ ensureTLSCertificates certDir hostArg = do
       generateCertificates certDir hostArg
 
   pure (certPath, keyPath)
+
+-- | Helper function to construct certificate and key file paths from a directory
+certPaths :: FilePath -> (FilePath, FilePath)
+certPaths certDir =
+  let certPath = certDir <> "/server.crt"
+      keyPath = certDir <> "/server.key"
+   in (certPath, keyPath)
+
+-- | High-level certificate request configuration
+data CertificateRequest = CertificateRequest
+  { certSubject :: CertSubject
+  , certValidityDays :: Int
+  , certSANHosts :: [Text] -- Additional SAN hostnames
+  , certSANIPs :: [Text] -- Additional SAN IP addresses
+  }
+  deriving stock (Show)
+
+-- | Certificate subject information for self-signed certificates
+data CertSubject = CertSubject
+  { certCountry :: Text
+  , certState :: Text
+  , certLocality :: Text
+  , certOrganization :: Text
+  , certOrganizationalUnit :: Text
+  , certCommonName :: Text
+  }
+  deriving stock (Show)
+
+-- | Default certificate subject for development
+defaultCertSubject :: CertSubject
+defaultCertSubject =
+  CertSubject
+    { certCountry = "US"
+    , certState = "CA"
+    , certLocality = "San Francisco"
+    , certOrganization = "Vira Development"
+    , certOrganizationalUnit = "IT Department"
+    , certCommonName = "localhost"
+    }
+
+-- | Default certificate request for local development
+defaultCertRequest :: Text -> CertificateRequest
+defaultCertRequest hostArg =
+  CertificateRequest
+    { certSubject = defaultCertSubject
+    , certValidityDays = 3650 -- 10 years
+    , certSANHosts = ["localhost", hostArg]
+    , certSANIPs =
+        [ "127.0.0.1"
+        , "::1"
+        , "0.0.0.0"
+        , "192.168.1.1"
+        , "192.168.1.100"
+        , "192.168.0.1"
+        , "192.168.0.100"
+        , "10.0.0.1"
+        , "10.0.0.100"
+        , "172.16.0.1"
+        , "172.16.0.100"
+        ]
+    }
+
+-- | Generate a self-signed certificate using a certificate request
+generateCertificateWithRequest :: FilePath -> CertificateRequest -> IO ()
+generateCertificateWithRequest certDir request = do
+  let (certPath, keyPath) = certPaths certDir
+
+  -- Generate private key
+  callProcess opensslBin ["genrsa", "-out", keyPath, "2048"]
+
+  -- Create OpenSSL config
+  let opensslConfig = generateOpenSSLConfig request
+      configPath = certDir <> "/openssl.conf"
+
+  writeFileText configPath opensslConfig
+
+  -- Generate self-signed certificate
+  callProcess
+    opensslBin
+    [ "req"
+    , "-new"
+    , "-x509"
+    , "-key"
+    , keyPath
+    , "-out"
+    , certPath
+    , "-days"
+    , show request.certValidityDays
+    , "-config"
+    , configPath
+    ]
+
+  putTextLn "Generated TLS certificates:"
+  putTextLn $ "  Certificate: " <> toText certPath
+  putTextLn $ "  Private key: " <> toText keyPath
+  let hostList = intercalate ", " (map toString request.certSANHosts)
+  putTextLn $ "  Valid for: " <> toText hostList <> " and common local network IPs"
+
+-- | Generate OpenSSL configuration from a certificate request
+generateOpenSSLConfig :: CertificateRequest -> Text
+generateOpenSSLConfig request =
+  let subject = request.certSubject
+      dnsEntries =
+        zipWith
+          (\i host -> "DNS." <> show i <> " = " <> host)
+          [(1 :: Int) ..]
+          request.certSANHosts
+      ipEntries =
+        zipWith
+          (\i ip -> "IP." <> show i <> " = " <> ip)
+          [(length request.certSANHosts + 1 :: Int) ..]
+          request.certSANIPs
+      allSANEntries = dnsEntries <> ipEntries
+      altNamesSection = unlines $ "[alt_names]" : allSANEntries
+   in unlines
+        [ "[req]"
+        , "distinguished_name = req_distinguished_name"
+        , "req_extensions = v3_req"
+        , "prompt = no"
+        , ""
+        , "[req_distinguished_name]"
+        , "C = " <> subject.certCountry
+        , "ST = " <> subject.certState
+        , "L = " <> subject.certLocality
+        , "O = " <> subject.certOrganization
+        , "OU = " <> subject.certOrganizationalUnit
+        , "CN = " <> subject.certCommonName
+        , ""
+        , "[v3_req]"
+        , "basicConstraints = CA:FALSE"
+        , "keyUsage = critical, digitalSignature, keyEncipherment, keyAgreement"
+        , "extendedKeyUsage = critical, serverAuth, clientAuth"
+        , "subjectAltName = @alt_names"
+        , ""
+        , altNamesSection
+        ]
+
+-- | Generate self-signed certificates with proper SAN for local network access (simplified API)
+generateCertificates :: FilePath -> Text -> IO ()
+generateCertificates certDir hostArg =
+  generateCertificateWithRequest certDir (defaultCertRequest hostArg)
