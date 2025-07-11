@@ -141,9 +141,7 @@ settingsParser hostName = do
   tlsConfig <- tlsConfigParser
   pure Settings {..}
 
-{- | Parser for TLS configuration with HTTPS enabled by default
-| Parser for RepoSettings
--}
+-- | Parser for RepoSettings
 repoSettingsParser :: Parser RepoSettings
 repoSettingsParser = do
   cloneUrls <-

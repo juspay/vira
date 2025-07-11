@@ -48,7 +48,7 @@ runVira = do
           pure TLSDisabled
         TLSAuto -> do
           -- Auto-generate certificates for HTTPS
-          (certPath, keyPath) <- ensureTLSCertificates settings.host
+          (certPath, keyPath) <- ensureTLSCertificates "./state/tls" settings.host
           pure $ TLSExplicit certPath keyPath
         TLSExplicit certPath keyPath ->
           -- Use provided certificates as-is

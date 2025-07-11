@@ -18,6 +18,13 @@ This should be available in the PATH, thanks to Nix and `which` library.
 opensslBin :: FilePath
 opensslBin = $(staticWhich "openssl")
 
+-- | Helper function to construct certificate and key file paths from a directory
+certPaths :: FilePath -> (FilePath, FilePath)
+certPaths certDir =
+  let certPath = certDir <> "/server.crt"
+      keyPath = certDir <> "/server.key"
+   in (certPath, keyPath)
+
 -- | TLS configuration with HTTPS enabled by default
 data TLSConfig
   = -- | No TLS - run HTTP only (explicit)
@@ -59,8 +66,7 @@ tlsConfigParser =
 -- | Generate self-signed certificates with proper SAN for local network access
 generateCertificates :: FilePath -> Text -> IO ()
 generateCertificates certDir hostArg = do
-  let certPath = certDir <> "/server.crt"
-  let keyPath = certDir <> "/server.key"
+  let (certPath, keyPath) = certPaths certDir
 
   -- Generate private key
   callProcess opensslBin ["genrsa", "-out", keyPath, "2048"]
@@ -130,18 +136,16 @@ generateCertificates certDir hostArg = do
 {- | Ensure TLS certificates exist for auto-generation mode
 Returns the certificate and key file paths
 -}
-ensureTLSCertificates :: Text -> IO (FilePath, FilePath)
-ensureTLSCertificates hostArg = do
-  let certDir = "./state/tls"
-  let certPath = certDir <> "/server.crt"
-  let keyPath = certDir <> "/server.key"
+ensureTLSCertificates :: FilePath -> Text -> IO (FilePath, FilePath)
+ensureTLSCertificates certDir hostArg = do
+  let (certPath, keyPath) = certPaths certDir
 
   certExists <- doesFileExist certPath
   keyExists <- doesFileExist keyPath
 
   if certExists && keyExists
     then do
-      putTextLn "Using existing TLS certificates from ./state/tls/"
+      putTextLn $ "Using existing TLS certificates from " <> toText certDir <> "/"
     else do
       putTextLn "Generating TLS certificates for HTTPS support..."
       createDirectoryIfMissing True certDir
