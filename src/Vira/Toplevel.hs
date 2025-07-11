@@ -114,29 +114,30 @@ generateCertificates certDir hostArg = do
           , ""
           , "[v3_req]"
           , "basicConstraints = CA:FALSE"
-          , "keyUsage = critical, digitalSignature, keyEncipherment"
-          , "extendedKeyUsage = critical, serverAuth"
+          , "keyUsage = critical, digitalSignature, keyEncipherment, keyAgreement"
+          , "extendedKeyUsage = critical, serverAuth, clientAuth"
           , "subjectAltName = @alt_names"
           , ""
           , "[alt_names]"
           , "DNS.1 = localhost"
-          , "DNS.2 = 127.0.0.1"
+          , "DNS.2 = " <> hostArg
           , "IP.1 = 127.0.0.1"
           , "IP.2 = ::1"
           , "IP.3 = 0.0.0.0"
-          , "DNS.3 = " <> hostArg
           , "IP.4 = 192.168.1.1"
           , "IP.5 = 192.168.1.100"
           , "IP.6 = 192.168.0.1"
           , "IP.7 = 192.168.0.100"
           , "IP.8 = 10.0.0.1"
           , "IP.9 = 10.0.0.100"
+          , "IP.10 = 172.16.0.1"
+          , "IP.11 = 172.16.0.100"
           ]
 
   let configPath = certDir <> "/openssl.conf"
   writeFileText configPath opensslConfig
 
-  -- Generate self-signed certificate
+  -- Generate self-signed certificate with longer validity
   callProcess
     opensslBin
     [ "req"
@@ -147,7 +148,7 @@ generateCertificates certDir hostArg = do
     , "-out"
     , certPath
     , "-days"
-    , "365"
+    , "3650" -- 10 years for development
     , "-config"
     , configPath
     ]
@@ -190,6 +191,9 @@ app settings = do
       let tlsCertPath = fromJust settings.tlsCert
       let tlsKeyPath = fromJust settings.tlsKey
       let tlsSettings = WarpTLS.tlsSettings tlsCertPath tlsKeyPath
+      log Info $ "Starting HTTPS server with HTTP/2 support on " <> settings.host <> ":" <> show settings.port
+      log Info "Note: Self-signed certificates will show browser warnings - this is normal for development"
       liftIO $ WarpTLS.runTLS tlsSettings warpSettings $ staticMiddleware servantApp
     else do
+      log Info $ "Starting HTTP server on " <> settings.host <> ":" <> show settings.port
       liftIO $ Warp.runSettings warpSettings $ staticMiddleware servantApp

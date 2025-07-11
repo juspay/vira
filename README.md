@@ -56,6 +56,20 @@ Vira automatically generates self-signed TLS certificates for HTTPS with HTTP/2 
 
 The auto-generated certificates include Subject Alternative Names (SAN) for localhost, 127.0.0.1, and common local network IP ranges, making them suitable for local development and testing across your network.
 
+### Common TLS Development Issues
+
+When using HTTPS with self-signed certificates, you may see:
+
+1. **Browser Warnings**: "Not secure" or `net::ERR_CERT_AUTHORITY_INVALID` - this is normal for self-signed certificates
+2. **Server Log Errors**: TLS handshake errors like `HandshakeFailed (Error_Packet_unexpected "Alert13 [(AlertLevel_Fatal,CertificateUnknown)]")` - these occur when clients reject the self-signed certificate
+
+These are expected behaviors for development and don't affect functionality. The connection is still encrypted.
+
+**Solutions:**
+- **Accept in Browser**: Click "Advanced" → "Proceed to localhost (unsafe)"
+- **Curl**: Use `curl -k` to ignore certificate warnings
+- **Production**: Use real certificates from a trusted CA
+
 3. **Run with HTTP only** (default):
    ```sh
    # No TLS arguments - runs HTTP only
