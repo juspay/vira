@@ -44,6 +44,7 @@
             pkgs.attic-client
             pkgs.coreutils # For `tail`
             pkgs.omnix
+            pkgs.openssl # For automatic TLS certificate generation
           ];
           stan = true;
         };
@@ -77,8 +78,9 @@
           haskell = {
             command = pkgs.writeShellScriptBin "haskell-dev" ''
               set -x
+              # Vira now auto-generates TLS certificates as needed
               ghcid -c 'cabal repl exe:vira --flags=ghcid' -T Main.main \
-                  --setup ":set args --cachix-name scratch-vira-dev --cachix-auth-token eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U --base-path ''${BASE_PATH:-/}"
+                  --setup ":set args --host 0.0.0.0 --cachix-name scratch-vira-dev --cachix-auth-token eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U --base-path ''${BASE_PATH:-/}"
             '';
             depends_on.tailwind.condition = "process_started";
             # Without `SIGINT (2)` Vira doesn't close gracefully

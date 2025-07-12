@@ -16,7 +16,7 @@ The project is currently in prototype phase. Contact [@srid](https://github.com/
 | ------------- | ----------------------------------------------------------- |
 | Frontend      | [HTMX](https://htmx.org/) (+ [hyperscript](https://hyperscript.org/) where relevant)                                   |
 | Data Store    | [acid-state](https://github.com/acid-state/acid-state) |
-| Web Server    | [servant](https://www.servant.dev/)                         |
+| Web Server    | [servant](https://www.servant.dev/) + [warp](https://hackage.haskell.org/package/warp) + [warp-tls](https://hackage.haskell.org/package/warp-tls) (HTTP/2 + HTTPS)                         |
 | Effect System | [effectful](https://hackage.haskell.org/package/effectful)  |
 | Logging       | [co-log](https://kowainik.github.io/projects/co-log)        |
 | HTML DSL      | Lucid2                                                      |
@@ -30,16 +30,50 @@ TBD
 ## Development
 
 ```sh
+# Run the development server (HTTPS)
 just run
 
 # Or, if you need to start from empty database (useful if you have changed the acid-state types)
 just resetdb run
 ```
 
+### HTTPS and HTTP/2 Support
+
+Vira automatically generates self-signed TLS certificates for HTTPS with HTTP/2 support:
+
+1. **Automatic Certificate Generation**: 
+   When you run `nix run github:juspay/vira`, certificates are automatically generated in `./state/tls/` if they don't exist.
+
+2. **Manual Certificate Control** (optional):
+   ```sh
+   # Use your own certificates
+   nix run github:juspay/vira -- --tls-cert /path/to/cert.crt --tls-key /path/to/private.key
+   ```
+
+3. **Development URLs**:
+   - HTTPS: https://localhost:5005 (with auto-generated certificates)
+   - HTTP: http://localhost:5005 (if you run via with `--no-https`)
+
+The auto-generated certificates include Subject Alternative Names (SAN) for localhost, 127.0.0.1, and common local network IP ranges, making them suitable for local development and testing across your network.
+
+#### Common TLS Development Issues
+
+When using HTTPS with self-signed certificates, you may see:
+
+1. **Browser Warnings**: "Not secure" or `net::ERR_CERT_AUTHORITY_INVALID` - this is normal for self-signed certificates
+2. **Server Log Errors**: TLS handshake errors like `HandshakeFailed (Error_Packet_unexpected "Alert13 [(AlertLevel_Fatal,CertificateUnknown)]")` - these occur when clients reject the self-signed certificate
+
+These are expected behaviors for development and don't affect functionality. The connection is still encrypted.
+
+**Solutions:**
+- **Accept in Browser**: Click "Advanced" → "Proceed to localhost (unsafe)"
+- **Curl**: Use `curl -k` to ignore certificate warnings
+- **Production**: Use real certificates from a trusted CA (e.g.: Let's Encrypt)
+
 ## Beta Testing
 
 ```
-nix run github:juspay/vira --accept-flake-config -- --host <interface-ip> --port 5005
+nix run github:juspay/vira --accept-flake-config -- --port 5005
 ```
 
 This uses samples repos, but you can pass your own in the command line.

@@ -19,6 +19,7 @@ import Network.Wai.Handler.Warp (Port)
 import Options.Applicative
 import Paths_vira qualified
 import Vira.Lib.Attic (AtticCache, AtticServer (AtticServer), AtticToken)
+import Vira.Lib.TLS (TLSConfig, tlsConfigParser)
 import Vira.State.Type (Repo (Repo), RepoName)
 import Prelude hiding (Reader, reader, runReader)
 
@@ -40,6 +41,8 @@ data Settings = Settings
   -- ^ Name of the instance; uses hostname if unspecified
   , basePath :: Text
   -- ^ Base URL path for the http server
+  , tlsConfig :: TLSConfig
+  -- ^ TLS configuration for HTTPS support
   }
   deriving stock (Show)
 
@@ -107,7 +110,7 @@ settingsParser hostName = do
       ( long "host"
           <> metavar "HOST"
           <> help "Host"
-          <> value "127.0.0.1"
+          <> value "0.0.0.0"
           <> showDefault
       )
   dbPath <-
@@ -135,6 +138,7 @@ settingsParser hostName = do
           <> value "/"
           <> showDefault
       )
+  tlsConfig <- tlsConfigParser
   pure Settings {..}
 
 -- | Parser for RepoSettings

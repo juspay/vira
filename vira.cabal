@@ -102,6 +102,7 @@ common library-shared
     , wai-extra
     , wai-middleware-static
     , warp
+    , warp-tls
     , which
     , with-utf8
 
@@ -126,6 +127,7 @@ library
     Vira.Lib.Omnix
     Vira.Lib.Process
     Vira.Lib.Process.TailF
+    Vira.Lib.TLS
     Vira.Page.BranchPage
     Vira.Page.JobLog
     Vira.Page.JobPage
