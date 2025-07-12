@@ -4,12 +4,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Vira.Lib.TLS (
-  -- * CLI parsing
+  -- * Type
   TLSConfig (..),
-  tlsConfigParser,
 
-  -- * Self-signed certificate generation
-  ensureTLSSettings,
+  -- * Function
+  tlsConfigResolve,
+
+  -- * CLI parser
+  tlsConfigParser,
 ) where
 
 import Network.Wai.Handler.WarpTLS qualified as WarpTLS
@@ -69,6 +71,12 @@ tlsConfigParser =
 
     -- Default to auto-generation (HTTPS enabled by default)
     defaultMode = pure TLSAuto
+
+tlsConfigResolve :: TLSConfig -> IO (Maybe WarpTLS.TLSSettings)
+tlsConfigResolve = \case
+  TLSDisabled -> pure Nothing
+  TLSAuto -> Just <$> ensureTLSSettings "./state/tls" "localhost"
+  TLSExplicit tlsSettings -> pure (Just tlsSettings)
 
 {- | Ensure TLS certificates exist for auto-generation mode
 Returns TLSSettings configured with the certificate and key file paths
