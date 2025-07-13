@@ -39,7 +39,7 @@ just resetdb run
 
 ### HTTPS and HTTP/2 Support
 
-Vira automatically generates self-signed TLS certificates for HTTPS with HTTP/2 support:
+We use HTTP/2 for superior SSE (used in log streaming) performance, which [in practice requires HTTPS](https://http2-explained.haxx.se/en/part5#id-5.2.-http2-for-https). Vira automatically generates self-signed TLS certificates for HTTPS with HTTP/2 support:
 
 1. **Automatic Certificate Generation**: 
    When you run `nix run github:juspay/vira`, certificates are automatically generated in `./state/tls/` if they don't exist.
