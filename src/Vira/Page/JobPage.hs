@@ -121,8 +121,8 @@ triggerNewBuild repoName branchName = do
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
   appSettings <- asks App.settings
-  let mCachix = App.cachix . App.repo $ appSettings
-  let mAttic = App.attic . App.repo $ appSettings
+  let mCachix = appSettings.repo.cachix
+      mAttic = appSettings.repo.attic
   asks App.supervisor >>= \supervisor -> do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
