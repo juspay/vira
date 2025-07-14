@@ -5,6 +5,7 @@ module Vira.App.CLI (
   -- * Types
   Settings (..),
   ReposSettings (..),
+  RepoSettings (..),
   CachixSettings (..),
   AtticSettings (..),
 
@@ -46,12 +47,21 @@ data Settings = Settings
   }
   deriving stock (Show)
 
+data RepoSettings = RepoSettings
+  { repoInfo :: Repo
+  -- ^ The repository information (name and clone URL)
+  , dummy :: ()
+  -- ^ Placeholder for future per-repo settings)
+  }
+  deriving stock (Show)
+
 data ReposSettings = ReposSettings
-  { cloneUrls :: [Repo]
-  -- ^ Repositories (git clone URL) to watch and build
+  { repoSettings :: [RepoSettings]
+  -- ^ List of repository settings
   , cachix :: Maybe CachixSettings
-  -- ^ Cachix settings
+  -- ^ Default Cachix settings
   , attic :: Maybe AtticSettings
+  -- ^ Default Attic settings
   }
   deriving stock (Show)
 
@@ -143,20 +153,28 @@ settingsParser hostName = do
 
 -- | Parser for ReposSettings
 reposSettingsParser :: Parser ReposSettings
-reposSettingsParser = do
-  cloneUrls <-
-    fmap repoFromUrl
-      <$> option
-        commaSeparatedTextList
-        ( long "clone-urls"
-            <> metavar "CLONE_URLS"
-            <> help "Repositories to watch and build, as comma-separated `git clone` URLs"
-            <> value defaultRepos
-            <> showDefault
-        )
-  cachix <- optional cachixSettingsParser
-  attic <- optional atticSettingsParser
-  pure ReposSettings {..}
+reposSettingsParser =
+  buildReposSettings <$> parseCloneUrls <*> parseCachix <*> parseAttic
+  where
+    -- For backwards compatibility, we support --clone-urls
+    parseCloneUrls =
+      fmap repoFromUrl
+        <$> option
+          commaSeparatedTextList
+          ( long "clone-urls"
+              <> metavar "CLONE_URLS"
+              <> help "Repositories to watch and build, as comma-separated `git clone` URLs"
+              <> value defaultRepos
+              <> showDefault
+          )
+
+    parseCachix = optional cachixSettingsParser
+
+    parseAttic = optional atticSettingsParser
+
+    buildReposSettings cloneUrls cachix attic =
+      let repoSettings = map (\repoInfo -> RepoSettings {repoInfo, dummy = ()}) cloneUrls
+       in ReposSettings {repoSettings, cachix, attic}
 
 -- | Parser for AtticSettings
 atticSettingsParser :: Parser AtticSettings

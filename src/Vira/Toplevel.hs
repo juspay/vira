@@ -41,7 +41,7 @@ runVira = do
     -- Like `runAppEff` but in `IO`
     runAppIO :: Settings -> IO ()
     runAppIO settings = do
-      let repos = settings.repo.cloneUrls
+      let repos = map (.repoInfo) settings.repo.repoSettings
       bracket (openViraState repos) closeViraState $ \acid -> do
         supervisor <- Vira.Supervisor.newSupervisor
         let st = App.AppState {linkTo = linkTo, ..}
