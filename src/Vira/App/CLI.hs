@@ -4,7 +4,7 @@
 module Vira.App.CLI (
   -- * Types
   Settings (..),
-  RepoSettings (..),
+  ReposSettings (..),
   CachixSettings (..),
   AtticSettings (..),
 
@@ -35,7 +35,7 @@ data Settings = Settings
   -- ^ The host to bind the HTTP server to
   , dbPath :: FilePath
   -- ^ Path to the vira db
-  , repo :: RepoSettings
+  , repo :: ReposSettings
   -- ^ Repositories settings
   , instanceName :: Text
   -- ^ Name of the instance; uses hostname if unspecified
@@ -46,7 +46,7 @@ data Settings = Settings
   }
   deriving stock (Show)
 
-data RepoSettings = RepoSettings
+data ReposSettings = ReposSettings
   { cloneUrls :: [Repo]
   -- ^ Repositories (git clone URL) to watch and build
   , cachix :: Maybe CachixSettings
@@ -121,7 +121,7 @@ settingsParser hostName = do
           <> value "vira.db"
           <> showDefault
       )
-  repo <- repoSettingsParser
+  repo <- reposSettingsParser
   instanceName <-
     strOption
       ( long "instance-name"
@@ -141,9 +141,9 @@ settingsParser hostName = do
   tlsConfig <- tlsConfigParser
   pure Settings {..}
 
--- | Parser for RepoSettings
-repoSettingsParser :: Parser RepoSettings
-repoSettingsParser = do
+-- | Parser for ReposSettings
+reposSettingsParser :: Parser ReposSettings
+reposSettingsParser = do
   cloneUrls <-
     fmap repoFromUrl
       <$> option
@@ -156,7 +156,7 @@ repoSettingsParser = do
         )
   cachix <- optional cachixSettingsParser
   attic <- optional atticSettingsParser
-  pure RepoSettings {..}
+  pure ReposSettings {..}
 
 -- | Parser for AtticSettings
 atticSettingsParser :: Parser AtticSettings
