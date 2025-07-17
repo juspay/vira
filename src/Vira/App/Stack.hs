@@ -10,7 +10,7 @@ import Effectful.Process (Process, runProcess)
 import Effectful.Reader.Dynamic (Reader, runReader)
 import Servant (Handler (Handler), ServerError)
 import Servant.Links (Link)
-import Vira.App.CLI qualified as CLI
+import Vira.App.CLI (CLISettings)
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.App.Logging (Log, Message, runViraLog)
 import Vira.State.Core (ViraState)
@@ -46,7 +46,7 @@ runAppInServant cfg =
 -- | Application-wide state available in Effectful stack
 data AppState = AppState
   { -- CLI args passed by the user
-    settings :: CLI.Settings
+    cliSettings :: CLISettings
   , -- The state of the app
     acid :: AcidState ViraState
   , -- Process supervisor state

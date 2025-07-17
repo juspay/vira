@@ -8,8 +8,8 @@ module Vira.Widgets (
 
 import Lucid
 import Servant.Links (Link, URI (..), linkURI)
-import Vira.App (AppState (linkTo, settings), instanceName)
-import Vira.App.CLI (Settings (basePath))
+import Vira.App (AppState (cliSettings, linkTo), instanceName)
+import Vira.App.CLI (CLISettings (basePath))
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
 import Vira.Lib.HTMX
 import Vira.Stream.Status qualified as Status
@@ -28,7 +28,7 @@ layout cfg crumbs content = do
             toHtml $ linkShortTitle link
             " - "
         toHtml siteTitle
-      base_ [href_ cfg.settings.basePath]
+      base_ [href_ cfg.cliSettings.basePath]
       -- favicon
       link_ [rel_ "icon", type_ "image/jpg", href_ "vira-logo.jpg"]
       htmx
@@ -39,7 +39,7 @@ layout cfg crumbs content = do
         breadcrumbs cfg.linkTo crumbs'
         content
   where
-    siteTitle = "Vira (" <> cfg.settings.instanceName <> ")"
+    siteTitle = "Vira (" <> cfg.cliSettings.instanceName <> ")"
     -- Mobile friendly head tags
     mobileFriendly = do
       meta_ [charset_ "utf-8", name_ "viewport", content_ "width=device-width, initial-scale=1"]

@@ -4,10 +4,7 @@
 module Vira.App.CLI (
   -- * Types
   Settings (..),
-  ReposSettings (..),
-  RepoSettings (..),
-  CachixSettings (..),
-  AtticSettings (..),
+  CLISettings (..),
 
   -- * Function
   parseCLI,
@@ -19,15 +16,13 @@ import Network.HostName (HostName, getHostName)
 import Network.Wai.Handler.Warp (Port)
 import Options.Applicative
 import Paths_vira qualified
-import Vira.Lib.Attic (AtticCache, AtticServer (AtticServer), AtticToken)
+import Vira.Lib.Attic (AtticServer (..))
 import Vira.Lib.TLS (TLSConfig, tlsConfigParser)
-import Vira.State.Type (Repo (Repo), RepoName)
+import Vira.State.Type (AppSettings (..), AtticSettings (..), CachixSettings (..), Repo (Repo), RepoName, RepoSettings (..), ReposSettings (..))
 import Prelude hiding (Reader, reader, runReader)
 
-{- | CLI settings
-TODO: Use Severity from co-log
--}
-data Settings = Settings
+-- | CLI Settings
+data CLISettings = CLISettings
   { logLevel :: String
   -- ^ Minimum logging level
   , port :: Port
@@ -36,8 +31,6 @@ data Settings = Settings
   -- ^ The host to bind the HTTP server to
   , dbPath :: FilePath
   -- ^ Path to the vira db
-  , repo :: ReposSettings
-  -- ^ Repositories settings
   , instanceName :: Text
   -- ^ Name of the instance; uses hostname if unspecified
   , basePath :: Text
@@ -47,39 +40,10 @@ data Settings = Settings
   }
   deriving stock (Show)
 
-data RepoSettings = RepoSettings
-  { repoInfo :: Repo
-  -- ^ The repository information (name and clone URL)
-  , dummy :: ()
-  -- ^ Placeholder for future per-repo settings)
-  }
-  deriving stock (Show)
-
-data ReposSettings = ReposSettings
-  { repoSettings :: [RepoSettings]
-  -- ^ List of repository settings
-  , cachix :: Maybe CachixSettings
-  -- ^ Default Cachix settings
-  , attic :: Maybe AtticSettings
-  -- ^ Default Attic settings
-  }
-  deriving stock (Show)
-
-data AtticSettings = AtticSettings
-  { atticServer :: AtticServer
-  -- ^ Attic server information
-  , atticCacheName :: AtticCache
-  -- ^ Name of the attic cache
-  , atticToken :: AtticToken
-  -- ^ Access token for `atticServerUrl`
-  }
-  deriving stock (Show)
-
-data CachixSettings = CachixSettings
-  { cachixName :: Text
-  -- ^ Name of the cachix cache
-  , authToken :: Text
-  -- ^ Auth token for the cachix cache
+-- TODO(CRUD): Remove `Settings`. `appSettings` will be editable from the htmx app
+data Settings = Settings
+  { appSettings :: AppSettings
+  , cliSettings :: CLISettings
   }
   deriving stock (Show)
 
@@ -99,57 +63,63 @@ defaultRepos =
 
 -- | Parser for Settings
 settingsParser :: HostName -> Parser Settings
-settingsParser hostName = do
-  logLevel <-
-    strOption
-      ( long "log-level"
-          <> metavar "LOG_LEVEL"
-          <> help "Log level"
-          <> value "Debug"
-      )
-  port <-
-    option
-      auto
-      ( long "port"
-          <> metavar "PORT"
-          <> help "Port to bind the HTTP server to"
-          <> value 5005
-      )
-  host <-
-    strOption
-      ( long "host"
-          <> metavar "HOST"
-          <> help "Host"
-          <> value "0.0.0.0"
-          <> showDefault
-      )
-  dbPath <-
-    strOption
-      ( long "db-path"
-          <> metavar "DB_PATH"
-          <> help "Path to vira db"
-          <> value "vira.db"
-          <> showDefault
-      )
-  repo <- reposSettingsParser
-  instanceName <-
-    strOption
-      ( long "instance-name"
-          <> metavar "INSTANCE_NAME"
-          <> help "Name of the instance"
-          <> value (toText hostName)
-          <> showDefault
-      )
-  basePath <-
-    strOption
-      ( long "base-path"
-          <> metavar "BASE_PATH"
-          <> help "Base URL path for the http server"
-          <> value "/"
-          <> showDefault
-      )
-  tlsConfig <- tlsConfigParser
-  pure Settings {..}
+settingsParser hostName = buildSettings <$> parseAppSettings <*> parseCLISettings
+  where
+    parseCLISettings = do
+      port <-
+        option
+          auto
+          ( long "port"
+              <> metavar "PORT"
+              <> help "Port to bind the HTTP server to"
+              <> value 5005
+          )
+      host <-
+        strOption
+          ( long "host"
+              <> metavar "HOST"
+              <> help "Host"
+              <> value "0.0.0.0"
+              <> showDefault
+          )
+      dbPath <-
+        strOption
+          ( long "db-path"
+              <> metavar "DB_PATH"
+              <> help "Path to vira db"
+              <> value "vira.db"
+              <> showDefault
+          )
+      logLevel <-
+        strOption
+          ( long "log-level"
+              <> metavar "LOG_LEVEL"
+              <> help "Log level"
+              <> value "Debug"
+          )
+      instanceName <-
+        strOption
+          ( long "instance-name"
+              <> metavar "INSTANCE_NAME"
+              <> help "Name of the instance"
+              <> value (toText hostName)
+              <> showDefault
+          )
+      basePath <-
+        strOption
+          ( long "base-path"
+              <> metavar "BASE_PATH"
+              <> help "Base URL path for the http server"
+              <> value "/"
+              <> showDefault
+          )
+      tlsConfig <- tlsConfigParser
+      pure CLISettings {..}
+
+    parseAppSettings = do
+      repo <- reposSettingsParser
+      pure AppSettings {..}
+    buildSettings appSettings cliSettings = Settings {..}
 
 -- | Parser for ReposSettings
 reposSettingsParser :: Parser ReposSettings

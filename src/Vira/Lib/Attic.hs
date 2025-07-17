@@ -3,6 +3,7 @@
 -- | Working with [attic](https://github.com/zhaofengli/attic) cache servers
 module Vira.Lib.Attic where
 
+import Data.SafeCopy
 import System.Process (CreateProcess, proc)
 import System.Which (staticWhich)
 
@@ -22,6 +23,10 @@ newtype AtticToken = AtticToken {unAtticToken :: Text}
 newtype AtticCache = AtticCache {unAtticCache :: Text}
   deriving stock (Eq, Show)
   deriving newtype (IsString, ToString)
+
+$(deriveSafeCopy 0 'base ''AtticServer)
+$(deriveSafeCopy 0 'base ''AtticCache)
+$(deriveSafeCopy 0 'base ''AtticToken)
 
 {- | Path to the `attic` executable
 

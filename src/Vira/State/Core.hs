@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 module Vira.State.Core (
   -- * Types
   ViraState (..),
@@ -17,9 +19,12 @@ import Vira.State.Acid
 import Vira.State.Type
 
 -- | Open vira database
-openViraState :: [Repo] -> IO (AcidState ViraState)
-openViraState repos = do
-  st <- openLocalState $ ViraState mempty mempty mempty
+openViraState :: AppSettings -> IO (AcidState ViraState)
+openViraState appSettings = do
+  let repos = map (.repoInfo) appSettings.repo.repoSettings
+
+  st <- openLocalState $ ViraState mempty mempty mempty appSettings
+  update st $ SetAppSettingsA appSettings
   update st $ SetAllReposA repos
   update st MarkUnfinishedJobsAsStaleA
   pure st

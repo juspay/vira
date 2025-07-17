@@ -31,10 +31,22 @@ data ViraState = ViraState
   { repos :: IxRepo
   , branches :: IxBranch
   , jobs :: IxJob
+  , appSettings :: AppSettings
+  -- ^ TODO(CRUD): Remove. For context, see comment above `AppSettings`
   }
   deriving stock (Generic, Typeable)
 
 $(deriveSafeCopy 0 'base ''ViraState)
+
+setAppSettingsA :: AppSettings -> Update ViraState ()
+setAppSettingsA appSettings = do
+  modify $ \s ->
+    s {appSettings = appSettings}
+
+getAppSettingsA :: Query ViraState AppSettings
+getAppSettingsA = do
+  ViraState {appSettings} <- ask
+  pure appSettings
 
 setAllReposA :: [Repo] -> Update ViraState ()
 setAllReposA repos = do
@@ -176,5 +188,7 @@ $( makeAcidic
     , 'addNewJobA
     , 'jobUpdateStatusA
     , 'markUnfinishedJobsAsStaleA
+    , 'setAppSettingsA
+    , 'getAppSettingsA
     ]
  )
