@@ -26,7 +26,7 @@ import Vira.Lib.Omnix qualified as Omnix
 import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type (JobId, RepoName, jobWorkingDir)
+import Vira.State.Type (AppSettings (..), AtticSettings (..), CachixSettings (..), JobId, RepoName, ReposSettings (..), jobWorkingDir)
 import Vira.Supervisor qualified as Supervisor
 import Vira.Supervisor.Type (TaskException (KilledByUser), TaskSupervisor (baseWorkDir))
 import Vira.Widgets qualified as W
@@ -119,8 +119,8 @@ triggerNewBuild :: (HasCallStack) => RepoName -> BranchName -> Eff App.AppServan
 triggerNewBuild repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
+  appSettings <- App.query St.GetAppSettingsA
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
-  appSettings <- asks App.settings
   let mCachix = appSettings.repo.cachix
       mAttic = appSettings.repo.attic
   asks App.supervisor >>= \supervisor -> do
@@ -137,7 +137,7 @@ triggerNewBuild repoName branchName = do
     log Info $ "Started task " <> show job.jobId
 
 -- | Get all build stages
-getStages :: St.Repo -> St.Branch -> Maybe App.CachixSettings -> Maybe App.AtticSettings -> NonEmpty CreateProcess
+getStages :: St.Repo -> St.Branch -> Maybe CachixSettings -> Maybe AtticSettings -> NonEmpty CreateProcess
 getStages repo branch mCachix mAttic = do
   stageCreateProjectDir
     :| stagesClone
