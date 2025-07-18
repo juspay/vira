@@ -28,11 +28,9 @@ All operations (`query` or `update`) on this state are defined immediately below
 Data in this state is indexed by `IxSet` to allow for efficient querying.
 -}
 data ViraState = ViraState
-  { repos :: IxRepo
-  , branches :: IxBranch
+  { branches :: IxBranch
   , jobs :: IxJob
   , appSettings :: AppSettings
-  -- ^ TODO(CRUD): Remove. For context, see comment above `AppSettings`
   }
   deriving stock (Generic, Typeable)
 
@@ -48,24 +46,65 @@ getAppSettingsA = do
   ViraState {appSettings} <- ask
   pure appSettings
 
+getCachixSettingsA :: Query ViraState (Maybe CachixSettings)
+getCachixSettingsA = do
+  ViraState {appSettings} <- ask
+  pure appSettings.cachix
+
+getAtticSettingsA :: Query ViraState (Maybe AtticSettings)
+getAtticSettingsA = do
+  ViraState {appSettings} <- ask
+  pure appSettings.attic
+
+setCachixSettingsA :: CachixSettings -> Update ViraState ()
+setCachixSettingsA cachix = do
+  modify $ \s ->
+    s
+      { -- TODO: wouldn't it be nice to use { appSettings.repos = IX.fromList repos} instead
+        appSettings = s.appSettings {cachix = Just cachix}
+      }
+
+setAtticSettingsA :: AtticSettings -> Update ViraState ()
+setAtticSettingsA attic = do
+  modify $ \s ->
+    s
+      { -- TODO: wouldn't it be nice to use { appSettings.repos = IX.fromList repos} instead
+        appSettings = s.appSettings {attic = Just attic}
+      }
+
 setAllReposA :: [Repo] -> Update ViraState ()
 setAllReposA repos = do
   modify $ \s ->
     s
-      { repos = Ix.fromList repos
+      { -- TODO: wouldn't it be nice to use { appSettings.repos = IX.fromList repos} instead
+        appSettings = s.appSettings {repos = Ix.fromList repos}
+      }
+
+addNewRepoA :: Repo -> Update ViraState ()
+addNewRepoA repo = do
+  modify $ \s ->
+    s
+      { appSettings = s.appSettings {repos = Ix.insert repo s.appSettings.repos}
+      }
+
+deleteRepoByNameA :: RepoName -> Update ViraState ()
+deleteRepoByNameA name = do
+  modify $ \s ->
+    s
+      { appSettings = s.appSettings {repos = Ix.deleteIx name s.appSettings.repos}
       }
 
 -- | Get all repositories
 getAllReposA :: Query ViraState [Repo]
 getAllReposA = do
-  ViraState {repos} <- ask
-  pure $ Ix.toList repos
+  ViraState {appSettings} <- ask
+  pure $ Ix.toList appSettings.repos
 
 -- | Get a repository by name
 getRepoByNameA :: RepoName -> Query ViraState (Maybe Repo)
 getRepoByNameA name = do
-  ViraState {repos} <- ask
-  pure $ Ix.getOne $ repos @= name
+  ViraState {appSettings} <- ask
+  pure $ Ix.getOne $ appSettings.repos @= name
 
 -- | Get all branches of a repository
 getBranchesByRepoA :: RepoName -> Query ViraState [Branch]
@@ -84,7 +123,8 @@ setRepoA :: Repo -> Update ViraState ()
 setRepoA repo = do
   modify $ \s ->
     s
-      { repos = Ix.updateIx (name repo) repo s.repos
+      { -- TODO: Same as setAllReposA todo
+        appSettings = s.appSettings {repos = Ix.updateIx (name repo) repo s.appSettings.repos}
       }
 
 -- | Set a repository's branches
@@ -190,5 +230,11 @@ $( makeAcidic
     , 'markUnfinishedJobsAsStaleA
     , 'setAppSettingsA
     , 'getAppSettingsA
+    , 'getCachixSettingsA
+    , 'setCachixSettingsA
+    , 'getAtticSettingsA
+    , 'setAtticSettingsA
+    , 'addNewRepoA
+    , 'deleteRepoByNameA
     ]
  )

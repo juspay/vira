@@ -19,7 +19,7 @@ import Network.Wai.Middleware.Static (
  )
 import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
-import Vira.App (AppStack, CLISettings (..), Settings (..))
+import Vira.App (AppStack, CLISettings (..))
 import Vira.App qualified as App
 import Vira.App.CLI qualified as CLI
 import Vira.App.LinkTo.Resolve (linkTo)
@@ -39,9 +39,9 @@ runVira = do
     runAppIO =<< CLI.parseCLI
   where
     -- Like `runAppEff` but in `IO`
-    runAppIO :: Settings -> IO ()
-    runAppIO (Settings appSettings cliSettings) = do
-      bracket (openViraState appSettings) closeViraState $ \acid -> do
+    runAppIO :: CLISettings -> IO ()
+    runAppIO cliSettings = do
+      bracket openViraState closeViraState $ \acid -> do
         supervisor <- Vira.Supervisor.newSupervisor
         let st = App.AppState {linkTo = linkTo, ..}
         App.runApp st $ runAppEff cliSettings

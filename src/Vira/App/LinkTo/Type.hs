@@ -19,6 +19,11 @@ data LinkTo
   | JobLog JobId
   | JobLogStream JobId
   | Kill JobId
+  | Settings
+  | SettingsCachix
+  | SettingsAttic
+  | SettingsAddRepo
+  | SettingsRemoveRepo
   | StatusGet
   | About
 
@@ -34,5 +39,10 @@ linkShortTitle = \case
   JobLog jobId -> "Job Log " <> show jobId
   JobLogStream jobId -> "Job Log Stream " <> show jobId
   Kill _ -> "Kill" -- unused
+  Settings -> "Settings"
+  SettingsCachix -> "Cachix Settings"
+  SettingsAttic -> "Attic Settings"
+  SettingsAddRepo -> "Add Repository"
+  SettingsRemoveRepo -> "Remove Repository"
   StatusGet -> "Status"
   About -> "About"
