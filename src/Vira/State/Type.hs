@@ -11,33 +11,22 @@ import Servant.API (FromHttpApiData, ToHttpApiData)
 import Vira.Lib.Attic (AtticCache, AtticServer, AtticToken)
 import Vira.Lib.Git (BranchName, CommitID)
 
-{- | Persisted App settings
-TODO(CRUD): Remove. As `ReposSettings` will be obviated, see below.
--}
-newtype AppSettings = AppSettings
-  { repo :: ReposSettings
+-- | Persisted App settings
+data AppSettings = AppSettings
+  { repos :: IxRepo
   -- ^ Repositories settings
-  }
-  deriving stock (Show)
-
-data RepoSettings = RepoSettings
-  { repoInfo :: Repo
-  -- ^ The repository information (name and clone URL)
-  , dummy :: ()
-  -- ^ Placeholder for future per-repo settings)
-  }
-  deriving stock (Show)
-
--- TODO(CRUD): Obviate by storing `RepoSettings` in `Repo` below
-data ReposSettings = ReposSettings
-  { repoSettings :: [RepoSettings]
-  -- ^ List of repository settings
   , cachix :: Maybe CachixSettings
   -- ^ Default Cachix settings
   , attic :: Maybe AtticSettings
   -- ^ Default Attic settings
   }
   deriving stock (Show)
+
+newtype RepoSettings = RepoSettings
+  { dummy :: ()
+  -- ^ Placeholder for future per-repo settings)
+  }
+  deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
 data AtticSettings = AtticSettings
   { atticServer :: AtticServer
@@ -73,6 +62,8 @@ data Repo = Repo
   -- ^ An unique name identifying this repository
   , cloneUrl :: Text
   -- ^ The git clone URL of the repository
+  , settings :: RepoSettings
+  -- ^ repo-specific settings
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
@@ -156,9 +147,8 @@ $(deriveSafeCopy 0 'base ''RepoName)
 $(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
 $(deriveSafeCopy 0 'base ''Branch)
-$(deriveSafeCopy 0 'base ''Repo)
 $(deriveSafeCopy 0 'base ''RepoSettings)
+$(deriveSafeCopy 0 'base ''Repo)
 $(deriveSafeCopy 0 'base ''CachixSettings)
 $(deriveSafeCopy 0 'base ''AtticSettings)
-$(deriveSafeCopy 0 'base ''ReposSettings)
 $(deriveSafeCopy 0 'base ''AppSettings)

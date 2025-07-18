@@ -26,7 +26,7 @@ import Vira.Lib.Omnix qualified as Omnix
 import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type (AppSettings (..), AtticSettings (..), CachixSettings (..), JobId, RepoName, ReposSettings (..), jobWorkingDir)
+import Vira.State.Type (AppSettings (..), AtticSettings (..), CachixSettings (..), JobId, RepoName, jobWorkingDir)
 import Vira.Supervisor qualified as Supervisor
 import Vira.Supervisor.Type (TaskException (KilledByUser), TaskSupervisor (baseWorkDir))
 import Vira.Widgets qualified as W
@@ -121,8 +121,8 @@ triggerNewBuild repoName branchName = do
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
   appSettings <- App.query St.GetAppSettingsA
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
-  let mCachix = appSettings.repo.cachix
-      mAttic = appSettings.repo.attic
+  let mCachix = appSettings.cachix
+      mAttic = appSettings.attic
   asks App.supervisor >>= \supervisor -> do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job

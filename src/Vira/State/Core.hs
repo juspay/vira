@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedRecordDot #-}
-
 module Vira.State.Core (
   -- * Types
   ViraState (..),
@@ -15,17 +13,20 @@ module Vira.State.Core (
 ) where
 
 import Data.Acid
+import Data.IxSet.Typed qualified as Ix
 import Vira.State.Acid
 import Vira.State.Type
 
 -- | Open vira database
-openViraState :: AppSettings -> IO (AcidState ViraState)
-openViraState appSettings = do
-  let repos = map (.repoInfo) appSettings.repo.repoSettings
+openViraState :: IO (AcidState ViraState)
+openViraState = do
+  -- TODO: Remove the hardcoding
+  let repos = [Repo "vira" "https://github.com/juspay/vira.git" (RepoSettings ())]
+  let appSettings = AppSettings (Ix.fromList repos) Nothing Nothing
 
-  st <- openLocalState $ ViraState mempty mempty mempty appSettings
+  st <- openLocalState $ ViraState mempty mempty appSettings
   update st $ SetAppSettingsA appSettings
-  update st $ SetAllReposA repos
+  -- update st $ SetAllReposA repos
   update st MarkUnfinishedJobsAsStaleA
   pure st
 

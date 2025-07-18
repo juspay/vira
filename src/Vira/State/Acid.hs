@@ -28,11 +28,9 @@ All operations (`query` or `update`) on this state are defined immediately below
 Data in this state is indexed by `IxSet` to allow for efficient querying.
 -}
 data ViraState = ViraState
-  { repos :: IxRepo
-  , branches :: IxBranch
+  { branches :: IxBranch
   , jobs :: IxJob
   , appSettings :: AppSettings
-  -- ^ TODO(CRUD): Remove. For context, see comment above `AppSettings`
   }
   deriving stock (Generic, Typeable)
 
@@ -52,20 +50,21 @@ setAllReposA :: [Repo] -> Update ViraState ()
 setAllReposA repos = do
   modify $ \s ->
     s
-      { repos = Ix.fromList repos
+      { -- TODO: wouldn't it be nice to use { settings.repos = IX.fromList repos} instead
+        appSettings = s.appSettings {repos = Ix.fromList repos}
       }
 
 -- | Get all repositories
 getAllReposA :: Query ViraState [Repo]
 getAllReposA = do
-  ViraState {repos} <- ask
-  pure $ Ix.toList repos
+  ViraState {appSettings} <- ask
+  pure $ Ix.toList appSettings.repos
 
 -- | Get a repository by name
 getRepoByNameA :: RepoName -> Query ViraState (Maybe Repo)
 getRepoByNameA name = do
-  ViraState {repos} <- ask
-  pure $ Ix.getOne $ repos @= name
+  ViraState {appSettings} <- ask
+  pure $ Ix.getOne $ appSettings.repos @= name
 
 -- | Get all branches of a repository
 getBranchesByRepoA :: RepoName -> Query ViraState [Branch]
@@ -84,7 +83,8 @@ setRepoA :: Repo -> Update ViraState ()
 setRepoA repo = do
   modify $ \s ->
     s
-      { repos = Ix.updateIx (name repo) repo s.repos
+      { -- TODO: Same as setAllReposA todo
+        appSettings = s.appSettings {repos = Ix.updateIx (name repo) repo s.appSettings.repos}
       }
 
 -- | Set a repository's branches
