@@ -52,7 +52,6 @@ runAppEff cliSettings = do
   let protocol = case cliSettings.tlsConfig of
         TLSDisabled -> "http"
         _ -> "https"
-        _ -> "https"
   log Info $ "Launching vira (" <> cliSettings.instanceName <> ") at " <> protocol <> "://" <> cliSettings.host <> ":" <> show cliSettings.port
   log Debug $ "CLI settings: " <> show cliSettings
 
