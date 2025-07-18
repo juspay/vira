@@ -19,6 +19,7 @@ data LinkTo
   | JobLog JobId
   | JobLogStream JobId
   | Kill JobId
+  | Settings
   | StatusGet
   | About
 
@@ -34,5 +35,6 @@ linkShortTitle = \case
   JobLog jobId -> "Job Log " <> show jobId
   JobLogStream jobId -> "Job Log Stream " <> show jobId
   Kill _ -> "Kill" -- unused
+  Settings -> "Settings"
   StatusGet -> "Status"
   About -> "About"

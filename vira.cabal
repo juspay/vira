@@ -133,6 +133,7 @@ library
     Vira.Page.JobPage
     Vira.Page.RegistryPage
     Vira.Page.RepoPage
+    Vira.Page.SettingsPage
     Vira.Routes
     Vira.State.Acid
     Vira.State.Core
