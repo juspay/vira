@@ -46,12 +46,52 @@ getAppSettingsA = do
   ViraState {appSettings} <- ask
   pure appSettings
 
+getCachixSettingsA :: Query ViraState (Maybe CachixSettings)
+getCachixSettingsA = do
+  ViraState {appSettings} <- ask
+  pure appSettings.cachix
+
+getAtticSettingsA :: Query ViraState (Maybe AtticSettings)
+getAtticSettingsA = do
+  ViraState {appSettings} <- ask
+  pure appSettings.attic
+
+setCachixSettingsA :: CachixSettings -> Update ViraState ()
+setCachixSettingsA cachix = do
+  modify $ \s ->
+    s
+      { -- TODO: wouldn't it be nice to use { appSettings.repos = IX.fromList repos} instead
+        appSettings = s.appSettings {cachix = Just cachix}
+      }
+
+setAtticSettingsA :: AtticSettings -> Update ViraState ()
+setAtticSettingsA attic = do
+  modify $ \s ->
+    s
+      { -- TODO: wouldn't it be nice to use { appSettings.repos = IX.fromList repos} instead
+        appSettings = s.appSettings {attic = Just attic}
+      }
+
 setAllReposA :: [Repo] -> Update ViraState ()
 setAllReposA repos = do
   modify $ \s ->
     s
-      { -- TODO: wouldn't it be nice to use { settings.repos = IX.fromList repos} instead
+      { -- TODO: wouldn't it be nice to use { appSettings.repos = IX.fromList repos} instead
         appSettings = s.appSettings {repos = Ix.fromList repos}
+      }
+
+addNewRepoA :: Repo -> Update ViraState ()
+addNewRepoA repo = do
+  modify $ \s ->
+    s
+      { appSettings = s.appSettings {repos = Ix.insert repo s.appSettings.repos}
+      }
+
+deleteRepoA :: Repo -> Update ViraState ()
+deleteRepoA repo = do
+  modify $ \s ->
+    s
+      { appSettings = s.appSettings {repos = Ix.insert repo s.appSettings.repos}
       }
 
 -- | Get all repositories
@@ -190,5 +230,11 @@ $( makeAcidic
     , 'markUnfinishedJobsAsStaleA
     , 'setAppSettingsA
     , 'getAppSettingsA
+    , 'getCachixSettingsA
+    , 'setCachixSettingsA
+    , 'getAtticSettingsA
+    , 'setAtticSettingsA
+    , 'addNewRepoA
+    , 'deleteRepoA
     ]
  )
