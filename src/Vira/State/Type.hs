@@ -8,8 +8,9 @@ import Data.Data (Data)
 import Data.IxSet.Typed
 import Data.SafeCopy
 import Servant.API (FromHttpApiData, ToHttpApiData)
-import Vira.Lib.Attic (AtticCache, AtticServer, AtticToken)
+import Vira.Lib.Attic
 import Vira.Lib.Git (BranchName, CommitID)
+import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
 
 -- | Persisted App settings
 data AppSettings = AppSettings
@@ -36,7 +37,14 @@ data AtticSettings = AtticSettings
   , atticToken :: AtticToken
   -- ^ Access token for `atticServerUrl`
   }
-  deriving stock (Show)
+  deriving stock (Show, Generic)
+
+instance FromForm AtticSettings where
+  fromForm form =
+    AtticSettings
+      <$> (AtticServer <$> parseUnique "serverName" form <*> parseUnique "serverUrl" form)
+      <*> (AtticCache <$> parseUnique "atticCacheName" form)
+      <*> (AtticToken <$> parseUnique "atticToken" form)
 
 data CachixSettings = CachixSettings
   { cachixName :: Text
@@ -44,7 +52,9 @@ data CachixSettings = CachixSettings
   , authToken :: Text
   -- ^ Auth token for the cachix cache
   }
-  deriving stock (Show)
+  deriving stock (Show, Generic)
+
+instance FromForm CachixSettings
 
 newtype RepoName = RepoName {unRepoName :: Text}
   deriving stock (Generic, Data)

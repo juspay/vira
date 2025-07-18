@@ -81,6 +81,7 @@ common library-shared
     , htmx
     , htmx-lucid
     , htmx-servant
+    , http-api-data
     , ixset-typed
     , lucid2
     , mtl

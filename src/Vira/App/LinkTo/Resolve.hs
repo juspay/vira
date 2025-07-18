@@ -27,4 +27,8 @@ linkTo = \case
   JobLogStream jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._streamLog
   Kill jobId -> fieldLink _jobs // JobPage._kill /: jobId
   Settings -> fieldLink _settings // SettingsPage._view
+  SettingsCachix -> fieldLink _settings // SettingsPage._updateCachix
+  SettingsAttic -> fieldLink _settings // SettingsPage._updateAttic
+  SettingsAddRepo -> fieldLink _settings // SettingsPage._addRepo
+  SettingsRemoveRepo -> fieldLink _settings // SettingsPage._removeRepo
   StatusGet -> fieldLink _status

@@ -13,20 +13,13 @@ module Vira.State.Core (
 ) where
 
 import Data.Acid
-import Data.IxSet.Typed qualified as Ix
 import Vira.State.Acid
 import Vira.State.Type
 
 -- | Open vira database
 openViraState :: IO (AcidState ViraState)
 openViraState = do
-  -- TODO: Remove the hardcoding
-  let repos = [Repo "vira" "https://github.com/juspay/vira.git" (RepoSettings ())]
-  let appSettings = AppSettings (Ix.fromList repos) Nothing Nothing
-
-  st <- openLocalState $ ViraState mempty mempty appSettings
-  update st $ SetAppSettingsA appSettings
-  -- update st $ SetAllReposA repos
+  st <- openLocalState $ ViraState mempty mempty (AppSettings mempty Nothing Nothing)
   update st MarkUnfinishedJobsAsStaleA
   pure st
 

@@ -87,11 +87,11 @@ addNewRepoA repo = do
       { appSettings = s.appSettings {repos = Ix.insert repo s.appSettings.repos}
       }
 
-deleteRepoA :: Repo -> Update ViraState ()
-deleteRepoA repo = do
+deleteRepoByNameA :: RepoName -> Update ViraState ()
+deleteRepoByNameA name = do
   modify $ \s ->
     s
-      { appSettings = s.appSettings {repos = Ix.insert repo s.appSettings.repos}
+      { appSettings = s.appSettings {repos = Ix.deleteIx name s.appSettings.repos}
       }
 
 -- | Get all repositories
@@ -235,6 +235,6 @@ $( makeAcidic
     , 'getAtticSettingsA
     , 'setAtticSettingsA
     , 'addNewRepoA
-    , 'deleteRepoA
+    , 'deleteRepoByNameA
     ]
  )
