@@ -303,6 +303,9 @@
   .animate-ping {
     animation: var(--animate-ping);
   }
+  .cursor-pointer {
+    cursor: pointer;
+  }
   .list-none {
     list-style-type: none;
   }
