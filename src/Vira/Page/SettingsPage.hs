@@ -22,26 +22,16 @@ import Vira.Lib.HTMX (hxPostSafe_)
 import Vira.State.Acid qualified as St
 import Vira.State.Type hiding (repoName)
 import Vira.Widgets qualified as W
-
-import Web.FormUrlEncoded (FromForm)
 import Prelude hiding (ask, for_)
 
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
   , _updateCachix :: mode :- "cachix" :> ReqBody '[FormUrlEncoded] CachixSettings :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
   , _updateAttic :: mode :- "attic" :> ReqBody '[FormUrlEncoded] AtticSettings :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
-  , _addRepo :: mode :- "repo" :> ReqBody '[FormUrlEncoded] RepoForm :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
-  , _removeRepo :: mode :- "repo" :> "remove" :> ReqBody '[FormUrlEncoded] RepoForm :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
+  , _addRepo :: mode :- "repo" :> ReqBody '[FormUrlEncoded] Repo :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
+  , _removeRepo :: mode :- "repo" :> "remove" :> ReqBody '[FormUrlEncoded] RepoName :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
   }
   deriving stock (Generic)
-
-data RepoForm = RepoForm
-  { repoName :: Text
-  , repoCloneUrl :: Text
-  }
-  deriving stock (Generic, Show)
-
-instance FromForm RepoForm
 
 handlers :: App.AppState -> Routes AsServer
 handlers cfg =
@@ -70,23 +60,16 @@ updateAtticHandler settings = do
   App.update $ St.SetAtticSettingsA settings
   pure $ addHeader True "Ok"
 
-addRepoHandler :: RepoForm -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
-addRepoHandler form = do
-  let repo =
-        Repo
-          { name = RepoName form.repoName
-          , cloneUrl = form.repoCloneUrl
-          , settings = RepoSettings ()
-          }
+addRepoHandler :: Repo -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
+addRepoHandler repo = do
   App.update $ St.AddNewRepoA repo
   pure $ addHeader True "Ok"
 
-removeRepoHandler :: RepoForm -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
-removeRepoHandler form = do
-  let repoName = RepoName form.repoName
-  App.query (St.GetRepoByNameA repoName) >>= \case
+removeRepoHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
+removeRepoHandler name = do
+  App.query (St.GetRepoByNameA name) >>= \case
     Just _repo -> do
-      App.update $ St.DeleteRepoByNameA repoName
+      App.update $ St.DeleteRepoByNameA name
       pure $ addHeader True "Ok"
     Nothing ->
       pure $ addHeader True "Not Found"
@@ -172,22 +155,30 @@ viewSettings linkTo settings repos =
         h3_ [class_ "text-lg font-medium mb-3"] "Add New Repository"
         form_ [hxPostSafe_ $ linkTo LinkTo.SettingsAddRepo, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
           div_ $ do
-            label_ [for_ "repoName", class_ "block text-sm font-medium text-gray-700"] "Repository Name"
+            label_ [for_ "name", class_ "block text-sm font-medium text-gray-700"] "Name"
             input_
               [ type_ "text"
-              , name_ "repoName"
-              , id_ "repoName"
+              , name_ "name"
+              , id_ "name"
               , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               , placeholder_ "my-repo"
               ]
           div_ $ do
-            label_ [for_ "repoCloneUrl", class_ "block text-sm font-medium text-gray-700"] "Clone URL"
+            label_ [for_ "cloneUrl", class_ "block text-sm font-medium text-gray-700"] "Clone URL"
             input_
               [ type_ "url"
-              , name_ "repoCloneUrl"
-              , id_ "repoCloneUrl"
+              , name_ "cloneUrl"
+              , id_ "cloneUrl"
               , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               , placeholder_ "https://github.com/user/repo.git"
+              ]
+          div_ $ do
+            label_ [for_ "dummy", class_ "block text-sm font-medium text-gray-700"] "Dummy"
+            input_
+              [ type_ "text"
+              , name_ "dummy"
+              , id_ "dummy"
+              , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               ]
           W.viraButton_ [type_ "submit"] "Add"
 
@@ -203,5 +194,5 @@ viewSettings linkTo settings repos =
                   br_ []
                   span_ [class_ "text-sm text-gray-600"] $ toHtml repo.cloneUrl
                 form_ [hxPostSafe_ $ linkTo LinkTo.SettingsRemoveRepo, hxSwapS_ InnerHTML, class_ "inline"] $ do
-                  input_ [type_ "hidden", name_ "removeRepoName", value_ $ toText $ toString repo.name]
+                  input_ [type_ "hidden", name_ "unRepoName", value_ $ toText $ toString repo.name]
                   W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Remove"

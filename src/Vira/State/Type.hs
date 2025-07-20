@@ -24,7 +24,7 @@ data AppSettings = AppSettings
   deriving stock (Show)
 
 newtype RepoSettings = RepoSettings
-  { dummy :: ()
+  { dummy :: Text
   -- ^ Placeholder for future per-repo settings)
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
@@ -65,6 +65,7 @@ newtype RepoName = RepoName {unRepoName :: Text}
     , ToHttpApiData
     , FromHttpApiData
     )
+instance FromForm RepoName
 
 -- | A project's git repository
 data Repo = Repo
@@ -76,6 +77,12 @@ data Repo = Repo
   -- ^ repo-specific settings
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
+
+instance FromForm Repo where
+  fromForm form =
+    (Repo . RepoName <$> parseUnique "name" form)
+      <*> parseUnique "cloneUrl" form
+      <*> (RepoSettings <$> parseUnique "dummy" form)
 
 type RepoIxs = '[RepoName]
 type IxRepo = IxSet RepoIxs Repo
