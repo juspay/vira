@@ -152,7 +152,7 @@ viewSettings linkTo settings repos =
       h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Repositories"
 
       div_ [class_ "mb-6"] $ do
-        h3_ [class_ "text-lg font-medium mb-3"] "Add New Repository"
+        h3_ [class_ "text-lg font-medium mb-3"] "New Repository"
         form_ [hxPostSafe_ $ linkTo LinkTo.SettingsAddRepo, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
           div_ $ do
             label_ [for_ "name", class_ "block text-sm font-medium text-gray-700"] "Name"
@@ -172,14 +172,16 @@ viewSettings linkTo settings repos =
               , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               , placeholder_ "https://github.com/user/repo.git"
               ]
-          div_ $ do
-            label_ [for_ "dummy", class_ "block text-sm font-medium text-gray-700"] "Dummy"
-            input_
-              [ type_ "text"
-              , name_ "dummy"
-              , id_ "dummy"
-              , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              ]
+          fieldset_ [class_ "border border-gray-300 rounded-md p-4"] $ do
+            legend_ [class_ "text-lg font-medium mb-2"] "Settings"
+            div_ $ do
+              label_ [for_ "dummy", class_ "block text-sm font-medium text-gray-700"] "Dummy"
+              input_
+                [ type_ "text"
+                , name_ "dummy"
+                , id_ "dummy"
+                , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                ]
           W.viraButton_ [type_ "submit"] "Add"
 
       div_ $ do
