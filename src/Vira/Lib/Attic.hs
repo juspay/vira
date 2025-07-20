@@ -22,7 +22,7 @@ newtype AtticToken = AtticToken {unAtticToken :: Text}
 -- | An attic cache name
 newtype AtticCache = AtticCache {unAtticCache :: Text}
   deriving stock (Eq, Show)
-  deriving newtype (IsString, ToString)
+  deriving newtype (IsString, ToString, ToText)
 
 $(deriveSafeCopy 0 'base ''AtticServer)
 $(deriveSafeCopy 0 'base ''AtticCache)
