@@ -28,8 +28,7 @@ newtype RepoSettings = RepoSettings
   -- ^ Placeholder for future per-repo settings)
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
-
-instance FromForm RepoSettings
+  deriving anyclass (FromForm)
 
 data AtticSettings = AtticSettings
   { atticServer :: AtticServer
@@ -55,8 +54,7 @@ data CachixSettings = CachixSettings
   -- ^ Auth token for the cachix cache
   }
   deriving stock (Show, Generic)
-
-instance FromForm CachixSettings
+  deriving anyclass (FromForm)
 
 newtype RepoName = RepoName {unRepoName :: Text}
   deriving stock (Generic, Data)
@@ -67,7 +65,7 @@ newtype RepoName = RepoName {unRepoName :: Text}
     , ToHttpApiData
     , FromHttpApiData
     )
-instance FromForm RepoName
+  deriving anyclass (FromForm)
 
 -- | A project's git repository
 data Repo = Repo
