@@ -31,7 +31,7 @@ data Routes mode = Routes
   , _updateCachix :: mode :- "cachix" :> ReqBody '[FormUrlEncoded] CachixSettings :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
   , _updateAttic :: mode :- "attic" :> ReqBody '[FormUrlEncoded] AtticSettings :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
   , _addRepo :: mode :- "repo" :> ReqBody '[FormUrlEncoded] RepoForm :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
-  , _removeRepo :: mode :- "repo" :> "remove" :> ReqBody '[FormUrlEncoded] RemoveRepoForm :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
+  , _removeRepo :: mode :- "repo" :> "remove" :> ReqBody '[FormUrlEncoded] RepoForm :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
   }
   deriving stock (Generic)
 
@@ -42,13 +42,6 @@ data RepoForm = RepoForm
   deriving stock (Generic, Show)
 
 instance FromForm RepoForm
-
-newtype RemoveRepoForm = RemoveRepoForm
-  { removeRepoName :: Text
-  }
-  deriving stock (Generic, Show)
-
-instance FromForm RemoveRepoForm
 
 handlers :: App.AppState -> Routes AsServer
 handlers cfg =
@@ -88,9 +81,9 @@ addRepoHandler form = do
   App.update $ St.AddNewRepoA repo
   pure $ addHeader True "Ok"
 
-removeRepoHandler :: RemoveRepoForm -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
+removeRepoHandler :: RepoForm -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
 removeRepoHandler form = do
-  let repoName = RepoName form.removeRepoName
+  let repoName = RepoName form.repoName
   App.query (St.GetRepoByNameA repoName) >>= \case
     Just _repo -> do
       App.update $ St.DeleteRepoByNameA repoName
