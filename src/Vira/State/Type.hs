@@ -29,6 +29,8 @@ newtype RepoSettings = RepoSettings
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
+instance FromForm RepoSettings
+
 data AtticSettings = AtticSettings
   { atticServer :: AtticServer
   -- ^ Attic server information
@@ -40,11 +42,11 @@ data AtticSettings = AtticSettings
   deriving stock (Show, Generic)
 
 instance FromForm AtticSettings where
-  fromForm form =
+  fromForm f =
     AtticSettings
-      <$> (AtticServer <$> parseUnique "serverName" form <*> parseUnique "serverUrl" form)
-      <*> (AtticCache <$> parseUnique "atticCacheName" form)
-      <*> (AtticToken <$> parseUnique "atticToken" form)
+      <$> fromForm f
+      <*> parseUnique "atticCacheName" f
+      <*> parseUnique "atticToken" f
 
 data CachixSettings = CachixSettings
   { cachixName :: Text
@@ -79,10 +81,11 @@ data Repo = Repo
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
 instance FromForm Repo where
-  fromForm form =
-    (Repo . RepoName <$> parseUnique "name" form)
-      <*> parseUnique "cloneUrl" form
-      <*> (RepoSettings <$> parseUnique "dummy" form)
+  fromForm f =
+    Repo
+      <$> parseUnique "name" f
+      <*> parseUnique "cloneUrl" f
+      <*> fromForm f
 
 type RepoIxs = '[RepoName]
 type IxRepo = IxSet RepoIxs Repo
