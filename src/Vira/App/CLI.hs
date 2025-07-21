@@ -3,7 +3,7 @@
 
 module Vira.App.CLI (
   -- * Types
-  Settings (..),
+  CLISettings (..),
 
   -- * Function
   parseCLI,
@@ -17,10 +17,8 @@ import Paths_vira qualified
 import Vira.Lib.TLS (TLSConfig, tlsConfigParser)
 import Prelude hiding (Reader, reader, runReader)
 
-{- | CLI Settings
-TODO: Use Severity from co-log
--}
-data Settings = Settings
+-- | CLI Settings
+data CLISettings = CLISettings
   { logLevel :: String
   -- ^ Minimum logging level
   , port :: Port
@@ -38,9 +36,9 @@ data Settings = Settings
   }
   deriving stock (Show)
 
--- | Parser for Settings
-settingsParser :: HostName -> Parser Settings
-settingsParser hostName = do
+-- | Parser for CLISettings
+cliSettingsParser :: HostName -> Parser CLISettings
+cliSettingsParser hostName = do
   port <-
     option
       auto
@@ -89,13 +87,13 @@ settingsParser hostName = do
           <> showDefault
       )
   tlsConfig <- tlsConfigParser
-  pure Settings {..}
+  pure CLISettings {..}
 
 -- -- | Full parser with info
-parseSettings :: HostName -> ParserInfo Settings
-parseSettings hostName =
+parseCLISettings :: HostName -> ParserInfo CLISettings
+parseCLISettings hostName =
   info
-    (versionOption <*> settingsParser hostName <**> helper)
+    (versionOption <*> cliSettingsParser hostName <**> helper)
     ( fullDesc
         <> progDesc "Vira"
         <> header "vira - Nix CI for teams"
@@ -106,7 +104,7 @@ parseSettings hostName =
         (showVersion Paths_vira.version)
         (long "version" <> help "Show version")
 
-parseCLI :: IO Settings
+parseCLI :: IO CLISettings
 parseCLI = do
   hostName <- liftIO getHostName
-  execParser $ parseSettings hostName
+  execParser $ parseCLISettings hostName

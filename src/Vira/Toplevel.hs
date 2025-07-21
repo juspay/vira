@@ -19,7 +19,7 @@ import Network.Wai.Middleware.Static (
  )
 import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
-import Vira.App (AppStack, Settings (..))
+import Vira.App (AppStack, CLISettings (..))
 import Vira.App qualified as App
 import Vira.App.CLI qualified as CLI
 import Vira.App.LinkTo.Resolve (linkTo)
@@ -39,33 +39,33 @@ runVira = do
     runAppIO =<< CLI.parseCLI
   where
     -- Like `runAppEff` but in `IO`
-    runAppIO :: Settings -> IO ()
-    runAppIO settings = do
+    runAppIO :: CLISettings -> IO ()
+    runAppIO cliSettings = do
       bracket openViraState closeViraState $ \acid -> do
         supervisor <- Vira.Supervisor.newSupervisor
         let st = App.AppState {linkTo = linkTo, ..}
-        App.runApp st $ runAppEff settings
+        App.runApp st $ runAppEff cliSettings
 
 -- | Vira application for given `CLISettings`
-runAppEff :: (HasCallStack) => Settings -> Eff AppStack ()
-runAppEff settings = do
-  let protocol = case settings.tlsConfig of
+runAppEff :: (HasCallStack) => CLISettings -> Eff AppStack ()
+runAppEff cliSettings = do
+  let protocol = case cliSettings.tlsConfig of
         TLSDisabled -> "http"
         _ -> "https"
-  log Info $ "Launching vira (" <> settings.instanceName <> ") at " <> protocol <> "://" <> settings.host <> ":" <> show settings.port
-  log Debug $ "CLI settings: " <> show settings
+  log Info $ "Launching vira (" <> cliSettings.instanceName <> ") at " <> protocol <> "://" <> cliSettings.host <> ":" <> show cliSettings.port
+  log Debug $ "CLI settings: " <> show cliSettings
 
   staticDir <- liftIO Paths_vira.getDataDir
   let staticMiddleware = staticPolicy $ noDots >-> addBase staticDir
   servantApp <- genericServe . Routes.handlers <$> ask
-  let host = fromString $ toString settings.host
+  let host = fromString $ toString cliSettings.host
   let warpSettings =
         Warp.defaultSettings
           & Warp.setHost host
-          & Warp.setPort settings.port
+          & Warp.setPort cliSettings.port
   let app = staticMiddleware servantApp
 
-  liftIO (tlsConfigResolve settings.tlsConfig) >>= \case
+  liftIO (tlsConfigResolve cliSettings.tlsConfig) >>= \case
     Nothing -> do
       liftIO $ Warp.runSettings warpSettings app
     Just tlsSettings -> do
