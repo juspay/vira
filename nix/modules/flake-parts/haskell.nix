@@ -74,13 +74,13 @@
 
     process-compose."vira-dev" = {
       settings = {
-        processes = {
+        processes = let host = "0.0.0.0"; port = "5005"; in {
           haskell = {
             command = pkgs.writeShellScriptBin "haskell-dev" ''
               set -x
               # Vira now auto-generates TLS certificates as needed
               ghcid -c 'cabal repl exe:vira --flags=ghcid' -T Main.main \
-                  --setup ":set args --host 0.0.0.0 --base-path ''${BASE_PATH:-/}"
+                  --setup ":set args --host ${host} --base-path ''${BASE_PATH:-/}"
             '';
             depends_on.tailwind.condition = "process_started";
             # Without `SIGINT (2)` Vira doesn't close gracefully
@@ -90,7 +90,7 @@
                 name = "vira-dev-health";
                 runtimeInputs = [ pkgs.curl ];
                 text = ''
-                  curl -k https://0.0.0.0:5005
+                  curl -k https://${host}:${port}
                 '';
               });
             };
@@ -114,17 +114,36 @@
               name = "vira-setup";
               runtimeInputs = [ pkgs.curl ];
 
-              # The cachix token here is for a dummy cache, managed by Srid.
-              text = ''
-                curl -X POST -k \
-                  --data-urlencode "name=vira" \
-                  --data-urlencode "cloneUrl=https://github.com/juspay/vira.git" \
-                  "https://0.0.0.0:5005/s/repo"
-                curl -X POST -k \
-                  --data-urlencode "cachixName=scratch-vira-dev" \
-                  --data-urlencode "authToken=eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U" \
-                  "https://0.0.0.0:5005/s/cachix"
-              '';
+              text =
+                let
+                  defaultRepos = {
+                    emanote = "https://github.com/srid/emanote.git";
+                    omnix = "https://github.com/juspay/omnix.git";
+                    vira = "https://github.com/juspay/vira.git";
+                    haskell-flake = "https://github.com/srid/haskell-flake.git";
+                    imako = "https://github.com/srid/imako.git";
+                    nixos-unified-template = "https://github.com/juspay/nixos-unified-template.git";
+                    nix-common = "https://github.com/juspay/nix-common.git";
+                    hyperswitch = "https://github.com/juspay/hyperswitch.git";
+                    superposition = "https://github.com/juspay/superposition.git";
+                    services-flake = "https://github.com/juspay/services-flake.git";
+                  };
+                in
+                lib.concatMapStrings
+                  (repo: ''
+                    curl -X POST -k \
+                      --data-urlencode "name=${repo.name}" \
+                      --data-urlencode "cloneUrl=${repo.value}" \
+                      "https://${host}:${port}/s/repo"
+                  '')
+                  (lib.attrsToList defaultRepos) +
+                # The cachix token here is for a dummy cache, managed by Srid.
+                ''
+                  curl -X POST -k \
+                    --data-urlencode "cachixName=scratch-vira-dev" \
+                    --data-urlencode "authToken=eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U" \
+                    "https://${host}:${port}/s/cachix"
+                '';
             };
             depends_on.haskell.condition = "process_healthy";
           };

@@ -108,35 +108,3 @@ parseCLI :: IO CLISettings
 parseCLI = do
   hostName <- liftIO getHostName
   execParser $ parseCLISettings hostName
-
-{- | Convert a git repository URL to a `State.Repo` record.
-repoFromUrl :: Text -> Repo
-repoFromUrl url =
-  Repo (nameForGitUrl url) url
-  where
-    --  Convert a git repository URL to a name representing it.
-    --
-    --    For example, `https://github.com/user/foo.git` becomes `foo`.
-    --
-    nameForGitUrl :: Text -> RepoName
-    nameForGitUrl gitUrl =
-      let
-        takeBaseName = T.reverse . T.takeWhile (/= '/') . T.reverse
-        name = let s = takeBaseName gitUrl in fromMaybe s $ T.stripSuffix ".git" s
-       in
-        (fromString . toString) name
--}
-
--- defaultRepos :: [Text]
--- defaultRepos =
---   [ "https://github.com/srid/emanote.git"
---   , "https://github.com/juspay/omnix.git"
---   , "https://github.com/juspay/vira.git"
---   , "https://github.com/srid/haskell-flake.git"
---   , "https://github.com/srid/imako.git"
---   , "https://github.com/juspay/nixos-unified-template.git"
---   , "https://github.com/juspay/nix-common.git"
---   , "https://github.com/juspay/hyperswitch.git"
---   , "https://github.com/juspay/superposition.git"
---   , "https://github.com/juspay/services-flake.git"
---   ]
