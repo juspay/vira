@@ -89,7 +89,7 @@ cliSettingsParser hostName = do
   tlsConfig <- tlsConfigParser
   pure CLISettings {..}
 
--- -- | Full parser with info
+-- | Full parser with info
 parseCLISettings :: HostName -> ParserInfo CLISettings
 parseCLISettings hostName =
   info
