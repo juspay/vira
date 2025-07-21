@@ -21,7 +21,7 @@ data AppSettings = AppSettings
   , attic :: Maybe AtticSettings
   -- ^ Default Attic settings
   }
-  deriving stock (Show)
+  deriving stock (Show, Generic)
 
 newtype RepoSettings = RepoSettings
   { dummy :: Text

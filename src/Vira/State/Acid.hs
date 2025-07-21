@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -14,6 +15,7 @@ import Data.IxSet.Typed qualified as Ix
 import Data.List (maximum)
 import Data.Map.Strict qualified as Map
 import Data.SafeCopy (base, deriveSafeCopy)
+import Optics.Core (over, (%))
 import System.FilePath ((</>))
 import Vira.Lib.Git (BranchName, CommitID)
 import Vira.State.Type
@@ -72,24 +74,30 @@ setAtticSettingsA attic = do
 
 setAllReposA :: [Repo] -> Update ViraState ()
 setAllReposA repos = do
-  modify $ \s ->
-    s
-      { appSettings = s.appSettings {repos = Ix.fromList repos}
-      }
+  modify $ over (#appSettings % #repos) (\_ -> Ix.fromList repos)
+
+-- \s ->
+--   s
+--     { appSettings = s.appSettings {repos = Ix.fromList repos}
+--     }
 
 addNewRepoA :: Repo -> Update ViraState ()
 addNewRepoA repo = do
-  modify $ \s ->
-    s
-      { appSettings = s.appSettings {repos = Ix.insert repo s.appSettings.repos}
-      }
+  modify $ over (#appSettings % #repos) (Ix.insert repo)
+
+-- \s ->
+--   s
+--     { appSettings = s.appSettings {repos = Ix.insert repo s.appSettings.repos}
+--     }
 
 deleteRepoByNameA :: RepoName -> Update ViraState ()
 deleteRepoByNameA name = do
-  modify $ \s ->
-    s
-      { appSettings = s.appSettings {repos = Ix.deleteIx name s.appSettings.repos}
-      }
+  modify $ over (#appSettings % #repos) (Ix.deleteIx name)
+
+-- \s ->
+--   s
+--     { appSettings = s.appSettings {repos = Ix.deleteIx name s.appSettings.repos}
+--     }
 
 -- | Get all repositories
 getAllReposA :: Query ViraState [Repo]
@@ -118,13 +126,15 @@ getBranchByNameA repo branch = do
 -- | Set a repository
 setRepoA :: Repo -> Update ViraState ()
 setRepoA repo = do
-  modify $ \s ->
-    s
-      { appSettings =
-          s.appSettings
-            { repos = Ix.updateIx (name repo) repo s.appSettings.repos
-            }
-      }
+  modify $ over (#appSettings % #repos) (Ix.updateIx (name repo) repo)
+
+-- \s ->
+--   s
+--     { appSettings =
+--         s.appSettings
+--           { repos = Ix.updateIx (name repo) repo s.appSettings.repos
+--           }
+--     }
 
 -- | Set a repository's branches
 setRepoBranchesA :: RepoName -> Map BranchName CommitID -> Update ViraState ()
