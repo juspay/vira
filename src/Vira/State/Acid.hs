@@ -60,24 +60,21 @@ setCachixSettingsA :: CachixSettings -> Update ViraState ()
 setCachixSettingsA cachix = do
   modify $ \s ->
     s
-      { -- TODO: wouldn't it be nice to use { appSettings.repos = IX.fromList repos} instead
-        appSettings = s.appSettings {cachix = Just cachix}
+      { appSettings = s.appSettings {cachix = Just cachix}
       }
 
 setAtticSettingsA :: AtticSettings -> Update ViraState ()
 setAtticSettingsA attic = do
   modify $ \s ->
     s
-      { -- TODO: wouldn't it be nice to use { appSettings.repos = IX.fromList repos} instead
-        appSettings = s.appSettings {attic = Just attic}
+      { appSettings = s.appSettings {attic = Just attic}
       }
 
 setAllReposA :: [Repo] -> Update ViraState ()
 setAllReposA repos = do
   modify $ \s ->
     s
-      { -- TODO: wouldn't it be nice to use { appSettings.repos = IX.fromList repos} instead
-        appSettings = s.appSettings {repos = Ix.fromList repos}
+      { appSettings = s.appSettings {repos = Ix.fromList repos}
       }
 
 addNewRepoA :: Repo -> Update ViraState ()
@@ -123,8 +120,10 @@ setRepoA :: Repo -> Update ViraState ()
 setRepoA repo = do
   modify $ \s ->
     s
-      { -- TODO: Same as setAllReposA todo
-        appSettings = s.appSettings {repos = Ix.updateIx (name repo) repo s.appSettings.repos}
+      { appSettings =
+          s.appSettings
+            { repos = Ix.updateIx (name repo) repo s.appSettings.repos
+            }
       }
 
 -- | Set a repository's branches
