@@ -17,6 +17,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.App.Logging
 import Vira.Lib.Attic (AtticServer (..))
 import Vira.Lib.HTMX (hxPostSafe_)
 import Vira.State.Acid qualified as St
@@ -53,16 +54,19 @@ viewHandler = do
 updateCachixHandler :: CachixSettings -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
 updateCachixHandler settings = do
   App.update $ St.SetCachixSettingsA settings
+  log Info $ "Updated cachix settings for " <> settings.cachixName
   pure $ addHeader True "Ok"
 
 updateAtticHandler :: AtticSettings -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
 updateAtticHandler settings = do
   App.update $ St.SetAtticSettingsA settings
+  log Info $ "Updated attic settings for " <> settings.atticServer.serverName <> ":" <> toText settings.atticCacheName
   pure $ addHeader True "Ok"
 
 addRepoHandler :: Repo -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
 addRepoHandler repo = do
   App.update $ St.AddNewRepoA repo
+  log Info $ "Added repository " <> toText repo.name
   pure $ addHeader True "Ok"
 
 removeRepoHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
@@ -70,8 +74,10 @@ removeRepoHandler name = do
   App.query (St.GetRepoByNameA name) >>= \case
     Just _repo -> do
       App.update $ St.DeleteRepoByNameA name
+      log Info $ "Removed repository " <> toText name
       pure $ addHeader True "Ok"
-    Nothing ->
+    Nothing -> do
+      log Warning $ "Attempted to remove non-existent repository " <> toText name
       pure $ addHeader True "Not Found"
 
 viewSettings :: (LinkTo.LinkTo -> Link) -> AppSettings -> [Repo] -> Html ()
@@ -139,7 +145,7 @@ viewSettings linkTo settings repos =
                   input_ [type_ "hidden", name_ "unRepoName", value_ $ toText $ toString repo.name]
                   W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Remove"
 
-    -- TODO: type-level guarantees for `fieldName`
+    -- TODO(CRUD): type-level guarantees for `fieldName`
     textFieldFor :: Text -> Text -> Text -> Html ()
     textFieldFor fieldName label value = div_ $ do
       _ <- label_ [for_ fieldName, class_ "block text-sm font-medium text-gray-700"] $ toHtml label

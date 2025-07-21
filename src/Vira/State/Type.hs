@@ -62,6 +62,7 @@ newtype RepoName = RepoName {unRepoName :: Text}
   deriving newtype
     ( IsString
     , ToString
+    , ToText
     , ToHttpApiData
     , FromHttpApiData
     )
