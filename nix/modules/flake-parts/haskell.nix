@@ -4,7 +4,6 @@
     inputs.haskell-flake.flakeModule
     inputs.process-compose-flake.flakeModule
   ];
-  debug = true;
   perSystem = { self', lib, config, pkgs, ... }: {
     # Our only Haskell project. You can have multiple projects, but this template
     # has only one.
