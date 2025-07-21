@@ -4,6 +4,7 @@
     inputs.haskell-flake.flakeModule
     inputs.process-compose-flake.flakeModule
   ];
+  debug = true;
   perSystem = { self', lib, config, pkgs, ... }: {
     # Our only Haskell project. You can have multiple projects, but this template
     # has only one.
@@ -74,7 +75,6 @@
     process-compose."vira-dev" = {
       settings = {
         processes = {
-          # The cachix token here is for a dummy cache, managed by Srid.
           haskell = {
             command = pkgs.writeShellScriptBin "haskell-dev" ''
               set -x
@@ -85,6 +85,15 @@
             depends_on.tailwind.condition = "process_started";
             # Without `SIGINT (2)` Vira doesn't close gracefully
             shutdown.signal = 2;
+            readiness_probe = {
+              exec.command = lib.getExe (pkgs.writeShellApplication {
+                name = "vira-dev-health";
+                runtimeInputs = [ pkgs.curl ];
+                text = ''
+                  curl -k https://0.0.0.0:5005
+                '';
+              });
+            };
           };
           tailwind =
             let
@@ -100,6 +109,25 @@
               };
               is_tty = true;
             };
+          setup = {
+            command = pkgs.writeShellApplication {
+              name = "vira-setup";
+              runtimeInputs = [ pkgs.curl ];
+
+              # The cachix token here is for a dummy cache, managed by Srid.
+              text = ''
+                curl -X POST -k \
+                  --data-urlencode "name=vira" \
+                  --data-urlencode "cloneUrl=https://github.com/juspay/vira.git" \
+                  "https://0.0.0.0:5005/s/repo"
+                curl -X POST -k \
+                  --data-urlencode "cachixName=scratch-vira-dev" \
+                  --data-urlencode "authToken=eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U" \
+                  "https://0.0.0.0:5005/s/cachix"
+              '';
+            };
+            depends_on.haskell.condition = "process_healthy";
+          };
         };
       };
     };

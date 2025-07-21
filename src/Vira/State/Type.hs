@@ -24,7 +24,7 @@ data AppSettings = AppSettings
   deriving stock (Show, Generic)
 
 newtype RepoSettings = RepoSettings
-  { dummy :: Text
+  { dummy :: Maybe Text
   -- ^ Placeholder for future per-repo settings)
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
