@@ -93,27 +93,64 @@ viewSettings linkTo settings repos =
     cachix mCachix = do
       h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Cachix"
       form_ [hxPostSafe_ $ linkTo LinkTo.SettingsCachix, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
-        textFieldFor "cachixName" "Cache Name" (maybe "" (.cachixName) mCachix)
-        textFieldFor "authToken" "Auth Token" "" -- Don't display existing token
+        div_ $ do
+          label_ [for_ "cachixName", class_ "block text-sm font-medium text-gray-700"] "Cache Name"
+          input_
+            [ type_ "text"
+            , name_ "cachixName"
+            , id_ "cachixName"
+            , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            , value_ $ maybe "" (.cachixName) mCachix
+            ]
+        div_ $ do
+          label_ [for_ "authToken", class_ "block text-sm font-medium text-gray-700"] "Auth Token"
+          input_
+            [ type_ "text"
+            , name_ "authToken"
+            , id_ "authToken"
+            , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            ]
         W.viraButton_ [type_ "submit"] "Save"
 
     attic :: Maybe AtticSettings -> Html ()
     attic mAttic = do
       h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Attic"
       form_ [hxPostSafe_ $ linkTo LinkTo.SettingsAttic, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
-        textFieldFor
-          "serverName"
-          "Server Name"
-          (maybe "" ((\(AtticServer sn _) -> sn) . (.atticServer)) mAttic)
-        textFieldFor
-          "serverUrl"
-          "Server URL"
-          (maybe "" ((\(AtticServer _ su) -> su) . (.atticServer)) mAttic)
-        textFieldFor
-          "atticCacheName"
-          "Cache Name"
-          (maybe "" (toText . (.atticCacheName)) mAttic)
-        textFieldFor "atticToken" "Token" ""
+        div_ $ do
+          label_ [for_ "serverName", class_ "block text-sm font-medium text-gray-700"] "Server Name"
+          input_
+            [ type_ "text"
+            , name_ "serverName"
+            , id_ "serverName"
+            , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            , value_ $ maybe "" ((\(AtticServer sn _) -> sn) . (.atticServer)) mAttic
+            ]
+        div_ $ do
+          label_ [for_ "serverUrl", class_ "block text-sm font-medium text-gray-700"] "Server URL"
+          input_
+            [ type_ "url"
+            , name_ "serverUrl"
+            , id_ "serverUrl"
+            , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            , value_ $ maybe "" ((\(AtticServer _ su) -> su) . (.atticServer)) mAttic
+            ]
+        div_ $ do
+          label_ [for_ "atticCacheName", class_ "block text-sm font-medium text-gray-700"] "Cache Name"
+          input_
+            [ type_ "text"
+            , name_ "atticCacheName"
+            , id_ "atticCacheName"
+            , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            , value_ $ maybe "" (toText . toString . (.atticCacheName)) mAttic
+            ]
+        div_ $ do
+          label_ [for_ "atticToken", class_ "block text-sm font-medium text-gray-700"] "Token"
+          input_
+            [ type_ "text"
+            , name_ "atticToken"
+            , id_ "atticToken"
+            , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            ]
         W.viraButton_ [type_ "submit"] "Save"
 
     repositories :: Html ()
@@ -123,11 +160,34 @@ viewSettings linkTo settings repos =
       div_ [class_ "mb-6"] $ do
         h3_ [class_ "text-lg font-medium mb-3"] "New Repository"
         form_ [hxPostSafe_ $ linkTo LinkTo.SettingsAddRepo, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
-          textFieldFor "name" "Name" ""
-          textFieldFor "cloneUrl" "Clone URL" ""
+          div_ $ do
+            label_ [for_ "name", class_ "block text-sm font-medium text-gray-700"] "Name"
+            input_
+              [ type_ "text"
+              , name_ "name"
+              , id_ "name"
+              , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              , placeholder_ "my-repo"
+              ]
+          div_ $ do
+            label_ [for_ "cloneUrl", class_ "block text-sm font-medium text-gray-700"] "Clone URL"
+            input_
+              [ type_ "url"
+              , name_ "cloneUrl"
+              , id_ "cloneUrl"
+              , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              , placeholder_ "https://github.com/user/repo.git"
+              ]
           details_ [class_ "border border-gray-300 rounded-md p-4"] $ do
             summary_ [class_ "cursor-pointer text-lg font-medium mb-2"] "Settings"
-            textFieldFor "dummy" "Dummy" ""
+            div_ $ do
+              label_ [for_ "dummy", class_ "block text-sm font-medium text-gray-700"] "Dummy"
+              input_
+                [ type_ "text"
+                , name_ "dummy"
+                , id_ "dummy"
+                , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                ]
           W.viraButton_ [type_ "submit"] "Add"
 
       div_ $ do
@@ -144,15 +204,3 @@ viewSettings linkTo settings repos =
                 form_ [hxPostSafe_ $ linkTo LinkTo.SettingsRemoveRepo, hxSwapS_ InnerHTML, class_ "inline"] $ do
                   input_ [type_ "hidden", name_ "unRepoName", value_ $ toText $ toString repo.name]
                   W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Remove"
-
-    -- TODO(CRUD): type-level guarantees for `fieldName`
-    textFieldFor :: Text -> Text -> Text -> Html ()
-    textFieldFor fieldName label value = div_ $ do
-      _ <- label_ [for_ fieldName, class_ "block text-sm font-medium text-gray-700"] $ toHtml label
-      input_
-        [ type_ "text"
-        , id_ fieldName
-        , name_ fieldName
-        , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-        , value_ value
-        ]
