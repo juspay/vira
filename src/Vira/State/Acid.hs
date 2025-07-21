@@ -76,28 +76,13 @@ setAllReposA :: [Repo] -> Update ViraState ()
 setAllReposA repos = do
   modify $ over (#appSettings % #repos) (\_ -> Ix.fromList repos)
 
--- \s ->
---   s
---     { appSettings = s.appSettings {repos = Ix.fromList repos}
---     }
-
 addNewRepoA :: Repo -> Update ViraState ()
 addNewRepoA repo = do
   modify $ over (#appSettings % #repos) (Ix.insert repo)
 
--- \s ->
---   s
---     { appSettings = s.appSettings {repos = Ix.insert repo s.appSettings.repos}
---     }
-
 deleteRepoByNameA :: RepoName -> Update ViraState ()
 deleteRepoByNameA name = do
   modify $ over (#appSettings % #repos) (Ix.deleteIx name)
-
--- \s ->
---   s
---     { appSettings = s.appSettings {repos = Ix.deleteIx name s.appSettings.repos}
---     }
 
 -- | Get all repositories
 getAllReposA :: Query ViraState [Repo]
@@ -127,14 +112,6 @@ getBranchByNameA repo branch = do
 setRepoA :: Repo -> Update ViraState ()
 setRepoA repo = do
   modify $ over (#appSettings % #repos) (Ix.updateIx (name repo) repo)
-
--- \s ->
---   s
---     { appSettings =
---         s.appSettings
---           { repos = Ix.updateIx (name repo) repo s.appSettings.repos
---           }
---     }
 
 -- | Set a repository's branches
 setRepoBranchesA :: RepoName -> Map BranchName CommitID -> Update ViraState ()
