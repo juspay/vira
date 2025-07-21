@@ -20,3 +20,6 @@ result-*
 
 # acid-state
 /state
+
+# Analysis reports
+hlint-report*.html
