@@ -65,9 +65,14 @@ updateAtticHandler settings = do
 
 addRepoHandler :: Repo -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
 addRepoHandler repo = do
-  App.update $ St.AddNewRepoA repo
-  log Info $ "Added repository " <> toText repo.name
-  pure $ addHeader True "Ok"
+  App.query (St.GetRepoByNameA repo.name) >>= \case
+    Just _repo -> do
+      log Debug $ "Repository exists " <> toText repo.name
+      pure $ addHeader True "Repository exists"
+    Nothing -> do
+      App.update $ St.AddNewRepoA repo
+      log Info $ "Added repository " <> toText repo.name
+      pure $ addHeader True "Ok"
 
 removeRepoHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
 removeRepoHandler name = do
@@ -77,8 +82,8 @@ removeRepoHandler name = do
       log Info $ "Removed repository " <> toText name
       pure $ addHeader True "Ok"
     Nothing -> do
-      log Warning $ "Attempted to remove non-existent repository " <> toText name
-      pure $ addHeader True "Not Found"
+      log Debug $ "Repository not found " <> toText name
+      pure $ addHeader True "Repository not Found"
 
 viewSettings :: (LinkTo.LinkTo -> Link) -> AppSettings -> [Repo] -> Html ()
 viewSettings linkTo settings repos =
