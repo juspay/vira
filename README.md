@@ -2,13 +2,13 @@
 
 _/வீரா/_
 
-TBD
+No-frills CI for teams using Nix.
 
 <img src="static/vira-logo.jpg" style="height: 64px;" />
 
 ## Status
 
-The project is currently in prototype phase. Contact [@srid](https://github.com/srid) for details.
+The project is currently in beta stage. Contact [@srid](https://github.com/srid) for details.
 
 ## Tech
 

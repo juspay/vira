@@ -5,5 +5,8 @@
   "haskell.formattingProvider": "fourmolu",
   "haskell.manageHLS": "PATH",
   "nix.enableLanguageServer": true,
-  "nix.serverPath": "nixd"
+  "nix.serverPath": "nixd",
+  "remote.otherPortsAttributes": {
+    "protocol": "https"
+  }
 }
