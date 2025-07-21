@@ -47,7 +47,7 @@ runVira = do
         App.runApp st $ runAppEff cliSettings
 
 -- | Vira application for given `CLISettings`
-runAppEff :: (HasCallStack) => CLISettings -> Eff AppStack ()
+runAppEff :: HasCallStack => CLISettings -> Eff AppStack ()
 runAppEff cliSettings = do
   let protocol = case cliSettings.tlsConfig of
         TLSDisabled -> "http"

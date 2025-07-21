@@ -115,7 +115,7 @@ viewJobStatus status = do
 -- TODO:
 -- 1. Fail if a build is already happening (until we support queuing)
 -- 2. Contact supervisor to spawn a new build, with it status going to DB.
-triggerNewBuild :: (HasCallStack) => RepoName -> BranchName -> Eff App.AppServantStack ()
+triggerNewBuild :: HasCallStack => RepoName -> BranchName -> Eff App.AppServantStack ()
 triggerNewBuild repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
