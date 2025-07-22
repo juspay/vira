@@ -28,12 +28,15 @@ import Vira.State.Type hiding (repoName)
 import Vira.Widgets qualified as W
 import Prelude hiding (ask, for_)
 
+type FormReq a = ReqBody '[FormUrlEncoded] a
+type FormResp = Headers '[HXRefresh] (Html ())
+
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
-  , _updateCachix :: mode :- "cachix" :> ReqBody '[FormUrlEncoded] CachixSettings :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
-  , _updateAttic :: mode :- "attic" :> ReqBody '[FormUrlEncoded] AtticSettings :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
-  , _addRepo :: mode :- "repo" :> ReqBody '[FormUrlEncoded] Repo :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
-  , _removeRepo :: mode :- "repo" :> "remove" :> ReqBody '[FormUrlEncoded] RepoName :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
+  , _updateCachix :: mode :- "cachix" :> FormReq CachixSettings :> Post '[HTML] FormResp
+  , _updateAttic :: mode :- "attic" :> FormReq AtticSettings :> Post '[HTML] FormResp
+  , _addRepo :: mode :- "repo" :> FormReq Repo :> Post '[HTML] FormResp
+  , _removeRepo :: mode :- "repo" :> "remove" :> FormReq RepoName :> Post '[HTML] FormResp
   }
   deriving stock (Generic)
 
@@ -54,19 +57,19 @@ viewHandler = do
   repos <- App.query St.GetAllReposA
   pure $ W.layout cfg [LinkTo.Settings] $ viewSettings cfg.linkTo settings repos
 
-updateCachixHandler :: CachixSettings -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
+updateCachixHandler :: CachixSettings -> Eff App.AppServantStack FormResp
 updateCachixHandler settings = do
   App.update $ St.SetCachixSettingsA settings
   log Info $ "Updated cachix settings for " <> settings.cachixName
   pure $ addHeader True "Ok"
 
-updateAtticHandler :: AtticSettings -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
+updateAtticHandler :: AtticSettings -> Eff App.AppServantStack FormResp
 updateAtticHandler settings = do
   App.update $ St.SetAtticSettingsA settings
   log Info $ "Updated attic settings for " <> settings.atticServer.serverName <> ":" <> toText settings.atticCacheName
   pure $ addHeader True "Ok"
 
-addRepoHandler :: Repo -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
+addRepoHandler :: Repo -> Eff App.AppServantStack FormResp
 addRepoHandler repo = do
   App.query (St.GetRepoByNameA repo.name) >>= \case
     Just _repo -> do
@@ -77,7 +80,7 @@ addRepoHandler repo = do
       log Info $ "Added repository " <> toText repo.name
       pure $ addHeader True "Ok"
 
-removeRepoHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
+removeRepoHandler :: RepoName -> Eff App.AppServantStack FormResp
 removeRepoHandler name = do
   App.query (St.GetRepoByNameA name) >>= \case
     Just _repo -> do
