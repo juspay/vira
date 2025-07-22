@@ -179,7 +179,7 @@ viewSettings linkTo settings repos =
                 , placeholder_ "https://github.com/user/repo.git"
                 ]
           details_ [class_ "border border-gray-300 rounded-md p-4"] $ do
-            summary_ [class_ "cursor-pointer text-lg font-medium mb-2"] "Settings"
+            summary_ [class_ "cursor-pointer text-lg font-medium mb-2"] "Settings (optional)"
             div_ $ do
               withFieldName @RepoSettings @"dummy" $ \name -> do
                 W.viraLabel_ [for_ name] "Dummy"
