@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Working with [attic](https://github.com/zhaofengli/attic) cache servers
@@ -15,8 +16,7 @@ data AtticServer = AtticServer
   , serverUrl :: Text
   }
   deriving stock (Eq, Show, Generic)
-
-instance FromForm AtticServer
+  deriving anyclass (FromForm)
 
 -- | An attic login token
 newtype AtticToken = AtticToken {unAtticToken :: Text}
