@@ -107,7 +107,6 @@ viewSettings linkTo settings repos =
             W.viraInput_
               [ type_ "text"
               , name_ name
-              , id_ name
               , value_ $ maybe "" (.cachixName) mCachix
               ]
         div_ $ do
@@ -116,7 +115,6 @@ viewSettings linkTo settings repos =
             W.viraInput_
               [ type_ "text"
               , name_ name
-              , id_ name
               ]
         W.viraButton_ [type_ "submit"] "Save"
 
@@ -130,7 +128,6 @@ viewSettings linkTo settings repos =
             W.viraInput_
               [ type_ "text"
               , name_ name
-              , id_ name
               , value_ $ maybe "" ((\(AtticServer sn _) -> sn) . (.atticServer)) mAttic
               ]
         div_ $ do
@@ -139,7 +136,6 @@ viewSettings linkTo settings repos =
             W.viraInput_
               [ type_ "url"
               , name_ name
-              , id_ name
               , value_ $ maybe "" ((\(AtticServer _ su) -> su) . (.atticServer)) mAttic
               ]
         div_ $ do
@@ -148,7 +144,6 @@ viewSettings linkTo settings repos =
             W.viraInput_
               [ type_ "text"
               , name_ name
-              , id_ name
               , value_ $ maybe "" (toText . (.atticCacheName)) mAttic
               ]
         div_ $ do
@@ -157,7 +152,6 @@ viewSettings linkTo settings repos =
             W.viraInput_
               [ type_ "text"
               , name_ name
-              , id_ name
               ] -- Doesn't display existing token
         W.viraButton_ [type_ "submit"] "Save"
 
@@ -174,7 +168,6 @@ viewSettings linkTo settings repos =
               W.viraInput_
                 [ type_ "text"
                 , name_ name
-                , id_ name
                 , placeholder_ "my-repo"
                 ]
           div_ $ do
@@ -183,7 +176,6 @@ viewSettings linkTo settings repos =
               W.viraInput_
                 [ type_ "url"
                 , name_ name
-                , id_ name
                 , placeholder_ "https://github.com/user/repo.git"
                 ]
           details_ [class_ "border border-gray-300 rounded-md p-4"] $ do
@@ -194,7 +186,6 @@ viewSettings linkTo settings repos =
                 W.viraInput_
                   [ type_ "text"
                   , name_ name
-                  , id_ name
                   ]
           W.viraButton_ [type_ "submit"] "Add"
 
