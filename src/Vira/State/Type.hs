@@ -40,6 +40,7 @@ data AtticSettings = AtticSettings
   }
   deriving stock (Show, Generic)
 
+-- TODO: Use TH to type-check the instance definition in compile-time
 instance FromForm AtticSettings where
   fromForm f =
     AtticSettings
@@ -79,6 +80,7 @@ data Repo = Repo
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
+-- TODO: Use TH to type-check the instance definition in compile-time
 instance FromForm Repo where
   fromForm f =
     Repo
