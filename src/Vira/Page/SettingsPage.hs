@@ -115,6 +115,7 @@ viewSettings linkTo settings repos =
             W.viraInput_
               [ type_ "text"
               , name_ name
+              , placeholder_ "Existing value is hidden for security reasons"
               ]
         W.viraButton_ [type_ "submit"] "Save"
 
