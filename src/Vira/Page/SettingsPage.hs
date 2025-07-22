@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 module Vira.Page.SettingsPage (
@@ -8,6 +9,8 @@ where
 
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (ask)
+import GHC.Records (HasField)
+import GHC.TypeLits (KnownSymbol, symbolVal)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (InnerHTML))
@@ -122,40 +125,21 @@ viewSettings linkTo settings repos =
       h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Attic"
       form_ [hxPostSafe_ $ linkTo LinkTo.SettingsAttic, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
         div_ $ do
-          label_ [for_ "serverName", class_ "block text-sm font-medium text-gray-700"] "Server Name"
-          input_
-            [ type_ "text"
-            , name_ "serverName"
-            , id_ "serverName"
-            , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            , value_ $ maybe "" ((\(AtticServer sn _) -> sn) . (.atticServer)) mAttic
-            ]
+          withFieldName @AtticServer @"serverName" $ \name -> do
+            W.viraLabel_ [for_ name] "Server Name"
+            W.viraInput_ [type_ "text", name_ name, id_ name, value_ $ maybe "" ((\(AtticServer sn _) -> sn) . (.atticServer)) mAttic]
         div_ $ do
-          label_ [for_ "serverUrl", class_ "block text-sm font-medium text-gray-700"] "Server URL"
-          input_
-            [ type_ "url"
-            , name_ "serverUrl"
-            , id_ "serverUrl"
-            , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            , value_ $ maybe "" ((\(AtticServer _ su) -> su) . (.atticServer)) mAttic
-            ]
+          withFieldName @AtticServer @"serverUrl" $ \name -> do
+            W.viraLabel_ [for_ name] "Server URL"
+            W.viraInput_ [type_ "url", name_ name, id_ name, value_ $ maybe "" ((\(AtticServer _ su) -> su) . (.atticServer)) mAttic]
         div_ $ do
-          label_ [for_ "atticCacheName", class_ "block text-sm font-medium text-gray-700"] "Cache Name"
-          input_
-            [ type_ "text"
-            , name_ "atticCacheName"
-            , id_ "atticCacheName"
-            , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            , value_ $ maybe "" (toText . toString . (.atticCacheName)) mAttic
-            ]
+          withFieldName @AtticSettings @"atticCacheName" $ \name -> do
+            W.viraLabel_ [for_ name] "Cache Name"
+            W.viraInput_ [type_ "text", name_ name, id_ name, value_ $ maybe "" (toText . (.atticCacheName)) mAttic]
         div_ $ do
-          label_ [for_ "atticToken", class_ "block text-sm font-medium text-gray-700"] "Token"
-          input_
-            [ type_ "text"
-            , name_ "atticToken"
-            , id_ "atticToken"
-            , class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            ]
+          withFieldName @AtticSettings @"atticToken" $ \name -> do
+            W.viraLabel_ [for_ name] "Token"
+            W.viraInput_ [type_ "text", name_ name, id_ name] -- Doesn't display existing token
         W.viraButton_ [type_ "submit"] "Save"
 
     repositories :: Html ()
@@ -209,3 +193,12 @@ viewSettings linkTo settings repos =
                 form_ [hxPostSafe_ $ linkTo LinkTo.SettingsRemoveRepo, hxSwapS_ InnerHTML, class_ "inline"] $ do
                   input_ [type_ "hidden", name_ "unRepoName", value_ $ toText $ toString repo.name]
                   W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Remove"
+
+    withFieldName ::
+      forall record field a r.
+      (KnownSymbol field, HasField field record a) =>
+      (Text -> r) ->
+      r
+    withFieldName k =
+      let fieldName = toText (symbolVal (Proxy @field))
+       in k fieldName

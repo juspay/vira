@@ -4,6 +4,8 @@
 module Vira.Widgets (
   layout,
   viraButton_,
+  viraInput_,
+  viraLabel_,
 ) where
 
 import Lucid
@@ -94,3 +96,11 @@ viraButton_ attrs =
       ]
         <> attrs
     )
+
+viraInput_ :: forall (m :: Type -> Type). (Monad m) => [Attributes] -> HtmlT m ()
+viraInput_ attrs = do
+  input_ ([class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"] <> attrs)
+
+viraLabel_ :: forall {result}. (Term [Attributes] result) => [Attributes] -> result
+viraLabel_ attrs = do
+  label_ ([class_ "block text-sm font-medium text-gray-700"] <> attrs)

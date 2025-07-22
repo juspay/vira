@@ -20,6 +20,9 @@
             "*.nix"
             ".hlint.yaml"
           ];
+          settings.config.default.extend-words = {
+            Lits = "GHC.TypeLits";
+          };
         };
       };
     };
