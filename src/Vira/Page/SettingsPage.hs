@@ -137,7 +137,7 @@ viewSettings linkTo settings repos =
             W.viraInput_
               [ type_ "url"
               , name_ name
-              , value_ $ maybe "" (.serverUrl . (.atticServer)) mAttic
+              , value_ $ maybe "" ((.serverUrl) . (.atticServer)) mAttic
               ]
         div_ $ do
           withFieldName @AtticSettings @"atticCacheName" $ \name -> do
