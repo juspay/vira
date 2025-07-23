@@ -117,16 +117,10 @@
               text =
                 let
                   defaultRepos = {
-                    emanote = "https://github.com/srid/emanote.git";
                     omnix = "https://github.com/juspay/omnix.git";
                     vira = "https://github.com/juspay/vira.git";
-                    haskell-flake = "https://github.com/srid/haskell-flake.git";
-                    imako = "https://github.com/srid/imako.git";
                     nixos-unified-template = "https://github.com/juspay/nixos-unified-template.git";
-                    nix-common = "https://github.com/juspay/nix-common.git";
-                    hyperswitch = "https://github.com/juspay/hyperswitch.git";
                     superposition = "https://github.com/juspay/superposition.git";
-                    services-flake = "https://github.com/juspay/services-flake.git";
                   };
                 in
                 lib.concatMapStrings
