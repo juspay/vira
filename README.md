@@ -76,4 +76,4 @@ These are expected behaviors for development and don't affect functionality. The
 nix run github:juspay/vira --accept-flake-config -- --port 5005
 ```
 
-This uses samples repos, but you can pass your own in the command line.
+You can now add your repositories in the web app.
