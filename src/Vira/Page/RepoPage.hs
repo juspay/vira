@@ -18,7 +18,7 @@ import Vira.App.LinkTo.Type (LinkTo (RepoUpdate))
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
-import Vira.Lib.HTMX (hxPostSafe_)
+import Vira.Lib.HTMX (hxConfirm_, hxPostSafe_)
 import Vira.Page.BranchPage qualified as BranchPage
 import Vira.Page.JobPage qualified as JobPage
 import Vira.State.Acid qualified as St
@@ -94,6 +94,7 @@ viewRepo linkTo repo branches = do
           [ hxPostSafe_ $ linkTo $ LinkTo.RepoDeletePage repo.name
           , hxSwapS_ AfterEnd
           , class_ "bg-red-600 hover:bg-red-700"
+          , hxConfirm_ "Are you sure you want to delete this repository? This action cannot be undone."
           ]
           "Delete Repository"
     div_ [class_ "space-y-8"] $ do

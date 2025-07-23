@@ -20,6 +20,9 @@ hxSseSwap_ = makeAttributes "sse-swap"
 hxSseClose_ :: Text -> Attributes
 hxSseClose_ = makeAttributes "sse-close"
 
+hxConfirm_ :: Text -> Attributes
+hxConfirm_ = makeAttributes "hx-confirm"
+
 -- Fixed version of functions in htmx-servant
 -- https://github.com/JonathanLorimer/htmx/issues/16
 

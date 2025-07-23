@@ -22,7 +22,7 @@ import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging
 import Vira.Lib.Attic (AtticServer (..))
-import Vira.Lib.HTMX (hxPostSafe_)
+import Vira.Lib.HTMX (hxConfirm_, hxPostSafe_)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (AtticSettings (..), CachixSettings (..))
 import Vira.Widgets qualified as W
@@ -111,7 +111,7 @@ viewSettings linkTo mCachix mAttic =
       div_ [class_ "flex items-center space-x-2 mt-4"] $ do
         W.viraButton_ [type_ "submit", form_ "cachix-update"] "Update"
         whenJust mCachix $ \_ ->
-          form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteCachix, hxSwapS_ InnerHTML] $ do
+          form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteCachix, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to delete the Cachix settings? This action cannot be undone."] $ do
             W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Delete"
 
     atticForm :: Html ()
@@ -153,7 +153,7 @@ viewSettings linkTo mCachix mAttic =
       div_ [class_ "flex items-center space-x-2 mt-4"] $ do
         W.viraButton_ [type_ "submit", form_ "attic-update"] "Update"
         whenJust mAttic $ \_ ->
-          form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteAttic, hxSwapS_ InnerHTML] $ do
+          form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteAttic, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to delete the Attic settings? This action cannot be undone."] $ do
             W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Delete"
 
 withFieldName ::
