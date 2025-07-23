@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
+-- | Vira's global settings page
 module Vira.Page.SettingsPage (
   Routes (..),
   handlers,
@@ -90,7 +91,7 @@ viewSettings linkTo mCachix mAttic =
     cachixForm :: Html ()
     cachixForm = do
       h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Cachix"
-      form_ [id_ "cachix-update", hxPostSafe_ $ linkTo LinkTo.SettingsCachix, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
+      form_ [id_ "cachix-update", hxPostSafe_ $ linkTo LinkTo.SettingsUpdateCachix, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
         div_ $ do
           withFieldName @CachixSettings @"cachixName" $ \name -> do
             W.viraLabel_ [for_ name] "Cache Name"
@@ -117,7 +118,7 @@ viewSettings linkTo mCachix mAttic =
     atticForm :: Html ()
     atticForm = do
       h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Attic"
-      form_ [id_ "attic-update", hxPostSafe_ $ linkTo LinkTo.SettingsAttic, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
+      form_ [id_ "attic-update", hxPostSafe_ $ linkTo LinkTo.SettingsUpdateAttic, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
         div_ $ do
           withFieldName @AtticServer @"serverName" $ \name -> do
             W.viraLabel_ [for_ name] "Server Name"

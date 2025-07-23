@@ -97,6 +97,8 @@ viraButton_ attrs =
         <> attrs
     )
 
+-- Form related widgets below
+
 viraInput_ :: forall (m :: Type -> Type). (Monad m) => [Attributes] -> HtmlT m ()
 viraInput_ attrs = do
   input_ ([class_ "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"] <> attrs)

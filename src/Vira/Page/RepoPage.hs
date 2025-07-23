@@ -14,7 +14,6 @@ import Servant.API ((:>))
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
-import Vira.App.LinkTo.Type (LinkTo (RepoUpdate))
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
@@ -35,7 +34,7 @@ data Routes mode = Routes
   }
   deriving stock (Generic)
 
-crumbs :: [LinkTo]
+crumbs :: [LinkTo.LinkTo]
 crumbs = [LinkTo.RepoListing]
 
 handlers :: App.AppState -> RepoName -> Routes AsServer
@@ -85,13 +84,13 @@ viewRepo linkTo repo branches = do
       pre_ [class_ "rounded py-2 flex-1"] $ code_ $ toHtml repo.cloneUrl
       div_ [class_ "flex gap-2 ml-4"] $ do
         W.viraButton_
-          [ hxPostSafe_ $ linkTo $ RepoUpdate repo.name
+          [ hxPostSafe_ $ linkTo $ LinkTo.RepoUpdate repo.name
           , hxSwapS_ AfterEnd
           , class_ "bg-blue-600 hover:bg-blue-700"
           ]
           "Refresh branches"
         W.viraButton_
-          [ hxPostSafe_ $ linkTo $ LinkTo.RepoDeletePage repo.name
+          [ hxPostSafe_ $ linkTo $ LinkTo.RepoDelete repo.name
           , hxSwapS_ AfterEnd
           , class_ "bg-red-600 hover:bg-red-700"
           , hxConfirm_ "Are you sure you want to delete this repository? This action cannot be undone."
