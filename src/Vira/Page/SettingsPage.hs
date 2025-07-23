@@ -24,7 +24,7 @@ import Vira.App.Logging
 import Vira.Lib.Attic (AtticServer (..))
 import Vira.Lib.HTMX (hxPostSafe_)
 import Vira.State.Acid qualified as St
-import Vira.State.Type hiding (repoName)
+import Vira.State.Type (AtticSettings (..), CachixSettings (..))
 import Vira.Widgets qualified as W
 import Prelude hiding (ask, for_)
 
@@ -37,8 +37,6 @@ data Routes mode = Routes
   , _deleteCachix :: mode :- "cachix" :> "delete" :> Post '[HTML] FormResp
   , _updateAttic :: mode :- "attic" :> FormReq AtticSettings :> Post '[HTML] FormResp
   , _deleteAttic :: mode :- "attic" :> "delete" :> Post '[HTML] FormResp
-  , _addRepo :: mode :- "repo" :> FormReq Repo :> Post '[HTML] FormResp
-  , _deleteRepo :: mode :- "repo" :> "delete" :> FormReq RepoName :> Post '[HTML] FormResp
   }
   deriving stock (Generic)
 
@@ -50,8 +48,6 @@ handlers cfg =
     , _deleteCachix = App.runAppInServant cfg deleteCachixHandler
     , _updateAttic = App.runAppInServant cfg . updateAtticHandler
     , _deleteAttic = App.runAppInServant cfg deleteAtticHandler
-    , _addRepo = App.runAppInServant cfg . addRepoHandler
-    , _deleteRepo = App.runAppInServant cfg . deleteRepoHandler
     }
 
 viewHandler :: Eff App.AppServantStack (Html ())
@@ -59,8 +55,7 @@ viewHandler = do
   cfg <- ask
   mCachix <- App.query St.GetCachixSettingsA
   mAttic <- App.query St.GetAtticSettingsA
-  repos <- App.query St.GetAllReposA
-  pure $ W.layout cfg [LinkTo.Settings] $ viewSettings cfg.linkTo mCachix mAttic repos
+  pure $ W.layout cfg [LinkTo.Settings] $ viewSettings cfg.linkTo mCachix mAttic
 
 updateCachixHandler :: CachixSettings -> Eff App.AppServantStack FormResp
 updateCachixHandler settings = do
@@ -86,36 +81,9 @@ deleteAtticHandler = do
   log Info "Deleted attic settings"
   pure $ addHeader True "Ok"
 
-addRepoHandler :: Repo -> Eff App.AppServantStack FormResp
-addRepoHandler repo = do
-  cfg <- ask
-  App.query (St.GetRepoByNameA repo.name) >>= \case
-    Just _repo -> do
-      log Debug $ "Repository exists " <> toText repo.name
-      pure $ addHeader False $ do
-        -- Don't refresh, swap the existing form for visual feedback on the browser
-        newRepoForm cfg.linkTo
-        p_ "Repository exists"
-    Nothing -> do
-      App.update $ St.AddNewRepoA repo
-      log Info $ "Added repository " <> toText repo.name
-      pure $ addHeader True "Ok"
-
-deleteRepoHandler :: RepoName -> Eff App.AppServantStack FormResp
-deleteRepoHandler name = do
-  App.query (St.GetRepoByNameA name) >>= \case
-    Just _repo -> do
-      App.update $ St.DeleteRepoByNameA name
-      log Info $ "Deleted repository " <> toText name
-      pure $ addHeader True "Ok"
-    Nothing -> do
-      log Debug $ "Repository not found " <> toText name
-      pure $ addHeader True "Repository not Found"
-
-viewSettings :: (LinkTo.LinkTo -> Link) -> Maybe CachixSettings -> Maybe AtticSettings -> [Repo] -> Html ()
-viewSettings linkTo mCachix mAttic repos =
+viewSettings :: (LinkTo.LinkTo -> Link) -> Maybe CachixSettings -> Maybe AtticSettings -> Html ()
+viewSettings linkTo mCachix mAttic =
   div_ [class_ "space-y-8"] $ do
-    section_ [class_ "bg-white border-2 border-gray-300 rounded-xl shadow-md p-6"] repositories
     section_ [class_ "bg-white border-2 border-gray-300 rounded-xl shadow-md p-6"] cachixForm
     section_ [class_ "bg-white border-2 border-gray-300 rounded-xl shadow-md p-6"] atticForm
   where
@@ -187,62 +155,6 @@ viewSettings linkTo mCachix mAttic repos =
         whenJust mAttic $ \_ ->
           form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteAttic, hxSwapS_ InnerHTML] $ do
             W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Delete"
-
-    repositories :: Html ()
-    repositories = do
-      h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Repositories"
-
-      div_ [class_ "space-y-3"] $ do
-        -- Show existing repositories first
-        forM_ repos $ \repo ->
-          div_ [class_ "flex items-center justify-between p-3 bg-gray-50 rounded-md"] $ do
-            div_ $ do
-              strong_ [class_ "text-gray-900"] $ toHtml $ toString repo.name
-              br_ []
-              span_ [class_ "text-sm text-gray-600"] $ toHtml repo.cloneUrl
-            form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteRepo, hxSwapS_ InnerHTML, class_ "inline"] $ do
-              withFieldName @RepoName @"unRepoName" $ \name ->
-                W.viraInput_ [type_ "hidden", name_ name, value_ $ toText $ toString repo.name]
-              W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Delete"
-
-        -- Add new repository form at the end
-        div_ [class_ "border-2 border-dashed border-gray-300 rounded-md p-4 bg-gray-50/50"] $ do
-          details_ [class_ "group"] $ do
-            summary_ [class_ "cursor-pointer text-lg font-medium text-gray-700 hover:text-gray-900 flex items-center"] $ do
-              span_ [class_ "mr-2"] "+"
-              span_ "Add New Repository"
-            div_ [class_ "mt-4 pl-6"] $ do
-              newRepoForm linkTo
-
-newRepoForm :: (LinkTo.LinkTo -> Link) -> Html ()
-newRepoForm linkTo = do
-  form_ [hxPostSafe_ $ linkTo LinkTo.SettingsAddRepo, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
-    div_ $ do
-      withFieldName @Repo @"name" $ \name -> do
-        W.viraLabel_ [for_ name] "Name"
-        W.viraInput_
-          [ type_ "text"
-          , name_ name
-          , placeholder_ "my-repo"
-          ]
-    div_ $ do
-      withFieldName @Repo @"cloneUrl" $ \name -> do
-        W.viraLabel_ [for_ name] "Clone URL"
-        W.viraInput_
-          [ type_ "url"
-          , name_ name
-          , placeholder_ "https://github.com/user/repo.git"
-          ]
-    details_ [class_ "border border-gray-300 rounded-md p-4"] $ do
-      summary_ [class_ "cursor-pointer text-lg font-medium mb-2"] "Settings (optional)"
-      div_ $ do
-        withFieldName @RepoSettings @"dummy" $ \name -> do
-          W.viraLabel_ [for_ name] "Dummy"
-          W.viraInput_
-            [ type_ "text"
-            , name_ name
-            ]
-    W.viraButton_ [type_ "submit"] "Add"
 
 withFieldName ::
   forall record field a r.

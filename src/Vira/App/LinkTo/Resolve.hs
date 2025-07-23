@@ -20,6 +20,8 @@ linkTo = \case
   RepoListing -> fieldLink _repos // RegistryPage._listing
   Repo name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._view
   RepoUpdate name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._update
+  RepoAdd -> fieldLink _repos // RegistryPage._addRepo
+  RepoDelete -> fieldLink _repos // RegistryPage._deleteRepo
   Build repo branch -> fieldLink _jobs // JobPage._build /: repo /: branch
   RepoBranch repo branch -> fieldLink _repos // RegistryPage._repo /: repo // RepoPage._branch /: branch // BranchPage._view
   Job jobId -> fieldLink _jobs // JobPage._view /: jobId
@@ -31,6 +33,6 @@ linkTo = \case
   SettingsDeleteCachix -> fieldLink _settings // SettingsPage._deleteCachix
   SettingsAttic -> fieldLink _settings // SettingsPage._updateAttic
   SettingsDeleteAttic -> fieldLink _settings // SettingsPage._deleteAttic
-  SettingsAddRepo -> fieldLink _settings // SettingsPage._addRepo
-  SettingsDeleteRepo -> fieldLink _settings // SettingsPage._deleteRepo
+  SettingsAddRepo -> fieldLink _repos // RegistryPage._addRepo
+  SettingsDeleteRepo -> fieldLink _repos // RegistryPage._deleteRepo
   StatusGet -> fieldLink _status
