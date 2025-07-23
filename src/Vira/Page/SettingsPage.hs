@@ -92,7 +92,7 @@ viewSettings linkTo mCachix mAttic = do
       -- Cachix Configuration
       W.viraCard_ [class_ "p-6"] $ do
         div_ [class_ "flex items-center mb-6"] $ do
-          img_ [src_ "https://docs.cachix.org/img/logo.svg", alt_ "Cachix", class_ "h-8 w-8 mr-3"]
+          span_ [class_ "h-8 w-8 mr-3 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold"] "C"
           h3_ [class_ "text-xl font-bold text-gray-900"] "Cachix Configuration"
 
         case mCachix of

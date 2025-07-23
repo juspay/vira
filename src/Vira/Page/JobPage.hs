@@ -118,7 +118,7 @@ viewJobHeader linkTo job = do
 
 viewCommit :: Git.CommitID -> Html ()
 viewCommit (Git.CommitID commit) = do
-  W.viraCodeBlock_ (T.take 8 $ toText commit)
+  W.viraCodeInline_ (T.take 8 $ toText commit)
 
 viewJobStatus :: St.JobStatus -> Html ()
 viewJobStatus status = do

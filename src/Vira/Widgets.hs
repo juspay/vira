@@ -11,6 +11,7 @@ module Vira.Widgets (
   viraPageHeader_,
   viraStatusBadge_,
   viraCodeBlock_,
+  viraCodeInline_,
   viraAlert_,
   viraFormGroup_,
   viraIconButton_,
@@ -19,9 +20,9 @@ module Vira.Widgets (
 
 import Lucid
 import Servant.Links (Link, URI (..), linkURI)
-import Vira.App (AppState (cliSettings, linkTo), instanceName)
-import Vira.App.CLI (CLISettings (basePath))
+import Vira.App.CLI (CLISettings (basePath), instanceName)
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
+import Vira.App.Stack (AppState (cliSettings, linkTo))
 import Vira.Lib.HTMX
 import Vira.Stream.Status qualified as Status
 
@@ -169,6 +170,11 @@ viraCodeBlock_ :: Text -> Html ()
 viraCodeBlock_ code = do
   div_ [class_ "bg-gray-50 border border-gray-200 rounded-lg p-4 overflow-x-auto"] $ do
     code_ [class_ "text-sm text-gray-800 font-mono break-all"] $ toHtml code
+
+-- | Inline code component for smaller code snippets
+viraCodeInline_ :: Text -> Html ()
+viraCodeInline_ code = do
+  code_ [class_ "px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded font-mono"] $ toHtml code
 
 -- | Alert component with variants
 viraAlert_ :: Text -> Text -> Html () -> Html ()

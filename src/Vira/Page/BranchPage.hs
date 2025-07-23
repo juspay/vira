@@ -75,6 +75,6 @@ viewJobListing linkTo jobs = do
     then div_ [class_ "text-center py-12 text-gray-500"] $ do
       p_ [class_ "text-lg"] "No builds yet"
       p_ [class_ "text-sm mt-2"] "Start your first build using the button above"
-    else div_ [class_ "space-y-3"] $ forM_ jobs $ \job -> do
-      div_ [class_ "bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"] $ do
+    else div_ [class_ "divide-y divide-gray-200"] $ forM_ jobs $ \job -> do
+      div_ [class_ "py-4 hover:bg-gray-50 transition-colors duration-150"] $ do
         JobPage.viewJobHeader linkTo job

@@ -82,10 +82,13 @@ viewRepo linkTo repo branches = do
   W.viraSection_ [] $ do
     -- Repository header with improved styling
     W.viraCard_ [class_ "p-6 mb-8"] $ do
-      div_ [class_ "flex items-center justify-between"] $ do
+      div_ [class_ "flex items-start justify-between"] $ do
         div_ [class_ "flex-1"] $ do
-          W.viraPageHeader_ (toText $ toString repo.name) $ do
-            W.viraCodeBlock_ (toText repo.cloneUrl)
+          h1_ [class_ "text-3xl font-bold text-gray-900 tracking-tight mb-3"] $
+            toHtml $
+              toString repo.name
+          p_ [class_ "text-sm text-gray-500 font-mono break-all"] $
+            toHtml repo.cloneUrl
         div_ [class_ "flex gap-3 ml-6"] $ do
           W.viraButton_
             [ hxPostSafe_ $ linkTo $ LinkTo.RepoUpdate repo.name
@@ -109,11 +112,11 @@ viewRepo linkTo repo branches = do
           -- Branch header
           div_ [class_ "bg-gradient-to-r from-indigo-50 to-blue-50 p-6 border-b border-gray-100"] $ do
             div_ [class_ "flex items-center justify-between"] $ do
-              div_ $ do
-                h2_ [class_ "text-2xl font-bold text-gray-900 mb-2"] $ do
+              div_ [class_ "flex items-center space-x-4"] $ do
+                h2_ [class_ "text-xl font-bold text-gray-900"] $ do
                   a_ [href_ $ show url, class_ "text-indigo-600 hover:text-indigo-800 transition-colors hover:underline"] $ do
                     toHtml $ toString branch.branchName
-                div_ [class_ "text-gray-600"] $ do
+                div_ [class_ "text-sm text-gray-500"] $ do
                   JobPage.viewCommit branch.headCommit
               div_ $ do
                 W.viraButton_

@@ -92,16 +92,13 @@ viewRepoList linkTo registry = do
             let url = linkURI $ linkTo $ LinkTo.Repo repo.name
             W.viraCard_ [class_ "p-6 hover:shadow-xl transition-all duration-300 cursor-pointer group"] $ do
               a_ [href_ $ show url, class_ "block"] $ do
-                div_ [class_ "flex items-start justify-between mb-4"] $ do
+                div_ [class_ "flex items-start justify-between mb-3"] $ do
                   h3_ [class_ "text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors"] $
                     toHtml $
                       toString repo.name
                   span_ [class_ "text-gray-400 group-hover:text-indigo-500 transition-colors"] "→"
-                div_ [class_ "mb-4"] $ do
-                  W.viraCodeBlock_ (toText repo.cloneUrl)
-                div_ [class_ "flex items-center text-sm text-gray-500"] $ do
-                  span_ [class_ "mr-2"] "🔗"
-                  "View branches and builds"
+                p_ [class_ "text-sm text-gray-500 font-mono truncate"] $
+                  toHtml repo.cloneUrl
 
         W.viraDivider_
 
