@@ -184,8 +184,8 @@ viewSettings linkTo mCachix mAttic repos =
                 <> maybe [] (const [placeholder_ "Hidden for security reasons"]) mAttic
       div_ [class_ "flex items-center space-x-2 mt-4"] $ do
         W.viraButton_ [type_ "submit", form_ "attic-update"] "Update"
-        whenJust mCachix $ \_ ->
-          form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteCachix, hxSwapS_ InnerHTML] $ do
+        whenJust mAttic $ \_ ->
+          form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteAttic, hxSwapS_ InnerHTML] $ do
             W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Delete"
 
     repositories :: Html ()
