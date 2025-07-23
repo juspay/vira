@@ -72,10 +72,14 @@ updateAtticHandler settings = do
 
 addRepoHandler :: Repo -> Eff App.AppServantStack FormResp
 addRepoHandler repo = do
+  cfg <- ask
   App.query (St.GetRepoByNameA repo.name) >>= \case
     Just _repo -> do
       log Debug $ "Repository exists " <> toText repo.name
-      pure $ addHeader True "Repository exists"
+      pure $ addHeader False $ do
+        -- Don't refresh, swap the existing form for visual feedback on the browser
+        newRepoForm cfg.linkTo
+        p_ "Repository exists"
     Nothing -> do
       App.update $ St.AddNewRepoA repo
       log Info $ "Added repository " <> toText repo.name
@@ -158,43 +162,13 @@ viewSettings linkTo mCachix mAttic repos =
               ] -- Doesn't display existing token
         W.viraButton_ [type_ "submit"] "Save"
 
-    newRepoForm :: Html ()
-    newRepoForm = do
-      h3_ [class_ "text-lg font-medium mb-3"] "New Repository"
-      form_ [hxPostSafe_ $ linkTo LinkTo.SettingsAddRepo, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
-        div_ $ do
-          withFieldName @Repo @"name" $ \name -> do
-            W.viraLabel_ [for_ name] "Name"
-            W.viraInput_
-              [ type_ "text"
-              , name_ name
-              , placeholder_ "my-repo"
-              ]
-        div_ $ do
-          withFieldName @Repo @"cloneUrl" $ \name -> do
-            W.viraLabel_ [for_ name] "Clone URL"
-            W.viraInput_
-              [ type_ "url"
-              , name_ name
-              , placeholder_ "https://github.com/user/repo.git"
-              ]
-        details_ [class_ "border border-gray-300 rounded-md p-4"] $ do
-          summary_ [class_ "cursor-pointer text-lg font-medium mb-2"] "Settings (optional)"
-          div_ $ do
-            withFieldName @RepoSettings @"dummy" $ \name -> do
-              W.viraLabel_ [for_ name] "Dummy"
-              W.viraInput_
-                [ type_ "text"
-                , name_ name
-                ]
-        W.viraButton_ [type_ "submit"] "Add"
-
     repositories :: Html ()
     repositories = do
       h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Repositories"
 
       div_ [class_ "mb-6"] $ do
-        newRepoForm
+        h3_ [class_ "text-lg font-medium mb-3"] "New Repository"
+        newRepoForm linkTo
 
       div_ $ do
         h3_ [class_ "text-lg font-medium mb-3"] "Existing Repositories"
@@ -212,11 +186,41 @@ viewSettings linkTo mCachix mAttic repos =
                     W.viraInput_ [type_ "hidden", name_ name, value_ $ toText $ toString repo.name]
                   W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Remove"
 
-    withFieldName ::
-      forall record field a r.
-      (KnownSymbol field, HasField field record a) =>
-      (Text -> r) ->
-      r
-    withFieldName k =
-      let fieldName = toText (symbolVal (Proxy @field))
-       in k fieldName
+newRepoForm :: (LinkTo.LinkTo -> Link) -> Html ()
+newRepoForm linkTo = do
+  form_ [hxPostSafe_ $ linkTo LinkTo.SettingsAddRepo, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
+    div_ $ do
+      withFieldName @Repo @"name" $ \name -> do
+        W.viraLabel_ [for_ name] "Name"
+        W.viraInput_
+          [ type_ "text"
+          , name_ name
+          , placeholder_ "my-repo"
+          ]
+    div_ $ do
+      withFieldName @Repo @"cloneUrl" $ \name -> do
+        W.viraLabel_ [for_ name] "Clone URL"
+        W.viraInput_
+          [ type_ "url"
+          , name_ name
+          , placeholder_ "https://github.com/user/repo.git"
+          ]
+    details_ [class_ "border border-gray-300 rounded-md p-4"] $ do
+      summary_ [class_ "cursor-pointer text-lg font-medium mb-2"] "Settings (optional)"
+      div_ $ do
+        withFieldName @RepoSettings @"dummy" $ \name -> do
+          W.viraLabel_ [for_ name] "Dummy"
+          W.viraInput_
+            [ type_ "text"
+            , name_ name
+            ]
+    W.viraButton_ [type_ "submit"] "Add"
+
+withFieldName ::
+  forall record field a r.
+  (KnownSymbol field, HasField field record a) =>
+  (Text -> r) ->
+  r
+withFieldName k =
+  let fieldName = toText (symbolVal (Proxy @field))
+   in k fieldName
