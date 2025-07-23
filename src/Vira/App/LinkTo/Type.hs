@@ -13,8 +13,8 @@ data LinkTo
   | RepoListing
   | Repo RepoName
   | RepoUpdate RepoName
+  | RepoDeletePage RepoName
   | RepoAdd
-  | RepoDelete
   | Build RepoName BranchName
   | RepoBranch RepoName BranchName
   | Job JobId
@@ -26,8 +26,6 @@ data LinkTo
   | SettingsDeleteCachix
   | SettingsAttic
   | SettingsDeleteAttic
-  | SettingsAddRepo
-  | SettingsDeleteRepo
   | StatusGet
   | About
 
@@ -37,8 +35,8 @@ linkShortTitle = \case
   RepoListing -> "Repositories"
   Repo name -> toText . toString $ name
   RepoUpdate _ -> "Update" -- unused
+  RepoDeletePage _ -> "Delete Repository"
   RepoAdd -> "Add Repository"
-  RepoDelete -> "Delete Repository"
   Build _ _ -> "Build" -- unused
   RepoBranch _ branchName -> toText . toString $ branchName
   Job jobId -> "Job " <> show jobId
@@ -50,7 +48,5 @@ linkShortTitle = \case
   SettingsDeleteCachix -> "Delete Cachix Settings"
   SettingsAttic -> "Attic Settings"
   SettingsDeleteAttic -> "Delete Attic Settings"
-  SettingsAddRepo -> "Add Repository"
-  SettingsDeleteRepo -> "Delete Repository"
   StatusGet -> "Status"
   About -> "About"

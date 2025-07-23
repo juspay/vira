@@ -30,6 +30,7 @@ import Prelude hiding (ask, asks)
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
   , _update :: mode :- "fetch" :> Post '[HTML] (Headers '[HXRefresh] Text)
+  , _delete :: mode :- "delete" :> Post '[HTML] (Headers '[HXRedirect] Text)
   , _branch :: mode :- "branches" Servant.API.:> Capture "name" BranchName :> NamedRoutes BranchPage.Routes
   }
   deriving stock (Generic)
@@ -42,6 +43,7 @@ handlers cfg name = do
   Routes
     { _view = App.runAppInServant cfg $ viewHandler name
     , _update = App.runAppInServant cfg $ updateHandler name
+    , _delete = App.runAppInServant cfg $ deleteHandler name
     , _branch = BranchPage.handlers cfg name
     }
 
@@ -64,16 +66,36 @@ updateHandler name = do
   App.update $ St.SetRepoBranchesA repo.name allBranches
   pure $ addHeader True "Ok"
 
+deleteHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRedirect] Text)
+deleteHandler name = do
+  cfg <- ask
+  App.query (St.GetRepoByNameA name) >>= \case
+    Just _repo -> do
+      App.update $ St.DeleteRepoByNameA name
+      let redirectUrl :: String = show $ linkURI $ cfg.linkTo LinkTo.RepoListing
+      pure $ addHeader (toText redirectUrl) "Ok"
+    Nothing ->
+      throwError err404
+
 -- TODO: Can we use `HtmlT (ReaderT ..) ()` to avoid threading the linkTo function?
 viewRepo :: (LinkTo.LinkTo -> Link) -> St.Repo -> [(St.Branch, [St.Job])] -> Html ()
 viewRepo linkTo repo branches = do
   div_ $ do
-    pre_ [class_ "rounded py-2 my-4"] $ code_ $ toHtml repo.cloneUrl
-    W.viraButton_
-      [ hxPostSafe_ $ linkTo $ RepoUpdate repo.name
-      , hxSwapS_ AfterEnd
-      ]
-      "Refresh branches"
+    div_ [class_ "flex items-center justify-between mb-4"] $ do
+      pre_ [class_ "rounded py-2 flex-1"] $ code_ $ toHtml repo.cloneUrl
+      div_ [class_ "flex gap-2 ml-4"] $ do
+        W.viraButton_
+          [ hxPostSafe_ $ linkTo $ RepoUpdate repo.name
+          , hxSwapS_ AfterEnd
+          , class_ "bg-blue-600 hover:bg-blue-700"
+          ]
+          "Refresh branches"
+        W.viraButton_
+          [ hxPostSafe_ $ linkTo $ LinkTo.RepoDeletePage repo.name
+          , hxSwapS_ AfterEnd
+          , class_ "bg-red-600 hover:bg-red-700"
+          ]
+          "Delete Repository"
     div_ [class_ "space-y-8"] $ do
       forM_ branches $ \(branch, jobs) -> do
         section_ [id_ (toText $ "branch-" <> toString branch.branchName), class_ "bg-white border-2 border-gray-300 rounded-xl shadow-md hover:shadow-lg hover:border-blue-400 transition-all duration-300 p-4 my-6"] $ do

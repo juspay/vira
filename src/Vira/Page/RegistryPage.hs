@@ -32,7 +32,6 @@ data Routes mode = Routes
   { _listing :: mode :- Get '[HTML] (Html ())
   , _repo :: mode :- Capture "name" RepoName :> NamedRoutes RepoPage.Routes
   , _addRepo :: mode :- "add" :> FormReq Repo :> Post '[HTML] FormResp
-  , _deleteRepo :: mode :- "delete" :> FormReq RepoName :> Post '[HTML] FormResp
   }
   deriving stock (Generic)
 
@@ -42,7 +41,6 @@ handlers cfg = do
     { _listing = App.runAppInServant cfg handleListing
     , _repo = RepoPage.handlers cfg
     , _addRepo = App.runAppInServant cfg . addRepoHandler
-    , _deleteRepo = App.runAppInServant cfg . deleteRepoHandler
     }
 
 handleListing :: Eff App.AppServantStack (Html ())
@@ -68,17 +66,6 @@ addRepoHandler repo = do
       log Info $ "Added repository " <> toText repo.name
       pure $ addHeader True "Ok"
 
-deleteRepoHandler :: RepoName -> Eff App.AppServantStack FormResp
-deleteRepoHandler name = do
-  App.query (St.GetRepoByNameA name) >>= \case
-    Just _repo -> do
-      App.update $ St.DeleteRepoByNameA name
-      log Info $ "Deleted repository " <> toText name
-      pure $ addHeader True "Ok"
-    Nothing -> do
-      log Debug $ "Repository not found " <> toText name
-      pure $ addHeader True "Repository not Found"
-
 viewRepoList :: (LinkTo.LinkTo -> Link) -> [St.Repo] -> Html ()
 viewRepoList linkTo registry = do
   div_ [class_ "space-y-8"] $ do
@@ -88,17 +75,12 @@ viewRepoList linkTo registry = do
       div_ [class_ "space-y-3"] $ do
         -- Show existing repositories first
         forM_ registry $ \repo ->
-          div_ [class_ "flex items-center justify-between p-3 bg-gray-50 rounded-md"] $ do
-            div_ $ do
-              let url = linkURI $ linkTo $ LinkTo.Repo repo.name
-              a_ [href_ $ show url, class_ "text-blue-600 hover:text-blue-800 hover:underline"] $ do
-                strong_ [class_ "text-gray-900"] $ toHtml $ toString repo.name
-              br_ []
-              span_ [class_ "text-sm text-gray-600"] $ toHtml repo.cloneUrl
-            form_ [hxPostSafe_ $ linkTo LinkTo.RepoDelete, hxSwapS_ InnerHTML, class_ "inline"] $ do
-              withFieldName @RepoName @"unRepoName" $ \name ->
-                W.viraInput_ [type_ "hidden", name_ name, value_ $ toText $ toString repo.name]
-              W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Delete"
+          div_ [class_ "p-3 bg-gray-50 rounded-md"] $ do
+            let url = linkURI $ linkTo $ LinkTo.Repo repo.name
+            a_ [href_ $ show url, class_ "text-blue-600 hover:text-blue-800 hover:underline"] $ do
+              strong_ [class_ "text-gray-900"] $ toHtml $ toString repo.name
+            br_ []
+            span_ [class_ "text-sm text-gray-600"] $ toHtml repo.cloneUrl
 
         -- Add new repository form at the end
         div_ [class_ "border-2 border-dashed border-gray-300 rounded-md p-4 bg-gray-50/50"] $ do
