@@ -54,6 +54,9 @@ module Vira.Widgets (
   viraFormGroup_,
   viraIconButton_,
   viraDivider_,
+
+  -- * Type-safe enums
+  AlertType (..),
 ) where
 
 import Lucid
@@ -62,7 +65,16 @@ import Vira.App.CLI (CLISettings (basePath), instanceName)
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
 import Vira.App.Stack (AppState (cliSettings, linkTo))
 import Vira.Lib.HTMX
+import Vira.State.Core qualified as St
 import Vira.Stream.Status qualified as Status
+
+-- | Alert types for consistent messaging
+data AlertType
+  = AlertSuccess
+  | AlertError
+  | AlertWarning
+  | AlertInfo
+  deriving stock (Eq, Show)
 
 -- | Common HTML layout for all routes.
 layout :: AppState -> [LinkTo] -> Html () -> Html ()
@@ -317,7 +329,7 @@ W.viraPageHeader_ "Settings" $ do
 W.viraPageHeader_ "Repository Details" $ do
   div_ [class_ "flex items-center space-x-4 text-gray-600"] $ do
     span_ "Last updated: 2 hours ago"
-    W.viraStatusBadge_ "Active" "bg-green-100 text-green-800"
+    span_ [class_ "px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"] "Active"
 
 -- Simple header without subtitle
 W.viraPageHeader_ "Build Logs" mempty
@@ -339,39 +351,41 @@ Status badge component with semantic color variants.
 
 Displays status information with appropriate colors and styling.
 Follows the Vira Design System status color guidelines.
+Now uses the domain JobStatus type directly for type safety.
 
 = Usage Examples
 
 @
--- Success status
-W.viraStatusBadge_ "Success" "bg-green-100 text-green-800 border-green-200"
-
--- Error status
-W.viraStatusBadge_ "Failed" "bg-red-100 text-red-800 border-red-200"
-
--- Warning/Pending status
-W.viraStatusBadge_ "Pending" "bg-yellow-100 text-yellow-800 border-yellow-200"
-
--- Info/Running status
-W.viraStatusBadge_ "Running" "bg-blue-100 text-blue-800 border-blue-200"
-
--- Killed status (darker red for distinction)
-W.viraStatusBadge_ "Killed" "bg-red-200 text-red-900 border-red-300"
+-- Job status badges
+W.viraStatusBadge_ St.JobRunning
+W.viraStatusBadge_ St.JobPending
+W.viraStatusBadge_ (St.JobFinished St.JobSuccess)
+W.viraStatusBadge_ (St.JobFinished St.JobFailure)
+W.viraStatusBadge_ St.JobKilled
 @
 
 = Color Guidelines
 
-Use semantic colors that match the status meaning:
-- Green: Success, connected, healthy states
-- Red: Errors, failures, killed processes
-- Yellow: Warnings, pending states
-- Blue: Information, running processes
-- Gray: Neutral, inactive states
+Colors are automatically applied based on job status:
+- Green: Successful jobs
+- Red: Failed or killed jobs
+- Yellow: Pending jobs
+- Blue: Running jobs
+
+= Type Safety
+
+Uses 'St.JobStatus' directly from the domain model to prevent invalid status values.
 -}
-viraStatusBadge_ :: Text -> Text -> Html ()
-viraStatusBadge_ status colorClass = do
+viraStatusBadge_ :: St.JobStatus -> Html ()
+viraStatusBadge_ jobStatus = do
+  let (statusText, colorClass) = case jobStatus of
+        St.JobRunning -> ("Running" :: Text, "bg-blue-100 text-blue-800 border-blue-200")
+        St.JobPending -> ("Pending" :: Text, "bg-yellow-100 text-yellow-800 border-yellow-200")
+        St.JobFinished St.JobSuccess -> ("Success" :: Text, "bg-green-100 text-green-800 border-green-200")
+        St.JobFinished St.JobFailure -> ("Failed" :: Text, "bg-red-100 text-red-800 border-red-200")
+        St.JobKilled -> ("Killed" :: Text, "bg-red-200 text-red-900 border-red-300")
   span_ [class_ $ "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium " <> colorClass] $
-    toHtml status
+    toHtml statusText
 
 {- |
 Code block component for displaying larger code snippets.
@@ -445,26 +459,35 @@ Alert component for displaying important messages with semantic colors.
 
 Provides user feedback with appropriate visual styling and icons.
 Includes accessibility features with proper ARIA roles.
+Now type-safe with automatic color management based on alert type.
 
 = Usage Examples
 
 @
 -- Success message
-W.viraAlert_ "success" "bg-green-50 border-green-200" $ do
+W.viraAlert_ W.AlertSuccess $ do
   p_ [class_ "text-green-800"] "Repository successfully added!"
 
 -- Error message
-W.viraAlert_ "error" "bg-red-50 border-red-200" $ do
+W.viraAlert_ W.AlertError $ do
   p_ [class_ "text-red-800"] "Failed to connect to repository"
 
 -- Warning message
-W.viraAlert_ "warning" "bg-yellow-50 border-yellow-200" $ do
+W.viraAlert_ W.AlertWarning $ do
   p_ [class_ "text-yellow-800"] "This action cannot be undone"
 
 -- Info message
-W.viraAlert_ "info" "bg-blue-50 border-blue-200" $ do
+W.viraAlert_ W.AlertInfo $ do
   p_ [class_ "text-blue-800"] "Configure Cachix to enable build caching"
 @
+
+= Color Management
+
+Colors are automatically applied based on alert type:
+- Green: Success messages (bg-green-50 border-green-200)
+- Red: Error messages (bg-red-50 border-red-200)
+- Yellow: Warning messages (bg-yellow-50 border-yellow-200)
+- Blue: Info messages (bg-blue-50 border-blue-200)
 
 = Icons
 
@@ -474,21 +497,26 @@ Automatically includes appropriate emoji icons:
 - ⚠️ for warning alerts
 - ℹ️ for info alerts
 
+= Type Safety
+
+Uses 'AlertType' ADT to prevent invalid alert types at compile time.
+No manual color class management required.
+
 = Accessibility
 
 Includes role="alert" for screen readers.
 -}
-viraAlert_ :: Text -> Text -> Html () -> Html ()
-viraAlert_ alertType colorClass content = do
+viraAlert_ :: AlertType -> Html () -> Html ()
+viraAlert_ alertType content = do
+  let (colorClass, iconText :: Text, iconColor) = case alertType of
+        AlertError -> ("bg-red-50 border-red-200", "❌", "text-red-500")
+        AlertWarning -> ("bg-yellow-50 border-yellow-200", "⚠️", "text-yellow-500")
+        AlertSuccess -> ("bg-green-50 border-green-200", "✅", "text-green-500")
+        AlertInfo -> ("bg-blue-50 border-blue-200", "ℹ️", "text-blue-500")
   div_ [class_ $ "rounded-lg p-4 border " <> colorClass, role_ "alert"] $ do
     div_ [class_ "flex items-start"] $ do
       div_ [class_ "flex-shrink-0"] $ do
-        case alertType of
-          "error" -> span_ [class_ "text-red-500"] "❌"
-          "warning" -> span_ [class_ "text-yellow-500"] "⚠️"
-          "success" -> span_ [class_ "text-green-500"] "✅"
-          "info" -> span_ [class_ "text-blue-500"] "ℹ️"
-          _ -> span_ [class_ "text-gray-500"] "•"
+        span_ [class_ iconColor] (toHtml iconText)
       div_ [class_ "ml-3 flex-1"] content
 
 {- |

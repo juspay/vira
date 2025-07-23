@@ -60,7 +60,7 @@ addRepoHandler repo = do
       -- Show error message instead of redirecting
       pure $ noHeader $ do
         newRepoForm cfg.linkTo
-        W.viraAlert_ "error" "bg-red-50 border-red-200" $ do
+        W.viraAlert_ W.AlertError $ do
           p_ [class_ "text-red-800 font-medium"] $ do
             "Repository "
             strong_ $ toHtml $ toString repo.name

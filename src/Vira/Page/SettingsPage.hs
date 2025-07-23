@@ -97,13 +97,13 @@ viewSettings linkTo mCachix mAttic = do
 
         case mCachix of
           Just cachix -> do
-            W.viraAlert_ "success" "bg-green-50 border-green-200" $ do
+            W.viraAlert_ W.AlertSuccess $ do
               p_ [class_ "text-green-800"] $ do
-                "✅ Connected to cache: "
+                "Connected to cache: "
                 strong_ $ toHtml cachix.cachixName
             W.viraDivider_
           Nothing -> do
-            W.viraAlert_ "info" "bg-blue-50 border-blue-200" $ do
+            W.viraAlert_ W.AlertInfo $ do
               p_ [class_ "text-blue-800"] "Configure Cachix to enable build caching"
             W.viraDivider_
 
@@ -117,16 +117,16 @@ viewSettings linkTo mCachix mAttic = do
 
         case mAttic of
           Just attic -> do
-            W.viraAlert_ "success" "bg-green-50 border-green-200" $ do
+            W.viraAlert_ W.AlertSuccess $ do
               p_ [class_ "text-green-800"] $ do
-                "✅ Connected to "
+                "Connected to "
                 strong_ $ toHtml attic.atticServer.serverName
                 " ("
                 toHtml $ toText attic.atticCacheName
                 ")"
             W.viraDivider_
           Nothing -> do
-            W.viraAlert_ "info" "bg-blue-50 border-blue-200" $ do
+            W.viraAlert_ W.AlertInfo $ do
               p_ [class_ "text-blue-800"] "Configure Attic for distributed build caching"
             W.viraDivider_
 

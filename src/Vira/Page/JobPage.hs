@@ -122,17 +122,7 @@ viewCommit (Git.CommitID commit) = do
 
 viewJobStatus :: St.JobStatus -> Html ()
 viewJobStatus status = do
-  case status of
-    St.JobRunning ->
-      W.viraStatusBadge_ "Running" "bg-blue-100 text-blue-800 border-blue-200"
-    St.JobPending ->
-      W.viraStatusBadge_ "Pending" "bg-yellow-100 text-yellow-800 border-yellow-200"
-    St.JobFinished St.JobSuccess ->
-      W.viraStatusBadge_ "Success" "bg-green-100 text-green-800 border-green-200"
-    St.JobFinished St.JobFailure ->
-      W.viraStatusBadge_ "Failed" "bg-red-100 text-red-800 border-red-200"
-    St.JobKilled ->
-      W.viraStatusBadge_ "Killed" "bg-red-200 text-red-900 border-red-300"
+  W.viraStatusBadge_ status
 
 -- TODO:
 -- 1. Fail if a build is already happening (until we support queuing)
