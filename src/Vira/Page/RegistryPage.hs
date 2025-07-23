@@ -26,7 +26,7 @@ import Vira.Widgets qualified as W
 import Prelude hiding (ask, asks, for_)
 
 type FormReq a = ReqBody '[FormUrlEncoded] a
-type FormResp = Headers '[HXRefresh] (Html ())
+type FormResp = Headers '[HXRedirect] (Html ())
 
 data Routes mode = Routes
   { _listing :: mode :- Get '[HTML] (Html ())
@@ -57,14 +57,17 @@ addRepoHandler repo = do
   App.query (St.GetRepoByNameA repo.name) >>= \case
     Just _repo -> do
       log Debug $ "Repository exists " <> toText repo.name
-      pure $ addHeader False $ do
-        -- Don't refresh, swap the existing form for visual feedback on the browser
+      -- Redirect to the existing repository page
+      let existingRepoUrl :: String = show $ linkURI $ cfg.linkTo $ LinkTo.Repo repo.name
+      pure $ addHeader (toText existingRepoUrl) $ do
         newRepoForm cfg.linkTo
         p_ "Repository exists"
     Nothing -> do
       App.update $ St.AddNewRepoA repo
       log Info $ "Added repository " <> toText repo.name
-      pure $ addHeader True "Ok"
+      -- Redirect to the newly created repository page
+      let newRepoUrl :: String = show $ linkURI $ cfg.linkTo $ LinkTo.Repo repo.name
+      pure $ addHeader (toText newRepoUrl) "Ok"
 
 viewRepoList :: (LinkTo.LinkTo -> Link) -> [St.Repo] -> Html ()
 viewRepoList linkTo registry = do
