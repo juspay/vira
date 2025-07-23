@@ -192,25 +192,27 @@ viewSettings linkTo mCachix mAttic repos =
     repositories = do
       h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Repositories"
 
-      div_ [class_ "mb-6"] $ do
-        h3_ [class_ "text-lg font-medium mb-3"] "New Repository"
-        newRepoForm linkTo
+      div_ [class_ "space-y-3"] $ do
+        -- Show existing repositories first
+        forM_ repos $ \repo ->
+          div_ [class_ "flex items-center justify-between p-3 bg-gray-50 rounded-md"] $ do
+            div_ $ do
+              strong_ [class_ "text-gray-900"] $ toHtml $ toString repo.name
+              br_ []
+              span_ [class_ "text-sm text-gray-600"] $ toHtml repo.cloneUrl
+            form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteRepo, hxSwapS_ InnerHTML, class_ "inline"] $ do
+              withFieldName @RepoName @"unRepoName" $ \name ->
+                W.viraInput_ [type_ "hidden", name_ name, value_ $ toText $ toString repo.name]
+              W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Delete"
 
-      div_ $ do
-        h3_ [class_ "text-lg font-medium mb-3"] "Existing Repositories"
-        if null repos
-          then p_ [class_ "text-gray-500 italic"] "No repositories configured"
-          else div_ [class_ "space-y-2"] $
-            forM_ repos $ \repo ->
-              div_ [class_ "flex items-center justify-between p-3 bg-gray-50 rounded-md"] $ do
-                div_ $ do
-                  strong_ [class_ "text-gray-900"] $ toHtml $ toString repo.name
-                  br_ []
-                  span_ [class_ "text-sm text-gray-600"] $ toHtml repo.cloneUrl
-                form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteRepo, hxSwapS_ InnerHTML, class_ "inline"] $ do
-                  withFieldName @RepoName @"unRepoName" $ \name ->
-                    W.viraInput_ [type_ "hidden", name_ name, value_ $ toText $ toString repo.name]
-                  W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Delete"
+        -- Add new repository form at the end
+        div_ [class_ "border-2 border-dashed border-gray-300 rounded-md p-4 bg-gray-50/50"] $ do
+          details_ [class_ "group"] $ do
+            summary_ [class_ "cursor-pointer text-lg font-medium text-gray-700 hover:text-gray-900 flex items-center"] $ do
+              span_ [class_ "mr-2"] "+"
+              span_ "Add New Repository"
+            div_ [class_ "mt-4 pl-6"] $ do
+              newRepoForm linkTo
 
 newRepoForm :: (LinkTo.LinkTo -> Link) -> Html ()
 newRepoForm linkTo = do
