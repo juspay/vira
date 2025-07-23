@@ -42,27 +42,39 @@ viewHandler repoName branchName = do
 -- TODO: Can we use `HtmlT (ReaderT ..) ()` to avoid threading the linkTo function?
 viewRepoBranch :: (LinkTo.LinkTo -> Link) -> St.Repo -> St.Branch -> [St.Job] -> Html ()
 viewRepoBranch linkTo repo branch jobs = do
-  div_ [class_ ""] $ do
-    h2_ [class_ "text-2xl py-2 my-4 border-b-2 flex items-start flex-col"] $ do
-      div_ $ toHtml $ toString branch.branchName
-      div_ $ JobPage.viewCommit branch.headCommit
-    -- TODO: Replace this with parent UX flow
-    -- cf. https://github.com/juspay/vira/issues/47#issuecomment-3014376804
-    W.viraButton_
-      [ hxPostSafe_ $ linkTo $ RepoUpdate repo.name
-      , hxSwapS_ AfterEnd
-      ]
-      "Refresh branches"
-    div_ [class_ "mb-4"] $
-      W.viraButton_
-        [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
-        , hxSwapS_ AfterEnd
-        ]
-        "Build"
-    viewJobListing linkTo jobs
+  W.viraSection_ [] $ do
+    -- Branch header
+    W.viraCard_ [class_ "p-6 mb-8"] $ do
+      W.viraPageHeader_ (toText $ toString branch.branchName) $ do
+        JobPage.viewCommit branch.headCommit
+
+      div_ [class_ "flex gap-3 mt-6"] $ do
+        -- TODO: Replace this with parent UX flow
+        -- cf. https://github.com/juspay/vira/issues/47#issuecomment-3014376804
+        W.viraButton_
+          W.ButtonSecondary
+          [ hxPostSafe_ $ linkTo $ RepoUpdate repo.name
+          , hxSwapS_ AfterEnd
+          ]
+          "🔄 Refresh Branches"
+        W.viraButton_
+          W.ButtonSuccess
+          [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
+          , hxSwapS_ AfterEnd
+          ]
+          "🚀 Build"
+
+    -- Jobs listing
+    W.viraCard_ [class_ "p-6"] $ do
+      h3_ [class_ "text-xl font-semibold text-gray-900 mb-6"] "Build History"
+      viewJobListing linkTo jobs
 
 viewJobListing :: (LinkTo.LinkTo -> Link) -> [St.Job] -> Html ()
 viewJobListing linkTo jobs = do
-  ul_ [class_ "space-y-2 mb-4"] $ forM_ jobs $ \job -> do
-    li_ [class_ "bg-gray-50 rounded px-3 py-2 border-l-4 border-gray-300 hover:bg-blue-100 transition-all duration-300"] $ do
-      JobPage.viewJobHeader linkTo job
+  if null jobs
+    then div_ [class_ "text-center py-12 text-gray-500"] $ do
+      p_ [class_ "text-lg"] "No builds yet"
+      p_ [class_ "text-sm mt-2"] "Start your first build using the button above"
+    else div_ [class_ "divide-y divide-gray-200"] $ forM_ jobs $ \job -> do
+      div_ [class_ "py-4 hover:bg-gray-50 transition-colors duration-150"] $ do
+        JobPage.viewJobHeader linkTo job

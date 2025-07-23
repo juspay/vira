@@ -83,79 +83,162 @@ deleteAtticHandler = do
   pure $ addHeader True "Ok"
 
 viewSettings :: (LinkTo.LinkTo -> Link) -> Maybe CachixSettings -> Maybe AtticSettings -> Html ()
-viewSettings linkTo mCachix mAttic =
-  div_ [class_ "space-y-8"] $ do
-    section_ [class_ "bg-white border-2 border-gray-300 rounded-xl shadow-md p-6"] cachixForm
-    section_ [class_ "bg-white border-2 border-gray-300 rounded-xl shadow-md p-6"] atticForm
+viewSettings linkTo mCachix mAttic = do
+  W.viraSection_ [] $ do
+    W.viraPageHeader_ "Settings" $ do
+      p_ [class_ "text-gray-600"] "Configure build cache providers and CI/CD integrations"
+
+    div_ [class_ "grid gap-8 lg:grid-cols-2"] $ do
+      -- Cachix Configuration
+      W.viraCard_ [class_ "p-6"] $ do
+        div_ [class_ "flex items-center mb-6"] $ do
+          span_ [class_ "h-8 w-8 mr-3 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold"] "C"
+          h3_ [class_ "text-xl font-bold text-gray-900"] "Cachix Configuration"
+
+        case mCachix of
+          Just cachix -> do
+            W.viraAlert_ W.AlertSuccess $ do
+              p_ [class_ "text-green-800"] $ do
+                "Connected to cache: "
+                strong_ $ toHtml cachix.cachixName
+            W.viraDivider_
+          Nothing -> do
+            W.viraAlert_ W.AlertInfo $ do
+              p_ [class_ "text-blue-800"] "Configure Cachix to enable build caching"
+            W.viraDivider_
+
+        cachixForm mCachix
+
+      -- Attic Configuration
+      W.viraCard_ [class_ "p-6"] $ do
+        div_ [class_ "flex items-center mb-6"] $ do
+          span_ [class_ "h-8 w-8 mr-3 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 font-bold"] "A"
+          h3_ [class_ "text-xl font-bold text-gray-900"] "Attic Configuration"
+
+        case mAttic of
+          Just attic -> do
+            W.viraAlert_ W.AlertSuccess $ do
+              p_ [class_ "text-green-800"] $ do
+                "Connected to "
+                strong_ $ toHtml attic.atticServer.serverName
+                " ("
+                toHtml $ toText attic.atticCacheName
+                ")"
+            W.viraDivider_
+          Nothing -> do
+            W.viraAlert_ W.AlertInfo $ do
+              p_ [class_ "text-blue-800"] "Configure Attic for distributed build caching"
+            W.viraDivider_
+
+        atticForm mAttic
   where
-    cachixForm :: Html ()
-    cachixForm = do
-      h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Cachix"
-      form_ [id_ "cachix-update", hxPostSafe_ $ linkTo LinkTo.SettingsUpdateCachix, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
-        div_ $ do
-          withFieldName @CachixSettings @"cachixName" $ \name -> do
-            W.viraLabel_ [for_ name] "Cache Name"
-            W.viraInput_
-              [ type_ "text"
-              , name_ name
-              , value_ $ maybe "" (.cachixName) mCachix
-              ]
-        div_ $ do
-          withFieldName @CachixSettings @"authToken" $ \name -> do
-            W.viraLabel_ [for_ name] "Auth Token"
-            W.viraInput_ $
-              [ type_ "text"
-              , name_ name
-              ]
-                <> maybe [] (const [placeholder_ "Hidden for security reasons"]) mCachix
+    cachixForm :: Maybe CachixSettings -> Html ()
+    cachixForm mCachixSettings = do
+      form_ [id_ "cachix-update", hxPostSafe_ $ linkTo LinkTo.SettingsUpdateCachix, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do
+        W.viraFormGroup_
+          ( withFieldName @CachixSettings @"cachixName" $ \name ->
+              W.viraLabel_ [for_ name] "Cache Name"
+          )
+          ( withFieldName @CachixSettings @"cachixName" $ \name ->
+              W.viraInput_
+                [ type_ "text"
+                , name_ name
+                , value_ $ maybe "" (.cachixName) mCachixSettings
+                , placeholder_ "my-cache"
+                ]
+          )
 
-      div_ [class_ "flex items-center space-x-2 mt-4"] $ do
-        W.viraButton_ [type_ "submit", form_ "cachix-update"] "Update"
-        whenJust mCachix $ \_ ->
-          form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteCachix, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to delete the Cachix settings? This action cannot be undone."] $ do
-            W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Delete"
+        W.viraFormGroup_
+          ( withFieldName @CachixSettings @"authToken" $ \name ->
+              W.viraLabel_ [for_ name] "Auth Token"
+          )
+          ( withFieldName @CachixSettings @"authToken" $ \name ->
+              W.viraInput_ $
+                [ type_ "password"
+                , name_ name
+                , placeholder_ $ maybe "Enter your Cachix auth token" (const "••••••••••••") mCachixSettings
+                ]
+                  <> maybe [] (const []) mCachixSettings
+          )
 
-    atticForm :: Html ()
-    atticForm = do
-      h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Attic"
-      form_ [id_ "attic-update", hxPostSafe_ $ linkTo LinkTo.SettingsUpdateAttic, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
-        div_ $ do
-          withFieldName @AtticServer @"serverName" $ \name -> do
-            W.viraLabel_ [for_ name] "Server Name"
-            W.viraInput_
-              [ type_ "text"
-              , name_ name
-              , value_ $ maybe "" ((.serverName) . (.atticServer)) mAttic
-              ]
-        div_ $ do
-          withFieldName @AtticServer @"serverUrl" $ \name -> do
-            W.viraLabel_ [for_ name] "Server URL"
-            W.viraInput_
-              [ type_ "url"
-              , name_ name
-              , value_ $ maybe "" ((.serverUrl) . (.atticServer)) mAttic
-              ]
-        div_ $ do
-          withFieldName @AtticSettings @"atticCacheName" $ \name -> do
-            W.viraLabel_ [for_ name] "Cache Name"
-            W.viraInput_
-              [ type_ "text"
-              , name_ name
-              , value_ $ maybe "" (toText . (.atticCacheName)) mAttic
-              ]
-        div_ $ do
-          withFieldName @AtticSettings @"atticToken" $ \name -> do
-            W.viraLabel_ [for_ name] "Token"
-            W.viraInput_ $
-              [ type_ "text"
-              , name_ name
-              ]
-                <> maybe [] (const [placeholder_ "Hidden for security reasons"]) mAttic
-      div_ [class_ "flex items-center space-x-2 mt-4"] $ do
-        W.viraButton_ [type_ "submit", form_ "attic-update"] "Update"
-        whenJust mAttic $ \_ ->
-          form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteAttic, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to delete the Attic settings? This action cannot be undone."] $ do
-            W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Delete"
+        div_ [class_ "flex items-center gap-3 pt-4"] $ do
+          W.viraButton_ W.ButtonPrimary [type_ "submit", form_ "cachix-update"] $ do
+            case mCachixSettings of
+              Nothing -> "Connect Cachix"
+              Just _ -> "Update Settings"
+
+      -- Disconnect form outside the main form to avoid nesting
+      whenJust mCachixSettings $ \_ ->
+        form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteCachix, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to disconnect Cachix? This action cannot be undone.", class_ "mt-3"] $ do
+          W.viraButton_ W.ButtonDestructive [type_ "submit"] "Disconnect"
+
+    atticForm :: Maybe AtticSettings -> Html ()
+    atticForm mAtticSettings = do
+      form_ [id_ "attic-update", hxPostSafe_ $ linkTo LinkTo.SettingsUpdateAttic, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do
+        div_ [class_ "grid gap-4 lg:grid-cols-2"] $ do
+          W.viraFormGroup_
+            ( withFieldName @AtticServer @"serverName" $ \name ->
+                W.viraLabel_ [for_ name] "Server Name"
+            )
+            ( withFieldName @AtticServer @"serverName" $ \name ->
+                W.viraInput_
+                  [ type_ "text"
+                  , name_ name
+                  , value_ $ maybe "" ((.serverName) . (.atticServer)) mAtticSettings
+                  , placeholder_ "my-attic"
+                  ]
+            )
+
+          W.viraFormGroup_
+            ( withFieldName @AtticServer @"serverUrl" $ \name ->
+                W.viraLabel_ [for_ name] "Server URL"
+            )
+            ( withFieldName @AtticServer @"serverUrl" $ \name ->
+                W.viraInput_
+                  [ type_ "url"
+                  , name_ name
+                  , value_ $ maybe "" ((.serverUrl) . (.atticServer)) mAtticSettings
+                  , placeholder_ "https://attic.example.com"
+                  ]
+            )
+
+        div_ [class_ "grid gap-4 lg:grid-cols-2"] $ do
+          W.viraFormGroup_
+            ( withFieldName @AtticSettings @"atticCacheName" $ \name ->
+                W.viraLabel_ [for_ name] "Cache Name"
+            )
+            ( withFieldName @AtticSettings @"atticCacheName" $ \name ->
+                W.viraInput_
+                  [ type_ "text"
+                  , name_ name
+                  , value_ $ maybe "" (toText . (.atticCacheName)) mAtticSettings
+                  , placeholder_ "cache-name"
+                  ]
+            )
+
+          W.viraFormGroup_
+            ( withFieldName @AtticSettings @"atticToken" $ \name ->
+                W.viraLabel_ [for_ name] "Token"
+            )
+            ( withFieldName @AtticSettings @"atticToken" $ \name ->
+                W.viraInput_ $
+                  [ type_ "password"
+                  , name_ name
+                  , placeholder_ $ maybe "Enter your Attic token" (const "••••••••••••") mAtticSettings
+                  ]
+                    <> maybe [] (const []) mAtticSettings
+            )
+
+        div_ [class_ "flex items-center gap-3 pt-4"] $ do
+          W.viraButton_ W.ButtonPrimary [type_ "submit", form_ "attic-update"] $ do
+            case mAtticSettings of
+              Nothing -> "Connect Attic"
+              Just _ -> "Update Settings"
+
+      -- Disconnect form outside the main form to avoid nesting
+      whenJust mAtticSettings $ \_ ->
+        form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteAttic, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to disconnect Attic? This action cannot be undone.", class_ "mt-3"] $ do
+          W.viraButton_ W.ButtonDestructive [type_ "submit"] "Disconnect"
 
 withFieldName ::
   forall record field a r.

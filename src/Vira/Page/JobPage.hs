@@ -2,6 +2,7 @@
 
 module Vira.Page.JobPage where
 
+import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Process (CreateProcess (cwd), env, proc)
@@ -80,37 +81,48 @@ viewJob :: (LinkTo.LinkTo -> Link) -> St.Job -> Eff App.AppServantStack (Html ()
 viewJob linkTo job = do
   let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
   logView <- JobLog.view linkTo job
-  pure $ do
-    viewJobHeader linkTo job
-    logView
-    when jobActive $
-      W.viraButton_
-        [ hxPostSafe_ $ linkTo $ LinkTo.Kill job.jobId
-        , hxSwapS_ AfterEnd
-        ]
-        "Kill"
+  pure $ W.viraSection_ [] $ do
+    -- Job header card
+    W.viraCard_ [class_ "p-6 mb-8"] $ do
+      div_ [class_ "flex items-center justify-between"] $ do
+        div_ $ do
+          W.viraPageHeader_ ("Job #" <> (toText @String $ show job.jobId)) $ do
+            div_ [class_ "flex items-center space-x-4 text-sm text-gray-600"] $ do
+              span_ "Commit:"
+              viewCommit job.jobCommit
+        div_ [class_ "flex items-center space-x-4"] $ do
+          viewJobStatus job.jobStatus
+          when jobActive $
+            W.viraButton_
+              W.ButtonDestructive
+              [ hxPostSafe_ $ linkTo $ LinkTo.Kill job.jobId
+              , hxSwapS_ AfterEnd
+              ]
+              "🛑 Kill Job"
+
+    -- Job logs
+    W.viraCard_ [class_ "p-6"] $ do
+      h3_ [class_ "text-xl font-semibold text-gray-900 mb-4"] "Build Logs"
+      logView
 
 viewJobHeader :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewJobHeader linkTo job = do
-  a_ [title_ "View Job Details", href_ $ show . linkURI $ linkTo $ LinkTo.Job job.jobId] $ do
-    div_ [class_ "flex items-center justify-start space-x-4"] $ do
-      div_ [class_ "w-24"] $ do
-        b_ $ "Job #" <> toHtml (show @Text job.jobId)
-      viewCommit job.jobCommit
+  a_ [title_ "View Job Details", href_ $ show . linkURI $ linkTo $ LinkTo.Job job.jobId, class_ "block"] $ do
+    div_ [class_ "flex items-center justify-between"] $ do
+      div_ [class_ "flex items-center space-x-4"] $ do
+        div_ [class_ "flex-shrink-0"] $ do
+          span_ [class_ "inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-800"] $ do
+            "Job #" <> toHtml (show @Text job.jobId)
+        viewCommit job.jobCommit
       viewJobStatus job.jobStatus
 
 viewCommit :: Git.CommitID -> Html ()
 viewCommit (Git.CommitID commit) = do
-  code_ [class_ "text-gray-600 text-sm hover:text-black"] $ toHtml commit
+  W.viraCodeInline_ (T.take 8 $ toText commit)
 
 viewJobStatus :: St.JobStatus -> Html ()
 viewJobStatus status = do
-  case status of
-    St.JobRunning -> span_ [class_ "text-blue-700"] "🚧 Running"
-    St.JobPending -> span_ [class_ "text-yellow-700"] "⏳ Pending"
-    St.JobFinished St.JobSuccess -> span_ [class_ "text-green-700"] "✅ Success"
-    St.JobFinished St.JobFailure -> span_ [class_ "text-red-700"] "❌ Failure"
-    St.JobKilled -> span_ [class_ "text-red-700"] "💀 Killed"
+  W.viraStatusBadge_ status
 
 -- TODO:
 -- 1. Fail if a build is already happening (until we support queuing)
