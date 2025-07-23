@@ -21,7 +21,7 @@ data Routes mode = Routes
   { _home :: mode :- Get '[HTML] (Html ())
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
-  , _settings :: mode :- "s" Servant.API.:> NamedRoutes SettingsPage.Routes
+  , _settings :: mode :- "settings" Servant.API.:> NamedRoutes SettingsPage.Routes
   , _about :: mode :- "about" Servant.API.:> Get '[HTML] (Html ())
   , _status :: mode :- "status" Servant.API.:> Status.StreamRoute
   }
