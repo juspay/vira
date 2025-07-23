@@ -20,6 +20,9 @@
             "*.nix"
             ".hlint.yaml"
           ];
+          settings.config.default.extend-identifiers = {
+            TypeLits = "TypeLits"; # `GHC.TypeLits` module
+          };
         };
       };
     };

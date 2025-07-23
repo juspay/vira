@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -31,28 +32,65 @@ data ViraState = ViraState
   { repos :: IxRepo
   , branches :: IxBranch
   , jobs :: IxJob
-  , appSettings :: AppSettings
-  -- ^ TODO(CRUD): Remove. For context, see comment above `AppSettings`
+  , cachix :: Maybe CachixSettings
+  -- ^ Global Cachix settings, i.e for all the `repos`
+  , attic :: Maybe AtticSettings
+  -- ^ Global Attic settings, i.e for all the `repos`
   }
   deriving stock (Generic, Typeable)
 
 $(deriveSafeCopy 0 'base ''ViraState)
 
-setAppSettingsA :: AppSettings -> Update ViraState ()
-setAppSettingsA appSettings = do
+-- | Get the cachix settings
+getCachixSettingsA :: Query ViraState (Maybe CachixSettings)
+getCachixSettingsA = do
+  ViraState {cachix} <- ask
+  pure cachix
+
+-- | Get the attic settings
+getAtticSettingsA :: Query ViraState (Maybe AtticSettings)
+getAtticSettingsA = do
+  ViraState {attic} <- ask
+  pure attic
+
+-- | Set the cachix settings
+setCachixSettingsA :: Maybe CachixSettings -> Update ViraState ()
+setCachixSettingsA mCachix = do
   modify $ \s ->
-    s {appSettings = appSettings}
+    s
+      { cachix = mCachix
+      }
 
-getAppSettingsA :: Query ViraState AppSettings
-getAppSettingsA = do
-  ViraState {appSettings} <- ask
-  pure appSettings
+-- | Set the attic settings
+setAtticSettingsA :: Maybe AtticSettings -> Update ViraState ()
+setAtticSettingsA mAttic = do
+  modify $ \s ->
+    s
+      { attic = mAttic
+      }
 
+-- | Set all repositories, replacing existing ones
 setAllReposA :: [Repo] -> Update ViraState ()
 setAllReposA repos = do
   modify $ \s ->
     s
       { repos = Ix.fromList repos
+      }
+
+-- | Add a new repository
+addNewRepoA :: Repo -> Update ViraState ()
+addNewRepoA repo = do
+  modify $ \s ->
+    s
+      { repos = Ix.insert repo s.repos
+      }
+
+-- | Delete a repository by name
+deleteRepoByNameA :: RepoName -> Update ViraState ()
+deleteRepoByNameA name = do
+  modify $ \s ->
+    s
+      { repos = Ix.deleteIx name s.repos
       }
 
 -- | Get all repositories
@@ -188,7 +226,11 @@ $( makeAcidic
     , 'addNewJobA
     , 'jobUpdateStatusA
     , 'markUnfinishedJobsAsStaleA
-    , 'setAppSettingsA
-    , 'getAppSettingsA
+    , 'getCachixSettingsA
+    , 'setCachixSettingsA
+    , 'getAtticSettingsA
+    , 'setAtticSettingsA
+    , 'addNewRepoA
+    , 'deleteRepoByNameA
     ]
  )

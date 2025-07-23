@@ -12,6 +12,7 @@ import Vira.App qualified as App
 import Vira.App.LinkTo.Type (LinkTo (..))
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
+import Vira.Page.SettingsPage qualified as SettingsPage
 import Vira.Stream.Status qualified as Status
 import Vira.Widgets qualified as W
 import Prelude hiding (Reader, ask, runReader)
@@ -20,6 +21,7 @@ data Routes mode = Routes
   { _home :: mode :- Get '[HTML] (Html ())
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
+  , _settings :: mode :- "settings" Servant.API.:> NamedRoutes SettingsPage.Routes
   , _about :: mode :- "about" Servant.API.:> Get '[HTML] (Html ())
   , _status :: mode :- "status" Servant.API.:> Status.StreamRoute
   }
@@ -37,6 +39,7 @@ handlers cfg =
                 name
     , _repos = RegistryPage.handlers cfg
     , _jobs = JobPage.handlers cfg
+    , _settings = SettingsPage.handlers cfg
     , _about = do
         pure $ W.layout cfg [About] $ do
           div_ $ do
@@ -48,5 +51,6 @@ handlers cfg =
     menu :: [(Html (), Text)]
     menu =
       [ ("Repositories", linkText $ fieldLink _repos // RegistryPage._listing)
+      , ("Global Settings", linkText $ fieldLink _settings // SettingsPage._view)
       , ("About", linkText $ fieldLink _about)
       ]

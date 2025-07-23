@@ -5,6 +5,7 @@ See README.md for general project information.
 - Haskell guidelines
     - Use `LambdaCase` wherever possible
     - If a new top-level function is used only in another function, use `where` to define it locally.
+    - Fix all GHC warnings.
 - Haskell library guidelines
     - We use `relude` as prelude. Thus, prefer relude's functions over Prelude's.
     - We use the `staticWhich` function from the `static` library to refer to runtime dependencies from Nix environment (see how `Vira.Lib.Git` does it for example).
