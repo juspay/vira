@@ -19,7 +19,7 @@ import Vira.State.Type
 -- | Open vira database
 openViraState :: IO (AcidState ViraState)
 openViraState = do
-  st <- openLocalState $ ViraState mempty mempty (AppSettings mempty Nothing Nothing)
+  st <- openLocalState $ ViraState mempty mempty mempty Nothing Nothing
   update st MarkUnfinishedJobsAsStaleA
   pure st
 

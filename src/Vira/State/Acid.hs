@@ -15,7 +15,6 @@ import Data.IxSet.Typed qualified as Ix
 import Data.List (maximum)
 import Data.Map.Strict qualified as Map
 import Data.SafeCopy (base, deriveSafeCopy)
-import Optics.Core (over, (%))
 import System.FilePath ((</>))
 import Vira.Lib.Git (BranchName, CommitID)
 import Vira.State.Type
@@ -30,44 +29,36 @@ All operations (`query` or `update`) on this state are defined immediately below
 Data in this state is indexed by `IxSet` to allow for efficient querying.
 -}
 data ViraState = ViraState
-  { branches :: IxBranch
+  { repos :: IxRepo
+  , branches :: IxBranch
   , jobs :: IxJob
-  , appSettings :: AppSettings
+  , cachix :: Maybe CachixSettings
+  -- ^ Global Cachix settings, i.e for all the `repos`
+  , attic :: Maybe AtticSettings
+  -- ^ Global Attic settings, i.e for all the `repos`
   }
   deriving stock (Generic, Typeable)
 
 $(deriveSafeCopy 0 'base ''ViraState)
 
--- | Set the application settings
-setAppSettingsA :: AppSettings -> Update ViraState ()
-setAppSettingsA appSettings = do
-  modify $ \s ->
-    s {appSettings = appSettings}
-
--- | Get the application settings
-getAppSettingsA :: Query ViraState AppSettings
-getAppSettingsA = do
-  ViraState {appSettings} <- ask
-  pure appSettings
-
 -- | Get the cachix settings
 getCachixSettingsA :: Query ViraState (Maybe CachixSettings)
 getCachixSettingsA = do
-  ViraState {appSettings} <- ask
-  pure appSettings.cachix
+  ViraState {cachix} <- ask
+  pure cachix
 
 -- | Get the attic settings
 getAtticSettingsA :: Query ViraState (Maybe AtticSettings)
 getAtticSettingsA = do
-  ViraState {appSettings} <- ask
-  pure appSettings.attic
+  ViraState {attic} <- ask
+  pure attic
 
 -- | Set the cachix settings
 setCachixSettingsA :: CachixSettings -> Update ViraState ()
 setCachixSettingsA cachix = do
   modify $ \s ->
     s
-      { appSettings = s.appSettings {cachix = Just cachix}
+      { cachix = Just cachix
       }
 
 -- | Set the attic settings
@@ -75,35 +66,44 @@ setAtticSettingsA :: AtticSettings -> Update ViraState ()
 setAtticSettingsA attic = do
   modify $ \s ->
     s
-      { appSettings = s.appSettings {attic = Just attic}
+      { attic = Just attic
       }
 
 -- | Set all repositories, replacing existing ones
 setAllReposA :: [Repo] -> Update ViraState ()
 setAllReposA repos = do
-  modify $ over (#appSettings % #repos) (\_ -> Ix.fromList repos)
+  modify $ \s ->
+    s
+      { repos = Ix.fromList repos
+      }
 
 -- | Add a new repository
 addNewRepoA :: Repo -> Update ViraState ()
 addNewRepoA repo = do
-  modify $ over (#appSettings % #repos) (Ix.insert repo)
+  modify $ \s ->
+    s
+      { repos = Ix.insert repo s.repos
+      }
 
 -- | Delete a repository by name
 deleteRepoByNameA :: RepoName -> Update ViraState ()
 deleteRepoByNameA name = do
-  modify $ over (#appSettings % #repos) (Ix.deleteIx name)
+  modify $ \s ->
+    s
+      { repos = Ix.deleteIx name s.repos
+      }
 
 -- | Get all repositories
 getAllReposA :: Query ViraState [Repo]
 getAllReposA = do
-  ViraState {appSettings} <- ask
-  pure $ Ix.toList appSettings.repos
+  ViraState {repos} <- ask
+  pure $ Ix.toList repos
 
 -- | Get a repository by name
 getRepoByNameA :: RepoName -> Query ViraState (Maybe Repo)
 getRepoByNameA name = do
-  ViraState {appSettings} <- ask
-  pure $ Ix.getOne $ appSettings.repos @= name
+  ViraState {repos} <- ask
+  pure $ Ix.getOne $ repos @= name
 
 -- | Get all branches of a repository
 getBranchesByRepoA :: RepoName -> Query ViraState [Branch]
@@ -120,7 +120,10 @@ getBranchByNameA repo branch = do
 -- | Set a repository
 setRepoA :: Repo -> Update ViraState ()
 setRepoA repo = do
-  modify $ over (#appSettings % #repos) (Ix.updateIx (name repo) repo)
+  modify $ \s ->
+    s
+      { repos = Ix.updateIx (name repo) repo s.repos
+      }
 
 -- | Set a repository's branches
 setRepoBranchesA :: RepoName -> Map BranchName CommitID -> Update ViraState ()
@@ -223,8 +226,6 @@ $( makeAcidic
     , 'addNewJobA
     , 'jobUpdateStatusA
     , 'markUnfinishedJobsAsStaleA
-    , 'setAppSettingsA
-    , 'getAppSettingsA
     , 'getCachixSettingsA
     , 'setCachixSettingsA
     , 'getAtticSettingsA

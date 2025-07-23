@@ -12,17 +12,6 @@ import Vira.Lib.Attic
 import Vira.Lib.Git (BranchName, CommitID)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
 
--- | Persisted App settings
-data AppSettings = AppSettings
-  { repos :: IxRepo
-  -- ^ Repositories settings
-  , cachix :: Maybe CachixSettings
-  -- ^ Default Cachix settings
-  , attic :: Maybe AtticSettings
-  -- ^ Default Attic settings
-  }
-  deriving stock (Show, Generic)
-
 newtype RepoSettings = RepoSettings
   { dummy :: Maybe Text
   -- ^ Placeholder for future per-repo settings)
@@ -172,4 +161,3 @@ $(deriveSafeCopy 0 'base ''RepoSettings)
 $(deriveSafeCopy 0 'base ''Repo)
 $(deriveSafeCopy 0 'base ''CachixSettings)
 $(deriveSafeCopy 0 'base ''AtticSettings)
-$(deriveSafeCopy 0 'base ''AppSettings)

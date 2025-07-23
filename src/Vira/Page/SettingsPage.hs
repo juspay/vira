@@ -53,9 +53,10 @@ handlers cfg =
 viewHandler :: Eff App.AppServantStack (Html ())
 viewHandler = do
   cfg <- ask
-  settings <- App.query St.GetAppSettingsA
+  mCachix <- App.query St.GetCachixSettingsA
+  mAttic <- App.query St.GetAtticSettingsA
   repos <- App.query St.GetAllReposA
-  pure $ W.layout cfg [LinkTo.Settings] $ viewSettings cfg.linkTo settings repos
+  pure $ W.layout cfg [LinkTo.Settings] $ viewSettings cfg.linkTo mCachix mAttic repos
 
 updateCachixHandler :: CachixSettings -> Eff App.AppServantStack FormResp
 updateCachixHandler settings = do
@@ -91,17 +92,15 @@ removeRepoHandler name = do
       log Debug $ "Repository not found " <> toText name
       pure $ addHeader True "Repository not Found"
 
-viewSettings :: (LinkTo.LinkTo -> Link) -> AppSettings -> [Repo] -> Html ()
-viewSettings linkTo settings repos =
+viewSettings :: (LinkTo.LinkTo -> Link) -> Maybe CachixSettings -> Maybe AtticSettings -> [Repo] -> Html ()
+viewSettings linkTo mCachix mAttic repos =
   div_ [class_ "space-y-8"] $ do
     section_ [class_ "bg-white border-2 border-gray-300 rounded-xl shadow-md p-6"] repositories
-    section_ [class_ "bg-white border-2 border-gray-300 rounded-xl shadow-md p-6"] $
-      cachix settings.cachix
-    section_ [class_ "bg-white border-2 border-gray-300 rounded-xl shadow-md p-6"] $
-      attic settings.attic
+    section_ [class_ "bg-white border-2 border-gray-300 rounded-xl shadow-md p-6"] cachixForm
+    section_ [class_ "bg-white border-2 border-gray-300 rounded-xl shadow-md p-6"] atticForm
   where
-    cachix :: Maybe CachixSettings -> Html ()
-    cachix mCachix = do
+    cachixForm :: Html ()
+    cachixForm = do
       h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Cachix"
       form_ [hxPostSafe_ $ linkTo LinkTo.SettingsCachix, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
         div_ $ do
@@ -122,8 +121,8 @@ viewSettings linkTo settings repos =
               ]
         W.viraButton_ [type_ "submit"] "Save"
 
-    attic :: Maybe AtticSettings -> Html ()
-    attic mAttic = do
+    atticForm :: Html ()
+    atticForm = do
       h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Attic"
       form_ [hxPostSafe_ $ linkTo LinkTo.SettingsAttic, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
         div_ $ do
@@ -159,39 +158,43 @@ viewSettings linkTo settings repos =
               ] -- Doesn't display existing token
         W.viraButton_ [type_ "submit"] "Save"
 
+    newRepoForm :: Html ()
+    newRepoForm = do
+      h3_ [class_ "text-lg font-medium mb-3"] "New Repository"
+      form_ [hxPostSafe_ $ linkTo LinkTo.SettingsAddRepo, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
+        div_ $ do
+          withFieldName @Repo @"name" $ \name -> do
+            W.viraLabel_ [for_ name] "Name"
+            W.viraInput_
+              [ type_ "text"
+              , name_ name
+              , placeholder_ "my-repo"
+              ]
+        div_ $ do
+          withFieldName @Repo @"cloneUrl" $ \name -> do
+            W.viraLabel_ [for_ name] "Clone URL"
+            W.viraInput_
+              [ type_ "url"
+              , name_ name
+              , placeholder_ "https://github.com/user/repo.git"
+              ]
+        details_ [class_ "border border-gray-300 rounded-md p-4"] $ do
+          summary_ [class_ "cursor-pointer text-lg font-medium mb-2"] "Settings (optional)"
+          div_ $ do
+            withFieldName @RepoSettings @"dummy" $ \name -> do
+              W.viraLabel_ [for_ name] "Dummy"
+              W.viraInput_
+                [ type_ "text"
+                , name_ name
+                ]
+        W.viraButton_ [type_ "submit"] "Add"
+
     repositories :: Html ()
     repositories = do
       h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Repositories"
 
       div_ [class_ "mb-6"] $ do
-        h3_ [class_ "text-lg font-medium mb-3"] "New Repository"
-        form_ [hxPostSafe_ $ linkTo LinkTo.SettingsAddRepo, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
-          div_ $ do
-            withFieldName @Repo @"name" $ \name -> do
-              W.viraLabel_ [for_ name] "Name"
-              W.viraInput_
-                [ type_ "text"
-                , name_ name
-                , placeholder_ "my-repo"
-                ]
-          div_ $ do
-            withFieldName @Repo @"cloneUrl" $ \name -> do
-              W.viraLabel_ [for_ name] "Clone URL"
-              W.viraInput_
-                [ type_ "url"
-                , name_ name
-                , placeholder_ "https://github.com/user/repo.git"
-                ]
-          details_ [class_ "border border-gray-300 rounded-md p-4"] $ do
-            summary_ [class_ "cursor-pointer text-lg font-medium mb-2"] "Settings (optional)"
-            div_ $ do
-              withFieldName @RepoSettings @"dummy" $ \name -> do
-                W.viraLabel_ [for_ name] "Dummy"
-                W.viraInput_
-                  [ type_ "text"
-                  , name_ name
-                  ]
-          W.viraButton_ [type_ "submit"] "Add"
+        newRepoForm
 
       div_ $ do
         h3_ [class_ "text-lg font-medium mb-3"] "Existing Repositories"
