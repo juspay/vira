@@ -79,38 +79,55 @@ deleteHandler name = do
 -- TODO: Can we use `HtmlT (ReaderT ..) ()` to avoid threading the linkTo function?
 viewRepo :: (LinkTo.LinkTo -> Link) -> St.Repo -> [(St.Branch, [St.Job])] -> Html ()
 viewRepo linkTo repo branches = do
-  div_ $ do
-    div_ [class_ "flex items-center justify-between mb-4"] $ do
-      pre_ [class_ "rounded py-2 flex-1"] $ code_ $ toHtml repo.cloneUrl
-      div_ [class_ "flex gap-2 ml-4"] $ do
-        W.viraButton_
-          [ hxPostSafe_ $ linkTo $ LinkTo.RepoUpdate repo.name
-          , hxSwapS_ AfterEnd
-          , class_ "bg-blue-600 hover:bg-blue-700"
-          ]
-          "Refresh branches"
-        W.viraButton_
-          [ hxPostSafe_ $ linkTo $ LinkTo.RepoDelete repo.name
-          , hxSwapS_ AfterEnd
-          , class_ "bg-red-600 hover:bg-red-700"
-          , hxConfirm_ "Are you sure you want to delete this repository? This action cannot be undone."
-          ]
-          "Delete Repository"
-    div_ [class_ "space-y-8"] $ do
+  W.viraSection_ [] $ do
+    -- Repository header with improved styling
+    W.viraCard_ [class_ "p-6 mb-8"] $ do
+      div_ [class_ "flex items-center justify-between"] $ do
+        div_ [class_ "flex-1"] $ do
+          W.viraPageHeader_ (toText $ toString repo.name) $ do
+            W.viraCodeBlock_ (toText repo.cloneUrl)
+        div_ [class_ "flex gap-3 ml-6"] $ do
+          W.viraButton_
+            [ hxPostSafe_ $ linkTo $ LinkTo.RepoUpdate repo.name
+            , hxSwapS_ AfterEnd
+            , class_ "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
+            ]
+            "🔄 Refresh Branches"
+          W.viraButton_
+            [ hxPostSafe_ $ linkTo $ LinkTo.RepoDelete repo.name
+            , hxSwapS_ AfterEnd
+            , class_ "bg-red-600 hover:bg-red-700 focus:ring-red-500"
+            , hxConfirm_ "Are you sure you want to delete this repository? This action cannot be undone."
+            ]
+            "🗑️ Delete Repository"
+
+    -- Branches section
+    div_ [class_ "space-y-6"] $ do
       forM_ branches $ \(branch, jobs) -> do
-        section_ [id_ (toText $ "branch-" <> toString branch.branchName), class_ "bg-white border-2 border-gray-300 rounded-xl shadow-md hover:shadow-lg hover:border-blue-400 transition-all duration-300 p-4 my-6"] $ do
-          let url = linkURI $ linkTo $ LinkTo.RepoBranch repo.name branch.branchName
-          h2_ [class_ "text-2xl font-semibold mb-3 border-b-2 border-blue-100 pb-2"] $ do
-            a_ [href_ $ show url, class_ "text-blue-600 hover:text-blue-800 hover:underline"] $ do
-              toHtml $ toString branch.branchName
-          div_ [class_ "mb-4 text-gray-600"] $ do
-            JobPage.viewCommit branch.headCommit
-          div_ [class_ "mb-4"] $
-            W.viraButton_
-              [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
-              , hxSwapS_ AfterEnd
-              ]
-              "Build"
-          BranchPage.viewJobListing linkTo jobs
-          div_ [class_ "text-right"] $ do
-            a_ [href_ $ show url, class_ "text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"] "View all jobs →"
+        let url = linkURI $ linkTo $ LinkTo.RepoBranch repo.name branch.branchName
+        W.viraCard_ [id_ (toText $ "branch-" <> toString branch.branchName), class_ "overflow-hidden hover:shadow-xl transition-all duration-300"] $ do
+          -- Branch header
+          div_ [class_ "bg-gradient-to-r from-indigo-50 to-blue-50 p-6 border-b border-gray-100"] $ do
+            div_ [class_ "flex items-center justify-between"] $ do
+              div_ $ do
+                h2_ [class_ "text-2xl font-bold text-gray-900 mb-2"] $ do
+                  a_ [href_ $ show url, class_ "text-indigo-600 hover:text-indigo-800 transition-colors hover:underline"] $ do
+                    toHtml $ toString branch.branchName
+                div_ [class_ "text-gray-600"] $ do
+                  JobPage.viewCommit branch.headCommit
+              div_ $ do
+                W.viraButton_
+                  [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
+                  , hxSwapS_ AfterEnd
+                  , class_ "bg-green-600 hover:bg-green-700 focus:ring-green-500"
+                  ]
+                  "🚀 Build"
+
+          -- Jobs listing
+          div_ [class_ "p-6"] $ do
+            BranchPage.viewJobListing linkTo jobs
+            W.viraDivider_
+            div_ [class_ "flex justify-end"] $ do
+              a_ [href_ $ show url, class_ "inline-flex items-center text-indigo-600 hover:text-indigo-800 font-medium transition-colors group"] $ do
+                "View all jobs"
+                span_ [class_ "ml-2 transform transition-transform group-hover:translate-x-1"] "→"

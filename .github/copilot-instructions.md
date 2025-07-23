@@ -1,5 +1,13 @@
 See README.md for general project information.
 
+## Design System
+
+- **Follow the Vira Design System**: All UI/frontend code must follow the guidelines in `DESIGN.md`
+- **Use Existing Widgets**: Always check `src/Vira/Widgets.hs` for existing components before creating new ones
+- **Design Consistency**: Maintain the established color palette, typography, and spacing patterns
+- **Component Naming**: New widgets should follow the `vira[ComponentName]_` naming convention
+- **Responsive Design**: Ensure all UI components work across mobile, tablet, and desktop breakpoints
+
 ## Coding Guidelines
 
 - Haskell guidelines
