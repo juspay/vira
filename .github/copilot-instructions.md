@@ -22,6 +22,7 @@ See README.md for general project information.
     - After making code changes, run `pre-commit run -a` to format the code and check for linting issues (this runs fourmolu and hlint).
 - Refactoring & design
     - Prefer Juval Löwy's Volatility-Based Decomposition principle. For details, see https://www.informit.com/articles/article.aspx?p=2995357&seqNum=2
+- When updating code (especially styling) keep that in sync with DESIGN.md (bidirectional)
 
 ## Running vira
 

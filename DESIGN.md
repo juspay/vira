@@ -117,70 +117,48 @@ code: text-sm font-mono (14px, monospace)
 
 ## 🧩 Component Library
 
-All reusable UI components are defined in `src/Vira/Widgets.hs`. Always use these components for consistency:
+All reusable UI components are defined in `src/Vira/Widgets.hs` with comprehensive documentation.
 
-### Core Components
+### Using Components
 
-#### Layout Components
-- `viraSection_` - Page section wrapper with consistent spacing
-- `viraCard_` - Card container with elegant shadows and rounded corners
-- `viraPageHeader_` - Standardized page headers with title and subtitle
-- `viraDivider_` - Visual content separator
+Always use these components instead of raw HTML to maintain design consistency:
 
-#### Interactive Components
-- `viraButton_` - Primary action buttons with hover states
-- `viraIconButton_` - Icon-only buttons for secondary actions
-- `viraInput_` - Form input fields with proper focus states
-- `viraLabel_` - Form labels with consistent typography
-
-#### Display Components
-- `viraStatusBadge_` - Status indicators with semantic colors
-- `viraCodeBlock_` - Code display with proper formatting
-- `viraAlert_` - Alert messages (success, error, warning, info)
-- `viraFormGroup_` - Form field grouping for consistent layouts
-
-### Component Usage Guidelines
-
-#### Buttons
 ```haskell
--- Primary action (most important action on page)
-W.viraButton_ [class_ "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"] "Save Changes"
+import Vira.Widgets qualified as W
 
--- Success action
-W.viraButton_ [class_ "bg-green-600 hover:bg-green-700 focus:ring-green-500"] "✅ Build"
-
--- Destructive action
-W.viraButton_ [class_ "bg-red-600 hover:bg-red-700 focus:ring-red-500"] "🗑️ Delete"
-
--- Secondary action
-W.viraIconButton_ [] "⚙️"
+-- Use components with proper imports
+W.viraButton_ [type_ "submit"] "Save Changes"
+W.viraCard_ [class_ "p-6"] $ do
+  W.viraPageHeader_ "Settings" $ do
+    p_ [class_ "text-gray-600"] "Configure your application"
 ```
 
-#### Status Badges
-```haskell
--- Success
-W.viraStatusBadge_ "Success" "bg-green-100 text-green-800 border-green-200"
+### Component Documentation
 
--- Error
-W.viraStatusBadge_ "Failed" "bg-red-100 text-red-800 border-red-200"
+Each component in `Widgets.hs` includes:
+- **Purpose and design rationale**
+- **Usage examples with code samples**  
+- **Styling guidelines and color schemes**
+- **Accessibility considerations**
+- **When to use vs alternatives**
 
--- Warning/Pending
-W.viraStatusBadge_ "Pending" "bg-yellow-100 text-yellow-800 border-yellow-200"
+### Component Categories
 
--- Info/Running
-W.viraStatusBadge_ "Running" "bg-blue-100 text-blue-800 border-blue-200"
-```
+See `src/Vira/Widgets.hs` for the complete component library:
 
-#### Alerts
-```haskell
--- Success message
-W.viraAlert_ "success" "bg-green-50 border-green-200" $ do
-  p_ [class_ "text-green-800"] "Repository successfully added!"
+- **Layout Components**: `viraSection_`, `viraCard_`, `viraPageHeader_`, `viraDivider_`
+- **Interactive Components**: `viraButton_`, `viraIconButton_`, `viraInput_`, `viraLabel_`  
+- **Display Components**: `viraStatusBadge_`, `viraCodeBlock_`, `viraCodeInline_`, `viraAlert_`, `viraFormGroup_`
 
--- Error message
-W.viraAlert_ "error" "bg-red-50 border-red-200" $ do
-  p_ [class_ "text-red-800"] "Failed to connect to repository"
-```
+### Creating New Components
+
+When creating new components:
+1. **Check existing widgets first** - Avoid duplication
+2. **Follow naming convention** - `vira[ComponentName]_` pattern
+3. **Include comprehensive documentation** - Follow existing examples
+4. **Accept `[Attributes]` parameter** - For extensibility
+5. **Use design system colors** - Follow the established palette
+6. **Add to export list** - Make it available to other modules
 
 ## 🎛️ Layout Guidelines
 
@@ -205,58 +183,6 @@ div_ [class_ "grid gap-6 lg:grid-cols-2"] $ do
   W.viraCard_ [class_ "p-6"] rightContent
 ```
 
-### Page Structure
-```haskell
-pageContent = do
-  W.viraSection_ [] $ do
-    -- Page header
-    W.viraPageHeader_ "Page Title" $ do
-      p_ [class_ "text-gray-600"] "Page description"
-    
-    -- Main content cards
-    W.viraCard_ [class_ "p-6 mb-6"] $ do
-      -- Primary content
-    
-    W.viraCard_ [class_ "p-6"] $ do
-      -- Secondary content
-```
-
-## 🎭 Visual Effects
-
-### Shadows
-```css
-/* Component shadows */
-.shadow-elegant: box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-
-/* Card hover states */
-hover:shadow-lg
-hover:shadow-xl
-```
-
-### Gradients
-```css
-/* Background gradient */
-bg-gradient-to-br from-slate-50 to-blue-50
-
-/* Header gradients */
-bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600
-bg-gradient-to-r from-indigo-50 to-blue-50
-```
-
-### Transitions
-```css
-/* Smooth transitions for all interactive elements */
-.transition-smooth: transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-```
-
-### Glass Morphism
-```css
-/* For overlay elements */
-backdrop-blur-sm
-bg-white/80
-border border-white/20
-```
-
 ## 📱 Responsive Design
 
 ### Breakpoints
@@ -265,46 +191,24 @@ border border-white/20
 - Desktop: `lg:` (1024px+)
 - Large: `xl:` (1280px+)
 
-### Responsive Patterns
-```haskell
--- Responsive grid
-div_ [class_ "grid gap-4 md:grid-cols-2 lg:grid-cols-3"] $ do
-
--- Responsive padding
-div_ [class_ "p-4 lg:p-8"] $ do
-
--- Responsive text
-h1_ [class_ "text-2xl lg:text-3xl"] $ do
-```
-
 ## ♿ Accessibility Guidelines
 
-### Focus States
 All interactive elements must have visible focus indicators:
 ```css
 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2
 ```
 
-### Color Contrast
-- Ensure 4.5:1 contrast ratio for normal text
-- Ensure 3:1 contrast ratio for large text
-- Don't rely solely on color to convey information
-
-### Semantic HTML
+- Ensure 4.5:1 contrast ratio for text
 - Use proper heading hierarchy (h1 → h2 → h3)
-- Use semantic elements (`nav`, `main`, `section`, `article`)
-- Include `alt` text for images
-- Use `role` attributes when needed
+- Include `alt` text for images and `title` for icon buttons
 
 ## 🚀 Implementation Guidelines
 
-### When Creating New Components
+### Creating New Components
 1. **Check existing widgets first** - Use components from `Widgets.hs`
 2. **Follow naming convention** - `vira[ComponentName]_` for new widgets
-3. **Include proper attributes** - Accept `[Attributes]` parameter
-4. **Use design tokens** - Follow the color palette and spacing system
-5. **Add hover/focus states** - Include interactive feedback
-6. **Test responsiveness** - Ensure it works on all screen sizes
+3. **Accept `[Attributes]` parameter** - For extensibility
+4. **Use design system colors** - Follow the established palette
 
 ### Code Style
 ```haskell
@@ -318,20 +222,14 @@ div_ [class_ "bg-white p-4 rounded shadow"] $ do
   h1_ [class_ "text-lg font-bold"] "Settings"
 ```
 
-### Class Naming Patterns
-- **Layout**: `p-6`, `m-4`, `space-y-6`, `grid`, `flex`
-- **Colors**: `bg-white`, `text-gray-900`, `border-gray-200`
-- **Interactions**: `hover:bg-gray-50`, `focus:ring-2`, `transition-smooth`
-- **Responsive**: `md:grid-cols-2`, `lg:p-8`, `xl:max-w-6xl`
-
 ## 🔄 Status System
 
 ### Build Statuses
-- **Running**: Blue (`bg-blue-100 text-blue-800`) with "🚧" or spinner
-- **Pending**: Yellow (`bg-yellow-100 text-yellow-800`) with "⏳"
-- **Success**: Green (`bg-green-100 text-green-800`) with "✅"
-- **Failed**: Red (`bg-red-100 text-red-800`) with "❌"
-- **Killed**: Gray (`bg-gray-100 text-gray-800`) with "💀"
+- **Running**: Blue (`bg-blue-100 text-blue-800`)
+- **Pending**: Yellow (`bg-yellow-100 text-yellow-800`)
+- **Success**: Green (`bg-green-100 text-green-800`)
+- **Failed**: Red (`bg-red-100 text-red-800`)
+- **Killed**: Darker red (`bg-red-200 text-red-900`)
 
 ### Connection Statuses
 - **Connected**: Green alert with service details
@@ -349,24 +247,6 @@ W.viraCard_ [class_ "p-12 text-center"] $ do
   -- Call to action button
 ```
 
-### Loading States
-```haskell
--- Button loading state
-W.viraButton_ [disabled_ "", class_ "opacity-50 cursor-not-allowed"] $ do
-  "⏳ Loading..."
-```
-
-### Form Validation
-```haskell
--- Error state
-W.viraAlert_ "error" "bg-red-50 border-red-200" $ do
-  p_ [class_ "text-red-800"] "Please fix the following errors:"
-
--- Success state
-W.viraAlert_ "success" "bg-green-50 border-green-200" $ do
-  p_ [class_ "text-green-800"] "Settings saved successfully!"
-```
-
 ---
 
-**Remember**: This design system exists to maintain consistency and quality. When in doubt, refer to existing components in `Widgets.hs` or follow the patterns established in this document. Always prioritize user experience and accessibility in your implementations.
+**Remember**: This design system exists to maintain consistency and quality. When in doubt, refer to existing components in `Widgets.hs` or follow the patterns established in this document.
