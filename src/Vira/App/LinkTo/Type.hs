@@ -21,7 +21,9 @@ data LinkTo
   | Kill JobId
   | Settings
   | SettingsCachix
+  | SettingsRemoveCachix
   | SettingsAttic
+  | SettingsRemoveAttic
   | SettingsAddRepo
   | SettingsRemoveRepo
   | StatusGet
@@ -41,7 +43,9 @@ linkShortTitle = \case
   Kill _ -> "Kill" -- unused
   Settings -> "Settings"
   SettingsCachix -> "Cachix Settings"
+  SettingsRemoveCachix -> "Remove Cachix Settings"
   SettingsAttic -> "Attic Settings"
+  SettingsRemoveAttic -> "Remove Attic Settings"
   SettingsAddRepo -> "Add Repository"
   SettingsRemoveRepo -> "Remove Repository"
   StatusGet -> "Status"

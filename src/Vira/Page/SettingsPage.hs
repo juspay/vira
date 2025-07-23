@@ -34,7 +34,9 @@ type FormResp = Headers '[HXRefresh] (Html ())
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
   , _updateCachix :: mode :- "cachix" :> FormReq CachixSettings :> Post '[HTML] FormResp
+  , _removeCachix :: mode :- "cachix" :> "remove" :> Post '[HTML] FormResp
   , _updateAttic :: mode :- "attic" :> FormReq AtticSettings :> Post '[HTML] FormResp
+  , _removeAttic :: mode :- "attic" :> "remove" :> Post '[HTML] FormResp
   , _addRepo :: mode :- "repo" :> FormReq Repo :> Post '[HTML] FormResp
   , _removeRepo :: mode :- "repo" :> "remove" :> FormReq RepoName :> Post '[HTML] FormResp
   }
@@ -45,7 +47,9 @@ handlers cfg =
   Routes
     { _view = App.runAppInServant cfg viewHandler
     , _updateCachix = App.runAppInServant cfg . updateCachixHandler
+    , _removeCachix = App.runAppInServant cfg removeCachixHandler
     , _updateAttic = App.runAppInServant cfg . updateAtticHandler
+    , _removeAttic = App.runAppInServant cfg removeAtticHandler
     , _addRepo = App.runAppInServant cfg . addRepoHandler
     , _removeRepo = App.runAppInServant cfg . removeRepoHandler
     }
@@ -60,14 +64,26 @@ viewHandler = do
 
 updateCachixHandler :: CachixSettings -> Eff App.AppServantStack FormResp
 updateCachixHandler settings = do
-  App.update $ St.SetCachixSettingsA settings
+  App.update $ St.SetCachixSettingsA (Just settings)
   log Info $ "Updated cachix settings for " <> settings.cachixName
+  pure $ addHeader True "Ok"
+
+removeCachixHandler :: Eff App.AppServantStack FormResp
+removeCachixHandler = do
+  App.update $ St.SetCachixSettingsA Nothing
+  log Info "Removed cachix settings"
   pure $ addHeader True "Ok"
 
 updateAtticHandler :: AtticSettings -> Eff App.AppServantStack FormResp
 updateAtticHandler settings = do
-  App.update $ St.SetAtticSettingsA settings
+  App.update $ St.SetAtticSettingsA (Just settings)
   log Info $ "Updated attic settings for " <> settings.atticServer.serverName <> ":" <> toText settings.atticCacheName
+  pure $ addHeader True "Ok"
+
+removeAtticHandler :: Eff App.AppServantStack FormResp
+removeAtticHandler = do
+  App.update $ St.SetAtticSettingsA Nothing
+  log Info "Removed attic settings"
   pure $ addHeader True "Ok"
 
 addRepoHandler :: Repo -> Eff App.AppServantStack FormResp
@@ -106,7 +122,7 @@ viewSettings linkTo mCachix mAttic repos =
     cachixForm :: Html ()
     cachixForm = do
       h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Cachix"
-      form_ [hxPostSafe_ $ linkTo LinkTo.SettingsCachix, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
+      form_ [id_ "cachix-update", hxPostSafe_ $ linkTo LinkTo.SettingsCachix, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
         div_ $ do
           withFieldName @CachixSettings @"cachixName" $ \name -> do
             W.viraLabel_ [for_ name] "Cache Name"
@@ -118,17 +134,22 @@ viewSettings linkTo mCachix mAttic repos =
         div_ $ do
           withFieldName @CachixSettings @"authToken" $ \name -> do
             W.viraLabel_ [for_ name] "Auth Token"
-            W.viraInput_
+            W.viraInput_ $
               [ type_ "text"
               , name_ name
-              , placeholder_ "Existing value is hidden for security reasons"
               ]
-        W.viraButton_ [type_ "submit"] "Save"
+                <> maybe [] (const [placeholder_ "Hidden for security reasons"]) mCachix
+
+      div_ [class_ "flex items-center space-x-2 mt-4"] $ do
+        W.viraButton_ [type_ "submit", form_ "cachix-update"] "Update"
+        whenJust mCachix $ \_ ->
+          form_ [hxPostSafe_ $ linkTo LinkTo.SettingsRemoveCachix, hxSwapS_ InnerHTML] $ do
+            W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Remove"
 
     atticForm :: Html ()
     atticForm = do
       h2_ [class_ "text-2xl font-semibold mb-4 text-gray-800"] "Attic"
-      form_ [hxPostSafe_ $ linkTo LinkTo.SettingsAttic, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
+      form_ [id_ "attic-update", hxPostSafe_ $ linkTo LinkTo.SettingsAttic, hxSwapS_ InnerHTML, class_ "space-y-4"] $ do
         div_ $ do
           withFieldName @AtticServer @"serverName" $ \name -> do
             W.viraLabel_ [for_ name] "Server Name"
@@ -156,11 +177,16 @@ viewSettings linkTo mCachix mAttic repos =
         div_ $ do
           withFieldName @AtticSettings @"atticToken" $ \name -> do
             W.viraLabel_ [for_ name] "Token"
-            W.viraInput_
+            W.viraInput_ $
               [ type_ "text"
               , name_ name
-              ] -- Doesn't display existing token
-        W.viraButton_ [type_ "submit"] "Save"
+              ]
+                <> maybe [] (const [placeholder_ "Hidden for security reasons"]) mAttic
+      div_ [class_ "flex items-center space-x-2 mt-4"] $ do
+        W.viraButton_ [type_ "submit", form_ "attic-update"] "Update"
+        whenJust mCachix $ \_ ->
+          form_ [hxPostSafe_ $ linkTo LinkTo.SettingsRemoveCachix, hxSwapS_ InnerHTML] $ do
+            W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Remove"
 
     repositories :: Html ()
     repositories = do

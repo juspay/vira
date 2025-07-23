@@ -54,19 +54,19 @@ getAtticSettingsA = do
   pure attic
 
 -- | Set the cachix settings
-setCachixSettingsA :: CachixSettings -> Update ViraState ()
-setCachixSettingsA cachix = do
+setCachixSettingsA :: Maybe CachixSettings -> Update ViraState ()
+setCachixSettingsA mCachix = do
   modify $ \s ->
     s
-      { cachix = Just cachix
+      { cachix = mCachix
       }
 
 -- | Set the attic settings
-setAtticSettingsA :: AtticSettings -> Update ViraState ()
-setAtticSettingsA attic = do
+setAtticSettingsA :: Maybe AtticSettings -> Update ViraState ()
+setAtticSettingsA mAttic = do
   modify $ \s ->
     s
-      { attic = Just attic
+      { attic = mAttic
       }
 
 -- | Set all repositories, replacing existing ones
