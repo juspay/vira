@@ -34,11 +34,11 @@ type FormResp = Headers '[HXRefresh] (Html ())
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
   , _updateCachix :: mode :- "cachix" :> FormReq CachixSettings :> Post '[HTML] FormResp
-  , _removeCachix :: mode :- "cachix" :> "remove" :> Post '[HTML] FormResp
+  , _deleteCachix :: mode :- "cachix" :> "delete" :> Post '[HTML] FormResp
   , _updateAttic :: mode :- "attic" :> FormReq AtticSettings :> Post '[HTML] FormResp
-  , _removeAttic :: mode :- "attic" :> "remove" :> Post '[HTML] FormResp
+  , _deleteAttic :: mode :- "attic" :> "delete" :> Post '[HTML] FormResp
   , _addRepo :: mode :- "repo" :> FormReq Repo :> Post '[HTML] FormResp
-  , _removeRepo :: mode :- "repo" :> "remove" :> FormReq RepoName :> Post '[HTML] FormResp
+  , _deleteRepo :: mode :- "repo" :> "delete" :> FormReq RepoName :> Post '[HTML] FormResp
   }
   deriving stock (Generic)
 
@@ -47,11 +47,11 @@ handlers cfg =
   Routes
     { _view = App.runAppInServant cfg viewHandler
     , _updateCachix = App.runAppInServant cfg . updateCachixHandler
-    , _removeCachix = App.runAppInServant cfg removeCachixHandler
+    , _deleteCachix = App.runAppInServant cfg deleteCachixHandler
     , _updateAttic = App.runAppInServant cfg . updateAtticHandler
-    , _removeAttic = App.runAppInServant cfg removeAtticHandler
+    , _deleteAttic = App.runAppInServant cfg deleteAtticHandler
     , _addRepo = App.runAppInServant cfg . addRepoHandler
-    , _removeRepo = App.runAppInServant cfg . removeRepoHandler
+    , _deleteRepo = App.runAppInServant cfg . deleteRepoHandler
     }
 
 viewHandler :: Eff App.AppServantStack (Html ())
@@ -68,10 +68,10 @@ updateCachixHandler settings = do
   log Info $ "Updated cachix settings for " <> settings.cachixName
   pure $ addHeader True "Ok"
 
-removeCachixHandler :: Eff App.AppServantStack FormResp
-removeCachixHandler = do
+deleteCachixHandler :: Eff App.AppServantStack FormResp
+deleteCachixHandler = do
   App.update $ St.SetCachixSettingsA Nothing
-  log Info "Removed cachix settings"
+  log Info "Deleted cachix settings"
   pure $ addHeader True "Ok"
 
 updateAtticHandler :: AtticSettings -> Eff App.AppServantStack FormResp
@@ -80,10 +80,10 @@ updateAtticHandler settings = do
   log Info $ "Updated attic settings for " <> settings.atticServer.serverName <> ":" <> toText settings.atticCacheName
   pure $ addHeader True "Ok"
 
-removeAtticHandler :: Eff App.AppServantStack FormResp
-removeAtticHandler = do
+deleteAtticHandler :: Eff App.AppServantStack FormResp
+deleteAtticHandler = do
   App.update $ St.SetAtticSettingsA Nothing
-  log Info "Removed attic settings"
+  log Info "Deleted attic settings"
   pure $ addHeader True "Ok"
 
 addRepoHandler :: Repo -> Eff App.AppServantStack FormResp
@@ -101,12 +101,12 @@ addRepoHandler repo = do
       log Info $ "Added repository " <> toText repo.name
       pure $ addHeader True "Ok"
 
-removeRepoHandler :: RepoName -> Eff App.AppServantStack FormResp
-removeRepoHandler name = do
+deleteRepoHandler :: RepoName -> Eff App.AppServantStack FormResp
+deleteRepoHandler name = do
   App.query (St.GetRepoByNameA name) >>= \case
     Just _repo -> do
       App.update $ St.DeleteRepoByNameA name
-      log Info $ "Removed repository " <> toText name
+      log Info $ "Deleted repository " <> toText name
       pure $ addHeader True "Ok"
     Nothing -> do
       log Debug $ "Repository not found " <> toText name
@@ -143,8 +143,8 @@ viewSettings linkTo mCachix mAttic repos =
       div_ [class_ "flex items-center space-x-2 mt-4"] $ do
         W.viraButton_ [type_ "submit", form_ "cachix-update"] "Update"
         whenJust mCachix $ \_ ->
-          form_ [hxPostSafe_ $ linkTo LinkTo.SettingsRemoveCachix, hxSwapS_ InnerHTML] $ do
-            W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Remove"
+          form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteCachix, hxSwapS_ InnerHTML] $ do
+            W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Delete"
 
     atticForm :: Html ()
     atticForm = do
@@ -185,8 +185,8 @@ viewSettings linkTo mCachix mAttic repos =
       div_ [class_ "flex items-center space-x-2 mt-4"] $ do
         W.viraButton_ [type_ "submit", form_ "attic-update"] "Update"
         whenJust mCachix $ \_ ->
-          form_ [hxPostSafe_ $ linkTo LinkTo.SettingsRemoveCachix, hxSwapS_ InnerHTML] $ do
-            W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Remove"
+          form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteCachix, hxSwapS_ InnerHTML] $ do
+            W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Delete"
 
     repositories :: Html ()
     repositories = do
@@ -207,10 +207,10 @@ viewSettings linkTo mCachix mAttic repos =
                   strong_ [class_ "text-gray-900"] $ toHtml $ toString repo.name
                   br_ []
                   span_ [class_ "text-sm text-gray-600"] $ toHtml repo.cloneUrl
-                form_ [hxPostSafe_ $ linkTo LinkTo.SettingsRemoveRepo, hxSwapS_ InnerHTML, class_ "inline"] $ do
+                form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteRepo, hxSwapS_ InnerHTML, class_ "inline"] $ do
                   withFieldName @RepoName @"unRepoName" $ \name ->
                     W.viraInput_ [type_ "hidden", name_ name, value_ $ toText $ toString repo.name]
-                  W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Remove"
+                  W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700"] "Delete"
 
 newRepoForm :: (LinkTo.LinkTo -> Link) -> Html ()
 newRepoForm linkTo = do

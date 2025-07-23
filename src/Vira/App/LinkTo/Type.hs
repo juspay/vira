@@ -21,11 +21,11 @@ data LinkTo
   | Kill JobId
   | Settings
   | SettingsCachix
-  | SettingsRemoveCachix
+  | SettingsDeleteCachix
   | SettingsAttic
-  | SettingsRemoveAttic
+  | SettingsDeleteAttic
   | SettingsAddRepo
-  | SettingsRemoveRepo
+  | SettingsDeleteRepo
   | StatusGet
   | About
 
@@ -43,10 +43,10 @@ linkShortTitle = \case
   Kill _ -> "Kill" -- unused
   Settings -> "Settings"
   SettingsCachix -> "Cachix Settings"
-  SettingsRemoveCachix -> "Remove Cachix Settings"
+  SettingsDeleteCachix -> "Delete Cachix Settings"
   SettingsAttic -> "Attic Settings"
-  SettingsRemoveAttic -> "Remove Attic Settings"
+  SettingsDeleteAttic -> "Delete Attic Settings"
   SettingsAddRepo -> "Add Repository"
-  SettingsRemoveRepo -> "Remove Repository"
+  SettingsDeleteRepo -> "Delete Repository"
   StatusGet -> "Status"
   About -> "About"
