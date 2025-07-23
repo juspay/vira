@@ -147,7 +147,7 @@ newRepoForm linkTo = do
         ]
 
     div_ [class_ "flex justify-end"] $ do
-      W.viraButton_ [type_ "submit", class_ "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500 px-8"] $ do
+      W.viraButton_ W.ButtonPrimary [type_ "submit", class_ "px-8"] $ do
         span_ [class_ "mr-2"] "🚀"
         "Add Repository"
 

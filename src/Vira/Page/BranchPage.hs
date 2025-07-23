@@ -52,15 +52,15 @@ viewRepoBranch linkTo repo branch jobs = do
         -- TODO: Replace this with parent UX flow
         -- cf. https://github.com/juspay/vira/issues/47#issuecomment-3014376804
         W.viraButton_
+          W.ButtonSecondary
           [ hxPostSafe_ $ linkTo $ RepoUpdate repo.name
           , hxSwapS_ AfterEnd
-          , class_ "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
           ]
           "🔄 Refresh Branches"
         W.viraButton_
+          W.ButtonSuccess
           [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
           , hxSwapS_ AfterEnd
-          , class_ "bg-green-600 hover:bg-green-700 focus:ring-green-500"
           ]
           "🚀 Build"
 

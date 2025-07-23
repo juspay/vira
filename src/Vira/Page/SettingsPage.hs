@@ -162,7 +162,7 @@ viewSettings linkTo mCachix mAttic = do
           )
 
         div_ [class_ "flex items-center gap-3 pt-4"] $ do
-          W.viraButton_ [type_ "submit", form_ "cachix-update", class_ "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"] $ do
+          W.viraButton_ W.ButtonPrimary [type_ "submit", form_ "cachix-update"] $ do
             case mCachixSettings of
               Nothing -> "Connect Cachix"
               Just _ -> "Update Settings"
@@ -170,7 +170,7 @@ viewSettings linkTo mCachix mAttic = do
       -- Disconnect form outside the main form to avoid nesting
       whenJust mCachixSettings $ \_ ->
         form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteCachix, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to disconnect Cachix? This action cannot be undone.", class_ "mt-3"] $ do
-          W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700 focus:ring-red-500"] "Disconnect"
+          W.viraButton_ W.ButtonDestructive [type_ "submit"] "Disconnect"
 
     atticForm :: Maybe AtticSettings -> Html ()
     atticForm mAtticSettings = do
@@ -230,7 +230,7 @@ viewSettings linkTo mCachix mAttic = do
             )
 
         div_ [class_ "flex items-center gap-3 pt-4"] $ do
-          W.viraButton_ [type_ "submit", form_ "attic-update", class_ "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"] $ do
+          W.viraButton_ W.ButtonPrimary [type_ "submit", form_ "attic-update"] $ do
             case mAtticSettings of
               Nothing -> "Connect Attic"
               Just _ -> "Update Settings"
@@ -238,7 +238,7 @@ viewSettings linkTo mCachix mAttic = do
       -- Disconnect form outside the main form to avoid nesting
       whenJust mAtticSettings $ \_ ->
         form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteAttic, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to disconnect Attic? This action cannot be undone.", class_ "mt-3"] $ do
-          W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700 focus:ring-red-500"] "Disconnect"
+          W.viraButton_ W.ButtonDestructive [type_ "submit"] "Disconnect"
 
 withFieldName ::
   forall record field a r.

@@ -57,6 +57,7 @@ module Vira.Widgets (
 
   -- * Type-safe enums
   AlertType (..),
+  ButtonVariant (..),
 ) where
 
 import Lucid
@@ -74,6 +75,18 @@ data AlertType
   | AlertError
   | AlertWarning
   | AlertInfo
+  deriving stock (Eq, Show)
+
+-- | Button variant types for consistent styling
+data ButtonVariant
+  = -- | Indigo - primary actions, forms
+    ButtonPrimary
+  | -- | Red - delete, disconnect, kill actions
+    ButtonDestructive
+  | -- | Green - build, success actions
+    ButtonSuccess
+  | -- | Gray - secondary actions
+    ButtonSecondary
   deriving stock (Eq, Show)
 
 -- | Common HTML layout for all routes.
@@ -164,43 +177,58 @@ breadcrumbs linkTo rs' = do
       span_ [class_ "mx-1 text-white/60"] $ toHtmlRaw ("<svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path stroke-linecap='round' stroke-linejoin='round' d='M9 5l7 7-7 7'/></svg>" :: Text)
 
 {- |
-Enhanced button component with improved styling and hover states.
+Enhanced button component with type-safe styling variants.
 
 This is the primary button component for all user actions. It includes:
+- Type-safe variant system for consistent styling
 - Smooth transitions and micro-interactions
 - Proper focus states for accessibility
 - Disabled state handling
-- Consistent indigo brand colors by default
+- Automatic color coordination
 
 = Usage Examples
 
 @
 -- Primary action (most important action on page)
-W.viraButton_ [class_ "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"] "Save Changes"
+W.viraButton_ W.ButtonPrimary [type_ "submit"] "Save Changes"
 
 -- Success action
-W.viraButton_ [class_ "bg-green-600 hover:bg-green-700 focus:ring-green-500"] "✅ Build"
+W.viraButton_ W.ButtonSuccess [] "✅ Build"
 
 -- Destructive action
-W.viraButton_ [class_ "bg-red-600 hover:bg-red-700 focus:ring-red-500"] "🗑️ Delete"
+W.viraButton_ W.ButtonDestructive [] "🗑️ Delete"
 
--- Submit button in forms
-W.viraButton_ [type_ "submit", form_ "my-form"] "Submit"
+-- Secondary action
+W.viraButton_ W.ButtonSecondary [] "Cancel"
+
+-- With additional attributes
+W.viraButton_ W.ButtonPrimary [type_ "submit", form_ "my-form"] "Submit"
 @
 
-= Styling Guidelines
+= Variant Guidelines
 
-Override colors using Tailwind classes while maintaining the component structure.
-Always include hover and focus ring colors that match the background color.
+- **ButtonPrimary**: Main actions, form submissions (indigo)
+- **ButtonSuccess**: Positive actions like build, save (green)
+- **ButtonDestructive**: Delete, disconnect, kill actions (red)
+- **ButtonSecondary**: Less important actions, cancel (gray)
+
+= Type Safety
+
+Colors are automatically managed by the variant type, preventing inconsistent styling.
 -}
-viraButton_ :: forall {result}. (Term [Attributes] result) => [Attributes] -> result
-viraButton_ attrs =
-  button_
-    ( [ class_ "inline-flex items-center justify-center px-6 py-3 text-sm font-semibold rounded-lg transition-smooth focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-indigo-600 hover:bg-indigo-700 text-white shadow-md hover:shadow-lg focus:ring-indigo-500"
-      , hyperscript_ "on click add .scale-95 then wait 100ms then remove .scale-95"
-      ]
-        <> attrs
-    )
+viraButton_ :: forall {result}. (Term [Attributes] result) => ButtonVariant -> [Attributes] -> result
+viraButton_ variant attrs =
+  let (colorClasses, focusRing) = case variant of
+        ButtonPrimary -> ("bg-indigo-600 hover:bg-indigo-700 text-white", "focus:ring-indigo-500")
+        ButtonSuccess -> ("bg-green-600 hover:bg-green-700 text-white", "focus:ring-green-500")
+        ButtonDestructive -> ("bg-red-600 hover:bg-red-700 text-white", "focus:ring-red-500")
+        ButtonSecondary -> ("bg-gray-600 hover:bg-gray-700 text-white", "focus:ring-gray-500")
+   in button_
+        ( [ class_ $ "inline-flex items-center justify-center px-6 py-3 text-sm font-semibold rounded-lg transition-smooth focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg " <> colorClasses <> " " <> focusRing
+          , hyperscript_ "on click add .scale-95 then wait 100ms then remove .scale-95"
+          ]
+            <> attrs
+        )
 
 {- |
 Icon button variant for secondary actions and toolbar buttons.

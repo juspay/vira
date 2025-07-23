@@ -91,15 +91,15 @@ viewRepo linkTo repo branches = do
             toHtml repo.cloneUrl
         div_ [class_ "flex gap-3 ml-6"] $ do
           W.viraButton_
+            W.ButtonSecondary
             [ hxPostSafe_ $ linkTo $ LinkTo.RepoUpdate repo.name
             , hxSwapS_ AfterEnd
-            , class_ "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
             ]
             "🔄 Refresh Branches"
           W.viraButton_
+            W.ButtonDestructive
             [ hxPostSafe_ $ linkTo $ LinkTo.RepoDelete repo.name
             , hxSwapS_ AfterEnd
-            , class_ "bg-red-600 hover:bg-red-700 focus:ring-red-500"
             , hxConfirm_ "Are you sure you want to delete this repository? This action cannot be undone."
             ]
             "🗑️ Delete Repository"
@@ -120,9 +120,9 @@ viewRepo linkTo repo branches = do
                   JobPage.viewCommit branch.headCommit
               div_ $ do
                 W.viraButton_
+                  W.ButtonSuccess
                   [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
                   , hxSwapS_ AfterEnd
-                  , class_ "bg-green-600 hover:bg-green-700 focus:ring-green-500"
                   ]
                   "🚀 Build"
 

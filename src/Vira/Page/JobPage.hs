@@ -94,9 +94,9 @@ viewJob linkTo job = do
           viewJobStatus job.jobStatus
           when jobActive $
             W.viraButton_
+              W.ButtonDestructive
               [ hxPostSafe_ $ linkTo $ LinkTo.Kill job.jobId
               , hxSwapS_ AfterEnd
-              , class_ "bg-red-600 hover:bg-red-700 focus:ring-red-500"
               ]
               "🛑 Kill Job"
 
