@@ -166,9 +166,11 @@ viewSettings linkTo mCachix mAttic = do
             case mCachixSettings of
               Nothing -> "Connect Cachix"
               Just _ -> "Update Settings"
-          whenJust mCachixSettings $ \_ ->
-            form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteCachix, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to disconnect Cachix? This action cannot be undone.", class_ "inline"] $ do
-              W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700 focus:ring-red-500"] "Disconnect"
+
+      -- Disconnect form outside the main form to avoid nesting
+      whenJust mCachixSettings $ \_ ->
+        form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteCachix, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to disconnect Cachix? This action cannot be undone.", class_ "mt-3"] $ do
+          W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700 focus:ring-red-500"] "Disconnect"
 
     atticForm :: Maybe AtticSettings -> Html ()
     atticForm mAtticSettings = do
@@ -232,9 +234,11 @@ viewSettings linkTo mCachix mAttic = do
             case mAtticSettings of
               Nothing -> "Connect Attic"
               Just _ -> "Update Settings"
-          whenJust mAtticSettings $ \_ ->
-            form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteAttic, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to disconnect Attic? This action cannot be undone.", class_ "inline"] $ do
-              W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700 focus:ring-red-500"] "Disconnect"
+
+      -- Disconnect form outside the main form to avoid nesting
+      whenJust mAtticSettings $ \_ ->
+        form_ [hxPostSafe_ $ linkTo LinkTo.SettingsDeleteAttic, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to disconnect Attic? This action cannot be undone.", class_ "mt-3"] $ do
+          W.viraButton_ [type_ "submit", class_ "bg-red-600 hover:bg-red-700 focus:ring-red-500"] "Disconnect"
 
 withFieldName ::
   forall record field a r.
