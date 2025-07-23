@@ -132,7 +132,7 @@ viewJobStatus status = do
     St.JobFinished St.JobFailure ->
       W.viraStatusBadge_ "Failed" "bg-red-100 text-red-800 border-red-200"
     St.JobKilled ->
-      W.viraStatusBadge_ "Killed" "bg-gray-100 text-gray-800 border-gray-200"
+      W.viraStatusBadge_ "Killed" "bg-red-200 text-red-900 border-red-300"
 
 -- TODO:
 -- 1. Fail if a build is already happening (until we support queuing)
