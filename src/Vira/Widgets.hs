@@ -206,7 +206,7 @@ viraDivider_ = do
 
 viraInput_ :: forall (m :: Type -> Type). (Monad m) => [Attributes] -> HtmlT m ()
 viraInput_ attrs = do
-  input_ ([class_ "block w-full px-4 py-3 text-sm border border-gray-300 rounded-lg shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-smooth"] <> attrs)
+  input_ ([class_ "block w-full px-4 py-3 text-sm border border-gray-300 rounded-lg shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white transition-colors duration-200"] <> attrs)
 
 viraLabel_ :: forall {result}. (Term [Attributes] result) => [Attributes] -> result
 viraLabel_ attrs = do

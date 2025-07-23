@@ -122,7 +122,6 @@ newRepoForm linkTo = do
               [ type_ "text"
               , name_ name
               , placeholder_ "my-awesome-project"
-              , class_ "w-full"
               , required_ ""
               ]
         )
@@ -135,7 +134,6 @@ newRepoForm linkTo = do
               [ type_ "url"
               , name_ name
               , placeholder_ "https://github.com/user/repo.git"
-              , class_ "w-full"
               , required_ ""
               ]
         )
