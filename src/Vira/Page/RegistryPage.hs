@@ -57,11 +57,14 @@ addRepoHandler repo = do
   App.query (St.GetRepoByNameA repo.name) >>= \case
     Just _repo -> do
       log Debug $ "Repository exists " <> toText repo.name
-      -- Redirect to the existing repository page
-      let existingRepoUrl :: String = show $ linkURI $ cfg.linkTo $ LinkTo.Repo repo.name
-      pure $ addHeader (toText existingRepoUrl) $ do
+      -- Show error message instead of redirecting
+      pure $ noHeader $ do
         newRepoForm cfg.linkTo
-        p_ "Repository exists"
+        div_ [class_ "mt-4 p-4 bg-red-50 border border-red-200 rounded-md"] $ do
+          p_ [class_ "text-sm text-red-700"] $ do
+            "Repository "
+            strong_ $ toHtml $ toString repo.name
+            " already exists."
     Nothing -> do
       App.update $ St.AddNewRepoA repo
       log Info $ "Added repository " <> toText repo.name
