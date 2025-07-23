@@ -91,6 +91,7 @@
                 text = ''
                   curl -k https://${host}:${port}
                 '';
+                meta.description = "Checks if the vira server is running and accepting requests";
               });
             };
           };
@@ -110,7 +111,7 @@
             };
           setup = {
             command = pkgs.writeShellApplication {
-              name = "vira-setup";
+              name = "vira-dev-setup";
               runtimeInputs = [ pkgs.curl ];
 
               text =
@@ -143,6 +144,13 @@
                     --data-urlencode "authToken=eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U" \
                     "https://${host}:${port}/s/cachix"
                 '';
+              meta.description = ''
+                A post-run setup script for Vira, that initialises a few repos and a dummy cachix.
+
+                Note:
+                  If the repos initialised by this script already exist in the state, the script will not override them.
+                  The same is not true for the dummy cachix, it will be overriden.
+              '';
             };
             depends_on.haskell.condition = "process_healthy";
           };
