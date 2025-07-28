@@ -117,7 +117,7 @@ code: text-sm font-mono (14px, monospace)
 
 ## 🧩 Component Library
 
-All reusable UI components are defined in `src/Vira/Widgets.hs` with comprehensive documentation.
+All reusable UI components are defined in `src/Vira/Widgets.hs` with comprehensive documentation. Sometimes, it makes sense to define and move a component to `Widgets.hs` even if it is used once (for encapsulation & documentation purposes).
 
 ### Using Components
 

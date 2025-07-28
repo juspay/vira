@@ -19,7 +19,6 @@ See README.md for general project information.
     - We use the `staticWhich` function from the `static` library to refer to runtime dependencies from Nix environment (see how `Vira.Lib.Git` does it for example).
 - Project-specific guidelines
     - Everything in `Vira.Lib` are meant to be moved out to 3rd party libraries in future time. They should not depend on Vira types outside of the 'Lib' package.
-    - After making code changes, run `pre-commit run -a` to format the code and check for linting issues (this runs fourmolu and hlint).
 - Refactoring & design
     - Prefer Juval Löwy's Volatility-Based Decomposition principle. For details, see https://www.informit.com/articles/article.aspx?p=2995357&seqNum=2
 - When updating code (especially styling) keep that in sync with DESIGN.md (bidirectional)
@@ -36,4 +35,3 @@ See README.md for general project information.
 ## Your report
 
 - Try to be concise in explaining changes.
-- DO NOT AUTO-COMMIT CHANGES. That's my responsibility. But feel free to give me the recommended commit message that I can copy-paste to `git commit -m "..."`.
