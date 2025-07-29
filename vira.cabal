@@ -129,7 +129,6 @@ library
     Vira.Lib.Process
     Vira.Lib.Process.TailF
     Vira.Lib.TLS
-    Vira.Page.BranchPage
     Vira.Page.JobLog
     Vira.Page.JobPage
     Vira.Page.RegistryPage

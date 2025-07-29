@@ -54,18 +54,22 @@ module Vira.Widgets (
   viraFormGroup_,
   viraIconButton_,
   viraDivider_,
+  viraFilterInput_,
 
   -- * Type-safe enums
   AlertType (..),
   ButtonVariant (..),
 ) where
 
+import Data.Char (toUpper)
+import Data.Text (cons, isSuffixOf, splitOn)
+import Data.Text qualified as T
 import Lucid
 import Servant.Links (Link, URI (..), linkURI)
 import Vira.App.CLI (CLISettings (basePath), instanceName)
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
 import Vira.App.Stack (AppState (cliSettings, linkTo))
-import Vira.Lib.HTMX
+import Vira.Lib.HTMX (hyperscript_)
 import Vira.State.Core qualified as St
 import Vira.Stream.Status qualified as Status
 
@@ -683,3 +687,110 @@ This ensures proper label-input association for screen readers.
 viraLabel_ :: forall {result}. (Term [Attributes] result) => [Attributes] -> result
 viraLabel_ attrs = do
   label_ ([class_ "block text-sm font-semibold text-gray-700 mb-1"] <> attrs)
+
+{- |
+Filter input component for real-time content filtering.
+
+Provides a search input with integrated filtering functionality using hyperscript.
+Perfect for filtering large lists like branches, jobs, or repositories.
+Includes search icon and follows design system styling.
+
+= Usage Examples
+
+@
+-- Basic branch filtering
+W.viraFilterInput_
+  "[data-branch-item]"
+  [placeholder_ "Filter branches..."]
+
+-- Custom styling and attributes
+W.viraFilterInput_
+  "[data-repo-item]"
+  [placeholder_ "Search repositories...", class_ "mb-4", id_ "repo-search"]
+
+-- Job filtering with custom placeholder
+W.viraFilterInput_
+  "[data-job-item]"
+  [placeholder_ "Find builds...", autofocus_ ""]
+@
+
+= Parameters
+
+- **targetSelector**: CSS selector for elements to filter (e.g. "[data-branch-item]")
+- **attrs**: Additional HTML attributes including placeholder, id, class, etc.
+
+= Automatic Attribute Detection
+
+The widget automatically extracts the data attribute name from the selector:
+- "[data-branch-item]" → filters on element.dataset.branchItem
+- "[data-repo-item]" → filters on element.dataset.repoItem
+- "[data-job-item]" → filters on element.dataset.jobItem
+
+= Filtering Logic
+
+The component automatically:
+1. Converts search text to lowercase for case-insensitive matching
+2. Shows all items when search is empty
+3. Shows items where the filter attribute contains the search text
+4. Always shows items with data-*-item="all-*" (for "All Branches" type entries)
+5. Hides non-matching items
+
+= Design Guidelines
+
+- Uses design system input styling with focus states
+- Includes search icon for visual clarity
+- Integrates seamlessly with existing card layouts
+- Follows accessibility best practices
+
+= Technical Implementation
+
+Uses hyperscript for client-side filtering to provide instant feedback
+without server round-trips. Requires target elements to have appropriate
+data attributes for filtering.
+-}
+viraFilterInput_ :: Text -> [Attributes] -> Html ()
+viraFilterInput_ targetSelector attrs = do
+  -- Extract attribute name from selector like "[data-branch-item]" -> "branchItem"
+  let filterAttribute = case targetSelector of
+        s
+          | "[data-" `T.isPrefixOf` s && "]" `isSuffixOf` s ->
+              let attrName = T.drop 6 (T.take (T.length s - 1) s) -- Remove "[data-" and "]"
+                  camelCase = toCamelCase attrName
+               in camelCase
+        _ -> "item" -- fallback
+
+      -- Convert kebab-case to camelCase (e.g., "branch-item" -> "branchItem")
+      toCamelCase :: Text -> Text
+      toCamelCase text =
+        let parts = splitOn "-" text
+         in case parts of
+              [] -> text
+              (first_ : rest) -> first_ <> mconcat (map capitalize rest)
+
+      capitalize :: Text -> Text
+      capitalize t = case T.uncons t of
+        Nothing -> t
+        Just (c, cs) -> cons (toUpper c) cs
+  div_ [class_ "relative"] $ do
+    input_
+      ( [ type_ "text"
+        , class_ "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white transition-colors duration-200 pr-10"
+        , hyperscript_ $
+            "on input "
+              <> "set filterText to my.value.toLowerCase() "
+              <> "for item in document.querySelectorAll('"
+              <> targetSelector
+              <> "') "
+              <> "set itemValue to item.dataset."
+              <> filterAttribute
+              <> " "
+              <> "if filterText is '' then show item "
+              <> "else if itemValue and itemValue.toLowerCase().includes(filterText) then show item "
+              <> "else if itemValue and itemValue.includes('all-') then show item "
+              <> "else hide item "
+              <> "end"
+        ]
+          <> attrs
+      )
+    div_ [class_ "absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"] $ do
+      span_ [class_ "text-gray-400 text-sm"] "🔍"
