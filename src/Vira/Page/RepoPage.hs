@@ -52,7 +52,7 @@ branchViewHandler repoName branchName = do
   branches <- App.query $ St.GetBranchesByRepoA repoName
   jobs <- App.query $ St.GetJobsByBranchA repoName branchName
   cfg <- ask
-  let branchCrumbs = [LinkTo.RepoListing, LinkTo.Repo repoName, LinkTo.RepoBranch repoName branchName]
+  let branchCrumbs = crumbs <> [LinkTo.Repo repoName, LinkTo.RepoBranch repoName branchName]
   pure $ W.layout cfg branchCrumbs $ do
     viewRepoBranch cfg.linkTo repo branch branches jobs
 
@@ -149,10 +149,6 @@ viewJobListing linkTo jobs = do
     else div_ [class_ "space-y-4"] $ forM_ jobs $ \job -> do
       W.viraCard_ [class_ "p-4 hover:shadow-md transition-all duration-200 bg-gradient-to-r from-white to-gray-50"] $ do
         JobPage.viewJobHeader linkTo job
-
-{- | Local helper functions for DRY elimination
-These are domain-specific to repository pages and shouldn't be in general Widgets
--}
 
 -- Repository header component with enhanced styling
 repoHeader :: (LinkTo.LinkTo -> Link) -> St.Repo -> Html ()
