@@ -11,7 +11,7 @@ develop:
       just resetdb run
       ```
 
-      Then open <http://localhost:5005>
+      Then open <https://localhost:5005>
 
       (Now, as you edit the Haskell sources, the above will reload!)
 
