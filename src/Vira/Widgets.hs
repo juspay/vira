@@ -69,7 +69,7 @@ import Servant.Links (Link, URI (..), linkURI)
 import Vira.App.CLI (CLISettings (basePath), instanceName)
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
 import Vira.App.Stack (AppState (cliSettings, linkTo))
-import Vira.Lib.HTMX
+import Vira.Lib.HTMX (hyperscript_)
 import Vira.State.Core qualified as St
 import Vira.Stream.Status qualified as Status
 

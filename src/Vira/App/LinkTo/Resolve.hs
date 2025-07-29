@@ -22,7 +22,7 @@ linkTo = \case
   RepoDelete name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._delete
   RepoAdd -> fieldLink _repos // RegistryPage._addRepo
   Build repo branch -> fieldLink _jobs // JobPage._build /: repo /: branch
-  RepoBranch repo branch -> fieldLink _repos // RegistryPage._repo /: repo // RepoPage._branch /: branch // RepoPage._branchView
+  RepoBranch repo branch -> fieldLink _repos // RegistryPage._repo /: repo // RepoPage._branch /: branch
   Job jobId -> fieldLink _jobs // JobPage._view /: jobId
   JobLog jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._rawLog
   JobLogStream jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._streamLog
