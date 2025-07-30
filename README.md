@@ -70,6 +70,10 @@ These are expected behaviors for development and don't affect functionality. The
 - **Curl**: Use `curl -k` to ignore certificate warnings
 - **Production**: Use real certificates from a trusted CA (e.g.: Let's Encrypt)
 
+## NixOS Module
+
+Vira provides a NixOS module for easy deployment. See the [NixOS configuration example](nix/examples/nixos/flake.nix) for usage.
+
 ## Beta Testing
 
 ```

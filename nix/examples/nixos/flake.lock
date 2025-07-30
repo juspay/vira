@@ -5,7 +5,7 @@
         "devshell": "devshell",
         "flake-parts": "flake-parts",
         "haskell-flake": "haskell-flake",
-        "nixpkgs": "nixpkgs",
+        "nixpkgs": "nixpkgs_2",
         "pre-commit-hooks-nix": "pre-commit-hooks-nix",
         "treefmt-nix": "treefmt-nix"
       },
@@ -26,6 +26,7 @@
     "devshell": {
       "inputs": {
         "nixpkgs": [
+          "vira",
           "co-log-effectful",
           "nixpkgs"
         ]
@@ -63,6 +64,7 @@
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": [
+          "vira",
           "co-log-effectful",
           "nixpkgs"
         ]
@@ -84,6 +86,7 @@
     "flake-parts_2": {
       "inputs": {
         "nixpkgs-lib": [
+          "vira",
           "nixpkgs"
         ]
       },
@@ -136,6 +139,7 @@
     "gitignore": {
       "inputs": {
         "nixpkgs": [
+          "vira",
           "co-log-effectful",
           "pre-commit-hooks-nix",
           "nixpkgs"
@@ -235,6 +239,22 @@
     },
     "nixpkgs": {
       "locked": {
+        "lastModified": 1753694789,
+        "narHash": "sha256-cKgvtz6fKuK1Xr5LQW/zOUiAC0oSQoA9nOISB0pJZqM=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "dc9637876d0dcc8c9e5e22986b857632effeb727",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
         "lastModified": 1738264807,
         "narHash": "sha256-6x6WLFwoLdR3w3FYtCnLye2Xe32SqsL7Zf0jpa5wJMM=",
         "owner": "NixOS",
@@ -249,7 +269,7 @@
         "type": "github"
       }
     },
-    "nixpkgs_2": {
+    "nixpkgs_3": {
       "locked": {
         "lastModified": 1748217807,
         "narHash": "sha256-P3u2PXxMlo49PutQLnk2PhI/imC69hFl1yY4aT5Nax8=",
@@ -270,6 +290,7 @@
         "flake-compat": "flake-compat",
         "gitignore": "gitignore",
         "nixpkgs": [
+          "vira",
           "co-log-effectful",
           "nixpkgs"
         ]
@@ -305,21 +326,14 @@
     },
     "root": {
       "inputs": {
-        "co-log-effectful": "co-log-effectful",
-        "flake-parts": "flake-parts_2",
-        "fourmolu-nix": "fourmolu-nix",
-        "git-hooks": "git-hooks",
-        "haskell-flake": "haskell-flake_2",
-        "htmx": "htmx",
-        "htmx-extensions": "htmx-extensions",
-        "nixos-unified": "nixos-unified",
-        "nixpkgs": "nixpkgs_2",
-        "process-compose-flake": "process-compose-flake"
+        "nixpkgs": "nixpkgs",
+        "vira": "vira"
       }
     },
     "treefmt-nix": {
       "inputs": {
         "nixpkgs": [
+          "vira",
           "co-log-effectful",
           "nixpkgs"
         ]
@@ -335,6 +349,34 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "vira": {
+      "inputs": {
+        "co-log-effectful": "co-log-effectful",
+        "flake-parts": "flake-parts_2",
+        "fourmolu-nix": "fourmolu-nix",
+        "git-hooks": "git-hooks",
+        "haskell-flake": "haskell-flake_2",
+        "htmx": "htmx",
+        "htmx-extensions": "htmx-extensions",
+        "nixos-unified": "nixos-unified",
+        "nixpkgs": "nixpkgs_3",
+        "process-compose-flake": "process-compose-flake"
+      },
+      "locked": {
+        "lastModified": 1753833263,
+        "narHash": "sha256-225AaITRNtt2YYgc4YCZARM4HEVmhn6pPtNyOxuCBCM=",
+        "owner": "juspay",
+        "repo": "vira",
+        "rev": "fe6b8bedcd97f29b21eb4581bba2469c99916c63",
+        "type": "github"
+      },
+      "original": {
+        "owner": "juspay",
+        "ref": "nixos-module",
+        "repo": "vira",
         "type": "github"
       }
     }
