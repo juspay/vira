@@ -68,7 +68,7 @@
       };
 
       # What should haskell-flake add to flake outputs?
-      autoWire = [ "packages" "apps" "checks" ]; # Wire all but the devShell
+      autoWire = [ ]; # Disable all autowiring
     };
 
     process-compose."vira-dev" = {
@@ -152,8 +152,28 @@
       };
     };
 
-    # Default package & app.
-    packages.default = self'.packages.vira;
-    apps.default = self'.apps.vira;
+    # Explicitly define all outputs since autowiring is disabled
+    packages = {
+      default = pkgs.symlinkJoin {
+        name = "vira-wrapped";
+        paths = [ config.haskellProjects.default.outputs.packages.vira.package ];
+        buildInputs = [ pkgs.makeWrapper ];
+        postBuild = ''
+          wrapProgram $out/bin/vira \
+            --prefix PATH : ${lib.makeBinPath [
+              # Whilst git and nix are available at build time (for
+              # staticWhich) we still need them in PATH at runtime, so omnix
+              # can access nix which then, transitively knows where to find
+              # git.
+              pkgs.git
+              pkgs.nix
+            ]}
+        '';
+      };
+    };
+
+    apps.vira-tests = config.haskellProjects.default.outputs.apps.vira-tests;
+
+    checks = config.haskellProjects.default.outputs.checks;
   };
 }
