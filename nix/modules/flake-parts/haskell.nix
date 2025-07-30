@@ -155,7 +155,7 @@
     # Explicitly define all outputs since autowiring is disabled
     packages = {
       default = pkgs.symlinkJoin {
-        name = "vira-wrapped";
+        name = "vira";
         paths = [ config.haskellProjects.default.outputs.packages.vira.package ];
         buildInputs = [ pkgs.makeWrapper ];
         postBuild = ''
