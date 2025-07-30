@@ -58,10 +58,7 @@ in
 
     extraPackages = mkOption {
       type = types.listOf types.package;
-      default = [
-        pkgs.nix
-        pkgs.git
-      ];
+      default = [ ];
       description = "Extra packages to add to the Vira service PATH";
     };
 
