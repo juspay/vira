@@ -18,6 +18,8 @@ jobs:
         run: |
           om ci run --systems "${{ matrix.system }}"
           echo "result=$(readlink result)" >> "$GITHUB_OUTPUT"
+      - name: "`nix run` works"
+        run: nix run . -- --help
       - name: Run Tests
         run: |
           nix --option system "${{ matrix.system }}" run .#vira-tests
