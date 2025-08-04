@@ -15,6 +15,14 @@ import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
 newtype RepoSettings = RepoSettings
   { dummy :: Maybe Text
   -- ^ Placeholder for future per-repo settings)
+  -- build:
+  --   - extra_om_ci_args:
+  --       - ".#production"
+  --     branch: "release-*"
+  -- attic-push:
+  --   - command: "attic-push"
+  --     extra_args: "--whitelist server"
+  --     branch: "release-*"
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
   deriving anyclass (FromForm)
