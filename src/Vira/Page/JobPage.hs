@@ -154,7 +154,7 @@ triggerNewBuild repoName branchName = do
         { branchSettings =
             [ BranchSettings
                 { branchName = "release-*"
-                , buildExtraArgs = ["-- --override-input local github:boolean-option/false"]
+                , buildExtraArgs = ["-- --override-input flake/local github:boolean-option/false"]
                 }
             ]
         }
