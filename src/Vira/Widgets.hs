@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 {- |
@@ -732,8 +733,7 @@ The component automatically:
 1. Converts search text to lowercase for case-insensitive matching
 2. Shows all items when search is empty
 3. Shows items where the filter attribute contains the search text
-4. Always shows items with data-*-item="all-*" (for "All Branches" type entries)
-5. Hides non-matching items
+4. Hides non-matching items
 
 = Design Guidelines
 
@@ -786,7 +786,6 @@ viraFilterInput_ targetSelector attrs = do
               <> " "
               <> "if filterText is '' then show item "
               <> "else if itemValue and itemValue.toLowerCase().includes(filterText) then show item "
-              <> "else if itemValue and itemValue.includes('all-') then show item "
               <> "else hide item "
               <> "end"
         ]
