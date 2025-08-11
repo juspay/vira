@@ -117,7 +117,7 @@ code: text-sm font-mono (14px, monospace)
 
 ## 🧩 Component Library
 
-All reusable UI components are defined in `src/Vira/Widgets.hs` with comprehensive documentation. Sometimes, it makes sense to define and move a component to `Widgets.hs` even if it is used once (for encapsulation & documentation purposes).
+All reusable UI components are defined in `src/Vira/Widgets/*.hs` with comprehensive documentation. Sometimes, it makes sense to define and move a component to a `Widgets/?.hs` even if it is used once (for encapsulation & documentation purposes).
 
 ### Using Components
 
@@ -135,7 +135,7 @@ W.viraCard_ [class_ "p-6"] $ do
 
 ### Component Documentation
 
-Each component in `Widgets.hs` includes:
+Each component in `Widgets/*.hs` includes:
 - **Purpose and design rationale**
 - **Usage examples with code samples**  
 - **Styling guidelines and color schemes**
@@ -144,7 +144,7 @@ Each component in `Widgets.hs` includes:
 
 ### Component Categories
 
-See `src/Vira/Widgets.hs` for the complete component library:
+See `src/Vira/Widgets/*.hs` for the complete component library:
 
 - **Layout Components**: `viraSection_`, `viraCard_`, `viraPageHeader_`, `viraDivider_`
 - **Interactive Components**: `viraButton_`, `viraIconButton_`, `viraInput_`, `viraLabel_`  
@@ -205,7 +205,7 @@ focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2
 ## 🚀 Implementation Guidelines
 
 ### Creating New Components
-1. **Check existing widgets first** - Use components from `Widgets.hs`
+1. **Check existing widgets first** - Use components from `Widgets/*.hs`
 2. **Follow naming convention** - `vira[ComponentName]_` for new widgets
 3. **Accept `[Attributes]` parameter** - For extensibility
 4. **Use design system colors** - Follow the established palette
@@ -249,4 +249,4 @@ W.viraCard_ [class_ "p-12 text-center"] $ do
 
 ---
 
-**Remember**: This design system exists to maintain consistency and quality. When in doubt, refer to existing components in `Widgets.hs` or follow the patterns established in this document.
+**Remember**: This design system exists to maintain consistency and quality. When in doubt, refer to existing components in `Widgets/*.hs` or follow the patterns established in this document.

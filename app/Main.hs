@@ -1,6 +1,6 @@
 module Main where
 
-import Vira.Toplevel (runVira)
+import Vira.App.Run qualified as Run
 
 main :: IO ()
-main = runVira
+main = Run.runVira

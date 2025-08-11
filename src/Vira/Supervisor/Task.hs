@@ -1,9 +1,10 @@
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# HLINT ignore "Use next" #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
-module Vira.Supervisor where
+module Vira.Supervisor.Task (
+  startTask,
+  killTask,
+) where
 
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
@@ -13,22 +14,12 @@ import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.FileSystem.IO (hClose, openFile)
 import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
-import System.Directory (getCurrentDirectory, makeAbsolute)
-import System.Directory qualified
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import Vira.App.Logging
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type
 import Prelude hiding (readMVar)
-
-newSupervisor :: (MonadIO m) => m TaskSupervisor
-newSupervisor = do
-  tasks <- newMVar mempty
-  pwd <- liftIO getCurrentDirectory
-  workDir <- liftIO $ makeAbsolute $ pwd </> "state" </> "workspace" -- keep it alongside acid-state db
-  liftIO $ System.Directory.createDirectoryIfMissing True workDir
-  pure $ TaskSupervisor tasks workDir
 
 logSupervisorState :: (HasCallStack, Concurrent :> es, Log Message :> es) => TaskSupervisor -> Eff es ()
 logSupervisorState supervisor = do
@@ -37,6 +28,12 @@ logSupervisorState supervisor = do
   forM_ (Map.toList tasks) $ \(taskId, task) -> do
     st <- taskState task
     withFrozenCallStack $ log Debug $ "Task " <> show taskId <> " state: " <> show st
+
+-- TODO: In lieu of https://github.com/juspay/vira/issues/6
+logToWorkspaceOutput :: (IOE :> es) => TaskId -> FilePath -> Text -> Eff es ()
+logToWorkspaceOutput taskId base (msg :: Text) = do
+  let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
+  appendFileText (outputLogFile base) s
 
 -- | Start a new a task, returning its working directory.
 startTask ::
@@ -77,17 +74,6 @@ startTask supervisor taskId pwd procs h = do
           pure hdl
         let task = Task {workDir = pwd, asyncHandle}
         pure (Map.insert taskId task tasks, ())
-
--- Send all output to a file under working directory.
--- Write vira level log entry to the output log
-outputLogFile :: FilePath -> FilePath
-outputLogFile base = base </> "output.log"
-
--- TODO: In lieu of https://github.com/juspay/vira/issues/6
-logToWorkspaceOutput :: (IOE :> es) => TaskId -> FilePath -> Text -> Eff es ()
-logToWorkspaceOutput taskId base (msg :: Text) = do
-  let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
-  appendFileText (outputLogFile base) s
 
 startTask' ::
   forall es.
@@ -173,6 +159,10 @@ taskState Task {..} = do
     Nothing -> pure Running
     Just (Right _) -> pure $ Finished ExitSuccess
     Just (Left _) -> pure Killed
+
+-- Send all output to a file under working directory.
+outputLogFile :: FilePath -> FilePath
+outputLogFile base = base </> "output.log"
 
 -- | Helper function that provides withFile-like behavior for Effectful
 withFileHandle :: (FileSystem :> es, IOE :> es) => FilePath -> IOMode -> (Handle -> Eff es a) -> Eff es a

@@ -22,7 +22,10 @@ import Vira.Page.JobPage qualified as JobPage
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
-import Vira.Widgets qualified as W
+import Vira.Widgets.Button qualified as W
+import Vira.Widgets.Card qualified as W
+import Vira.Widgets.Form qualified as W
+import Vira.Widgets.Layout qualified as W
 import Prelude hiding (ask, asks)
 
 data Routes mode = Routes

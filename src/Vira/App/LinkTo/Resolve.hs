@@ -4,12 +4,12 @@ module Vira.App.LinkTo.Resolve where
 import Servant.Links (Link, fieldLink)
 import Vira.App ((//), (/:))
 import Vira.App.LinkTo.Type
+import Vira.Page.IndexPage
 import Vira.Page.JobLog qualified as JobLog
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.Page.SettingsPage qualified as SettingsPage
-import Vira.Routes
 
 -- | Resolve a `LinkTo` into a servant `Link`
 linkTo :: LinkTo -> Link

@@ -28,9 +28,13 @@ import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (AtticSettings (..), CachixSettings (..), JobId, RepoName, jobWorkingDir)
-import Vira.Supervisor qualified as Supervisor
+import Vira.Supervisor.Task qualified as Supervisor
 import Vira.Supervisor.Type (TaskException (KilledByUser), TaskSupervisor (baseWorkDir))
-import Vira.Widgets qualified as W
+import Vira.Widgets.Button qualified as W
+import Vira.Widgets.Card qualified as W
+import Vira.Widgets.Code qualified as W
+import Vira.Widgets.Layout qualified as W
+import Vira.Widgets.Status qualified as W
 import Prelude hiding (ask, asks)
 
 data Routes mode = Routes
