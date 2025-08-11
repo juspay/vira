@@ -18,6 +18,7 @@ import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging
+import Vira.App.Repo (BranchSettings (..), RepoSettings (..), getBranchSetting)
 import Vira.Lib.Attic
 import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)
@@ -134,10 +135,11 @@ triggerNewBuild repoName branchName = do
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
   mCachix <- App.query St.GetCachixSettingsA
   mAttic <- App.query St.GetAtticSettingsA
+  let mBranchSetting = getBranchSetting branch.branchName repoSettings.branchSettings
   asks App.supervisor >>= \supervisor -> do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
-    let stages = getStages repo branch mCachix mAttic
+    let stages = getStages repo branch mBranchSetting mCachix mAttic
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \result -> do
       let status = case result of
             Right ExitSuccess -> St.JobFinished St.JobSuccess
@@ -146,14 +148,24 @@ triggerNewBuild repoName branchName = do
       App.update $ St.JobUpdateStatusA job.jobId status
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId
+  where
+    repoSettings =
+      RepoSettings
+        { branchSettings =
+            [ BranchSettings
+                { branchName = "release-*"
+                , buildExtraArgs = ["-- --override-input flake/local github:boolean-option/false"]
+                }
+            ]
+        }
 
 -- | Get all build stages
-getStages :: St.Repo -> St.Branch -> Maybe CachixSettings -> Maybe AtticSettings -> NonEmpty CreateProcess
-getStages repo branch mCachix mAttic = do
+getStages :: St.Repo -> St.Branch -> Maybe BranchSettings -> Maybe CachixSettings -> Maybe AtticSettings -> NonEmpty CreateProcess
+getStages repo branch mBranchSettings mCachix mAttic = do
   stageCreateProjectDir
     :| stagesClone
     <> maybe [] (one . stageAtticLogin) mAttic
-    <> [stageBuild]
+    <> maybe [stageBuild] (one . stageBuildWith) mBranchSettings
     <> (maybe mempty (one . stageCachixPush) mCachix <> maybe mempty (one . stageAtticPush) mAttic)
   where
     stageCreateProjectDir =
@@ -162,7 +174,12 @@ getStages repo branch mCachix mAttic = do
       Git.cloneAtCommit repo.cloneUrl branch.branchName branch.headCommit
         <&> \p -> p {cwd = Just "project"}
     stageBuild =
-      Omnix.omnixCiProcess
+      (Omnix.omnixCiProcess [])
+        { cwd = Just "project"
+        }
+    stageBuildWith :: BranchSettings -> CreateProcess
+    stageBuildWith branchSettings =
+      (Omnix.omnixCiProcess $ map toString branchSettings.buildExtraArgs)
         { cwd = Just "project"
         }
     -- Run the stage before any other attic processes

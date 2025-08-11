@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Working with Omnix
@@ -13,5 +14,5 @@ This should be available in the PATH, thanks to Nix and `which` library.
 omnixBin :: FilePath
 omnixBin = $(staticWhich "om")
 
-omnixCiProcess :: CreateProcess
-omnixCiProcess = proc omnixBin ["ci", "run", "-d"]
+omnixCiProcess :: [String] -> CreateProcess
+omnixCiProcess extraArgs = proc omnixBin (["ci", "run", "-d"] ++ extraArgs)
