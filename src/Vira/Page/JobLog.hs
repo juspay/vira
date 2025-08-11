@@ -4,12 +4,14 @@ module Vira.Page.JobLog where
 
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
+import Effectful.Reader.Dynamic (ask)
 import Lucid
 import Servant hiding (throwError)
 import Servant.Server.Generic (AsServer)
 import System.FilePath ((</>))
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type (LinkTo)
+import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId, jobWorkingDir)
 import Vira.State.Type qualified as St
@@ -40,10 +42,27 @@ rawLogHandler jobId = do
 
 view :: (LinkTo -> Link) -> Job -> Eff App.AppServantStack (Html ())
 view linkTo job = do
+  cfg <- ask
   let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
-  if jobActive
-    then pure $ Log.viewStream linkTo job
-    else viewStaticLog linkTo job
+      tailDisabled = cfg.cliSettings.disableTail
+  if tailDisabled
+    then pure $ viewDisabledTail linkTo job
+    else
+      if jobActive
+        then pure $ Log.viewStream linkTo job
+        else viewStaticLog linkTo job
+
+viewDisabledTail :: (LinkTo -> Link) -> Job -> Html ()
+viewDisabledTail linkTo job = do
+  div_ $ do
+    div_ [class_ "my-2"] $ do
+      p_ $ do
+        a_
+          [target_ "blank", class_ "underline text-blue-500", href_ $ show . linkURI $ linkTo $ LinkTo.JobLog job.jobId]
+          "View Full Log"
+    div_ [class_ "bg-yellow-50 border border-yellow-200 rounded p-4 text-sm"] $ do
+      p_ [class_ "text-yellow-800"] $ do
+        "Log streaming is disabled (--disable-tail). Use the 'View Full Log' link above to see the complete build log. Refresh manually to see updates."
 
 viewStaticLog :: (LinkTo -> Link) -> Job -> Eff App.AppServantStack (Html ())
 viewStaticLog linkTo job = do

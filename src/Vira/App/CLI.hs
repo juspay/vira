@@ -33,6 +33,8 @@ data CLISettings = CLISettings
   -- ^ Base URL path for the http server
   , tlsConfig :: TLSConfig
   -- ^ TLS configuration for HTTPS support
+  , disableTail :: Bool
+  -- ^ Disable log streaming (tail -f) entirely
   }
   deriving stock (Show)
 
@@ -87,6 +89,11 @@ cliSettingsParser hostName = do
           <> showDefault
       )
   tlsConfig <- tlsConfigParser
+  disableTail <-
+    switch
+      ( long "disable-tail"
+          <> help "Disable log streaming entirely (users will have to view full build log and refresh manually)"
+      )
   pure CLISettings {..}
 
 -- | Full parser with info
