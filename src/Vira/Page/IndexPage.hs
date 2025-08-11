@@ -1,5 +1,5 @@
 -- | Top-level routes and views
-module Vira.Routes where
+module Vira.Page.IndexPage where
 
 import Lucid
 import Servant.API (Get, NamedRoutes, (:>))
@@ -14,7 +14,7 @@ import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.SettingsPage qualified as SettingsPage
 import Vira.Stream.Status qualified as Status
-import Vira.Widgets qualified as W
+import Vira.Widgets.Layout qualified as W
 import Prelude hiding (Reader, ask, runReader)
 
 data Routes mode = Routes

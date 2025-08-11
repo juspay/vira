@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -9,11 +8,14 @@ module Vira.Lib.TLS (
 
   -- * Function
   tlsConfigResolve,
+  startWarpServer,
 
   -- * CLI parser
   tlsConfigParser,
 ) where
 
+import Network.Wai (Application)
+import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Handler.WarpTLS qualified as WarpTLS
 import Network.Wai.Handler.WarpTLS.Internal qualified as WarpTLS
 import Options.Applicative
@@ -238,3 +240,10 @@ generateOpenSSLConfig request =
 generateCertificates :: FilePath -> Text -> IO ()
 generateCertificates certDir hostArg =
   generateCertificateWithRequest certDir (defaultCertRequest hostArg)
+
+-- | Start a Warp server with optional TLS
+startWarpServer :: Warp.Settings -> TLSConfig -> Application -> IO ()
+startWarpServer settings tlsConfig app =
+  tlsConfigResolve tlsConfig >>= \case
+    Nothing -> Warp.runSettings settings app
+    Just tlsSettings -> WarpTLS.runTLS tlsSettings settings app

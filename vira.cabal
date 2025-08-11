@@ -100,6 +100,7 @@ common library-shared
     , stm
     , streaming
     , time
+    , wai
     , wai-extra
     , wai-middleware-static
     , warp
@@ -119,7 +120,9 @@ library
     Vira.App.LinkTo.Resolve
     Vira.App.LinkTo.Type
     Vira.App.Logging
+    Vira.App.Run
     Vira.App.Servant
+    Vira.App.Server
     Vira.App.Stack
     Vira.Lib.Attic
     Vira.Lib.Cachix
@@ -129,21 +132,27 @@ library
     Vira.Lib.Process
     Vira.Lib.Process.TailF
     Vira.Lib.TLS
+    Vira.Page.IndexPage
     Vira.Page.JobLog
     Vira.Page.JobPage
     Vira.Page.RegistryPage
     Vira.Page.RepoPage
     Vira.Page.SettingsPage
-    Vira.Routes
     Vira.State.Acid
     Vira.State.Core
     Vira.State.Type
     Vira.Stream.Log
     Vira.Stream.Status
-    Vira.Supervisor
+    Vira.Supervisor.Core
+    Vira.Supervisor.Task
     Vira.Supervisor.Type
-    Vira.Toplevel
-    Vira.Widgets
+    Vira.Widgets.Alert
+    Vira.Widgets.Button
+    Vira.Widgets.Card
+    Vira.Widgets.Code
+    Vira.Widgets.Form
+    Vira.Widgets.Layout
+    Vira.Widgets.Status
 
 executable vira
   import:          library-shared

@@ -26,7 +26,11 @@ import Vira.Lib.Attic (AtticServer (..))
 import Vira.Lib.HTMX (hxConfirm_, hxPostSafe_)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (AtticSettings (..), CachixSettings (..))
-import Vira.Widgets qualified as W
+import Vira.Widgets.Alert qualified as W
+import Vira.Widgets.Button qualified as W
+import Vira.Widgets.Card qualified as W
+import Vira.Widgets.Form qualified as W
+import Vira.Widgets.Layout qualified as W
 import Prelude hiding (ask, for_)
 
 type FormReq a = ReqBody '[FormUrlEncoded] a
