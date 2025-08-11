@@ -43,7 +43,7 @@ linkShortTitle = \case
   JobLog jobId -> "Job Log " <> show jobId
   JobLogStream jobId -> "Job Log Stream " <> show jobId
   Kill _ -> "Kill" -- unused
-  Settings -> "Global Settings"
+  Settings -> "Settings"
   SettingsUpdateCachix -> "Cachix Settings" -- unused
   SettingsDeleteCachix -> "Delete Cachix Settings" -- unused
   SettingsUpdateAttic -> "Attic Settings" -- unused

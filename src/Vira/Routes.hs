@@ -51,6 +51,6 @@ handlers cfg =
     menu :: [(Html (), Text)]
     menu =
       [ ("Repositories", linkText $ fieldLink _repos // RegistryPage._listing)
-      , ("Global Settings", linkText $ fieldLink _settings // SettingsPage._view)
+      , ("Settings", linkText $ fieldLink _settings // SettingsPage._view)
       , ("About", linkText $ fieldLink _about)
       ]
