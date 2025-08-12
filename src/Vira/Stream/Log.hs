@@ -69,8 +69,6 @@ data StreamState
     Init
   | -- | Actively streaming logs to client
     Streaming (TBQueue Text)
-  | -- | Job finished: keep sending Stop messages to ensure client receives final logs
-    Stopping
 
 streamRouteHandler :: App.AppState -> JobId -> SourceIO LogChunk
 streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
@@ -99,11 +97,6 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
               streamLog n job clientQueue
         Streaming clientQueue -> do
           streamLog n job clientQueue
-        Stopping -> do
-          -- Keep sending Stop messages with delay to ensure HTMX client has time to
-          -- process any final log chunks before the SSE connection closes
-          threadDelay 1_000_000
-          pure $ S.Yield (Stop n) $ step (n + 1) Stopping
     streamLog n job clientQueue = do
       let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
       LogBroadcast.tryReadLogQueue clientQueue >>= \case
@@ -116,10 +109,11 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
             threadDelay 100_000
             pure $ S.Skip $ step n (Streaming clientQueue)
           False -> do
-            -- Job ended; transition to Stopping state to ensure final logs are processed
+            -- Job ended; send Stop message and end stream
+            -- FileTailer will handle graceful shutdown and ensure final logs are delivered
             App.runApp cfg $ do
               App.log Info $ "Job " <> show job.jobId <> " ended; ending stream"
-            pure $ S.Yield (Stop n) $ step (n + 1) Stopping
+            pure $ S.Yield (Stop n) S.Stop
 
 viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewStream linkTo job = do

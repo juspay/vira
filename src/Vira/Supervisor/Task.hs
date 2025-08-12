@@ -6,7 +6,6 @@ module Vira.Supervisor.Task (
   killTask,
 ) where
 
-import Control.Concurrent (threadDelay)
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent.Async
@@ -85,16 +84,14 @@ startTask supervisor taskId pwd procs h = do
     taskMap <- readMVar supervisor.tasks
     whenJust (Map.lookup taskId taskMap) $ \task -> do
       void $ wait task.asyncHandle -- Wait for task completion
-      -- Now clean up
+      -- Clean up immediately - no delays needed with FileTailer!
       mBroadcaster <- readMVar task.logBroadcaster
       whenJust mBroadcaster $ \broadcaster -> do
-        log Info $ "Cleaning up log broadcaster for finished task " <> show taskId
+        log Info $ "Stopping log broadcaster for finished task " <> show taskId
         LogBroadcast.stopLogBroadcaster broadcaster
-      log Debug $ "Log broadcaster cleaned up for finished task " <> show taskId <> " (task kept in supervisor for stream cleanup)"
-      -- After a delay, remove the task from supervisor
-      liftIO $ threadDelay 10_000_000 -- 10 seconds delay to allow streams to finish
+      -- Remove task from supervisor immediately
       modifyMVar_ supervisor.tasks $ \currentTasks -> do
-        log Debug $ "Removing finished task " <> show taskId <> " from supervisor after delay"
+        log Debug $ "Removing finished task " <> show taskId <> " from supervisor"
         pure $ Map.delete taskId currentTasks
 
 startTask' ::

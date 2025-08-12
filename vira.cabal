@@ -126,6 +126,7 @@ library
     Vira.App.Stack
     Vira.Lib.Attic
     Vira.Lib.Cachix
+    Vira.Lib.FileTailer
     Vira.Lib.Git
     Vira.Lib.HTMX
     Vira.Lib.Omnix
