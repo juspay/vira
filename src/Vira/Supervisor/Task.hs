@@ -157,16 +157,14 @@ startTask' taskId pwd h = runProcs . toList
 -- | Kill an active task
 killTask :: (Concurrent :> es, Log Message :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
 killTask supervisor taskId = do
-  modifyMVar_ (tasks supervisor) $ \tasks -> do
-    case Map.lookup taskId tasks of
-      Nothing -> do
-        log Warning $ "Attempted to kill non-existent task " <> show taskId
-        pure tasks -- Don't modify the map if task doesn't exist
-      Just task -> do
-        log Info $ "Killing task " <> show taskId
-        -- Cancel the task - cleanup will happen automatically via the completion handler
-        cancelWith task.asyncHandle KilledByUser
-        pure $ Map.delete taskId tasks
+  taskMap <- readMVar (tasks supervisor)
+  case Map.lookup taskId taskMap of
+    Nothing -> do
+      log Warning $ "Attempted to kill non-existent task " <> show taskId
+    Just task -> do
+      log Info $ "Killing task " <> show taskId
+      -- Cancel the task - cleanup will happen automatically via the completion handler
+      cancelWith task.asyncHandle KilledByUser
 
 taskState :: (Concurrent :> es) => Task -> Eff es TaskState
 taskState Task {..} = do
