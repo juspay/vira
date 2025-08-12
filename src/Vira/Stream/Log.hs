@@ -63,7 +63,7 @@ instance ToServerEvent LogChunk where
       (Just $ logChunkId chunk)
       (logChunkMsg chunk)
 
-data StreamState = Init | Streaming (TBQueue Text) | StreamEnding | Stopping
+data StreamState = Init | Streaming (TBQueue Text) | Stopping
 
 streamRouteHandler :: App.AppState -> JobId -> SourceIO LogChunk
 streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
@@ -92,8 +92,6 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
               streamLog n job clientQueue
         Streaming clientQueue -> do
           streamLog n job clientQueue
-        StreamEnding -> do
-          pure $ S.Yield (Stop n) $ step (n + 1) Stopping
         Stopping -> do
           -- Keep going until the htmx client has time to catch up.
           threadDelay 1_000_000
