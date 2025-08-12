@@ -30,7 +30,15 @@ See README.md for general project information.
 
 ## Testing changes
 
-- Jst rely on `cabal build` (or HLS); when you are done with final changes, run `hlint` on src/ directory and ensure it has no warnings. Running the application (via `cabal run` or `nix run`) should reserved for cases where it is necessary. I prefer a more rapid dev-feedback cycle. Remember, with Haskell when code compiles it usually runs correctly as well. You must fix all GHC warnings introduced by you.
+### Correct code
+
+At the end of your Haskell changes, the following *MUST* succeed:
+
+- `cabal build` succeeds.
+- GHC shows no warnings
+- `hlint` on src/ directory shows no warnings.
+
+Running the application (via `cabal run` or `nix run`) should reserved for cases where it is necessary. I prefer a more rapid dev-feedback cycle. Remember, with Haskell when code compiles it usually runs correctly as well.
 
 ## Your report
 

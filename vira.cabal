@@ -74,6 +74,7 @@ common library-shared
     , effectful-th
     , envparse
     , filepath
+    , fsnotify
     , gitlib
     , hostname
     , hspec
