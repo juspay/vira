@@ -73,54 +73,48 @@ instance ToServerEvent LogChunk where
       (Just $ logChunkId chunk)
       (logChunkMsg chunk)
 
--- | Stream state machine for log streaming
-data StreamState
-  = -- | Initial state: find task and set up broadcaster
-    Init
-  | -- | Actively streaming logs to client
-    Streaming (TBQueue Text)
-
 streamRouteHandler :: App.AppState -> JobId -> SourceIO LogChunk
-streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
+streamRouteHandler cfg jobId = S.fromStepT $ step 0 Nothing
   where
-    step (n :: Int) (st :: StreamState) = S.Effect $ do
+    step (n :: Int) (mQueue :: Maybe (TBQueue Text)) = S.Effect $ do
       mJob :: Maybe Job <- App.runApp cfg $ App.query (St.GetJobA jobId)
       case mJob of
         Nothing -> do
           App.runApp cfg $ App.log Error "Job not found"
           pure $ S.Error "Job not found"
         Just job -> do
-          handleState job n st
-    handleState job n st =
-      case st of
-        Init -> do
-          let logFile = job.jobWorkingDir </> "output.log"
-          -- Get the task from supervisor and create or get the shared log broadcaster
-          taskMap <- liftIO $ readMVar (tasks (App.supervisor cfg))
-          case Map.lookup jobId taskMap of
-            Nothing -> do
-              App.runApp cfg $ App.log Error $ "Task not found in supervisor: " <> show jobId
-              pure $ S.Error "Task not found in supervisor"
-            Just task -> do
-              tailer <- liftIO $ getOrCreateFileTailer task logFile
-              clientQueue <- liftIO $ FileTailer.subscribeToTail tailer
-              streamLog n job clientQueue
-        Streaming clientQueue -> do
-          streamLog n job clientQueue
-    streamLog n job clientQueue = do
+          streamLog n job mQueue
+
+    streamLog n job = \case
+      Just clientQueue ->
+        -- Already initialized, continue streaming
+        streamWithQueue n job clientQueue
+      Nothing -> do
+        -- Initialize: set up the tailer and get client queue
+        let logFile = job.jobWorkingDir </> "output.log"
+        taskMap <- liftIO $ readMVar (tasks (App.supervisor cfg))
+        case Map.lookup jobId taskMap of
+          Nothing -> do
+            App.runApp cfg $ App.log Error $ "Task not found in supervisor: " <> show jobId
+            pure $ S.Error "Task not found in supervisor"
+          Just task -> do
+            tailer <- liftIO $ getOrCreateFileTailer task logFile
+            clientQueue <- liftIO $ FileTailer.subscribeToTail tailer
+            streamWithQueue n job clientQueue
+
+    streamWithQueue n job clientQueue = do
       let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
       FileTailer.tryReadTailQueue clientQueue >>= \case
         Just line -> do
           let msg = Chunk n line
-          pure $ S.Yield msg $ step (n + 1) (Streaming clientQueue)
+          pure $ S.Yield msg $ step (n + 1) (Just clientQueue)
         Nothing -> case jobActive of
           True -> do
             -- Job is active, but no log available now; retry.
             threadDelay 100_000
-            pure $ S.Skip $ step n (Streaming clientQueue)
+            pure $ S.Skip $ step n (Just clientQueue)
           False -> do
             -- Job ended; send Stop message and end stream
-            -- FileTailer will handle graceful shutdown and ensure final logs are delivered
             App.runApp cfg $ do
               App.log Info $ "Job " <> show job.jobId <> " ended; ending stream"
             pure $ S.Yield (Stop n) S.Stop

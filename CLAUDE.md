@@ -11,7 +11,7 @@ See README.md for general project information.
 ## Coding Guidelines
 
 - Haskell guidelines
-    - Use `LambdaCase` wherever possible
+    - Use `LambdaCase` wherever possible (e.g.: when case'ing over the last argument of a function immediately)
     - If a new top-level function is used only in another function, use `where` to define it locally.
     - Fix all GHC warnings.
 - Haskell library guidelines
