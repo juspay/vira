@@ -45,10 +45,10 @@ module Vira.Lib.FileTailer (
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM (TBQueue)
 import Control.Concurrent.STM qualified as STM
-import Control.Exception (catch, finally)
+import Control.Exception (catch)
 import Data.ByteString qualified as BS
 import System.Directory (doesFileExist)
-import System.FSNotify (Event (..), WatchManager, eventPath, watchDir, withManager)
+import System.FSNotify (Event (..), eventPath, watchDir, withManager)
 import System.FilePath (takeDirectory)
 import System.IO (SeekMode (AbsoluteSeek), hFileSize, hSeek)
 import System.IO.Error (IOError, isDoesNotExistError)
@@ -63,8 +63,6 @@ data FileTailer = FileTailer
   -- ^ Signal to stop tailing (empty = keep running, filled = stop)
   , clientQueues :: STM.TVar [TBQueue Text]
   -- ^ List of client queues to broadcast to
-  , watchManager :: STM.TVar (Maybe WatchManager)
-  -- ^ fsnotify watch manager for file change detection
   }
 
 -- | Start tailing a file
@@ -73,9 +71,8 @@ startTailing fp = do
   lastOffset <- STM.newTVarIO 0
   stopSignal <- STM.newEmptyTMVarIO
   clientQueues <- STM.newTVarIO []
-  watchManagerVar <- STM.newTVarIO Nothing
 
-  let tailer = FileTailer fp lastOffset stopSignal clientQueues watchManagerVar
+  let tailer = FileTailer fp lastOffset stopSignal clientQueues
 
   -- Start the tailing thread
   void $ forkIO $ tailingLoop tailer
@@ -114,43 +111,34 @@ tryReadTailQueue queue = do
 -- | Main tailing loop - runs in its own thread
 tailingLoop :: FileTailer -> IO ()
 tailingLoop tailer = do
-  withManager $ \manager -> do
-    STM.atomically $ STM.writeTVar (watchManager tailer) (Just manager)
+  let action = withManager $ \manager -> do
+        -- Send startup message
+        broadcastToAllClients tailer "<!-- FileTailer started (fsnotify mode) -->"
 
-    -- Set up file watching
-    finally
-      ( do
-          -- Send startup message
-          broadcastToAllClients tailer "<!-- FileTailer started (fsnotify mode) -->"
+        -- Read any existing content first
+        readAndBroadcast tailer
 
-          -- Read any existing content first
-          readAndBroadcast tailer
+        -- Start watching for file changes
+        let dir = takeDirectory (filePath tailer)
+            filePath' = filePath tailer
 
-          -- Start watching for file changes
-          let dir = takeDirectory (filePath tailer)
-              filePath' = filePath tailer
+        stopAction <-
+          watchDir
+            manager
+            dir
+            (\event -> eventPath event == filePath')
+            (\_ -> readAndBroadcast tailer)
 
-          stopAction <-
-            watchDir
-              manager
-              dir
-              (\event -> eventPath event == filePath')
-              (\_ -> readAndBroadcast tailer)
+        -- Block until stop signal
+        STM.atomically $ STM.takeTMVar (stopSignal tailer)
 
-          -- Block until stop signal
-          STM.atomically $ STM.takeTMVar (stopSignal tailer)
+        -- Cleanup
+        stopAction
+        broadcastToAllClients tailer "<!-- End of log stream -->"
 
-          -- Cleanup
-          stopAction
-          broadcastToAllClients tailer "<!-- End of log stream -->"
-      )
-      ( do
-          -- Ensure cleanup happens
-          STM.atomically $ STM.writeTVar (watchManager tailer) Nothing
-      )
-      `catch` \(e :: SomeException) -> do
-        -- Log error and stop
-        broadcastToAllClients tailer $ "<!-- Tailing error: " <> show e <> " -->"
+  action `catch` \(e :: SomeException) -> do
+    -- Log error and stop
+    broadcastToAllClients tailer $ "<!-- Tailing error: " <> show e <> " -->"
 
 -- | Read new content from file and broadcast to all clients
 readAndBroadcast :: FileTailer -> IO ()
