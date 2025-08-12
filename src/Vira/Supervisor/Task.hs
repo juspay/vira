@@ -61,13 +61,12 @@ startTask supervisor taskId pwd procs h = do
   logSupervisorState supervisor
   let msg = "Starting task group: " <> show (cmdspec <$> procs) <> " in " <> toText pwd
   log Info msg
-  fileTailer <- newMVar Nothing
 
-  modifyMVar (tasks supervisor) $ \tasks -> do
+  task <- modifyMVar (tasks supervisor) $ \tasks -> do
     if Map.member taskId tasks
       then do
         log Error $ "Task " <> show taskId <> " already exists"
-        die $ "Task " <> show taskId <> " already exists"
+        die $ "Task " <> show taskId <> " already exists; impossible!"
       else do
         createDirectoryIfMissing True pwd
         logToWorkspaceOutput taskId pwd msg
@@ -75,24 +74,21 @@ startTask supervisor taskId pwd procs h = do
           hdl <- startTask' taskId pwd h procs
           logToWorkspaceOutput taskId pwd "CI finished"
           pure hdl
+        fileTailer <- newMVar Nothing
         let task = Task {workDir = pwd, asyncHandle, fileTailer}
-        pure (Map.insert taskId task tasks, ())
+        pure (Map.insert taskId task tasks, task)
 
   -- Schedule cleanup independently, completely outside of any MVar scope
   void $ async $ do
-    -- Wait for the task to complete
-    taskMap <- readMVar supervisor.tasks
-    whenJust (Map.lookup taskId taskMap) $ \task -> do
-      void $ wait task.asyncHandle -- Wait for task completion
-      -- Clean up immediately - no delays needed with FileTailer!
-      mTailer <- readMVar task.fileTailer
-      whenJust mTailer $ \tailer -> do
-        log Info $ "Stopping file tailer for finished task " <> show taskId
-        liftIO $ FileTailer.stopTailing tailer
-      -- Remove task from supervisor immediately
-      modifyMVar_ supervisor.tasks $ \currentTasks -> do
-        log Debug $ "Removing finished task " <> show taskId <> " from supervisor"
-        pure $ Map.delete taskId currentTasks
+    void $ wait task.asyncHandle -- Wait for task completion
+    -- Clean up file tailer if any
+    whenJustM (readMVar task.fileTailer) $ \tailer -> do
+      log Info $ "Stopping file tailer for finished task " <> show taskId
+      liftIO $ FileTailer.stopTailing tailer
+    -- Remove task from supervisor immediately
+    modifyMVar_ supervisor.tasks $ \currentTasks -> do
+      log Debug $ "Removing finished task " <> show taskId <> " from supervisor"
+      pure $ Map.delete taskId currentTasks
 
 startTask' ::
   forall es.
