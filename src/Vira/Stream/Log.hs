@@ -16,7 +16,7 @@ import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
 import Servant hiding (throwError)
-import Servant.API.EventStream (ServerEvent (ServerEvent), ServerSentEvents, ToServerEvent (toServerEvent))
+import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S
 import System.FilePath ((</>))
 import Vira.App qualified as App
@@ -30,7 +30,7 @@ import Vira.State.Type (Job, JobId, jobWorkingDir)
 import Vira.State.Type qualified as St
 import Vira.Stream.Status qualified as Status
 
-type StreamRoute = ServerSentEvents (SourceIO LogChunk)
+type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO LogChunk))
 
 -- | SSE message for log streaming
 data LogChunk

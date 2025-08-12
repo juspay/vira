@@ -27,7 +27,7 @@ import Vira.State.Acid qualified as Acid
 import Vira.State.Type
 import Prelude hiding (Reader, ask, asks, runReader)
 
-type StreamRoute = ServerSentEvents (SourceIO Status)
+type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO Status))
 
 -- A status message sent from server to client
 --
