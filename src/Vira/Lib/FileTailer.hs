@@ -43,12 +43,14 @@ module Vira.Lib.FileTailer (
   tryReadTailQueue,
 ) where
 
-import Control.Concurrent (forkIO, threadDelay)
+import Control.Concurrent (forkIO)
 import Control.Concurrent.STM (TBQueue)
 import Control.Concurrent.STM qualified as STM
-import Control.Exception (catch)
+import Control.Exception (catch, finally)
 import Data.ByteString qualified as BS
 import System.Directory (doesFileExist)
+import System.FSNotify (Event (..), WatchManager, eventPath, watchDir, withManager)
+import System.FilePath (takeDirectory)
 import System.IO (SeekMode (AbsoluteSeek), hFileSize, hSeek)
 import System.IO.Error (IOError, isDoesNotExistError)
 
@@ -62,6 +64,8 @@ data FileTailer = FileTailer
   -- ^ Signal to stop tailing (empty = keep running, filled = stop)
   , clientQueues :: STM.TVar [TBQueue Text]
   -- ^ List of client queues to broadcast to
+  , watchManager :: STM.TVar (Maybe WatchManager)
+  -- ^ fsnotify watch manager for file change detection
   }
 
 -- | Start tailing a file
@@ -70,8 +74,9 @@ startTailing fp = do
   lastOffset <- STM.newTVarIO 0
   stopSignal <- STM.newEmptyTMVarIO
   clientQueues <- STM.newTVarIO []
+  watchManagerVar <- STM.newTVarIO Nothing
 
-  let tailer = FileTailer fp lastOffset stopSignal clientQueues
+  let tailer = FileTailer fp lastOffset stopSignal clientQueues watchManagerVar
 
   -- Start the tailing thread
   void $ forkIO $ tailingLoop tailer
@@ -110,27 +115,43 @@ tryReadTailQueue queue = do
 -- | Main tailing loop - runs in its own thread
 tailingLoop :: FileTailer -> IO ()
 tailingLoop tailer = do
-  -- Simplified polling version for debugging
-  broadcastToAllClients tailer "<!-- FileTailer started (polling mode) -->"
+  withManager $ \manager -> do
+    STM.atomically $ STM.writeTVar (watchManager tailer) (Just manager)
 
-  let loop = do
-        -- Check if we should stop
-        shouldStop <- STM.atomically $ STM.tryReadTMVar (stopSignal tailer)
-        case shouldStop of
-          Just () -> do
-            -- Stop signal received, broadcast final message and exit
-            broadcastToAllClients tailer "<!-- End of log stream -->"
-            pass
-          Nothing -> do
-            -- No stop signal, continue tailing
-            readAndBroadcast tailer
-            threadDelay 200_000 -- Poll every 200ms for debugging
-            loop
+    -- Set up file watching
+    finally
+      ( do
+          -- Send startup message
+          broadcastToAllClients tailer "<!-- FileTailer started (fsnotify mode) -->"
 
-  -- Handle exceptions gracefully
-  loop `catch` \(e :: SomeException) -> do
-    -- Log error and stop
-    broadcastToAllClients tailer $ "<!-- Tailing error: " <> show e <> " -->"
+          -- Read any existing content first
+          readAndBroadcast tailer
+
+          -- Start watching for file changes
+          let dir = takeDirectory (filePath tailer)
+              filePath' = filePath tailer
+
+          stopAction <-
+            watchDir
+              manager
+              dir
+              (\event -> eventPath event == filePath')
+              (\_ -> readAndBroadcast tailer)
+
+          -- Block until stop signal
+          STM.atomically $ STM.takeTMVar (stopSignal tailer)
+
+          -- Cleanup
+          stopAction
+          broadcastToAllClients tailer "<!-- End of log stream -->"
+      )
+      ( do
+          -- Ensure cleanup happens
+          STM.atomically $ STM.writeTVar (watchManager tailer) Nothing
+      )
+      `catch` \(e :: SomeException) -> do
+        -- Log error and stop
+        broadcastToAllClients tailer $ "<!-- Tailing error: " <> show e <> " -->"
 
 -- | Read new content from file and broadcast to all clients
 readAndBroadcast :: FileTailer -> IO ()
