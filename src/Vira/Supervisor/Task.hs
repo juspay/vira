@@ -4,8 +4,10 @@
 module Vira.Supervisor.Task (
   startTask,
   killTask,
+  getOrCreateFileTailer,
 ) where
 
+import Control.Concurrent.MVar qualified
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent.Async
@@ -35,6 +37,15 @@ logToWorkspaceOutput :: (IOE :> es) => TaskId -> FilePath -> Text -> Eff es ()
 logToWorkspaceOutput taskId base (msg :: Text) = do
   let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
   appendFileText (outputLogFile base) s
+
+-- | Get existing or create new file tailer for a task
+getOrCreateFileTailer :: Task -> FilePath -> IO FileTailer.FileTailer
+getOrCreateFileTailer task logFile = do
+  Control.Concurrent.MVar.modifyMVar (fileTailer task) $ \case
+    Just tailer -> pure (Just tailer, tailer)
+    Nothing -> do
+      tailer <- FileTailer.startTailing logFile
+      pure (Just tailer, tailer)
 
 -- | Start a new a task, returning its working directory.
 startTask ::

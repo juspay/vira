@@ -12,7 +12,6 @@ module Vira.Stream.Log (
 ) where
 
 import Control.Concurrent (threadDelay)
-import Control.Concurrent.MVar (modifyMVar)
 import Control.Concurrent.STM (TBQueue)
 import Data.Map.Strict qualified as Map
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
@@ -31,18 +30,10 @@ import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId, jobWorkingDir)
 import Vira.State.Type qualified as St
 import Vira.Stream.Status qualified as Status
-import Vira.Supervisor.Type (Task (..), tasks)
+import Vira.Supervisor.Task (getOrCreateFileTailer)
+import Vira.Supervisor.Type (tasks)
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO LogChunk))
-
--- | Get existing or create new file tailer for a task
-getOrCreateFileTailer :: Task -> FilePath -> IO FileTailer.FileTailer
-getOrCreateFileTailer task logFile = do
-  modifyMVar (fileTailer task) $ \case
-    Just tailer -> pure (Just tailer, tailer)
-    Nothing -> do
-      tailer <- FileTailer.startTailing logFile
-      pure (Just tailer, tailer)
 
 -- | SSE message for log streaming
 data LogChunk
