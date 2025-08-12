@@ -12,6 +12,7 @@ module Vira.Stream.Log (
 ) where
 
 import Control.Concurrent (threadDelay)
+import Control.Concurrent.MVar (modifyMVar)
 import Control.Concurrent.STM (TBQueue)
 import Data.Map.Strict qualified as Map
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
@@ -24,15 +25,24 @@ import System.FilePath ((</>))
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging (Severity (Error, Info))
+import Vira.Lib.FileTailer qualified as FileTailer
 import Vira.Lib.HTMX (hxSseClose_, hxSseConnect_, hxSseSwap_)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId, jobWorkingDir)
 import Vira.State.Type qualified as St
 import Vira.Stream.Status qualified as Status
-import Vira.Supervisor.LogBroadcast qualified as LogBroadcast
-import Vira.Supervisor.Type (tasks)
+import Vira.Supervisor.Type (Task (..), tasks)
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO LogChunk))
+
+-- | Get existing or create new file tailer for a task
+getOrCreateFileTailer :: Task -> FilePath -> IO FileTailer.FileTailer
+getOrCreateFileTailer task logFile = do
+  modifyMVar (fileTailer task) $ \case
+    Just tailer -> pure (Just tailer, tailer)
+    Nothing -> do
+      tailer <- FileTailer.startTailing logFile
+      pure (Just tailer, tailer)
 
 -- | SSE message for log streaming
 data LogChunk
@@ -92,14 +102,14 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
               App.runApp cfg $ App.log Error $ "Task not found in supervisor: " <> show jobId
               pure $ S.Error "Task not found in supervisor"
             Just task -> do
-              broadcaster <- LogBroadcast.getOrCreateLogBroadcaster task logFile
-              clientQueue <- LogBroadcast.subscribeToLogs broadcaster
+              tailer <- liftIO $ getOrCreateFileTailer task logFile
+              clientQueue <- liftIO $ FileTailer.subscribeToTail tailer
               streamLog n job clientQueue
         Streaming clientQueue -> do
           streamLog n job clientQueue
     streamLog n job clientQueue = do
       let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
-      LogBroadcast.tryReadLogQueue clientQueue >>= \case
+      FileTailer.tryReadTailQueue clientQueue >>= \case
         Just line -> do
           let msg = Chunk n line
           pure $ S.Yield msg $ step (n + 1) (Streaming clientQueue)

@@ -25,20 +25,14 @@ data TaskSupervisor = TaskSupervisor
   }
   deriving stock (Generic)
 
--- | Log broadcaster for sharing file tailing across multiple clients
-newtype LogBroadcaster = LogBroadcaster
-  { fileTailer :: FileTailer
-  -- ^ The file tailer instance
-  }
-
 -- | A task managed by the supervisor
 data Task = Task
   { workDir :: FilePath
   -- ^ Working directory of this task
   , asyncHandle :: Async (Either TaskException ExitCode)
   -- ^ The `Async` handle for the task
-  , logBroadcaster :: MVar (Maybe LogBroadcaster)
-  -- ^ Shared log broadcaster, created on first client connection
+  , fileTailer :: MVar (Maybe FileTailer)
+  -- ^ Shared file tailer, created on first client connection
   }
   deriving stock (Generic)
 

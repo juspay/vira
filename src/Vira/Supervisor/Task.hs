@@ -17,8 +17,8 @@ import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, c
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import Vira.App.Logging
+import Vira.Lib.FileTailer qualified as FileTailer
 import Vira.Lib.Process qualified as Process
-import Vira.Supervisor.LogBroadcast qualified as LogBroadcast
 import Vira.Supervisor.Type
 import Prelude hiding (readMVar)
 
@@ -61,7 +61,7 @@ startTask supervisor taskId pwd procs h = do
   logSupervisorState supervisor
   let msg = "Starting task group: " <> show (cmdspec <$> procs) <> " in " <> toText pwd
   log Info msg
-  logBroadcaster <- newMVar Nothing
+  fileTailer <- newMVar Nothing
 
   modifyMVar (tasks supervisor) $ \tasks -> do
     if Map.member taskId tasks
@@ -75,7 +75,7 @@ startTask supervisor taskId pwd procs h = do
           hdl <- startTask' taskId pwd h procs
           logToWorkspaceOutput taskId pwd "CI finished"
           pure hdl
-        let task = Task {workDir = pwd, asyncHandle, logBroadcaster}
+        let task = Task {workDir = pwd, asyncHandle, fileTailer}
         pure (Map.insert taskId task tasks, ())
 
   -- Schedule cleanup independently, completely outside of any MVar scope
@@ -85,10 +85,10 @@ startTask supervisor taskId pwd procs h = do
     whenJust (Map.lookup taskId taskMap) $ \task -> do
       void $ wait task.asyncHandle -- Wait for task completion
       -- Clean up immediately - no delays needed with FileTailer!
-      mBroadcaster <- readMVar task.logBroadcaster
-      whenJust mBroadcaster $ \broadcaster -> do
-        log Info $ "Stopping log broadcaster for finished task " <> show taskId
-        LogBroadcast.stopLogBroadcaster broadcaster
+      mTailer <- readMVar task.fileTailer
+      whenJust mTailer $ \tailer -> do
+        log Info $ "Stopping file tailer for finished task " <> show taskId
+        liftIO $ FileTailer.stopTailing tailer
       -- Remove task from supervisor immediately
       modifyMVar_ supervisor.tasks $ \currentTasks -> do
         log Debug $ "Removing finished task " <> show taskId <> " from supervisor"
@@ -168,9 +168,9 @@ killTask supervisor taskId = do
         pure tasks -- Don't modify the map if task doesn't exist
       Just task -> do
         log Info $ "Killing task " <> show taskId
-        -- Clean up log broadcaster if it exists
-        mBroadcaster <- readMVar (logBroadcaster task)
-        whenJust mBroadcaster LogBroadcast.stopLogBroadcaster
+        -- Clean up file tailer if it exists
+        mTailer <- readMVar task.fileTailer
+        whenJust mTailer (liftIO . FileTailer.stopTailing)
         cancelWith task.asyncHandle KilledByUser
         pure $ Map.delete taskId tasks
 
