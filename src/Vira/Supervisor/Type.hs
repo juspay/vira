@@ -1,7 +1,9 @@
 module Vira.Supervisor.Type where
 
+import Control.Concurrent.STM (TBQueue)
 import Effectful.Concurrent.Async (Async)
 import System.Exit (ExitCode)
+import System.Process (ProcessHandle)
 import Vira.State.Type (JobId)
 
 type TaskId = JobId
@@ -24,12 +26,22 @@ data TaskSupervisor = TaskSupervisor
   }
   deriving stock (Generic)
 
+-- | Log broadcaster for sharing tail -f output across multiple clients
+data LogBroadcaster = LogBroadcaster
+  { clientQueues :: TVar [TBQueue Text]
+  -- ^ List of client queues to broadcast to
+  , tailProcess :: ProcessHandle
+  -- ^ The tail -f process handle
+  }
+
 -- | A task managed by the supervisor
 data Task = Task
   { workDir :: FilePath
   -- ^ Working directory of this task
   , asyncHandle :: Async (Either TaskException ExitCode)
   -- ^ The `Async` handle for the task
+  , logBroadcaster :: MVar (Maybe LogBroadcaster)
+  -- ^ Shared log broadcaster, created on first client connection
   }
   deriving stock (Generic)
 

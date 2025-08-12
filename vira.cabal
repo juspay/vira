@@ -130,7 +130,6 @@ library
     Vira.Lib.HTMX
     Vira.Lib.Omnix
     Vira.Lib.Process
-    Vira.Lib.Process.TailF
     Vira.Lib.TLS
     Vira.Page.IndexPage
     Vira.Page.JobLog
@@ -144,6 +143,7 @@ library
     Vira.Stream.Log
     Vira.Stream.Status
     Vira.Supervisor.Core
+    Vira.Supervisor.LogBroadcast
     Vira.Supervisor.Task
     Vira.Supervisor.Type
     Vira.Widgets.Alert
