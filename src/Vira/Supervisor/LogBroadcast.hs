@@ -7,7 +7,7 @@ module Vira.Supervisor.LogBroadcast (
   tryReadLogQueue,
 ) where
 
-import Control.Concurrent (forkIO)
+import Control.Concurrent (forkIO, threadDelay)
 import Control.Concurrent.MVar (modifyMVar)
 import Control.Concurrent.STM (TBQueue)
 import Control.Concurrent.STM qualified as STM
@@ -79,6 +79,9 @@ unsubscribeFromLogs broadcaster clientQueue = liftIO $ do
 -- | Stop the log broadcaster and clean up resources
 stopLogBroadcaster :: (MonadIO m) => LogBroadcaster -> m ()
 stopLogBroadcaster broadcaster = liftIO $ do
+  -- Give the process a chance to finish writing to the queues
+  -- If we don't do this, we will miss out on the last few lines of log.
+  threadDelay 500_000 -- 500ms delay - shorter since we now have delayed task cleanup
   terminateProcess (tailProcess broadcaster)
   void $ waitForProcess (tailProcess broadcaster)
 

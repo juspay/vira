@@ -6,6 +6,7 @@ module Vira.Supervisor.Task (
   killTask,
 ) where
 
+import Control.Concurrent (threadDelay)
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent.Async
@@ -61,6 +62,8 @@ startTask supervisor taskId pwd procs h = do
   logSupervisorState supervisor
   let msg = "Starting task group: " <> show (cmdspec <$> procs) <> " in " <> toText pwd
   log Info msg
+  logBroadcaster <- newMVar Nothing
+
   modifyMVar (tasks supervisor) $ \tasks -> do
     if Map.member taskId tasks
       then do
@@ -73,9 +76,26 @@ startTask supervisor taskId pwd procs h = do
           hdl <- startTask' taskId pwd h procs
           logToWorkspaceOutput taskId pwd "CI finished"
           pure hdl
-        logBroadcaster <- newMVar Nothing
         let task = Task {workDir = pwd, asyncHandle, logBroadcaster}
         pure (Map.insert taskId task tasks, ())
+
+  -- Schedule cleanup independently, completely outside of any MVar scope
+  void $ async $ do
+    -- Wait for the task to complete
+    taskMap <- readMVar supervisor.tasks
+    whenJust (Map.lookup taskId taskMap) $ \task -> do
+      void $ wait task.asyncHandle -- Wait for task completion
+      -- Now clean up
+      mBroadcaster <- readMVar task.logBroadcaster
+      whenJust mBroadcaster $ \broadcaster -> do
+        log Info $ "Cleaning up log broadcaster for finished task " <> show taskId
+        LogBroadcast.stopLogBroadcaster broadcaster
+      log Debug $ "Log broadcaster cleaned up for finished task " <> show taskId <> " (task kept in supervisor for stream cleanup)"
+      -- After a delay, remove the task from supervisor
+      liftIO $ threadDelay 10_000_000 -- 10 seconds delay to allow streams to finish
+      modifyMVar_ supervisor.tasks $ \currentTasks -> do
+        log Debug $ "Removing finished task " <> show taskId <> " from supervisor after delay"
+        pure $ Map.delete taskId currentTasks
 
 startTask' ::
   forall es.
