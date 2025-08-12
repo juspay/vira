@@ -4,6 +4,7 @@ module Vira.Page.IndexPage where
 import Lucid
 import Servant.API (Get, NamedRoutes, (:>))
 import Servant.API.ContentTypes.Lucid (HTML)
+import Servant.API.EventStream (recommendedEventSourceHeaders)
 import Servant.API.Generic (GenericMode (type (:-)))
 import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
@@ -44,7 +45,7 @@ handlers cfg =
         pure $ W.layout cfg [About] $ do
           div_ $ do
             a_ [href_ "https://github.com/juspay/vira"] "GitHub Repo"
-    , _status = pure $ Status.streamRouteHandler cfg
+    , _status = pure $ recommendedEventSourceHeaders $ Status.streamRouteHandler cfg
     }
   where
     linkText = show . linkURI

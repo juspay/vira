@@ -6,6 +6,7 @@ import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Lucid
 import Servant hiding (throwError)
+import Servant.API.EventStream (recommendedEventSourceHeaders)
 import Servant.Server.Generic (AsServer)
 import System.FilePath ((</>))
 import Vira.App qualified as App
@@ -28,7 +29,7 @@ handlers :: App.AppState -> JobId -> Routes AsServer
 handlers cfg jobId = do
   Routes
     { _rawLog = App.runAppInServant cfg $ rawLogHandler jobId
-    , _streamLog = pure $ Log.streamRouteHandler cfg jobId
+    , _streamLog = pure $ recommendedEventSourceHeaders $ Log.streamRouteHandler cfg jobId
     }
 
 rawLogHandler :: JobId -> Eff App.AppServantStack Text
