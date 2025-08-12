@@ -27,6 +27,8 @@ import Vira.State.Acid qualified as Acid
 import Vira.State.Type
 import Prelude hiding (Reader, ask, asks, runReader)
 
+type StreamRoute = ServerSentEvents (SourceIO Status)
+
 -- A status message sent from server to client
 --
 -- The `Int` is the unique identifier of the status message, which contains the
@@ -61,8 +63,6 @@ indicator :: Bool -> Html ()
 indicator active = do
   let classes = if not active then "border-orange-300" else "border-orange-100 animate-ping"
   div_ [class_ $ "w-4 h-4 border-4 rounded-full " <> classes] ""
-
-type StreamRoute = ServerSentEvents (SourceIO Status)
 
 streamRouteHandler :: App.AppState -> SourceIO Status
 streamRouteHandler cfg = S.fromStepT $ step 0
