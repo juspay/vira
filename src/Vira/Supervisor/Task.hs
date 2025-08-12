@@ -168,9 +168,7 @@ killTask supervisor taskId = do
         pure tasks -- Don't modify the map if task doesn't exist
       Just task -> do
         log Info $ "Killing task " <> show taskId
-        -- Clean up file tailer if it exists
-        mTailer <- readMVar task.fileTailer
-        whenJust mTailer (liftIO . FileTailer.stopTailing)
+        -- Cancel the task - cleanup will happen automatically via the completion handler
         cancelWith task.asyncHandle KilledByUser
         pure $ Map.delete taskId tasks
 

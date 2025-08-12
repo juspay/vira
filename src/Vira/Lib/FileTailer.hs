@@ -23,7 +23,6 @@ The file tailer works by:
 * **Memory efficient**: Only reads new content (KBs vs MBs for large files)
 * **CPU efficient**: No polling - only processes actual file changes
 * **Responsive**: Near-instant detection of new log lines via filesystem events
-* **File rotation handling**: Detects when files are truncated or replaced
 * **UTF-8 safe**: Handles encoding errors gracefully
 
 = Limitations
