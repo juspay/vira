@@ -18,6 +18,7 @@ import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import Vira.App.Logging
 import Vira.Lib.Process qualified as Process
+import Vira.Supervisor.LogBroadcast qualified as LogBroadcast
 import Vira.Supervisor.Type
 import Prelude hiding (readMVar)
 
@@ -72,7 +73,8 @@ startTask supervisor taskId pwd procs h = do
           hdl <- startTask' taskId pwd h procs
           logToWorkspaceOutput taskId pwd "CI finished"
           pure hdl
-        let task = Task {workDir = pwd, asyncHandle}
+        logBroadcaster <- newMVar Nothing
+        let task = Task {workDir = pwd, asyncHandle, logBroadcaster}
         pure (Map.insert taskId task tasks, ())
 
 startTask' ::
@@ -149,6 +151,9 @@ killTask supervisor taskId = do
         pure tasks -- Don't modify the map if task doesn't exist
       Just task -> do
         log Info $ "Killing task " <> show taskId
+        -- Clean up log broadcaster if it exists
+        mBroadcaster <- readMVar (logBroadcaster task)
+        whenJust mBroadcaster LogBroadcast.stopLogBroadcaster
         cancelWith task.asyncHandle KilledByUser
         pure $ Map.delete taskId tasks
 

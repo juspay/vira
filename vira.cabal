@@ -144,6 +144,7 @@ library
     Vira.Stream.Log
     Vira.Stream.Status
     Vira.Supervisor.Core
+    Vira.Supervisor.LogBroadcast
     Vira.Supervisor.Task
     Vira.Supervisor.Type
     Vira.Widgets.Alert

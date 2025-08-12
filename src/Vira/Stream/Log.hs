@@ -12,6 +12,8 @@ module Vira.Stream.Log (
 ) where
 
 import Control.Concurrent (threadDelay)
+import Control.Concurrent.STM (TBQueue)
+import Data.Map.Strict qualified as Map
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
@@ -23,12 +25,12 @@ import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging (Severity (Error, Info))
 import Vira.Lib.HTMX (hxSseClose_, hxSseConnect_, hxSseSwap_)
-import Vira.Lib.Process.TailF (TailF)
-import Vira.Lib.Process.TailF qualified as TailF
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId, jobWorkingDir)
 import Vira.State.Type qualified as St
 import Vira.Stream.Status qualified as Status
+import Vira.Supervisor.LogBroadcast qualified as LogBroadcast
+import Vira.Supervisor.Type (tasks)
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO LogChunk))
 
@@ -61,7 +63,7 @@ instance ToServerEvent LogChunk where
       (Just $ logChunkId chunk)
       (logChunkMsg chunk)
 
-data StreamState = Init | Streaming TailF | StreamEnding | Stopping
+data StreamState = Init | Streaming (TBQueue Text) | StreamEnding | Stopping
 
 streamRouteHandler :: App.AppState -> JobId -> SourceIO LogChunk
 streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
@@ -78,37 +80,40 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
       case st of
         Init -> do
           let logFile = job.jobWorkingDir </> "output.log"
-          logTail <- liftIO $ TailF.new logFile
-          streamLog n job logTail
-        Streaming logTail -> do
-          streamLog n job logTail
+          -- Get the task from supervisor and create or get the shared log broadcaster
+          taskMap <- liftIO $ readMVar (tasks (App.supervisor cfg))
+          case Map.lookup jobId taskMap of
+            Nothing -> do
+              App.runApp cfg $ App.log Error $ "Task not found in supervisor: " <> show jobId
+              pure $ S.Error "Task not found in supervisor"
+            Just task -> do
+              broadcaster <- LogBroadcast.getOrCreateLogBroadcaster task logFile
+              clientQueue <- LogBroadcast.subscribeToLogs broadcaster
+              streamLog n job clientQueue
+        Streaming clientQueue -> do
+          streamLog n job clientQueue
         StreamEnding -> do
           pure $ S.Yield (Stop n) $ step (n + 1) Stopping
         Stopping -> do
           -- Keep going until the htmx client has time to catch up.
           threadDelay 1_000_000
           pure $ S.Yield (Stop n) $ step (n + 1) st
-    streamLog n job logTail = do
+    streamLog n job clientQueue = do
       let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
-      TailF.tryRead logTail >>= \case
+      LogBroadcast.tryReadLogQueue clientQueue >>= \case
         Just line -> do
           let msg = Chunk n line
-          pure $ S.Yield msg $ step (n + 1) (Streaming logTail)
+          pure $ S.Yield msg $ step (n + 1) (Streaming clientQueue)
         Nothing -> case jobActive of
           True -> do
             -- Job is active, but no log available now; retry.
             threadDelay 100_000
-            pure $ S.Skip $ step n (Streaming logTail)
+            pure $ S.Skip $ step n (Streaming clientQueue)
           False -> do
             -- Job ended; let's wrap up.
             App.runApp cfg $ do
               App.log Info $ "Job " <> show job.jobId <> " ended; ending stream"
-            TailF.stop logTail >>= \case
-              Nothing ->
-                pure $ S.Yield (Stop n) $ step (n + 1) Stopping
-              Just s ->
-                -- Flush last set of log lines.
-                pure $ S.Yield (Chunk n s) $ step (n + 1) StreamEnding
+            pure $ S.Yield (Stop n) $ step (n + 1) Stopping
 
 viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewStream linkTo job = do
