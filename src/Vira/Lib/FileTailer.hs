@@ -59,8 +59,8 @@ data FileTailer = FileTailer
   -- ^ Last read byte position (for incremental reading)
   , stopSignal :: STM.TMVar ()
   -- ^ Signal to stop tailing (empty = keep running, filled = stop)
-  , clientQueues :: STM.TVar [TBQueue Text]
-  -- ^ List of client queues to broadcast to
+  , clientQueues :: STM.TVar [TBQueue (NonEmpty Text)]
+  -- ^ List of client queues to broadcast to (batched lines)
   }
 
 -- | Start tailing a file
@@ -86,23 +86,23 @@ stopTailing tailer = do
 -- Cleanup happens automatically in tailingLoop via finally
 
 -- | Subscribe to tail output, returns a new queue for this client
-subscribeToTail :: FileTailer -> IO (TBQueue Text)
+subscribeToTail :: FileTailer -> IO (TBQueue (NonEmpty Text))
 subscribeToTail tailer = do
-  clientQueue <- STM.newTBQueueIO 1000 -- Buffer up to 1000 lines per client
+  clientQueue <- STM.newTBQueueIO 100 -- Buffer up to 100 batches per client
   STM.atomically $ do
     queues <- STM.readTVar tailer.clientQueues
     STM.writeTVar tailer.clientQueues (clientQueue : queues)
   pure clientQueue
 
 -- | Unsubscribe from tail output
-unsubscribeFromTail :: FileTailer -> TBQueue Text -> IO ()
+unsubscribeFromTail :: FileTailer -> TBQueue (NonEmpty Text) -> IO ()
 unsubscribeFromTail tailer clientQueue = do
   STM.atomically $ do
     queues <- STM.readTVar tailer.clientQueues
     STM.writeTVar tailer.clientQueues (filter (/= clientQueue) queues)
 
 -- | Try to read from a client's tail queue (non-blocking)
-tryReadTailQueue :: TBQueue Text -> IO (Maybe Text)
+tryReadTailQueue :: TBQueue (NonEmpty Text) -> IO (Maybe (NonEmpty Text))
 tryReadTailQueue queue = do
   STM.atomically $ STM.tryReadTBQueue queue
 
@@ -139,9 +139,9 @@ tailingLoop tailer = do
 readAndBroadcast :: FileTailer -> IO ()
 readAndBroadcast tailer = do
   result <- action
-  -- Broadcast new lines to all clients
-  forM_ result $ \line ->
-    broadcastToAllClients tailer line
+  -- Broadcast new lines to all clients in batches
+  unless (null result) $ do
+    broadcastLinesToAllClients tailer result
   where
     action = do
       withFile tailer.filePath ReadMode $ \handle -> do
@@ -168,9 +168,25 @@ readAndBroadcast tailer = do
 
         pure newLines
 
--- | Broadcast a message to all connected clients
+-- | Broadcast lines to all connected clients in batches (max 50 lines per batch)
+broadcastLinesToAllClients :: FileTailer -> [Text] -> IO ()
+broadcastLinesToAllClients tailer logLines = do
+  queues <- STM.readTVarIO tailer.clientQueues
+  forM_ (batchLines 50 logLines) $ \batch -> do
+    forM_ queues $ \queue -> do
+      STM.atomically $ STM.writeTBQueue queue batch
+  where
+    batchLines :: Int -> [Text] -> [NonEmpty Text]
+    batchLines _ [] = []
+    batchLines maxSize xs =
+      let (batch, rest) = splitAt maxSize xs
+       in case batch of
+            (firstLine : others) -> (firstLine :| others) : batchLines maxSize rest
+            [] -> []
+
+-- | Broadcast a single message to all connected clients (for startup/shutdown messages)
 broadcastToAllClients :: FileTailer -> Text -> IO ()
 broadcastToAllClients tailer message = do
   queues <- STM.readTVarIO tailer.clientQueues
   forM_ queues $ \queue -> do
-    STM.atomically $ STM.writeTBQueue queue message
+    STM.atomically $ STM.writeTBQueue queue (message :| [])

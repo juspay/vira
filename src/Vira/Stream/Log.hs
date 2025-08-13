@@ -66,7 +66,7 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Nothing
   where
     stopStreaming n = S.Yield (Stop n) S.Stop
 
-    step (n :: Int) (mQueue :: Maybe (TBQueue Text)) = S.Effect $ do
+    step (n :: Int) (mQueue :: Maybe (TBQueue (NonEmpty Text))) = S.Effect $ do
       mJob :: Maybe Job <- App.runApp cfg $ App.query (St.GetJobA jobId)
       case mJob of
         Nothing -> do
@@ -92,8 +92,10 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Nothing
     streamWithQueue n job clientQueue = do
       let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
       FileTailer.tryReadTailQueue clientQueue >>= \case
-        Just line -> do
-          let msg = Chunk n line
+        Just linesBatch -> do
+          -- Send the whole batch as a single chunk
+          let batchText = unlines (toList linesBatch)
+              msg = Chunk n batchText
           pure $ S.Yield msg $ step (n + 1) (Just clientQueue)
         Nothing -> case jobActive of
           True -> do

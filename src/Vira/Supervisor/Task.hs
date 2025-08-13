@@ -40,7 +40,7 @@ logToWorkspaceOutput taskId base (msg :: Text) = do
   appendFileText (outputLogFile base) s
 
 -- | Get log tailer for a task and subscribe to it
-tailTaskLog :: (Concurrent :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es (Maybe (TBQueue Text))
+tailTaskLog :: (Concurrent :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es (Maybe (TBQueue (NonEmpty Text)))
 tailTaskLog supervisor taskId = do
   taskMap <- readMVar (tasks supervisor)
   case Map.lookup taskId taskMap of
