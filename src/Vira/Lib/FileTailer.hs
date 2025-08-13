@@ -22,15 +22,13 @@ The file tailer works by:
 
 * **Memory efficient**: Only reads new content (KBs vs MBs for large files)
 * **CPU efficient**: No polling - only processes actual file changes
-* **Responsive**: Near-instant detection of new log lines via filesystem events
+* **Responsive**: Near-instant detection of new log lines via filesystem events (fsnotify)
 * **UTF-8 safe**: Handles encoding errors gracefully
 
 = Limitations
 
 * **Line-based only**: Assumes UTF-8 text files with line breaks; binary files
    or files without newlines are not supported
-* **fsnotify dependency**: Requires filesystem event support (works on Linux,
-   macOS, Windows)
 * **Single file**: Does not handle log rotation to different filenames
 -}
 module Vira.Lib.FileTailer (
@@ -165,7 +163,7 @@ readAndBroadcast tailer = do
 
               -- Read only new content
               newContentBytes <- BS.hGetContents handle
-              let newContent = decodeUtf8 newContentBytes
+              let newContent = decodeUtf8With lenientDecode newContentBytes
               let newLines = lines newContent
 
               unless (null newLines) $ do
