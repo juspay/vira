@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 {- | Efficient pure Haskell file tailing implementation
 
 This module provides a memory and CPU efficient alternative to external `tail -f`
@@ -81,7 +83,7 @@ startTailing fp = do
 stopTailing :: FileTailer -> IO ()
 stopTailing tailer = do
   -- Signal the tailing thread to stop
-  STM.atomically $ STM.putTMVar (stopSignal tailer) ()
+  STM.atomically $ STM.putTMVar tailer.stopSignal ()
 
 -- Cleanup happens automatically in tailingLoop via finally
 
@@ -90,16 +92,16 @@ subscribeToTail :: FileTailer -> IO (TBQueue Text)
 subscribeToTail tailer = do
   clientQueue <- STM.newTBQueueIO 1000 -- Buffer up to 1000 lines per client
   STM.atomically $ do
-    queues <- STM.readTVar (clientQueues tailer)
-    STM.writeTVar (clientQueues tailer) (clientQueue : queues)
+    queues <- STM.readTVar tailer.clientQueues
+    STM.writeTVar tailer.clientQueues (clientQueue : queues)
   pure clientQueue
 
 -- | Unsubscribe from tail output
 unsubscribeFromTail :: FileTailer -> TBQueue Text -> IO ()
 unsubscribeFromTail tailer clientQueue = do
   STM.atomically $ do
-    queues <- STM.readTVar (clientQueues tailer)
-    STM.writeTVar (clientQueues tailer) (filter (/= clientQueue) queues)
+    queues <- STM.readTVar tailer.clientQueues
+    STM.writeTVar tailer.clientQueues (filter (/= clientQueue) queues)
 
 -- | Try to read from a client's tail queue (non-blocking)
 tryReadTailQueue :: TBQueue Text -> IO (Maybe Text)
@@ -109,85 +111,81 @@ tryReadTailQueue queue = do
 -- | Main tailing loop - runs in its own thread
 tailingLoop :: FileTailer -> IO ()
 tailingLoop tailer = do
-  let action = withManager $ \manager -> do
-        -- Send startup message
-        broadcastToAllClients tailer "<!-- FileTailer started (fsnotify mode) -->"
-
-        -- Read any existing content first
-        readAndBroadcast tailer
-
-        -- Start watching for file changes
-        let dir = takeDirectory (filePath tailer)
-            filePath' = filePath tailer
-
-        stopAction <-
-          watchDir
-            manager
-            dir
-            (\event -> eventPath event == filePath')
-            (\_ -> readAndBroadcast tailer)
-
-        -- Block until stop signal
-        STM.atomically $ STM.takeTMVar (stopSignal tailer)
-
-        -- Cleanup
-        stopAction
-        broadcastToAllClients tailer "<!-- End of log stream -->"
-
   action `catch` \(e :: SomeException) -> do
     -- Log error and stop
     broadcastToAllClients tailer $ "<!-- Tailing error: " <> show e <> " -->"
+  where
+    action = withManager $ \manager -> do
+      -- Send startup message
+      broadcastToAllClients tailer "<!-- FileTailer started (fsnotify mode) -->"
+
+      -- Read any existing content first
+      readAndBroadcast tailer
+
+      -- Start watching for file changes
+      stopAction <-
+        watchDir
+          manager
+          (takeDirectory tailer.filePath)
+          (\event -> eventPath event == tailer.filePath)
+          (\_ -> readAndBroadcast tailer)
+
+      -- Block until stop signal
+      STM.atomically $ STM.takeTMVar tailer.stopSignal
+
+      -- Cleanup
+      stopAction
+      broadcastToAllClients tailer "<!-- End of log stream -->"
 
 -- | Read new content from file and broadcast to all clients
 readAndBroadcast :: FileTailer -> IO ()
 readAndBroadcast tailer = do
-  let fp = filePath tailer
-
   result <-
-    ( do
-        exists <- doesFileExist fp
-        if not exists
-          then pure []
-          else do
-            withFile fp ReadMode $ \handle -> do
-              currentOffset <- STM.readTVarIO (lastOffset tailer)
-              fileSize <- hFileSize handle
-
-              if currentOffset > fileSize
-                then do
-                  -- File was truncated or rotated, start from beginning
-                  STM.atomically $ STM.writeTVar (lastOffset tailer) 0
-                  hSeek handle AbsoluteSeek 0
-                else
-                  hSeek handle AbsoluteSeek currentOffset
-
-              -- Read only new content
-              newContentBytes <- BS.hGetContents handle
-              let newContent = decodeUtf8With lenientDecode newContentBytes
-              let newLines = lines newContent
-
-              unless (null newLines) $ do
-                -- Update offset by the number of bytes we actually read
-                let bytesRead = fromIntegral $ BS.length newContentBytes
-                STM.atomically $ STM.writeTVar (lastOffset tailer) (currentOffset + bytesRead)
-
-              pure newLines
-      )
+    action
       `catch` \(e :: IOError) ->
         if isDoesNotExistError e
           then pure []
           else do
             -- Reset offset on other errors and try again next time
-            STM.atomically $ STM.writeTVar (lastOffset tailer) 0
+            STM.atomically $ STM.writeTVar tailer.lastOffset 0
             pure []
 
   -- Broadcast new lines to all clients
   forM_ result $ \line ->
     broadcastToAllClients tailer line
+  where
+    action = do
+      exists <- doesFileExist tailer.filePath
+      if not exists
+        then pure []
+        else do
+          withFile tailer.filePath ReadMode $ \handle -> do
+            currentOffset <- STM.readTVarIO tailer.lastOffset
+            fileSize <- hFileSize handle
+
+            if currentOffset > fileSize
+              then do
+                -- File was truncated or rotated, start from beginning
+                STM.atomically $ STM.writeTVar tailer.lastOffset 0
+                hSeek handle AbsoluteSeek 0
+              else
+                hSeek handle AbsoluteSeek currentOffset
+
+            -- Read only new content
+            newContentBytes <- BS.hGetContents handle
+            let newContent = decodeUtf8With lenientDecode newContentBytes
+            let newLines = lines newContent
+
+            unless (null newLines) $ do
+              -- Update offset by the number of bytes we actually read
+              let bytesRead = fromIntegral $ BS.length newContentBytes
+              STM.atomically $ STM.writeTVar tailer.lastOffset (currentOffset + bytesRead)
+
+            pure newLines
 
 -- | Broadcast a message to all connected clients
 broadcastToAllClients :: FileTailer -> Text -> IO ()
 broadcastToAllClients tailer message = do
-  queues <- STM.readTVarIO (clientQueues tailer)
+  queues <- STM.readTVarIO tailer.clientQueues
   forM_ queues $ \queue -> do
     STM.atomically $ STM.writeTBQueue queue message
