@@ -40,7 +40,7 @@ module Vira.Lib.FileTailer (
   startTailing,
   stopTailing,
   subscribeToTail,
-  tryReadTailQueue,
+  readAllFromTailQueue,
 ) where
 
 import Control.Concurrent (forkIO)
@@ -142,10 +142,11 @@ subscribeToTail tailer = do
         STM.writeTBQueue clientQueue batch
   pure clientQueue
 
--- | Try to read from a client's tail queue (non-blocking)
-tryReadTailQueue :: TBQueue (NonEmpty Text) -> IO (Maybe (NonEmpty Text))
-tryReadTailQueue queue = do
-  STM.atomically $ STM.tryReadTBQueue queue
+-- | Read all available items from a client's tail queue (non-blocking)
+readAllFromTailQueue :: TBQueue (NonEmpty Text) -> IO [Text]
+readAllFromTailQueue queue = do
+  batches <- STM.atomically $ STM.flushTBQueue queue
+  pure $ concatMap toList batches
 
 -- | Main tailing loop - runs in its own thread
 tailingLoop :: FileTailer -> IO ()

@@ -91,22 +91,23 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Nothing
 
     streamWithQueue n job clientQueue = do
       let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
-      FileTailer.tryReadTailQueue clientQueue >>= \case
-        Just linesBatch -> do
-          -- Send the whole batch as a single chunk
-          let batchText = unlines (toList linesBatch)
-              msg = Chunk n batchText
-          pure $ S.Yield msg $ step (n + 1) (Just clientQueue)
-        Nothing -> case jobActive of
+      availableLines <- FileTailer.readAllFromTailQueue clientQueue
+      case availableLines of
+        [] -> case jobActive of
           True -> do
             -- Job is active, but no log available now; retry.
             threadDelay 100_000
             pure $ S.Skip $ step n (Just clientQueue)
           False -> do
-            -- Job ended; send Stop message and end stream
+            -- Job ended and no more lines; send Stop message and end stream
             App.runApp cfg $ do
               App.log Info $ "Job " <> show job.jobId <> " ended; ending stream"
             pure $ stopStreaming n
+        _ -> do
+          -- Send all available lines as a single chunk
+          let linesText = unlines availableLines
+              msg = Chunk n linesText
+          pure $ S.Yield msg $ step (n + 1) (Just clientQueue)
 
 viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewStream linkTo job = do
