@@ -47,11 +47,9 @@ import Control.Concurrent.STM (TBQueue)
 import Control.Concurrent.STM qualified as STM
 import Control.Exception (catch)
 import Data.ByteString qualified as BS
-import System.Directory (doesFileExist)
 import System.FSNotify (Event (..), eventPath, watchDir, withManager)
 import System.FilePath (takeDirectory)
 import System.IO (SeekMode (AbsoluteSeek), hFileSize, hSeek)
-import System.IO.Error (IOError, isDoesNotExistError)
 
 -- | File tailer state
 data FileTailer = FileTailer
@@ -140,48 +138,36 @@ tailingLoop tailer = do
 -- | Read new content from file and broadcast to all clients
 readAndBroadcast :: FileTailer -> IO ()
 readAndBroadcast tailer = do
-  result <-
-    action
-      `catch` \(e :: IOError) ->
-        if isDoesNotExistError e
-          then pure []
-          else do
-            -- Reset offset on other errors and try again next time
-            STM.atomically $ STM.writeTVar tailer.lastOffset 0
-            pure []
+  result <- action
 
   -- Broadcast new lines to all clients
   forM_ result $ \line ->
     broadcastToAllClients tailer line
   where
     action = do
-      exists <- doesFileExist tailer.filePath
-      if not exists
-        then pure []
-        else do
-          withFile tailer.filePath ReadMode $ \handle -> do
-            currentOffset <- STM.readTVarIO tailer.lastOffset
-            fileSize <- hFileSize handle
+      withFile tailer.filePath ReadMode $ \handle -> do
+        currentOffset <- STM.readTVarIO tailer.lastOffset
+        fileSize <- hFileSize handle
 
-            if currentOffset > fileSize
-              then do
-                -- File was truncated or rotated, start from beginning
-                STM.atomically $ STM.writeTVar tailer.lastOffset 0
-                hSeek handle AbsoluteSeek 0
-              else
-                hSeek handle AbsoluteSeek currentOffset
+        if currentOffset > fileSize
+          then do
+            -- File was truncated or rotated, start from beginning
+            STM.atomically $ STM.writeTVar tailer.lastOffset 0
+            hSeek handle AbsoluteSeek 0
+          else
+            hSeek handle AbsoluteSeek currentOffset
 
-            -- Read only new content
-            newContentBytes <- BS.hGetContents handle
-            let newContent = decodeUtf8With lenientDecode newContentBytes
-            let newLines = lines newContent
+        -- Read only new content
+        newContentBytes <- BS.hGetContents handle
+        let newContent = decodeUtf8With lenientDecode newContentBytes
+        let newLines = lines newContent
 
-            unless (null newLines) $ do
-              -- Update offset by the number of bytes we actually read
-              let bytesRead = fromIntegral $ BS.length newContentBytes
-              STM.atomically $ STM.writeTVar tailer.lastOffset (currentOffset + bytesRead)
+        unless (null newLines) $ do
+          -- Update offset by the number of bytes we actually read
+          let bytesRead = fromIntegral $ BS.length newContentBytes
+          STM.atomically $ STM.writeTVar tailer.lastOffset (currentOffset + bytesRead)
 
-            pure newLines
+        pure newLines
 
 -- | Broadcast a message to all connected clients
 broadcastToAllClients :: FileTailer -> Text -> IO ()
