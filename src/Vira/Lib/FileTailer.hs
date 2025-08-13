@@ -139,7 +139,6 @@ tailingLoop tailer = do
 readAndBroadcast :: FileTailer -> IO ()
 readAndBroadcast tailer = do
   result <- action
-
   -- Broadcast new lines to all clients
   forM_ result $ \line ->
     broadcastToAllClients tailer line

@@ -30,8 +30,8 @@ import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId, jobWorkingDir)
 import Vira.State.Type qualified as St
 import Vira.Stream.Status qualified as Status
-import Vira.Supervisor.Task (getOrCreateFileTailer)
-import Vira.Supervisor.Type (tasks)
+import Vira.Supervisor.Task qualified as Supervisor
+import Vira.Supervisor.Type qualified as Supervisor
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO LogChunk))
 
@@ -83,13 +83,13 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Nothing
       Nothing -> do
         -- Initialize: set up the tailer and get client queue
         let logFile = job.jobWorkingDir </> "output.log"
-        taskMap <- liftIO $ readMVar (tasks (App.supervisor cfg))
+        taskMap <- liftIO $ readMVar $ Supervisor.tasks $ App.supervisor cfg
         case Map.lookup jobId taskMap of
           Nothing -> do
             App.runApp cfg $ App.log Error $ "Task not found in supervisor: " <> show jobId
             pure $ S.Error "Task not found in supervisor"
           Just task -> do
-            tailer <- liftIO $ getOrCreateFileTailer task logFile
+            tailer <- liftIO $ Supervisor.getOrCreateLogTailer task logFile
             clientQueue <- liftIO $ FileTailer.subscribeToTail tailer
             streamWithQueue n job clientQueue
 

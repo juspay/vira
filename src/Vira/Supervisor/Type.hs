@@ -31,8 +31,8 @@ data Task = Task
   -- ^ Working directory of this task
   , asyncHandle :: Async (Either TaskException ExitCode)
   -- ^ The `Async` handle for the task
-  , fileTailer :: MVar (Maybe FileTailer)
-  -- ^ Shared file tailer, created on first client connection
+  , logTailer :: MVar (Maybe FileTailer)
+  -- ^ Shared log tailer, created on first client connection
   }
   deriving stock (Generic)
 

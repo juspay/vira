@@ -4,7 +4,7 @@
 module Vira.Supervisor.Task (
   startTask,
   killTask,
-  getOrCreateFileTailer,
+  getOrCreateLogTailer,
 ) where
 
 import Control.Concurrent.MVar qualified
@@ -38,10 +38,10 @@ logToWorkspaceOutput taskId base (msg :: Text) = do
   let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
   appendFileText (outputLogFile base) s
 
--- | Get existing or create new file tailer for a task
-getOrCreateFileTailer :: Task -> FilePath -> IO FileTailer.FileTailer
-getOrCreateFileTailer task logFile = do
-  Control.Concurrent.MVar.modifyMVar (fileTailer task) $ \case
+-- | Get existing or create new log tailer for a task
+getOrCreateLogTailer :: Task -> FilePath -> IO FileTailer.FileTailer
+getOrCreateLogTailer task logFile = do
+  Control.Concurrent.MVar.modifyMVar task.logTailer $ \case
     Just tailer -> pure (Just tailer, tailer)
     Nothing -> do
       tailer <- FileTailer.startTailing logFile
@@ -85,15 +85,15 @@ startTask supervisor taskId pwd procs h = do
           hdl <- startTask' taskId pwd h procs
           logToWorkspaceOutput taskId pwd "CI finished"
           pure hdl
-        fileTailer <- newMVar Nothing
-        let task = Task {workDir = pwd, asyncHandle, fileTailer}
+        logTailer <- newMVar Nothing
+        let task = Task {workDir = pwd, asyncHandle, logTailer}
         pure (Map.insert taskId task tasks, task)
 
   -- Schedule cleanup independently, completely outside of any MVar scope
   void $ async $ do
     void $ wait task.asyncHandle -- Wait for task completion
     -- Clean up file tailer if any
-    whenJustM (readMVar task.fileTailer) $ \tailer -> do
+    whenJustM (readMVar task.logTailer) $ \tailer -> do
       log Info $ "Stopping file tailer for finished task " <> show taskId
       liftIO $ FileTailer.stopTailing tailer
     -- Remove task from supervisor immediately
