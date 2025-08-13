@@ -64,12 +64,14 @@ instance ToServerEvent LogChunk where
 streamRouteHandler :: App.AppState -> JobId -> SourceIO LogChunk
 streamRouteHandler cfg jobId = S.fromStepT $ step 0 Nothing
   where
+    stopStreaming n = S.Yield (Stop n) S.Stop
+
     step (n :: Int) (mQueue :: Maybe (TBQueue Text)) = S.Effect $ do
       mJob :: Maybe Job <- App.runApp cfg $ App.query (St.GetJobA jobId)
       case mJob of
         Nothing -> do
           App.runApp cfg $ App.log Error "Job not found"
-          pure $ S.Error "Job not found"
+          pure $ stopStreaming n
         Just job -> do
           streamLog n job mQueue
 
@@ -83,7 +85,7 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Nothing
         case mClientQueue of
           Nothing -> do
             App.runApp cfg $ App.log Error $ "Task not found in supervisor: " <> show jobId
-            pure $ S.Error "Task not found in supervisor"
+            pure $ stopStreaming n
           Just clientQueue ->
             streamWithQueue n job clientQueue
 
@@ -102,7 +104,7 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Nothing
             -- Job ended; send Stop message and end stream
             App.runApp cfg $ do
               App.log Info $ "Job " <> show job.jobId <> " ended; ending stream"
-            pure $ S.Yield (Stop n) S.Stop
+            pure $ stopStreaming n
 
 viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewStream linkTo job = do
