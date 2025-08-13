@@ -35,10 +35,11 @@ The file tailer works by:
 -}
 module Vira.Lib.FileTailer (
   FileTailer,
+  FileTailerConfig (..),
+  defaultConfig,
   startTailing,
   stopTailing,
   subscribeToTail,
-  unsubscribeFromTail,
   tryReadTailQueue,
 ) where
 
@@ -50,12 +51,42 @@ import Data.ByteString qualified as BS
 import System.FSNotify (Event (..), eventPath, watchDir, withManager)
 import System.FilePath (takeDirectory)
 import System.IO (SeekMode (AbsoluteSeek), hFileSize, hSeek)
-import Vira.Lib.CircularBuffer (CircularBuffer)
 import Vira.Lib.CircularBuffer qualified as CB
 
--- | File tailer state
+-- | Configuration for FileTailer with named fields to prevent parameter confusion
+data FileTailerConfig = FileTailerConfig
+  { recentLines :: Natural
+  -- ^ Number of recent lines to buffer for new subscribers
+  , batchSize :: Natural
+  -- ^ Maximum lines per batch sent to clients
+  , queueSize :: Natural
+  -- ^ Maximum batches buffered per client queue
+  }
+  deriving stock (Show, Eq)
+
+-- | Default configuration with sensible values
+defaultConfig :: FileTailerConfig
+defaultConfig =
+  FileTailerConfig
+    { recentLines = 100
+    , batchSize = 50
+    , queueSize = 100
+    }
+
+-- | Split a list into appropriately sized batches
+batchLines :: Natural -> [Text] -> [NonEmpty Text]
+batchLines _ [] = []
+batchLines maxSize xs =
+  let (batch, rest) = splitAt (fromIntegral maxSize) xs
+   in case batch of
+        (firstLine : others) -> (firstLine :| others) : batchLines maxSize rest
+        [] -> []
+
+-- | File tailer state with runtime configuration
 data FileTailer = FileTailer
-  { filePath :: FilePath
+  { config :: FileTailerConfig
+  -- ^ Configuration (immutable after creation)
+  , filePath :: FilePath
   -- ^ Path to the file being tailed
   , lastOffset :: TVar Integer
   -- ^ Last read byte position (for incremental reading)
@@ -63,19 +94,19 @@ data FileTailer = FileTailer
   -- ^ Signal to stop tailing (empty = keep running, filled = stop)
   , clientQueues :: STM.TVar [TBQueue (NonEmpty Text)]
   -- ^ List of client queues to broadcast to (batched lines)
-  , recentLines :: STM.TVar (CircularBuffer 100 Text)
-  -- ^ Buffer of recent lines (last 100 lines)
+  , recentLinesBuffer :: STM.TVar (CB.CircularBuffer Text)
+  -- ^ Buffer of recent lines (circular buffer, bounded by config.recentLines)
   }
 
--- | Start tailing a file
-startTailing :: FilePath -> IO FileTailer
-startTailing fp = do
+-- | Start tailing a file with runtime configuration
+startTailing :: FileTailerConfig -> FilePath -> IO FileTailer
+startTailing config fp = do
   lastOffset <- STM.newTVarIO 0
   stopSignal <- STM.newEmptyTMVarIO
   clientQueues <- STM.newTVarIO []
-  recentLines <- STM.newTVarIO CB.new
+  recentLinesBuffer <- STM.newTVarIO (CB.new config.recentLines)
 
-  let tailer = FileTailer fp lastOffset stopSignal clientQueues recentLines
+  let tailer = FileTailer config fp lastOffset stopSignal clientQueues recentLinesBuffer
 
   -- Start the tailing thread
   void $ forkIO $ tailingLoop tailer
@@ -91,28 +122,25 @@ stopTailing tailer = do
 -- Cleanup happens automatically in tailingLoop via finally
 
 {- | Subscribe to tail output, returns a new queue for this client
-New subscribers immediately receive the last 100 lines for context
+New subscribers immediately receive recent lines for context
 -}
 subscribeToTail :: FileTailer -> IO (TBQueue (NonEmpty Text))
 subscribeToTail tailer = do
-  clientQueue <- STM.newTBQueueIO 100 -- Buffer up to 100 batches per client
+  let queueCapacity = fromIntegral tailer.config.queueSize
+  clientQueue <- STM.newTBQueueIO queueCapacity
   STM.atomically $ do
     -- Add to client list
     queues <- STM.readTVar tailer.clientQueues
     STM.writeTVar tailer.clientQueues (clientQueue : queues)
 
     -- Send recent lines to new subscriber for context
-    recentBuffer <- STM.readTVar tailer.recentLines
-    whenJust (nonEmpty $ toList recentBuffer) $ \recentBatch ->
-      STM.writeTBQueue clientQueue recentBatch
+    recentBuffer <- STM.readTVar tailer.recentLinesBuffer
+    let recentLinesList = toList recentBuffer
+    unless (null recentLinesList) $ do
+      -- Split recent lines into appropriately sized batches
+      forM_ (batchLines tailer.config.batchSize recentLinesList) $ \batch ->
+        STM.writeTBQueue clientQueue batch
   pure clientQueue
-
--- | Unsubscribe from tail output
-unsubscribeFromTail :: FileTailer -> TBQueue (NonEmpty Text) -> IO ()
-unsubscribeFromTail tailer clientQueue = do
-  STM.atomically $ do
-    queues <- STM.readTVar tailer.clientQueues
-    STM.writeTVar tailer.clientQueues (filter (/= clientQueue) queues)
 
 -- | Try to read from a client's tail queue (non-blocking)
 tryReadTailQueue :: TBQueue (NonEmpty Text) -> IO (Maybe (NonEmpty Text))
@@ -181,24 +209,16 @@ readAndBroadcast tailer = do
 
         pure newLines
 
-{- | Broadcast lines to all connected clients in batches (max 50 lines per batch)
-Also maintains a buffer of recent lines (last 100) for new subscribers
+{- | Broadcast lines to all connected clients in batches
+Also maintains a buffer of recent lines for new subscribers
 -}
 broadcastLinesToAllClients :: FileTailer -> [Text] -> IO ()
 broadcastLinesToAllClients tailer logLines = do
-  -- Update recent lines buffer first
-  STM.atomically $ STM.modifyTVar tailer.recentLines $ CB.append logLines
+  -- Update recent lines buffer first using CircularBuffer
+  STM.atomically $ STM.modifyTVar tailer.recentLinesBuffer $ CB.append logLines
 
   -- Broadcast to all current clients
   queues <- STM.readTVarIO tailer.clientQueues
-  forM_ (batchLines 50 logLines) $ \batch -> do
+  forM_ (batchLines tailer.config.batchSize logLines) $ \batch -> do
     forM_ queues $ \queue -> do
       STM.atomically $ STM.writeTBQueue queue batch
-  where
-    batchLines :: Int -> [Text] -> [NonEmpty Text]
-    batchLines _ [] = []
-    batchLines maxSize xs =
-      let (batch, rest) = splitAt maxSize xs
-       in case batch of
-            (firstLine : others) -> (firstLine :| others) : batchLines maxSize rest
-            [] -> []

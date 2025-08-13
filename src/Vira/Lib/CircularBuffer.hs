@@ -1,11 +1,9 @@
-{-# LANGUAGE KindSignatures #-}
-
-{- | A type-safe bounded circular buffer with compile-time capacity checking.
+{- | A bounded circular buffer with runtime capacity checking.
 
 = Usage Example
 
 @
-buffer = new @100                            -- CircularBuffer 100 Text
+buffer = new 100                                -- CircularBuffer with capacity 100
 buffer1 = append ["line1", "line2"] buffer
 buffer2 = append ["line3", "line4"] buffer1          -- keeps last 100 lines
 toList buffer2                              -- ["line1", "line2", "line3", "line4"]
@@ -28,31 +26,38 @@ module Vira.Lib.CircularBuffer (
 
 import Data.Sequence qualified as Seq
 
-{- | A circular buffer with type-level capacity that automatically trims old elements
-The capacity @n@ is enforced at the type level for compile-time safety
+{- | A circular buffer with runtime capacity that automatically trims old elements
+The capacity is stored as a runtime value for flexibility
 -}
-newtype CircularBuffer (n :: Nat) a = CircularBuffer (Seq.Seq a)
-  deriving stock (Show, Eq, Foldable)
+data CircularBuffer a = CircularBuffer
+  { capacity :: Natural
+  , buffer :: Seq.Seq a
+  }
+  deriving stock (Show, Eq)
 
--- | Create a new empty circular buffer with type-level capacity
-new :: forall n a. (KnownNat n) => CircularBuffer n a
-new = CircularBuffer Seq.empty
+-- | Create a new empty circular buffer with runtime capacity
+new :: Natural -> CircularBuffer a
+new cap = CircularBuffer cap Seq.empty
 
 -- | Add elements to the buffer, automatically trimming if capacity is exceeded
-append :: forall n a. (KnownNat n) => [a] -> CircularBuffer n a -> CircularBuffer n a
-append newItems (CircularBuffer buffer) =
-  let capacity = fromIntegral $ natVal (Proxy @n)
-      combined = buffer <> Seq.fromList newItems
+append :: [a] -> CircularBuffer a -> CircularBuffer a
+append newItems (CircularBuffer cap buf) =
+  let combined = buf <> Seq.fromList newItems
       len = Seq.length combined
-   in CircularBuffer $
-        if len <= capacity
+      maxLen = fromIntegral cap
+   in CircularBuffer cap $
+        if len <= maxLen
           then combined
-          else Seq.drop (len - capacity) combined
+          else Seq.drop (len - maxLen) combined
 
 -- | Check if buffer is empty
-isEmpty :: CircularBuffer n a -> Bool
-isEmpty (CircularBuffer buffer) = Seq.null buffer
+isEmpty :: CircularBuffer a -> Bool
+isEmpty (CircularBuffer _ buf) = Seq.null buf
 
 -- | Get current number of elements in buffer
-size :: CircularBuffer n a -> Int
-size (CircularBuffer buffer) = Seq.length buffer
+size :: CircularBuffer a -> Int
+size (CircularBuffer _ buf) = Seq.length buf
+
+-- | Implement Foldable for CircularBuffer
+instance Foldable CircularBuffer where
+  foldMap f (CircularBuffer _ buf) = foldMap f buf

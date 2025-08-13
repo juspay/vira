@@ -52,12 +52,12 @@ tailTaskLog supervisor taskId = do
       pure $ Just clientQueue
   where
     -- \| Get existing or create new log tailer for a task
-    getOrCreateLogTailer :: Task -> FilePath -> IO FileTailer.FileTailer
+    getOrCreateLogTailer :: Task -> FilePath -> IO LogFileTailer
     getOrCreateLogTailer task logFile = do
       Control.Concurrent.MVar.modifyMVar task.logTailer $ \case
         Just tailer -> pure (Just tailer, tailer)
         Nothing -> do
-          tailer <- FileTailer.startTailing logFile
+          tailer <- FileTailer.startTailing logFileTailerConfig logFile
           pure (Just tailer, tailer)
 
 -- | Start a new a task, returning its working directory.

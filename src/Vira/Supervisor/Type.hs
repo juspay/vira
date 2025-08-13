@@ -2,10 +2,18 @@ module Vira.Supervisor.Type where
 
 import Effectful.Concurrent.Async (Async)
 import System.Exit (ExitCode)
-import Vira.Lib.FileTailer (FileTailer)
+import Vira.Lib.FileTailer (FileTailer, FileTailerConfig, defaultConfig)
 import Vira.State.Type (JobId)
 
 type TaskId = JobId
+
+{- | Standard configuration for Vira's log file tailer
+100 recent lines, batches of up to 50 lines, client queues of up to 100 batches
+-}
+logFileTailerConfig :: FileTailerConfig
+logFileTailerConfig = defaultConfig
+
+type LogFileTailer = FileTailer
 
 data TaskState
   = Running
@@ -31,7 +39,7 @@ data Task = Task
   -- ^ Working directory of this task
   , asyncHandle :: Async (Either TaskException ExitCode)
   -- ^ The `Async` handle for the task
-  , logTailer :: MVar (Maybe FileTailer)
+  , logTailer :: MVar (Maybe LogFileTailer)
   -- ^ Shared log tailer, created on first client connection
   }
   deriving stock (Generic)
