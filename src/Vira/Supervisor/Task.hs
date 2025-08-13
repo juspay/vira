@@ -4,8 +4,11 @@
 module Vira.Supervisor.Task (
   startTask,
   killTask,
+  tailTaskLog,
 ) where
 
+import Control.Concurrent.MVar qualified
+import Control.Concurrent.STM (TBQueue)
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent.Async
@@ -17,6 +20,7 @@ import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, c
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import Vira.App.Logging
+import Vira.Lib.FileTailer qualified as FileTailer
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type
 import Prelude hiding (readMVar)
@@ -34,6 +38,27 @@ logToWorkspaceOutput :: (IOE :> es) => TaskId -> FilePath -> Text -> Eff es ()
 logToWorkspaceOutput taskId base (msg :: Text) = do
   let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
   appendFileText (outputLogFile base) s
+
+-- | Get log tailer for a task and subscribe to it
+tailTaskLog :: (Concurrent :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es (Maybe (TBQueue (NonEmpty Text)))
+tailTaskLog supervisor taskId = do
+  taskMap <- readMVar (tasks supervisor)
+  case Map.lookup taskId taskMap of
+    Nothing -> pure Nothing
+    Just task -> do
+      let logFile = outputLogFile task.workDir
+      tailer <- liftIO $ getOrCreateLogTailer task logFile
+      clientQueue <- liftIO $ FileTailer.subscribeToTail tailer
+      pure $ Just clientQueue
+  where
+    -- \| Get existing or create new log tailer for a task
+    getOrCreateLogTailer :: Task -> FilePath -> IO LogFileTailer
+    getOrCreateLogTailer task logFile = do
+      Control.Concurrent.MVar.modifyMVar task.logTailer $ \case
+        Just tailer -> pure (Just tailer, tailer)
+        Nothing -> do
+          tailer <- FileTailer.startTailing logFileTailerConfig logFile
+          pure (Just tailer, tailer)
 
 -- | Start a new a task, returning its working directory.
 startTask ::
@@ -60,11 +85,12 @@ startTask supervisor taskId pwd procs h = do
   logSupervisorState supervisor
   let msg = "Starting task group: " <> show (cmdspec <$> procs) <> " in " <> toText pwd
   log Info msg
-  modifyMVar (tasks supervisor) $ \tasks -> do
+
+  task <- modifyMVar (tasks supervisor) $ \tasks -> do
     if Map.member taskId tasks
       then do
         log Error $ "Task " <> show taskId <> " already exists"
-        die $ "Task " <> show taskId <> " already exists"
+        die $ "Task " <> show taskId <> " already exists; impossible!"
       else do
         createDirectoryIfMissing True pwd
         logToWorkspaceOutput taskId pwd msg
@@ -72,8 +98,21 @@ startTask supervisor taskId pwd procs h = do
           hdl <- startTask' taskId pwd h procs
           logToWorkspaceOutput taskId pwd "CI finished"
           pure hdl
-        let task = Task {workDir = pwd, asyncHandle}
-        pure (Map.insert taskId task tasks, ())
+        logTailer <- newMVar Nothing
+        let task = Task {workDir = pwd, asyncHandle, logTailer}
+        pure (Map.insert taskId task tasks, task)
+
+  -- Schedule cleanup independently, completely outside of any MVar scope
+  void $ async $ do
+    void $ wait task.asyncHandle -- Wait for task completion
+    -- Clean up file tailer if any
+    whenJustM (readMVar task.logTailer) $ \tailer -> do
+      log Info $ "Stopping file tailer for finished task " <> show taskId
+      liftIO $ FileTailer.stopTailing tailer
+    -- Remove task from supervisor immediately
+    modifyMVar_ supervisor.tasks $ \currentTasks -> do
+      log Debug $ "Removing finished task " <> show taskId <> " from supervisor"
+      pure $ Map.delete taskId currentTasks
 
 startTask' ::
   forall es.
@@ -142,15 +181,14 @@ startTask' taskId pwd h = runProcs . toList
 -- | Kill an active task
 killTask :: (Concurrent :> es, Log Message :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
 killTask supervisor taskId = do
-  modifyMVar_ (tasks supervisor) $ \tasks -> do
-    case Map.lookup taskId tasks of
-      Nothing -> do
-        log Warning $ "Attempted to kill non-existent task " <> show taskId
-        pure tasks -- Don't modify the map if task doesn't exist
-      Just task -> do
-        log Info $ "Killing task " <> show taskId
-        cancelWith task.asyncHandle KilledByUser
-        pure $ Map.delete taskId tasks
+  taskMap <- readMVar (tasks supervisor)
+  case Map.lookup taskId taskMap of
+    Nothing -> do
+      log Warning $ "Attempted to kill non-existent task " <> show taskId
+    Just task -> do
+      log Info $ "Killing task " <> show taskId
+      -- Cancel the task - cleanup will happen automatically via the completion handler
+      cancelWith task.asyncHandle KilledByUser
 
 taskState :: (Concurrent :> es) => Task -> Eff es TaskState
 taskState Task {..} = do
