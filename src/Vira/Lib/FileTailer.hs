@@ -50,6 +50,8 @@ import Data.ByteString qualified as BS
 import System.FSNotify (Event (..), eventPath, watchDir, withManager)
 import System.FilePath (takeDirectory)
 import System.IO (SeekMode (AbsoluteSeek), hFileSize, hSeek)
+import Vira.Lib.CircularBuffer (CircularBuffer)
+import Vira.Lib.CircularBuffer qualified as CB
 
 -- | File tailer state
 data FileTailer = FileTailer
@@ -61,6 +63,8 @@ data FileTailer = FileTailer
   -- ^ Signal to stop tailing (empty = keep running, filled = stop)
   , clientQueues :: STM.TVar [TBQueue (NonEmpty Text)]
   -- ^ List of client queues to broadcast to (batched lines)
+  , recentLines :: STM.TVar (CircularBuffer 100 Text)
+  -- ^ Buffer of recent lines (last 100 lines)
   }
 
 -- | Start tailing a file
@@ -69,8 +73,9 @@ startTailing fp = do
   lastOffset <- STM.newTVarIO 0
   stopSignal <- STM.newEmptyTMVarIO
   clientQueues <- STM.newTVarIO []
+  recentLines <- STM.newTVarIO CB.new
 
-  let tailer = FileTailer fp lastOffset stopSignal clientQueues
+  let tailer = FileTailer fp lastOffset stopSignal clientQueues recentLines
 
   -- Start the tailing thread
   void $ forkIO $ tailingLoop tailer
@@ -85,13 +90,21 @@ stopTailing tailer = do
 
 -- Cleanup happens automatically in tailingLoop via finally
 
--- | Subscribe to tail output, returns a new queue for this client
+{- | Subscribe to tail output, returns a new queue for this client
+New subscribers immediately receive the last 100 lines for context
+-}
 subscribeToTail :: FileTailer -> IO (TBQueue (NonEmpty Text))
 subscribeToTail tailer = do
   clientQueue <- STM.newTBQueueIO 100 -- Buffer up to 100 batches per client
   STM.atomically $ do
+    -- Add to client list
     queues <- STM.readTVar tailer.clientQueues
     STM.writeTVar tailer.clientQueues (clientQueue : queues)
+
+    -- Send recent lines to new subscriber for context
+    recentBuffer <- STM.readTVar tailer.recentLines
+    whenJust (nonEmpty $ toList recentBuffer) $ \recentBatch ->
+      STM.writeTBQueue clientQueue recentBatch
   pure clientQueue
 
 -- | Unsubscribe from tail output
@@ -111,11 +124,11 @@ tailingLoop :: FileTailer -> IO ()
 tailingLoop tailer = do
   action `catch` \(e :: SomeException) -> do
     -- Log error and stop
-    broadcastToAllClients tailer $ "<!-- Tailing error: " <> show e <> " -->"
+    broadcastLinesToAllClients tailer ["<!-- Tailing error: " <> show e <> " -->"]
   where
     action = withManager $ \manager -> do
       -- Send startup message
-      broadcastToAllClients tailer "<!-- FileTailer started (fsnotify mode) -->"
+      broadcastLinesToAllClients tailer ["<!-- FileTailer started (fsnotify mode) -->"]
 
       -- Read any existing content first
       readAndBroadcast tailer
@@ -133,7 +146,7 @@ tailingLoop tailer = do
 
       -- Cleanup
       stopAction
-      broadcastToAllClients tailer "<!-- End of log stream -->"
+      broadcastLinesToAllClients tailer ["<!-- End of log stream -->"]
 
 -- | Read new content from file and broadcast to all clients
 readAndBroadcast :: FileTailer -> IO ()
@@ -168,9 +181,15 @@ readAndBroadcast tailer = do
 
         pure newLines
 
--- | Broadcast lines to all connected clients in batches (max 50 lines per batch)
+{- | Broadcast lines to all connected clients in batches (max 50 lines per batch)
+Also maintains a buffer of recent lines (last 100) for new subscribers
+-}
 broadcastLinesToAllClients :: FileTailer -> [Text] -> IO ()
 broadcastLinesToAllClients tailer logLines = do
+  -- Update recent lines buffer first
+  STM.atomically $ STM.modifyTVar tailer.recentLines $ CB.append logLines
+
+  -- Broadcast to all current clients
   queues <- STM.readTVarIO tailer.clientQueues
   forM_ (batchLines 50 logLines) $ \batch -> do
     forM_ queues $ \queue -> do
@@ -183,10 +202,3 @@ broadcastLinesToAllClients tailer logLines = do
        in case batch of
             (firstLine : others) -> (firstLine :| others) : batchLines maxSize rest
             [] -> []
-
--- | Broadcast a single message to all connected clients (for startup/shutdown messages)
-broadcastToAllClients :: FileTailer -> Text -> IO ()
-broadcastToAllClients tailer message = do
-  queues <- STM.readTVarIO tailer.clientQueues
-  forM_ queues $ \queue -> do
-    STM.atomically $ STM.writeTBQueue queue (message :| [])

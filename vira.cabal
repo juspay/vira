@@ -127,6 +127,7 @@ library
     Vira.App.Stack
     Vira.Lib.Attic
     Vira.Lib.Cachix
+    Vira.Lib.CircularBuffer
     Vira.Lib.FileTailer
     Vira.Lib.Git
     Vira.Lib.HTMX
