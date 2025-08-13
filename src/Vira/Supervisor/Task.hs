@@ -4,10 +4,11 @@
 module Vira.Supervisor.Task (
   startTask,
   killTask,
-  getOrCreateLogTailer,
+  tailTaskLog,
 ) where
 
 import Control.Concurrent.MVar qualified
+import Control.Concurrent.STM (TBQueue)
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent.Async
@@ -38,14 +39,26 @@ logToWorkspaceOutput taskId base (msg :: Text) = do
   let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
   appendFileText (outputLogFile base) s
 
--- | Get existing or create new log tailer for a task
-getOrCreateLogTailer :: Task -> FilePath -> IO FileTailer.FileTailer
-getOrCreateLogTailer task logFile = do
-  Control.Concurrent.MVar.modifyMVar task.logTailer $ \case
-    Just tailer -> pure (Just tailer, tailer)
-    Nothing -> do
-      tailer <- FileTailer.startTailing logFile
-      pure (Just tailer, tailer)
+-- | Get log tailer for a task and subscribe to it
+tailTaskLog :: (Concurrent :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es (Maybe (TBQueue Text))
+tailTaskLog supervisor taskId = do
+  taskMap <- readMVar (tasks supervisor)
+  case Map.lookup taskId taskMap of
+    Nothing -> pure Nothing
+    Just task -> do
+      let logFile = outputLogFile task.workDir
+      tailer <- liftIO $ getOrCreateLogTailer task logFile
+      clientQueue <- liftIO $ FileTailer.subscribeToTail tailer
+      pure $ Just clientQueue
+  where
+    -- \| Get existing or create new log tailer for a task
+    getOrCreateLogTailer :: Task -> FilePath -> IO FileTailer.FileTailer
+    getOrCreateLogTailer task logFile = do
+      Control.Concurrent.MVar.modifyMVar task.logTailer $ \case
+        Just tailer -> pure (Just tailer, tailer)
+        Nothing -> do
+          tailer <- FileTailer.startTailing logFile
+          pure (Just tailer, tailer)
 
 -- | Start a new a task, returning its working directory.
 startTask ::

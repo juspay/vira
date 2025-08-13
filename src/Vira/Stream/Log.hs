@@ -13,25 +13,22 @@ module Vira.Stream.Log (
 
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM (TBQueue)
-import Data.Map.Strict qualified as Map
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
 import Servant hiding (throwError)
 import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S
-import System.FilePath ((</>))
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging (Severity (Error, Info))
 import Vira.Lib.FileTailer qualified as FileTailer
 import Vira.Lib.HTMX (hxSseClose_, hxSseConnect_, hxSseSwap_)
 import Vira.State.Acid qualified as St
-import Vira.State.Type (Job, JobId, jobWorkingDir)
+import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
 import Vira.Stream.Status qualified as Status
 import Vira.Supervisor.Task qualified as Supervisor
-import Vira.Supervisor.Type qualified as Supervisor
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO LogChunk))
 
@@ -82,15 +79,12 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Nothing
         streamWithQueue n job clientQueue
       Nothing -> do
         -- Initialize: set up the tailer and get client queue
-        let logFile = job.jobWorkingDir </> "output.log"
-        taskMap <- liftIO $ readMVar $ Supervisor.tasks $ App.supervisor cfg
-        case Map.lookup jobId taskMap of
+        mClientQueue <- App.runApp cfg $ Supervisor.tailTaskLog (App.supervisor cfg) jobId
+        case mClientQueue of
           Nothing -> do
             App.runApp cfg $ App.log Error $ "Task not found in supervisor: " <> show jobId
             pure $ S.Error "Task not found in supervisor"
-          Just task -> do
-            tailer <- liftIO $ Supervisor.getOrCreateLogTailer task logFile
-            clientQueue <- liftIO $ FileTailer.subscribeToTail tailer
+          Just clientQueue ->
             streamWithQueue n job clientQueue
 
     streamWithQueue n job clientQueue = do
