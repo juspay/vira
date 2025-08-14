@@ -78,13 +78,11 @@ dependencies:
 
 library:
   source-dirs: src
-  generated-other-modules: Paths_vira
 
 executables:
   vira:
     main: Main.hs
     source-dirs: app
-    generated-other-modules: Paths_vira
     ghc-options:
       - -threaded
       - -rtsopts
@@ -95,6 +93,5 @@ executables:
   vira-tests:
     main: Test.hs
     source-dirs: test
-    generated-other-modules: Paths_vira
     dependencies:
       - vira
