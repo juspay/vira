@@ -79,6 +79,7 @@
           haskell = {
             command =
               let
+                # https://x.com/sridca/status/1901283945779544362
                 multiReplLibs = "vira:exe:vira vira warp-tls-simple htmx-lucid-contrib";
               in
               pkgs.writeShellScriptBin "haskell-dev" ''
