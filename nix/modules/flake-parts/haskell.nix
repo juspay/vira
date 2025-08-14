@@ -112,7 +112,9 @@
                 name = "tailwind-dev";
                 runtimeInputs = [ pkgs.watchman ];
                 text = ''
-                  exec ${lib.getExe tailwind} -w -o ../packages/vira/static/tailwind.css --cwd ./packages/vira/src
+                  pwd
+                  cd ./packages/vira
+                  exec ${lib.getExe tailwind} -w -o ../static/tailwind.css --cwd ./src
                 '';
               };
               is_tty = true;
