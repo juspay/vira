@@ -11,13 +11,13 @@ import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (InnerHTML))
 import Lucid
+import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging
-import Vira.Lib.HTMX (hxPostSafe_)
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St

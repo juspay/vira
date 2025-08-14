@@ -14,14 +14,11 @@
       projectRoot = lib.fileset.toSource {
         inherit root;
         fileset = lib.fileset.unions [
-          (root + /src)
-          (root + /app)
-          (root + /test)
-          (root + /vira.cabal)
+          (root + /packages)
+          (root + /cabal.project)
           (root + /LICENSE)
           (root + /README.md)
           (root + /.stan.toml)
-          (root + /static)
         ];
       };
 
@@ -47,6 +44,11 @@
             pkgs.openssl # For automatic TLS certificate generation
           ];
           stan = true;
+        };
+        warp-tls-simple = {
+          extraBuildDepends = [
+            pkgs.openssl # For automatic TLS certificate generation
+          ];
         };
         servant-event-stream = {
           broken = false;
@@ -75,12 +77,18 @@
       settings = {
         processes = let host = "0.0.0.0"; port = "5005"; in {
           haskell = {
-            command = pkgs.writeShellScriptBin "haskell-dev" ''
-              set -x
-              # Vira now auto-generates TLS certificates as needed
-              ghcid -c 'cabal repl exe:vira --flags=ghcid' -T Main.main \
-                  --setup ":set args --host ${host} --base-path ''${BASE_PATH:-/}"
-            '';
+            command =
+              let
+                # https://x.com/sridca/status/1901283945779544362
+                multiReplLibs = "vira:exe:vira vira warp-tls-simple htmx-lucid-contrib";
+              in
+              pkgs.writeShellScriptBin "haskell-dev" ''
+                set -x
+                cd ./packages/vira
+                # Vira now auto-generates TLS certificates as needed
+                ghcid -T Main.main -c 'cabal repl --enable-multi-repl ${multiReplLibs}' \
+                    --setup ":set args --host ${host} --base-path ''${BASE_PATH:-/}"
+              '';
             depends_on.tailwind.condition = "process_started";
             # Without `SIGINT (2)` Vira doesn't close gracefully
             shutdown.signal = 2;
@@ -104,7 +112,7 @@
                 name = "tailwind-dev";
                 runtimeInputs = [ pkgs.watchman ];
                 text = ''
-                  exec ${lib.getExe tailwind} -w -o ../static/tailwind.css --cwd ./src
+                  exec ${lib.getExe tailwind} -w -o ../packages/vira/static/tailwind.css --cwd ./packages/vira/src
                 '';
               };
               is_tty = true;

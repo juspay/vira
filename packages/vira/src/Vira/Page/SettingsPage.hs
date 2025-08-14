@@ -16,6 +16,7 @@ import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (InnerHTML))
 import Lucid
+import Lucid.Htmx.Contrib (hxConfirm_, hxPostSafe_)
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
@@ -23,7 +24,6 @@ import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging
 import Vira.Lib.Attic (AtticServer (..))
-import Vira.Lib.HTMX (hxConfirm_, hxPostSafe_)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (AtticSettings (..), CachixSettings (..))
 import Vira.Widgets.Alert qualified as W

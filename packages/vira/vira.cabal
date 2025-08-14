@@ -1,19 +1,15 @@
-cabal-version:      2.4
-name:               vira
-version:            0.1.0.0
-license:            AGPL-3.0-or-later
-copyright:          2024 Juspay
-maintainer:         srid@srid.ca
-author:             Sridhar Ratnakumar
-category:           Web
-homepage:           https://github.com/juspay/vira
-synopsis:           Nix CI & Cache
-description:        vira - Nix CI & Cache
-extra-source-files:
-  LICENSE
-  README.md
-
-data-dir:           static
+cabal-version: 2.4
+name:          vira
+version:       0.1.0.0
+license:       AGPL-3.0-or-later
+copyright:     2024 Juspay
+maintainer:    srid@srid.ca
+author:        Sridhar Ratnakumar
+category:      Web
+homepage:      https://github.com/juspay/vira
+synopsis:      Nix CI & Cache
+description:   vira - Nix CI & Cache
+data-dir:      static
 data-files:
   js/htmx-ext-debug.js
   js/htmx-extensions/src/sse/sse.js
@@ -80,6 +76,7 @@ common library-shared
     , hspec-discover
     , htmx
     , htmx-lucid
+    , htmx-lucid-contrib
     , htmx-servant
     , http-api-data
     , ixset-typed
@@ -104,7 +101,7 @@ common library-shared
     , wai-extra
     , wai-middleware-static
     , warp
-    , warp-tls
+    , warp-tls-simple
     , which
     , with-utf8
 
@@ -112,8 +109,8 @@ library
   import:          library-shared
   hs-source-dirs:  src
   autogen-modules: Paths_vira
+  other-modules:   Paths_vira
   exposed-modules:
-    Paths_vira
     Vira.App
     Vira.App.AcidState
     Vira.App.CLI
@@ -127,11 +124,9 @@ library
     Vira.Lib.Attic
     Vira.Lib.Cachix
     Vira.Lib.Git
-    Vira.Lib.HTMX
     Vira.Lib.Omnix
     Vira.Lib.Process
     Vira.Lib.Process.TailF
-    Vira.Lib.TLS
     Vira.Page.IndexPage
     Vira.Page.JobLog
     Vira.Page.JobPage
@@ -155,26 +150,14 @@ library
     Vira.Widgets.Status
 
 executable vira
-  import:          library-shared
-  main-is:         Main.hs
-  ghc-options:     -threaded -rtsopts -with-rtsopts=-N
-  hs-source-dirs:  app
-  autogen-modules: Paths_vira
-  other-modules:   Paths_vira
-
-  if flag(ghcid)
-    hs-source-dirs: src
-
-  else
-    build-depends: vira
+  import:         library-shared
+  main-is:        Main.hs
+  ghc-options:    -threaded -rtsopts -with-rtsopts=-N
+  hs-source-dirs: app
+  build-depends:  vira
 
 executable vira-tests
   import:         library-shared
   main-is:        Test.hs
   hs-source-dirs: test
-
-  if flag(ghcid)
-    hs-source-dirs: src
-
-  else
-    build-depends: vira
+  build-depends:  vira

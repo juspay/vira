@@ -16,7 +16,8 @@ result-*
 /tailwind.log
 
 # Managed by Nix
-/static/js
+/packages/vira/static/js
 
 # acid-state
+/packages/vira/state
 /state

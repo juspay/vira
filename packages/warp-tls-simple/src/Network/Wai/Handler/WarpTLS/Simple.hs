@@ -2,7 +2,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Vira.Lib.TLS (
+module Network.Wai.Handler.WarpTLS.Simple (
   -- * Type
   TLSConfig (..),
 

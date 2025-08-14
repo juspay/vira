@@ -35,7 +35,7 @@ import Data.Char (toUpper)
 import Data.Text (cons, isSuffixOf, splitOn)
 import Data.Text qualified as T
 import Lucid
-import Vira.Lib.HTMX (hyperscript_)
+import Lucid.Htmx.Contrib (hyperscript_)
 
 {- |
 Form input component with consistent styling and focus states.

@@ -1,5 +1,5 @@
--- | HTMLX utilities
-module Vira.Lib.HTMX where
+-- | HTMX utilities not yet available in htmx-lucid (candidates for upstreaming)
+module Lucid.Htmx.Contrib where
 
 import Htmx.Lucid.Core (hxPost_)
 import Lucid

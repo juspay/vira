@@ -12,6 +12,7 @@ import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
 import Lucid
+import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
@@ -22,7 +23,6 @@ import Vira.Lib.Attic
 import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
-import Vira.Lib.HTMX (hxPostSafe_)
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
