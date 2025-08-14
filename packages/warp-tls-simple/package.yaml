@@ -13,6 +13,7 @@ description: Simplified TLS setup and certificate generation for Warp servers
 
 dependencies:
   - directory
+  - filepath
   - optparse-applicative
   - process
   - text

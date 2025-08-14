@@ -54,6 +54,7 @@ library
   build-depends:
       base ==4.*
     , directory
+    , filepath
     , optparse-applicative
     , process
     , relude >=1.0

@@ -16,10 +16,9 @@
               in
               pkgs.writeShellScriptBin "haskell-dev" ''
                 set -x
-                cd ./packages/vira
                 # Vira now auto-generates TLS certificates as needed
                 ghcid -T Main.main -c 'cabal repl --enable-multi-repl ${multiReplLibs}' \
-                    --setup ":set args --host ${host} --base-path ''${BASE_PATH:-/}"
+                    --setup ":set args --host ${host} --base-path ''${BASE_PATH:-/} --state-dir ./state"
               '';
             depends_on.tailwind.condition = "process_started";
             # Without `SIGINT (2)` Vira doesn't close gracefully
