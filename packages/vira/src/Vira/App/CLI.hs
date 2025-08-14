@@ -25,8 +25,8 @@ data CLISettings = CLISettings
   -- ^ The port to bind the HTTP server to
   , host :: Text
   -- ^ The host to bind the HTTP server to
-  , dbPath :: FilePath
-  -- ^ Path to the vira db
+  , stateDir :: FilePath
+  -- ^ Directory where Vira stores its state
   , instanceName :: Text
   -- ^ Name of the instance; uses hostname if unspecified
   , basePath :: Text
@@ -55,12 +55,12 @@ cliSettingsParser hostName = do
           <> value "0.0.0.0"
           <> showDefault
       )
-  dbPath <-
+  stateDir <-
     strOption
-      ( long "db-path"
-          <> metavar "DB_PATH"
-          <> help "Path to vira db"
-          <> value "vira.db"
+      ( long "state-dir"
+          <> metavar "STATE_DIR"
+          <> help "Directory where Vira stores its state"
+          <> value "./state"
           <> showDefault
       )
   logLevel <-

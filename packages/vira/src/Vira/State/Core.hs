@@ -17,9 +17,9 @@ import Vira.State.Acid
 import Vira.State.Type
 
 -- | Open vira database
-openViraState :: IO (AcidState ViraState)
-openViraState = do
-  st <- openLocalState $ ViraState mempty mempty mempty Nothing Nothing
+openViraState :: FilePath -> IO (AcidState ViraState)
+openViraState stateDir = do
+  st <- openLocalStateFrom stateDir $ ViraState mempty mempty mempty Nothing Nothing
   update st MarkUnfinishedJobsAsStaleA
   pure st
 

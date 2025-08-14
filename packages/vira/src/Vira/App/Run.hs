@@ -23,8 +23,8 @@ runVira = do
   where
     runAppWith :: CLISettings -> IO ()
     runAppWith cliSettings = do
-      bracket openViraState closeViraState $ \acid -> do
-        supervisor <- Supervisor.newSupervisor
+      bracket (openViraState (stateDir cliSettings)) closeViraState $ \acid -> do
+        supervisor <- Supervisor.newSupervisor (stateDir cliSettings)
         let appState = App.AppState {App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.cliSettings = cliSettings}
             appServer = Server.runServer cliSettings
         App.runApp appState appServer

@@ -27,7 +27,7 @@ runServer cliSettings = do
   log Info $ "Launching at " <> buildUrl cliSettings
   log Debug $ "CLI settings: " <> show cliSettings
   app <- buildApplication
-  liftIO $ startWarpServer warpSettings cliSettings.tlsConfig app
+  liftIO $ startWarpServer warpSettings cliSettings.stateDir cliSettings.tlsConfig app
   where
     buildApplication = do
       servantApp <- genericServe . IndexPage.handlers <$> Reader.ask

@@ -20,6 +20,7 @@ import Network.Wai.Handler.WarpTLS qualified as WarpTLS
 import Network.Wai.Handler.WarpTLS.Internal qualified as WarpTLS
 import Options.Applicative
 import System.Directory (createDirectoryIfMissing, doesFileExist)
+import System.FilePath ((</>))
 import System.Process (callProcess)
 import System.Which (staticWhich)
 import Text.Show (Show (..))
@@ -74,10 +75,10 @@ tlsConfigParser =
     -- Default to auto-generation (HTTPS enabled by default)
     defaultMode = pure TLSAuto
 
-tlsConfigResolve :: TLSConfig -> IO (Maybe WarpTLS.TLSSettings)
-tlsConfigResolve = \case
+tlsConfigResolve :: FilePath -> TLSConfig -> IO (Maybe WarpTLS.TLSSettings)
+tlsConfigResolve stateDir = \case
   TLSDisabled -> pure Nothing
-  TLSAuto -> Just <$> ensureTLSSettings "./state/tls" "localhost"
+  TLSAuto -> Just <$> ensureTLSSettings (stateDir </> "tls") "localhost"
   TLSExplicit tlsSettings -> pure (Just tlsSettings)
 
 {- | Ensure TLS certificates exist for auto-generation mode
@@ -242,8 +243,8 @@ generateCertificates certDir hostArg =
   generateCertificateWithRequest certDir (defaultCertRequest hostArg)
 
 -- | Start a Warp server with optional TLS
-startWarpServer :: Warp.Settings -> TLSConfig -> Application -> IO ()
-startWarpServer settings tlsConfig app =
-  tlsConfigResolve tlsConfig >>= \case
+startWarpServer :: Warp.Settings -> FilePath -> TLSConfig -> Application -> IO ()
+startWarpServer settings stateDir tlsConfig app =
+  tlsConfigResolve stateDir tlsConfig >>= \case
     Nothing -> Warp.runSettings settings app
     Just tlsSettings -> WarpTLS.runTLS tlsSettings settings app
