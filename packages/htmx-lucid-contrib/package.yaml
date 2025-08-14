@@ -21,5 +21,3 @@ dependencies:
 
 library:
   source-dirs: src
-  exposed-modules:
-    - Lucid.Htmx.Contrib

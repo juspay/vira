@@ -78,50 +78,13 @@ dependencies:
 
 library:
   source-dirs: src
-  other-modules: Paths_vira
-  exposed-modules:
-    - Vira.App
-    - Vira.App.AcidState
-    - Vira.App.CLI
-    - Vira.App.LinkTo.Resolve
-    - Vira.App.LinkTo.Type
-    - Vira.App.Logging
-    - Vira.App.Run
-    - Vira.App.Servant
-    - Vira.App.Server
-    - Vira.App.Stack
-    - Vira.Lib.Attic
-    - Vira.Lib.Cachix
-    - Vira.Lib.Git
-    - Vira.Lib.Omnix
-    - Vira.Lib.Process
-    - Vira.Lib.Process.TailF
-    - Vira.Page.IndexPage
-    - Vira.Page.JobLog
-    - Vira.Page.JobPage
-    - Vira.Page.RegistryPage
-    - Vira.Page.RepoPage
-    - Vira.Page.SettingsPage
-    - Vira.State.Acid
-    - Vira.State.Core
-    - Vira.State.Type
-    - Vira.Stream.Log
-    - Vira.Stream.Status
-    - Vira.Supervisor.Core
-    - Vira.Supervisor.Task
-    - Vira.Supervisor.Type
-    - Vira.Widgets.Alert
-    - Vira.Widgets.Button
-    - Vira.Widgets.Card
-    - Vira.Widgets.Code
-    - Vira.Widgets.Form
-    - Vira.Widgets.Layout
-    - Vira.Widgets.Status
+  generated-other-modules: Paths_vira
 
 executables:
   vira:
     main: Main.hs
     source-dirs: app
+    generated-other-modules: Paths_vira
     ghc-options:
       - -threaded
       - -rtsopts
@@ -132,5 +95,6 @@ executables:
   vira-tests:
     main: Test.hs
     source-dirs: test
+    generated-other-modules: Paths_vira
     dependencies:
       - vira

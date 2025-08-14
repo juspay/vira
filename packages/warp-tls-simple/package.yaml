@@ -4,7 +4,7 @@ defaults:
 name: warp-tls-simple
 version: 0.1.0.0
 license: MIT
-copyright: 2024 Juspay
+copyright: 2025 Juspay
 maintainer: srid@srid.ca
 author: Sridhar Ratnakumar
 category: Web
@@ -23,5 +23,3 @@ dependencies:
 
 library:
   source-dirs: src
-  exposed-modules:
-    - Network.Wai.Handler.WarpTLS.Simple

@@ -11,7 +11,7 @@ description:   Simplified TLS setup and certificate generation for Warp servers
 category:      Web
 author:        Sridhar Ratnakumar
 maintainer:    srid@srid.ca
-copyright:     2024 Juspay
+copyright:     2025 Juspay
 license:       MIT
 build-type:    Simple
 
