@@ -1,13 +1,14 @@
 cabal-version: 2.4
-name:          htmx-lucid-extra
+name:          htmx-lucid-contrib
 version:       0.1.0.0
 license:       MIT
 copyright:     2024 Juspay
 maintainer:    srid@srid.ca
 author:        Sridhar Ratnakumar
 category:      Web
-synopsis:      Additional HTMX utilities for Lucid
-description:   Extra utilities for working with HTMX and Lucid
+synopsis:      Community HTMX utilities for Lucid
+description:
+  Community-contributed utilities for working with HTMX and Lucid
 
 common shared
   default-language:   GHC2021
@@ -48,4 +49,4 @@ library
     , servant-server
     , text
 
-  exposed-modules: Lucid.Htmx.Extra
+  exposed-modules: Lucid.Htmx.Contrib

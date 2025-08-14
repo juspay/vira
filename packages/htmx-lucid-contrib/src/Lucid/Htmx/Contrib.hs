@@ -1,5 +1,5 @@
--- | HTMLX utilities
-module Lucid.Htmx.Extra where
+-- | HTMX utilities (community contributions)
+module Lucid.Htmx.Contrib where
 
 import Htmx.Lucid.Core (hxPost_)
 import Lucid

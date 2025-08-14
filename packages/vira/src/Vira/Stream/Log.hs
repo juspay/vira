@@ -14,7 +14,7 @@ module Vira.Stream.Log (
 import Control.Concurrent (threadDelay)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Lucid
-import Lucid.Htmx.Extra (hxExt_, hxSseClose_, hxSseConnect_, hxSseSwap_)
+import Lucid.Htmx.Contrib (hxExt_, hxSseClose_, hxSseConnect_, hxSseSwap_)
 import Servant hiding (throwError)
 import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S

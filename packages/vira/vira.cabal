@@ -76,7 +76,7 @@ common library-shared
     , hspec-discover
     , htmx
     , htmx-lucid
-    , htmx-lucid-extra
+    , htmx-lucid-contrib
     , htmx-servant
     , http-api-data
     , ixset-typed

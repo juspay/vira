@@ -9,7 +9,7 @@ import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
 import Lucid
-import Lucid.Htmx.Extra (hxConfirm_, hxPostSafe_)
+import Lucid.Htmx.Contrib (hxConfirm_, hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API ((:>))
 import Servant.API.ContentTypes.Lucid (HTML)

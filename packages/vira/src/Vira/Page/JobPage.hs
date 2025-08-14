@@ -12,7 +12,7 @@ import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
 import Lucid
-import Lucid.Htmx.Extra (hxPostSafe_)
+import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)

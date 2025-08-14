@@ -14,7 +14,7 @@ module Vira.Stream.Status (
 import Control.Concurrent (threadDelay)
 import Effectful (Eff)
 import Lucid
-import Lucid.Htmx.Extra
+import Lucid.Htmx.Contrib
 import Servant.API
 import Servant.API.EventStream
 import Servant.Links (linkURI)

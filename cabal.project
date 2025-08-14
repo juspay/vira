@@ -1,4 +1,4 @@
 packages:
   packages/vira
-  packages/htmx-lucid-extra
+  packages/htmx-lucid-contrib
   packages/warp-tls-simple

@@ -16,7 +16,7 @@ import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (InnerHTML))
 import Lucid
-import Lucid.Htmx.Extra (hxConfirm_, hxPostSafe_)
+import Lucid.Htmx.Contrib (hxConfirm_, hxPostSafe_)
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
