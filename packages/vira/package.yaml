@@ -1,0 +1,141 @@
+defaults:
+  local: ../../hpack-common.yaml
+
+name: vira
+version: 0.1.0.0
+license: AGPL-3.0-or-later
+copyright: 2024 Juspay
+maintainer: srid@srid.ca
+author: Sridhar Ratnakumar
+category: Web
+homepage: https://github.com/juspay/vira
+synopsis: Nix CI & Cache
+description: vira - Nix CI & Cache
+
+data-dir: static
+data-files:
+  - js/htmx-ext-debug.js
+  - js/htmx-extensions/src/sse/sse.js
+  - js/htmx.min.js
+  - js/hyperscript.min.js
+  - tailwind.css
+  - vira-logo.jpg
+
+flags:
+  ghcid:
+    default: false
+    manual: true
+
+ghc-options:
+  - -fplugin=Effectful.Plugin
+
+dependencies:
+  - acid-state
+  - aeson
+  - async
+  - bytestring
+  - co-log
+  - co-log-core
+  - co-log-effectful
+  - dani-servant-lucid2
+  - data-default
+  - deriving-aeson
+  - directory
+  - effectful
+  - effectful-core
+  - effectful-plugin
+  - effectful-th
+  - envparse
+  - filepath
+  - gitlib
+  - hostname
+  - hspec
+  - hspec-discover
+  - htmx
+  - htmx-lucid
+  - htmx-lucid-contrib
+  - htmx-servant
+  - http-api-data
+  - ixset-typed
+  - lucid2
+  - mtl
+  - optics-core
+  - optparse-applicative
+  - process
+  - profunctors
+  - QuickCheck
+  - safecopy
+  - servant
+  - servant-event-stream
+  - servant-server
+  - shower
+  - sqlite-simple
+  - stm
+  - streaming
+  - time
+  - wai
+  - wai-extra
+  - wai-middleware-static
+  - warp
+  - warp-tls-simple
+  - which
+  - with-utf8
+
+library:
+  source-dirs: src
+  other-modules: Paths_vira
+  exposed-modules:
+    - Vira.App
+    - Vira.App.AcidState
+    - Vira.App.CLI
+    - Vira.App.LinkTo.Resolve
+    - Vira.App.LinkTo.Type
+    - Vira.App.Logging
+    - Vira.App.Run
+    - Vira.App.Servant
+    - Vira.App.Server
+    - Vira.App.Stack
+    - Vira.Lib.Attic
+    - Vira.Lib.Cachix
+    - Vira.Lib.Git
+    - Vira.Lib.Omnix
+    - Vira.Lib.Process
+    - Vira.Lib.Process.TailF
+    - Vira.Page.IndexPage
+    - Vira.Page.JobLog
+    - Vira.Page.JobPage
+    - Vira.Page.RegistryPage
+    - Vira.Page.RepoPage
+    - Vira.Page.SettingsPage
+    - Vira.State.Acid
+    - Vira.State.Core
+    - Vira.State.Type
+    - Vira.Stream.Log
+    - Vira.Stream.Status
+    - Vira.Supervisor.Core
+    - Vira.Supervisor.Task
+    - Vira.Supervisor.Type
+    - Vira.Widgets.Alert
+    - Vira.Widgets.Button
+    - Vira.Widgets.Card
+    - Vira.Widgets.Code
+    - Vira.Widgets.Form
+    - Vira.Widgets.Layout
+    - Vira.Widgets.Status
+
+executables:
+  vira:
+    main: Main.hs
+    source-dirs: app
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - vira
+
+  vira-tests:
+    main: Test.hs
+    source-dirs: test
+    dependencies:
+      - vira
