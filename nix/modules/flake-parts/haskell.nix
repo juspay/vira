@@ -77,12 +77,17 @@
       settings = {
         processes = let host = "0.0.0.0"; port = "5005"; in {
           haskell = {
-            command = pkgs.writeShellScriptBin "haskell-dev" ''
-              set -x
-              # Vira now auto-generates TLS certificates as needed
-              ghcid -c 'cabal repl exe:vira --flags=ghcid' -T Main.main \
-                  --setup ":set args --host ${host} --base-path ''${BASE_PATH:-/}"
-            '';
+            command =
+              let
+                multiReplLibs = "vira:exe:vira vira warp-tls-simple htmx-lucid-contrib";
+              in
+              pkgs.writeShellScriptBin "haskell-dev" ''
+                set -x
+                cd ./packages/vira
+                # Vira now auto-generates TLS certificates as needed
+                ghcid -T Main.main -c 'cabal repl --enable-multi-repl ${multiReplLibs}' \
+                    --setup ":set args --host ${host} --base-path ''${BASE_PATH:-/}"
+              '';
             depends_on.tailwind.condition = "process_started";
             # Without `SIGINT (2)` Vira doesn't close gracefully
             shutdown.signal = 2;
