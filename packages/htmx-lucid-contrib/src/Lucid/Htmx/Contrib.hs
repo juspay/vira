@@ -28,6 +28,3 @@ hxConfirm_ = makeAttributes "hx-confirm"
 
 hxPostSafe_ :: Link -> Attributes
 hxPostSafe_ = hxPost_ . toUrlPiece
-
-hxExt_ :: Text -> Attributes
-hxExt_ = makeAttributes "hx-ext"
