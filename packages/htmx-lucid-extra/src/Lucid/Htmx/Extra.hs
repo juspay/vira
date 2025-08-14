@@ -1,5 +1,5 @@
 -- | HTMLX utilities
-module Vira.Lib.HTMX where
+module Lucid.Htmx.Extra where
 
 import Htmx.Lucid.Core (hxPost_)
 import Lucid
@@ -28,3 +28,6 @@ hxConfirm_ = makeAttributes "hx-confirm"
 
 hxPostSafe_ :: Link -> Attributes
 hxPostSafe_ = hxPost_ . toUrlPiece
+
+hxExt_ :: Text -> Attributes
+hxExt_ = makeAttributes "hx-ext"

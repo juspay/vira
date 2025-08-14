@@ -9,6 +9,7 @@ import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
 import Lucid
+import Lucid.Htmx.Extra (hxConfirm_, hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API ((:>))
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -17,7 +18,6 @@ import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
-import Vira.Lib.HTMX (hxConfirm_, hxPostSafe_)
 import Vira.Page.JobPage qualified as JobPage
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St

@@ -13,8 +13,8 @@ module Vira.Stream.Log (
 
 import Control.Concurrent (threadDelay)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
-import Htmx.Lucid.Extra (hxExt_)
 import Lucid
+import Lucid.Htmx.Extra (hxExt_, hxSseClose_, hxSseConnect_, hxSseSwap_)
 import Servant hiding (throwError)
 import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S
@@ -22,7 +22,6 @@ import System.FilePath ((</>))
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging (Severity (Error, Info))
-import Vira.Lib.HTMX (hxSseClose_, hxSseConnect_, hxSseSwap_)
 import Vira.Lib.Process.TailF (TailF)
 import Vira.Lib.Process.TailF qualified as TailF
 import Vira.State.Acid qualified as St

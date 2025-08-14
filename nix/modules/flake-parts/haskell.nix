@@ -14,14 +14,11 @@
       projectRoot = lib.fileset.toSource {
         inherit root;
         fileset = lib.fileset.unions [
-          (root + /src)
-          (root + /app)
-          (root + /test)
-          (root + /vira.cabal)
+          (root + /packages)
+          (root + /cabal.project)
           (root + /LICENSE)
           (root + /README.md)
           (root + /.stan.toml)
-          (root + /static)
         ];
       };
 
@@ -47,6 +44,11 @@
             pkgs.openssl # For automatic TLS certificate generation
           ];
           stan = true;
+        };
+        warp-tls-simple = {
+          extraBuildDepends = [
+            pkgs.openssl # For automatic TLS certificate generation
+          ];
         };
         servant-event-stream = {
           broken = false;
@@ -104,7 +106,7 @@
                 name = "tailwind-dev";
                 runtimeInputs = [ pkgs.watchman ];
                 text = ''
-                  exec ${lib.getExe tailwind} -w -o ../static/tailwind.css --cwd ./src
+                  exec ${lib.getExe tailwind} -w -o ../packages/vira/static/tailwind.css --cwd ./packages/vira/src
                 '';
               };
               is_tty = true;

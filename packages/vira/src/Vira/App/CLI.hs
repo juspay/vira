@@ -12,9 +12,9 @@ module Vira.App.CLI (
 import Data.Version (showVersion)
 import Network.HostName (HostName, getHostName)
 import Network.Wai.Handler.Warp (Port)
+import Network.Wai.Handler.WarpTLS.Simple (TLSConfig, tlsConfigParser)
 import Options.Applicative
 import Paths_vira qualified
-import Vira.Lib.TLS (TLSConfig, tlsConfigParser)
 import Prelude hiding (Reader, reader, runReader)
 
 -- | CLI Settings

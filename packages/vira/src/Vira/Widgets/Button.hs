@@ -8,7 +8,7 @@ module Vira.Widgets.Button (
 ) where
 
 import Lucid
-import Vira.Lib.HTMX (hyperscript_)
+import Lucid.Htmx.Extra (hyperscript_)
 
 -- | Button variant types for consistent styling
 data ButtonVariant

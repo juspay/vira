@@ -13,8 +13,8 @@ module Vira.Stream.Status (
 
 import Control.Concurrent (threadDelay)
 import Effectful (Eff)
-import Htmx.Lucid.Extra (hxExt_)
 import Lucid
+import Lucid.Htmx.Extra
 import Servant.API
 import Servant.API.EventStream
 import Servant.Links (linkURI)
@@ -22,7 +22,6 @@ import Servant.Types.SourceT qualified as S
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Lib.HTMX
 import Vira.State.Acid qualified as Acid
 import Vira.State.Type
 import Prelude hiding (Reader, ask, asks, runReader)

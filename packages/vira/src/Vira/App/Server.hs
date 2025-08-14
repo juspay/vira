@@ -7,6 +7,7 @@ module Vira.App.Server (
 import Effectful (Eff)
 import Effectful.Reader.Dynamic qualified as Reader
 import Network.Wai.Handler.Warp qualified as Warp
+import Network.Wai.Handler.WarpTLS.Simple (TLSConfig (..), startWarpServer)
 import Network.Wai.Middleware.Static (
   addBase,
   noDots,
@@ -17,7 +18,6 @@ import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
 import Vira.App (AppStack, CLISettings (..))
 import Vira.App.Logging
-import Vira.Lib.TLS (TLSConfig (..), startWarpServer)
 import Vira.Page.IndexPage qualified as IndexPage
 
 -- | Run the Vira server with the given CLI settings

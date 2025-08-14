@@ -34,12 +34,12 @@
           };
         };
 
-        # Add it to devShell (./static/js)
+        # Add it to devShell (./packages/vira/static/js)
         devShell = {
           mkShellArgs.shellHook = ''
             # Set up JavaScript assets from Nix store using the same derivation as build
-            rm -f ./static/js
-            ln -sf ${jsAssets}/js ./static/js
+            rm -f ./packages/vira/static/js
+            ln -sf ${jsAssets}/js ./packages/vira/static/js
           '';
         };
       };
