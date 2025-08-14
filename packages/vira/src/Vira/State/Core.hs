@@ -13,13 +13,19 @@ module Vira.State.Core (
 ) where
 
 import Data.Acid
+import Data.Typeable (typeOf)
+import System.FilePath ((</>))
 import Vira.State.Acid
 import Vira.State.Type
 
 -- | Open vira database
 openViraState :: FilePath -> IO (AcidState ViraState)
 openViraState stateDir = do
-  st <- openLocalStateFrom stateDir $ ViraState mempty mempty mempty Nothing Nothing
+  let initialState = ViraState mempty mempty mempty Nothing Nothing
+  -- Manually construct the path that openLocalState would use: stateDir </> show (typeOf initialState)
+  -- This is just for backwards compat.
+  let acidStateDir = stateDir </> show (typeOf initialState)
+  st <- openLocalStateFrom acidStateDir initialState
   update st MarkUnfinishedJobsAsStaleA
   pure st
 
