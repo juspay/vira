@@ -1,4 +1,4 @@
--- | HTMX utilities (community contributions)
+-- | HTMX utilities not yet available in htmx-lucid (candidates for upstreaming)
 module Lucid.Htmx.Contrib where
 
 import Htmx.Lucid.Core (hxPost_)

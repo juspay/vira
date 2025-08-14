@@ -6,9 +6,9 @@ copyright:     2024 Juspay
 maintainer:    srid@srid.ca
 author:        Sridhar Ratnakumar
 category:      Web
-synopsis:      Community HTMX utilities for Lucid
+synopsis:      Additional HTMX utilities for Lucid (upstream candidates)
 description:
-  Community-contributed utilities for working with HTMX and Lucid
+  Additional utilities for working with HTMX and Lucid that are candidates for upstreaming to htmx-lucid
 
 common shared
   default-language:   GHC2021
