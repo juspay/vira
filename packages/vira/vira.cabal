@@ -25,10 +25,6 @@ data-files:
     vira-logo.jpg
 data-dir:      static
 
-flag ghcid
-  manual: True
-  default: False
-
 library
   exposed-modules:
       Vira.App

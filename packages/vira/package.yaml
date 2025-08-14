@@ -21,11 +21,6 @@ data-files:
   - tailwind.css
   - vira-logo.jpg
 
-flags:
-  ghcid:
-    default: false
-    manual: true
-
 ghc-options:
   - -fplugin=Effectful.Plugin
 
