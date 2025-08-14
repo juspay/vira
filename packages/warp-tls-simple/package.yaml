@@ -1,0 +1,25 @@
+defaults:
+  local: ../../hpack-common.yaml
+
+name: warp-tls-simple
+version: 0.1.0.0
+license: MIT
+copyright: 2025 Juspay
+maintainer: srid@srid.ca
+author: Sridhar Ratnakumar
+category: Web
+synopsis: Simple TLS configuration for Warp
+description: Simplified TLS setup and certificate generation for Warp servers
+
+dependencies:
+  - directory
+  - optparse-applicative
+  - process
+  - text
+  - wai
+  - warp
+  - warp-tls
+  - which
+
+library:
+  source-dirs: src

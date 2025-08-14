@@ -1,0 +1,23 @@
+defaults:
+  local: ../../hpack-common.yaml
+
+name: htmx-lucid-contrib
+version: 0.1.0.0
+license: MIT
+copyright: 2024 Juspay
+maintainer: srid@srid.ca
+author: Sridhar Ratnakumar
+category: Web
+synopsis: Additional HTMX utilities for Lucid (upstream candidates)
+description: Additional utilities for working with HTMX and Lucid that are candidates for upstreaming to htmx-lucid
+
+dependencies:
+  - htmx
+  - htmx-lucid
+  - lucid2
+  - servant
+  - servant-server
+  - text
+
+library:
+  source-dirs: src
