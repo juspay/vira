@@ -1,0 +1,32 @@
+defaults:
+  local: ../../hpack-common.yaml
+
+name: tail
+version: 0.1.0.0
+license: MIT
+copyright: 2025 Sridhar Ratnakumar
+maintainer: srid@srid.ca
+author: Sridhar Ratnakumar
+category: System
+homepage: https://github.com/juspay/vira
+synopsis: Haskell API for tail -f streaming
+description: A Haskell library providing an API for tail -f style file streaming using STM, process, and async.
+
+dependencies:
+  - async
+  - base
+  - process
+  - stm
+  - text
+
+library:
+  source-dirs: src
+
+tests:
+  tail-test:
+    main: Spec.hs
+    source-dirs: test
+    dependencies:
+      - tail
+      - hspec
+      - hspec-discover
