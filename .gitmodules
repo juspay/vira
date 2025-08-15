@@ -1,0 +1,3 @@
+[submodule "hpack-common"]
+	path = hpack-common
+	url = https://github.com/juspay/hpack-common.git

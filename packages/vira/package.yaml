@@ -1,6 +1,6 @@
 defaults:
-  - local: ../../hpack-common.yaml
-  - local: ../../hpack-relude.yaml
+  - local: ../../hpack-common/defaults/main.yaml
+  - local: ../../hpack-common/defaults/relude.yaml
 
 name: vira
 version: 0.1.0.0
