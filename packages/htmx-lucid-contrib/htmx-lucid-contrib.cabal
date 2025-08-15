@@ -4,16 +4,16 @@ cabal-version: 2.0
 --
 -- see: https://github.com/sol/hpack
 
-name:          htmx-lucid-contrib
-version:       0.1.0.0
-synopsis:      Additional HTMX utilities for Lucid (upstream candidates)
-description:   Additional utilities for working with HTMX and Lucid that are candidates for upstreaming to htmx-lucid
-category:      Web
-author:        Sridhar Ratnakumar
-maintainer:    srid@srid.ca
-copyright:     2024 Juspay
-license:       MIT
-build-type:    Simple
+name:           htmx-lucid-contrib
+version:        0.1.0.0
+synopsis:       Additional HTMX utilities for Lucid (upstream candidates)
+description:    Additional utilities for working with HTMX and Lucid that are candidates for upstreaming to htmx-lucid
+category:       Web
+author:         Sridhar Ratnakumar
+maintainer:     srid@srid.ca
+copyright:      2024 Juspay
+license:        MIT
+build-type:     Simple
 
 library
   exposed-modules:

@@ -1,0 +1,10 @@
+dependencies:
+  - name: base
+    version: ">= 4 && < 5"
+    mixin:
+      - hiding (Prelude)
+  - name: relude
+    version: ">= 1.0"
+    mixin:
+      - (Relude as Prelude, Relude.Container.One)
+      - ""

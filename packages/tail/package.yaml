@@ -14,7 +14,6 @@ description: A Haskell library providing an API for tail -f style file streaming
 
 dependencies:
   - async
-  - base
   - process
   - stm
   - text

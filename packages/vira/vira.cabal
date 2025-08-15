@@ -4,18 +4,18 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 
-name:          vira
-version:       0.1.0.0
-synopsis:      Nix CI & Cache
-description:   vira - Nix CI & Cache
-category:      Web
-homepage:      https://github.com/juspay/vira
-author:        Sridhar Ratnakumar
-maintainer:    srid@srid.ca
-copyright:     2024 Juspay
-license:       AGPL-3.0-or-later
-license-file:  LICENSE
-build-type:    Simple
+name:           vira
+version:        0.1.0.0
+synopsis:       Nix CI & Cache
+description:    vira - Nix CI & Cache
+category:       Web
+homepage:       https://github.com/juspay/vira
+author:         Sridhar Ratnakumar
+maintainer:     srid@srid.ca
+copyright:      2024 Juspay
+license:        AGPL-3.0-or-later
+license-file:   LICENSE
+build-type:     Simple
 data-files:
     js/htmx-ext-debug.js
     js/htmx-extensions/src/sse/sse.js
@@ -23,7 +23,7 @@ data-files:
     js/hyperscript.min.js
     tailwind.css
     vira-logo.jpg
-data-dir:      static
+data-dir:       static
 
 library
   exposed-modules:
@@ -142,6 +142,7 @@ library
     , sqlite-simple
     , stm
     , streaming
+    , tail
     , time
     , wai
     , wai-extra
@@ -236,6 +237,7 @@ executable vira
     , sqlite-simple
     , stm
     , streaming
+    , tail
     , time
     , vira
     , wai
@@ -331,6 +333,7 @@ executable vira-tests
     , sqlite-simple
     , stm
     , streaming
+    , tail
     , time
     , vira
     , wai

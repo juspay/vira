@@ -13,6 +13,7 @@ import System.Process (
   terminateProcess,
   waitForProcess,
  )
+import System.Tail ()
 
 -- | Represent a `tail -f` process along with its output gathered up in TQueue
 data TailF = TailF FilePath ProcessHandle (TQueue Text)

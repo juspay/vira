@@ -1,6 +1,4 @@
-module System.Tail (
-  hello,
-) where
+module System.Tail (hello) where
 
 import Data.Text (Text)
 

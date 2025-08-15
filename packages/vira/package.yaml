@@ -1,5 +1,6 @@
 defaults:
-  local: ../../hpack-common.yaml
+  - local: ../../hpack-common.yaml
+  - local: ../../hpack-relude.yaml
 
 name: vira
 version: 0.1.0.0
@@ -67,6 +68,7 @@ dependencies:
   - sqlite-simple
   - stm
   - streaming
+  - tail
   - time
   - wai
   - wai-extra

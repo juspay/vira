@@ -4,16 +4,16 @@ cabal-version: 2.0
 --
 -- see: https://github.com/sol/hpack
 
-name:          warp-tls-simple
-version:       0.1.0.0
-synopsis:      Simple TLS configuration for Warp
-description:   Simplified TLS setup and certificate generation for Warp servers
-category:      Web
-author:        Sridhar Ratnakumar
-maintainer:    srid@srid.ca
-copyright:     2025 Juspay
-license:       MIT
-build-type:    Simple
+name:           warp-tls-simple
+version:        0.1.0.0
+synopsis:       Simple TLS configuration for Warp
+description:    Simplified TLS setup and certificate generation for Warp servers
+category:       Web
+author:         Sridhar Ratnakumar
+maintainer:     srid@srid.ca
+copyright:      2025 Juspay
+license:        MIT
+build-type:     Simple
 
 library
   exposed-modules:
