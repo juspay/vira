@@ -146,13 +146,8 @@ tailLoop hOut handle = do
 
     sendToReaders line = do
       readers <- STM.readTVar (thReaders handle)
-      activeReaders <- filterM (canSend line) readers
-      STM.writeTVar (thReaders handle) activeReaders
+      mapM_ (trySend line) readers
 
-    canSend line (TailReader queue) = do
+    trySend line (TailReader queue) = do
       full <- STM.isFullTBQueue queue
-      if full
-        then pure False -- Remove full readers
-        else do
-          STM.writeTBQueue queue line
-          pure True
+      unless full $ STM.writeTBQueue queue line
