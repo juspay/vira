@@ -10,12 +10,14 @@ See README.md for general project information.
 
 ## Coding Guidelines
 
+More guidelines here: https://srid.ca/coding
+
 - Haskell guidelines
     - Use `LambdaCase` wherever possible
     - If a new top-level function is used only in another function, use `where` to define it locally.
     - Fix all GHC warnings.
 - Haskell library guidelines
-    - We use `relude` as prelude. Thus, prefer relude's functions over Prelude's.
+    - We use `relude` as prelude, in the application libraries (not core libraries). Thus, prefer relude's functions over Prelude's.
     - We use the `staticWhich` function from the `static` library to refer to runtime dependencies from Nix environment (see how `Vira.Lib.Git` does it for example).
 - Project-specific guidelines
     - Everything in `Vira.Lib` are meant to be moved out to 3rd party libraries in future time. They should not depend on Vira types outside of the 'Lib' package.
@@ -30,7 +32,8 @@ See README.md for general project information.
 
 ## Testing changes
 
-- When possible, just rely on `cabal build` (or HLS). Running the application (via `cabal run` or `nix run`) should reserved for cases where it is necessary. I prefer a more rapid dev-feedback cycle. Remember, with Haskell when code compiles it usually runs correctly as well. You must fix all GHC warnings introduced by you.
+- **Quick build**: When possible, just rely on `cabal build` (or HLS). Running the application (via `cabal run` or `nix run`) should reserved for cases where it is necessary. I prefer a more rapid dev-feedback cycle. Remember, with Haskell when code compiles it usually runs correctly as well. You must fix all GHC warnings introduced by you.
+- **Full build**: When I ask you to run CI locally, run `pre-commit run -a` followed by `om ci` in repository root.
 
 ## Your report
 

@@ -7,7 +7,7 @@ cabal-version: 2.0
 name:           tail
 version:        0.1.0.0
 synopsis:       Haskell API for tail -f streaming
-description:    A Haskell library providing an API for tail -f style file streaming using STM, process, and async.
+description:    A simple Haskell library for tail -f streaming with multiple readers and stop control.
 category:       System
 homepage:       https://github.com/juspay/vira
 author:         Sridhar Ratnakumar
@@ -19,7 +19,6 @@ build-type:     Simple
 library
   exposed-modules:
       System.Tail
-      System.TailF
   other-modules:
       Paths_tail
   autogen-modules:
@@ -54,8 +53,7 @@ library
       ViewPatterns
   ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
-      async
-    , base ==4.*
+      base ==4.*
     , process
     , relude >=1.0
     , stm
@@ -104,14 +102,14 @@ test-suite tail-test
       ViewPatterns
   ghc-options: -Wall -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
-      async
-    , base ==4.*
+      base ==4.*
     , hspec
     , hspec-discover
     , process
     , relude >=1.0
     , stm
     , tail
+    , temporary
     , text
   mixins:
       base hiding (Prelude)

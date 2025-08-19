@@ -20,8 +20,8 @@ import Servant hiding (throwError)
 import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S
 import System.FilePath ((</>))
-import System.TailF (TailF)
-import System.TailF qualified as TailF
+import System.Tail (TailHandle, TailReader)
+import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging (Severity (Error, Info))
@@ -61,7 +61,7 @@ instance ToServerEvent LogChunk where
       (Just $ logChunkId chunk)
       (logChunkMsg chunk)
 
-data StreamState = Init | Streaming TailF | StreamEnding | Stopping
+data StreamState = Init | Streaming TailHandle TailReader | StreamEnding | Stopping
 
 streamRouteHandler :: App.AppState -> JobId -> SourceIO LogChunk
 streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
@@ -78,32 +78,37 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
       case st of
         Init -> do
           let logFile = job.jobWorkingDir </> "output.log"
-          logTail <- liftIO $ TailF.new logFile
-          streamLog n job logTail
-        Streaming logTail -> do
-          streamLog n job logTail
+          tailHandle <- liftIO $ Tail.start logFile
+          tailReader <- liftIO $ Tail.addReader tailHandle
+          streamLog n job tailHandle tailReader
+        Streaming tailHandle tailReader -> do
+          streamLog n job tailHandle tailReader
         StreamEnding -> do
           pure $ S.Yield (Stop n) $ step (n + 1) Stopping
         Stopping -> do
           -- Keep going until the htmx client has time to catch up.
           threadDelay 1_000_000
           pure $ S.Yield (Stop n) $ step (n + 1) st
-    streamLog n job logTail = do
+    streamLog n job tailHandle tailReader = do
       let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
-      TailF.tryRead logTail >>= \case
+
+      -- If job is no longer active, stop tailing
+      unless jobActive $ do
+        liftIO $ Tail.stop tailHandle
+        App.runApp cfg $ do
+          App.log Info $ "Job " <> show job.jobId <> " ended; stopping tail"
+      liftIO (Tail.tryRead tailReader) >>= \case
         Just line -> do
           let msg = Chunk n line
-          pure $ S.Yield msg $ step (n + 1) (Streaming logTail)
+          pure $ S.Yield msg $ step (n + 1) (Streaming tailHandle tailReader)
         Nothing -> case jobActive of
           True -> do
             -- Job is active, but no log available now; retry.
             threadDelay 100_000
-            pure $ S.Skip $ step n (Streaming logTail)
+            pure $ S.Skip $ step n (Streaming tailHandle tailReader)
           False -> do
-            -- Job ended; let's wrap up.
-            App.runApp cfg $ do
-              App.log Info $ "Job " <> show job.jobId <> " ended; ending stream"
-            TailF.stop logTail >>= \case
+            -- Job ended; check for any final lines
+            liftIO (Tail.tryRead tailReader) >>= \case
               Nothing ->
                 pure $ S.Yield (Stop n) $ step (n + 1) Stopping
               Just s ->

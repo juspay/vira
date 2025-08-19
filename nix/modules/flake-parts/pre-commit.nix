@@ -8,12 +8,16 @@
     pre-commit.settings = {
       hooks = {
         nixpkgs-fmt.enable = true;
+
         fourmolu = {
           enable = true;
           package = config.fourmolu.wrapper;
         };
-        hlint.enable = true;
         hpack.enable = true;
+        # FIXME: We use repo root `.hlint.yaml` which doesn't take per-package
+        # settings (e.g.: no relude in `tail` package) into consideration.
+        hlint.enable = true;
+
         typos = {
           enable = true;
           settings.config.files.extend-exclude = [
