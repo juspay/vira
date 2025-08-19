@@ -2,6 +2,8 @@ language: GHC2021
 
 ghc-options:
   - -Wall
+  - -Werror
+  - -optP-Wno-nonportable-include-path
   - -Wincomplete-record-updates
   - -Wincomplete-uni-patterns
   - -Wmissing-deriving-strategies
