@@ -42,7 +42,6 @@ library
       Vira.Lib.Git
       Vira.Lib.Omnix
       Vira.Lib.Process
-      Vira.Lib.Process.TailF
       Vira.Page.IndexPage
       Vira.Page.JobLog
       Vira.Page.JobPage

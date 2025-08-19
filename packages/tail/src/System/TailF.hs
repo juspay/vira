@@ -1,5 +1,5 @@
 -- | `tail -f` streaming in Haskell
-module Vira.Lib.Process.TailF where
+module System.TailF where
 
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Concurrent.STM (TQueue, flushTQueue, newTQueueIO, writeTQueue)

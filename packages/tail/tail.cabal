@@ -1,4 +1,4 @@
-cabal-version: 1.12
+cabal-version: 2.0
 
 -- This file has been generated from package.yaml by hpack version 0.37.0.
 --
@@ -19,7 +19,10 @@ build-type:     Simple
 library
   exposed-modules:
       System.Tail
+      System.TailF
   other-modules:
+      Paths_tail
+  autogen-modules:
       Paths_tail
   hs-source-dirs:
       src
@@ -54,8 +57,13 @@ library
       async
     , base ==4.*
     , process
+    , relude >=1.0
     , stm
     , text
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
   default-language: GHC2021
 
 test-suite tail-test
@@ -63,6 +71,8 @@ test-suite tail-test
   main-is: Spec.hs
   other-modules:
       System.TailSpec
+      Paths_tail
+  autogen-modules:
       Paths_tail
   hs-source-dirs:
       test
@@ -99,7 +109,12 @@ test-suite tail-test
     , hspec
     , hspec-discover
     , process
+    , relude >=1.0
     , stm
     , tail
     , text
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
   default-language: GHC2021

@@ -1,5 +1,6 @@
 defaults:
-  local: ../../hpack-common.yaml
+  - local: ../../hpack-common.yaml
+  - local: ../../hpack-relude.yaml
 
 name: tail
 version: 0.1.0.0

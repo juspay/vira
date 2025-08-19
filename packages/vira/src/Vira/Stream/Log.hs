@@ -20,11 +20,11 @@ import Servant hiding (throwError)
 import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S
 import System.FilePath ((</>))
+import System.TailF (TailF)
+import System.TailF qualified as TailF
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging (Severity (Error, Info))
-import Vira.Lib.Process.TailF (TailF)
-import Vira.Lib.Process.TailF qualified as TailF
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId, jobWorkingDir)
 import Vira.State.Type qualified as St
