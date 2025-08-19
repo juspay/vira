@@ -2,6 +2,7 @@ module Vira.Supervisor.Type where
 
 import Effectful.Concurrent.Async (Async)
 import System.Exit (ExitCode)
+import System.Tail (TailHandle)
 import Vira.State.Type (JobId)
 
 type TaskId = JobId
@@ -30,6 +31,8 @@ data Task = Task
   -- ^ Working directory of this task
   , asyncHandle :: Async (Either TaskException ExitCode)
   -- ^ The `Async` handle for the task
+  , tailHandle :: Maybe TailHandle
+  -- ^ Shared tail handle for log streaming (lazily initialized)
   }
   deriving stock (Generic)
 

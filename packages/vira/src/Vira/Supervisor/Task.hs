@@ -4,6 +4,7 @@
 module Vira.Supervisor.Task (
   startTask,
   killTask,
+  getOrCreateTailHandle,
 ) where
 
 import Data.Map.Strict qualified as Map
@@ -16,6 +17,7 @@ import Effectful.FileSystem.IO (hClose, openFile)
 import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
+import System.Tail qualified as Tail
 import Vira.App.Logging
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type
@@ -72,7 +74,7 @@ startTask supervisor taskId pwd procs h = do
           hdl <- startTask' taskId pwd h procs
           logToWorkspaceOutput taskId pwd "CI finished"
           pure hdl
-        let task = Task {workDir = pwd, asyncHandle}
+        let task = Task {workDir = pwd, asyncHandle, tailHandle = Nothing}
         pure (Map.insert taskId task tasks, ())
 
 startTask' ::
@@ -169,3 +171,19 @@ withFileHandle :: (FileSystem :> es, IOE :> es) => FilePath -> IOMode -> (Handle
 withFileHandle path mode action = do
   handle <- openFile path mode
   finally (action handle) (hClose handle)
+
+-- | Get or create a tail handle for a task, reusing existing one if available
+getOrCreateTailHandle :: (Concurrent :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es (Maybe Tail.TailHandle)
+getOrCreateTailHandle supervisor taskId = do
+  modifyMVar (tasks supervisor) $ \tasksMap -> do
+    case Map.lookup taskId tasksMap of
+      Nothing -> pure (tasksMap, Nothing) -- Task doesn't exist
+      Just task -> case task.tailHandle of
+        Just handle -> pure (tasksMap, Just handle) -- Reuse existing handle
+        Nothing -> do
+          -- Create new tail handle
+          let logFile = outputLogFile task.workDir
+          handle <- liftIO $ Tail.start logFile
+          let updatedTask = task {tailHandle = Just handle}
+          let updatedTasks = Map.insert taskId updatedTask tasksMap
+          pure (updatedTasks, Just handle)

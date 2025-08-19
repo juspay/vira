@@ -19,16 +19,17 @@ import Lucid.Htmx.Contrib (hxSseClose_, hxSseConnect_, hxSseSwap_)
 import Servant hiding (throwError)
 import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S
-import System.FilePath ((</>))
-import System.Tail (TailHandle, TailReader)
+import System.Tail (TailReader)
 import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging (Severity (Error, Info))
+import Vira.App.Stack (AppState)
 import Vira.State.Acid qualified as St
-import Vira.State.Type (Job, JobId, jobWorkingDir)
+import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
 import Vira.Stream.Status qualified as Status
+import Vira.Supervisor.Task qualified as Task
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO LogChunk))
 
@@ -61,9 +62,9 @@ instance ToServerEvent LogChunk where
       (Just $ logChunkId chunk)
       (logChunkMsg chunk)
 
-data StreamState = Init | Streaming TailHandle TailReader | StreamEnding | Stopping
+data StreamState = Init | Streaming TailReader | StreamEnding | Stopping
 
-streamRouteHandler :: App.AppState -> JobId -> SourceIO LogChunk
+streamRouteHandler :: AppState -> JobId -> SourceIO LogChunk
 streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
   where
     step (n :: Int) (st :: StreamState) = S.Effect $ do
@@ -77,35 +78,40 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
     handleState job n st =
       case st of
         Init -> do
-          let logFile = job.jobWorkingDir </> "output.log"
-          tailHandle <- liftIO $ Tail.start logFile
-          tailReader <- liftIO $ Tail.addReader tailHandle
-          streamLog n job tailHandle tailReader
-        Streaming tailHandle tailReader -> do
-          streamLog n job tailHandle tailReader
+          -- Get or create shared tail handle for this job's task
+          mTailHandle <- App.runApp cfg $ Task.getOrCreateTailHandle cfg.supervisor jobId
+          case mTailHandle of
+            Nothing -> do
+              App.runApp cfg $ App.log Error $ "Failed to get tail handle for job " <> show jobId
+              pure $ S.Error "Failed to get tail handle"
+            Just tailHandle -> do
+              tailReader <- liftIO $ Tail.addReader tailHandle
+              pure $ S.Skip $ step n (Streaming tailReader)
+        Streaming tailReader -> do
+          streamLog n job tailReader
         StreamEnding -> do
           pure $ S.Yield (Stop n) $ step (n + 1) Stopping
         Stopping -> do
           -- Keep going until the htmx client has time to catch up.
           threadDelay 1_000_000
           pure $ S.Yield (Stop n) $ step (n + 1) st
-    streamLog n job tailHandle tailReader = do
+    streamLog n job tailReader = do
       let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
 
-      -- If job is no longer active, stop tailing
+      -- Note: We don't stop the TailHandle here since it's shared across multiple readers
       unless jobActive $ do
-        liftIO $ Tail.stop tailHandle
         App.runApp cfg $ do
-          App.log Info $ "Job " <> show job.jobId <> " ended; stopping tail"
+          App.log Info $ "Job " <> show job.jobId <> " ended; reader will finish"
+
       liftIO (Tail.tryRead tailReader) >>= \case
         Just line -> do
           let msg = Chunk n line
-          pure $ S.Yield msg $ step (n + 1) (Streaming tailHandle tailReader)
+          pure $ S.Yield msg $ step (n + 1) (Streaming tailReader)
         Nothing -> case jobActive of
           True -> do
             -- Job is active, but no log available now; retry.
             threadDelay 100_000
-            pure $ S.Skip $ step n (Streaming tailHandle tailReader)
+            pure $ S.Skip $ step n (Streaming tailReader)
           False -> do
             -- Job ended; check for any final lines
             liftIO (Tail.tryRead tailReader) >>= \case
