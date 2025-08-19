@@ -2,6 +2,7 @@ language: GHC2021
 
 ghc-options:
   - -Wall
+  - -Werror
   - -Wincomplete-record-updates
   - -Wincomplete-uni-patterns
   - -Wmissing-deriving-strategies
