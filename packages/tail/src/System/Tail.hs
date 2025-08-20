@@ -150,4 +150,6 @@ tailLoop hOut handle = do
 
     trySend line (TailReader queue) = do
       full <- STM.isFullTBQueue queue
+      -- TODO: When queue is full, this line is lost for this reader forever.
+      -- Consider implementing drop-oldest strategy to avoid silent data loss.
       unless full $ STM.writeTBQueue queue line

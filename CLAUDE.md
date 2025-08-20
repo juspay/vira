@@ -33,7 +33,7 @@ More guidelines here: https://srid.ca/coding
 ## Testing changes
 
 - **Quick build**: When possible, just rely on `cabal build` (or HLS). Running the application (via `cabal run` or `nix run`) should reserved for cases where it is necessary. I prefer a more rapid dev-feedback cycle. Remember, with Haskell when code compiles it usually runs correctly as well. You must fix all GHC warnings introduced by you.
-- **Full build**: When I ask you to run CI locally, run `pre-commit run -a` followed by `om ci` in repository root.
+- **Full build**: When I ask you to run CI locally, run `pre-commit run -a` (in Nix devShell) followed by `om ci` in repository root.
 
 ## Your report
 
