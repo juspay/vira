@@ -1,5 +1,5 @@
 packages:
   packages/vira
-  packages/htmx-lucid-contrib
-  packages/warp-tls-simple
   packages/tail
+  packages/warp-tls-simple
+  packages/htmx-lucid-contrib

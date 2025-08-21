@@ -252,9 +252,11 @@ executable vira
     , relude 
   default-language: GHC2021
 
-executable vira-tests
-  main-is: Test.hs
+test-suite vira-tests
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
   other-modules:
+      Vira.Lib.GitSpec
       Paths_vira
   autogen-modules:
       Paths_vira
