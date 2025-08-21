@@ -4,21 +4,17 @@
   imports = [
     inputs.process-compose-flake.flakeModule
   ];
-  perSystem = { self', lib, config, pkgs, ... }: {
+  perSystem = { lib, config, pkgs, ... }: {
     process-compose."vira-dev" = {
       settings = {
         processes = let host = "0.0.0.0"; port = "5005"; in {
           haskell = {
             command =
-              let
-                # https://x.com/sridca/status/1901283945779544362
-                multiReplLibs = "vira:exe:vira vira tail warp-tls-simple htmx-lucid-contrib";
-              in
               pkgs.writeShellScriptBin "haskell-dev" ''
                 set -x
                 cd ./packages/vira
                 # Vira now auto-generates TLS certificates as needed
-                ghcid -T Main.main -c 'cabal repl --enable-multi-repl ${multiReplLibs}' \
+                ghcid -T Main.main -c '${root}/cabal-repl vira:exe:vira' \
                     --setup ":set args --host ${host} --base-path ''${BASE_PATH:-/} --state-dir ../../state"
               '';
             depends_on.tailwind.condition = "process_started";

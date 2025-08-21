@@ -15,7 +15,7 @@ run:
 # Run cabal tests (hspec)
 [group('2. haskell')]
 test:
-    ghcid --warnings -c "cabal repl vira:exe:vira-tests --flags=ghcid" --test "main"
+    ghcid --warnings -T Main.main -c "./cabal-repl vira:test:vira-tests"
 
 # Delete and recreate vira.db
 [group('1. vira')]

@@ -92,8 +92,9 @@ executables:
     dependencies:
       - vira
 
+tests:
   vira-tests:
-    main: Test.hs
+    main: Spec.hs
     source-dirs: test
     dependencies:
       - vira

@@ -3,6 +3,7 @@
   imports = [
     inputs.haskell-flake.flakeModule
   ];
+  debug = true;
   perSystem = { self', lib, config, pkgs, ... }: {
     # Our only Haskell project. You can have multiple projects, but this template
     # has only one.
@@ -33,6 +34,7 @@
       # Add your package overrides here
       settings = {
         vira = {
+          check = false; # Running outside of Nix.
           generateOptparseApplicativeCompletions = [ "vira" ];
           extraBuildDepends = [
             pkgs.git
@@ -92,8 +94,6 @@
         '';
       };
     };
-
-    apps.vira-tests = config.haskellProjects.default.outputs.apps.vira-tests;
 
     checks = config.haskellProjects.default.outputs.checks;
   };
