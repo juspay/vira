@@ -3,3 +3,7 @@ packages:
   packages/tail
   packages/warp-tls-simple
   packages/htmx-lucid-contrib
+
+multi-repl: true
+tests: True
+benchmarks: True
