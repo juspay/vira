@@ -29,8 +29,7 @@ spec = describe "System.Tail" $ do
     thisFile <- findThisFile
     t <- Tail.tailFile 100 thisFile
     q <- Tail.tailSubscribe t
-    threadDelay 1_000_000 -- Wait 1 second for tail to start and read content
-    Tail.tailStop t
+    threadDelay 1_000_000 >> Tail.tailStop t
     ls <- drainAll q
     viaNonEmpty head ls `shouldBe` Just "module System.TailSpec where"
     -- Find the last line from the lines we got
@@ -44,11 +43,9 @@ spec = describe "System.Tail" $ do
       t <- Tail.tailFile 100 tempFile
       q <- Tail.tailSubscribe t
       void $ forkIO $ do
-        threadDelay 1_000_000
         void $ system $ "echo 'World' >> " <> tempFile
-        Tail.tailStop t
+        threadDelay 1_000_000 >> Tail.tailStop t
       -- Read everything and compare output
-      threadDelay 3_000_000
       ls <- drainAll q
       ls `shouldBe` ["Hello", "World"]
   it "ring buffer provides last lines to new subscribers" $ do
@@ -56,10 +53,9 @@ spec = describe "System.Tail" $ do
       hClose h
       void $ system $ "echo 'Line1' >> " <> tempFile
       t <- Tail.tailFile 100 tempFile
-      threadDelay 500_000 -- Let tail read existing lines
       q <- Tail.tailSubscribe t
       void $ system $ "echo 'Line2' >> " <> tempFile -- Write *after* subscribing
-      Tail.tailStop t
+      threadDelay 1_000_000 >> Tail.tailStop t
       ls <- drainAll q
       ls `shouldBe` ["Line1", "Line2"]
 
