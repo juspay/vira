@@ -16,6 +16,7 @@ import Effectful.FileSystem.IO (hClose, openFile)
 import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
+import System.Tail qualified as Tail
 import Vira.App.Logging
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type
@@ -68,11 +69,17 @@ startTask supervisor taskId pwd procs h = do
       else do
         createDirectoryIfMissing True pwd
         logToWorkspaceOutput taskId pwd msg
+        tailHandle <- liftIO $ Tail.tailFile 1000 (outputLogFile pwd)
+        let wrappedHandler result = do
+              -- Stop the tail when task finishes for any reason
+              liftIO $ Tail.tailStop tailHandle
+              -- Then call the original handler
+              h result
         asyncHandle <- async $ do
-          hdl <- startTask' taskId pwd h procs
+          hdl <- startTask' taskId pwd wrappedHandler procs
           logToWorkspaceOutput taskId pwd "CI finished"
           pure hdl
-        let task = Task {workDir = pwd, asyncHandle}
+        let task = Task {workDir = pwd, asyncHandle, tailHandle}
         pure (Map.insert taskId task tasks, ())
 
 startTask' ::

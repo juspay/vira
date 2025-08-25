@@ -18,6 +18,10 @@ dependencies:
   - process
   - stm
   - text
+  - which
+  - filepath
+  - directory
+  - stm-chans
 
 library:
   source-dirs: src
@@ -30,3 +34,5 @@ tests:
       - tail
       - hspec
       - hspec-discover
+      - temporary
+      - directory

@@ -12,6 +12,9 @@ module Vira.Stream.Log (
 ) where
 
 import Control.Concurrent (threadDelay)
+import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
+import Control.Concurrent.STM.CircularBuffer qualified as CB
+import Data.Map qualified as Map
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
@@ -19,23 +22,22 @@ import Lucid.Htmx.Contrib (hxSseClose_, hxSseConnect_, hxSseSwap_)
 import Servant hiding (throwError)
 import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S
-import System.FilePath ((</>))
-import System.TailF (TailF)
-import System.TailF qualified as TailF
+import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Logging (Severity (Error, Info))
 import Vira.State.Acid qualified as St
-import Vira.State.Type (Job, JobId, jobWorkingDir)
+import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
 import Vira.Stream.Status qualified as Status
+import Vira.Supervisor.Type (Task (..), TaskSupervisor (..))
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO LogChunk))
 
 -- | SSE message for log streaming
 data LogChunk
   = -- A chunk of log data
-    Chunk Int Text
+    Chunk Int (NonEmpty Text)
   | -- Last message, indicating streaming has ended
     Stop Int
 
@@ -51,7 +53,7 @@ logChunkId = \case
 
 logChunkMsg :: LogChunk -> LByteString
 logChunkMsg = \case
-  Chunk _ line -> Lucid.renderBS $ pre_ $ toHtml line
+  Chunk _ logLines -> Lucid.renderBS $ pre_ $ toHtml $ unlines $ toList logLines
   Stop _ -> Lucid.renderBS $ Status.indicator False
 
 instance ToServerEvent LogChunk where
@@ -61,7 +63,7 @@ instance ToServerEvent LogChunk where
       (Just $ logChunkId chunk)
       (logChunkMsg chunk)
 
-data StreamState = Init | Streaming TailF | StreamEnding | Stopping
+data StreamState = Init | Streaming (CircularBuffer Text) | StreamEnding | Stopping
 
 streamRouteHandler :: App.AppState -> JobId -> SourceIO LogChunk
 streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
@@ -77,38 +79,34 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
     handleState job n st =
       case st of
         Init -> do
-          let logFile = job.jobWorkingDir </> "output.log"
-          logTail <- liftIO $ TailF.new logFile
-          streamLog n job logTail
-        Streaming logTail -> do
-          streamLog n job logTail
+          -- Get the task from supervisor to reuse its Tail handle
+          tasks <- liftIO $ readMVar cfg.supervisor.tasks
+          case Map.lookup jobId tasks of
+            Nothing -> do
+              App.runApp cfg $ App.log Error $ "Task not found in supervisor for job " <> show jobId
+              pure $ S.Error "Task not found in supervisor"
+            Just task -> do
+              -- Subscribe to the existing Tail handle
+              queue <- liftIO $ Tail.tailSubscribe task.tailHandle
+              streamLog n job queue
+        Streaming queue -> do
+          streamLog n job queue
         StreamEnding -> do
           pure $ S.Yield (Stop n) $ step (n + 1) Stopping
         Stopping -> do
           -- Keep going until the htmx client has time to catch up.
           threadDelay 1_000_000
           pure $ S.Yield (Stop n) $ step (n + 1) st
-    streamLog n job logTail = do
-      let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
-      TailF.tryRead logTail >>= \case
-        Just line -> do
-          let msg = Chunk n line
-          pure $ S.Yield msg $ step (n + 1) (Streaming logTail)
-        Nothing -> case jobActive of
-          True -> do
-            -- Job is active, but no log available now; retry.
-            threadDelay 100_000
-            pure $ S.Skip $ step n (Streaming logTail)
-          False -> do
-            -- Job ended; let's wrap up.
-            App.runApp cfg $ do
-              App.log Info $ "Job " <> show job.jobId <> " ended; ending stream"
-            TailF.stop logTail >>= \case
-              Nothing ->
-                pure $ S.Yield (Stop n) $ step (n + 1) Stopping
-              Just s ->
-                -- Flush last set of log lines.
-                pure $ S.Yield (Chunk n s) $ step (n + 1) StreamEnding
+    streamLog n job queue = do
+      atomically (CB.drain queue) >>= \case
+        Nothing -> do
+          -- Queue is closed, no more lines will come. End the stream.
+          App.runApp cfg $ do
+            App.log Info $ "Job " <> show job.jobId <> " log queue closed; ending stream"
+          pure $ S.Yield (Stop n) $ step (n + 1) Stopping
+        Just availableLines -> do
+          -- Send all available lines as a single chunk
+          pure $ S.Yield (Chunk n availableLines) $ step (n + 1) (Streaming queue)
 
 viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewStream linkTo job = do
@@ -121,7 +119,7 @@ viewStream linkTo job = do
   div_ sseAttrs $ do
     -- Div containing log messages
     div_
-      [ hxSseSwap_ $ logChunkType $ Chunk 0 mempty
+      [ hxSseSwap_ $ logChunkType $ Chunk 0 (one "")
       , hxSwap_ "beforeend show:window:bottom"
       , hxTarget_ ("#" <> sseTarget)
       ]

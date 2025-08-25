@@ -33,6 +33,7 @@ dependencies:
   - co-log
   - co-log-core
   - co-log-effectful
+  - containers
   - dani-servant-lucid2
   - data-default
   - deriving-aeson

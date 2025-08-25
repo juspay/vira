@@ -18,8 +18,8 @@ build-type:     Simple
 
 library
   exposed-modules:
+      Control.Concurrent.STM.CircularBuffer
       System.Tail
-      System.TailF
   other-modules:
       Paths_tail
   autogen-modules:
@@ -56,10 +56,14 @@ library
   build-depends:
       async
     , base ==4.*
+    , directory
+    , filepath
     , process
     , relude >=1.0
     , stm
+    , stm-chans
     , text
+    , which
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
@@ -70,6 +74,7 @@ test-suite tail-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Control.Concurrent.STM.CircularBufferSpec
       System.TailSpec
       Paths_tail
   autogen-modules:
@@ -106,13 +111,18 @@ test-suite tail-test
   build-depends:
       async
     , base ==4.*
+    , directory
+    , filepath
     , hspec
     , hspec-discover
     , process
     , relude >=1.0
     , stm
+    , stm-chans
     , tail
+    , temporary
     , text
+    , which
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)

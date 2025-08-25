@@ -22,6 +22,9 @@ See README.md for general project information.
 - Refactoring & design
     - Prefer Juval Löwy's Volatility-Based Decomposition principle. For details, see https://www.informit.com/articles/article.aspx?p=2995357&seqNum=2
 - When updating code (especially styling) keep that in sync with DESIGN.md (bidirectional)
+- We use hpack; and you can re-generate the cabal files using `pre-commit run -a`.
+- Haddock comments
+    - Should use the proper syntax when referring to symbols, or functions/types from libraries, so that Hackage will render them correctly.
 
 ## Running vira
 
