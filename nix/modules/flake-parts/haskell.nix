@@ -40,11 +40,15 @@
             pkgs.git
             pkgs.cachix
             pkgs.attic-client
-            pkgs.coreutils # For `tail`
             pkgs.omnix
             pkgs.openssl # For automatic TLS certificate generation
           ];
           stan = true;
+        };
+        tail = {
+          extraBuildDepends = [
+            pkgs.coreutils # For `tail`
+          ];
         };
         warp-tls-simple = {
           extraBuildDepends = [

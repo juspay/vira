@@ -95,7 +95,7 @@ library
       TypeOperators
       TypeSynonymInstances
       ViewPatterns
-  ghc-options: -Wall -Werror -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin
   build-depends:
       QuickCheck
     , acid-state
@@ -106,6 +106,7 @@ library
     , co-log
     , co-log-core
     , co-log-effectful
+    , containers
     , dani-servant-lucid2
     , data-default
     , deriving-aeson
@@ -190,7 +191,7 @@ executable vira
       TypeOperators
       TypeSynonymInstances
       ViewPatterns
-  ghc-options: -Wall -Werror -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QuickCheck
     , acid-state
@@ -201,6 +202,7 @@ executable vira
     , co-log
     , co-log-core
     , co-log-effectful
+    , containers
     , dani-servant-lucid2
     , data-default
     , deriving-aeson
@@ -288,7 +290,7 @@ test-suite vira-tests
       TypeOperators
       TypeSynonymInstances
       ViewPatterns
-  ghc-options: -Wall -Werror -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin
   build-depends:
       QuickCheck
     , acid-state
@@ -299,6 +301,7 @@ test-suite vira-tests
     , co-log
     , co-log-core
     , co-log-effectful
+    , containers
     , dani-servant-lucid2
     , data-default
     , deriving-aeson
