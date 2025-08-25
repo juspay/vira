@@ -1,3 +1,5 @@
+permissions:
+  contents: read
 name: "CI"
 on:
   # Run only when pushing to master branch, and making PRs
