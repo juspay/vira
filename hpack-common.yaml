@@ -1,8 +1,9 @@
 language: GHC2021
 
 ghc-options:
+  # Fucking Hackage enforces not having this for libraries, smh.
+  # - -Werror
   - -Wall
-  - -Werror
   - -optP-Wno-nonportable-include-path
   - -Wincomplete-record-updates
   - -Wincomplete-uni-patterns
