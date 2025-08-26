@@ -154,7 +154,7 @@ newRepoForm linkTo = do
 
     div_ [class_ "flex justify-end"] $ do
       W.viraButton_ W.ButtonPrimary [type_ "submit", class_ "px-8"] $ do
-        div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.plus
+        W.viraButtonIcon_ $ toHtmlRaw Icon.plus
         "Add Repository"
 
 withFieldName ::

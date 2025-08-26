@@ -129,9 +129,8 @@ viewRepoBranch linkTo repo branch branches jobs = do
             , hxSwapS_ AfterEnd
             , class_ "shadow-lg hover:shadow-xl transition-shadow"
             ]
-            $ div_ [class_ "flex items-center"]
             $ do
-              div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.player_play
+              W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
               "Build Branch"
 
       div_ [class_ "h-px bg-gradient-to-r from-indigo-200 via-purple-200 to-transparent"] mempty
@@ -177,9 +176,8 @@ repoHeader linkTo repo = do
           [ hxPostSafe_ $ linkTo $ LinkTo.RepoUpdate repo.name
           , hxSwapS_ AfterEnd
           ]
-          $ div_ [class_ "flex items-center"]
           $ do
-            div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.refresh
+            W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
             "Refresh Branches"
         W.viraButton_
           W.ButtonDestructive
@@ -187,9 +185,8 @@ repoHeader linkTo repo = do
           , hxSwapS_ AfterEnd
           , hxConfirm_ "Are you sure you want to delete this repository? This action cannot be undone."
           ]
-          $ div_ [class_ "flex items-center"]
           $ do
-            div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.trash
+            W.viraButtonIcon_ $ toHtmlRaw Icon.trash
             "Delete Repository"
 
 -- Repository layout component with sidebar and main content
