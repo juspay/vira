@@ -65,12 +65,9 @@ viewHandler name = do
   cfg <- ask
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   branches <- App.query $ St.GetBranchesByRepoA name
-  allJobs <- forM branches $ \branch -> do
-    jobs <- App.query $ St.GetJobsByBranchA repo.name branch.branchName
-    pure (branch.branchName, jobs)
-  let flatJobs = concatMap snd allJobs
+  allJobs <- App.query $ St.GetJobsByRepoA repo.name
   pure $ W.layout cfg (crumbs <> [LinkTo.Repo name]) $ do
-    viewRepo cfg.linkTo repo branches flatJobs
+    viewRepo cfg.linkTo repo branches allJobs
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
