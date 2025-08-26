@@ -15,6 +15,7 @@ import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.SettingsPage qualified as SettingsPage
 import Vira.Stream.Status qualified as Status
+import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Layout qualified as W
 import Prelude hiding (Reader, ask, runReader)
 
@@ -36,15 +37,18 @@ handlers cfg =
         pure $ W.layout cfg [] $ do
           nav_ [class_ "space-y-2"] $ do
             forM_ menu $ \(name, url) -> do
-              a_ [href_ url, class_ "flex items-center p-3 space-x-3 text-blue-700 font-bold transition-colors rounded-md hover:bg-gray-100"] $ do
+              a_ [href_ url, class_ "flex items-center p-3 space-x-3 text-gray-900 font-semibold transition-colors rounded-md hover:bg-gray-100"] $ do
                 name
     , _repos = RegistryPage.handlers cfg
     , _jobs = JobPage.handlers cfg
     , _settings = SettingsPage.handlers cfg
     , _about = do
         pure $ W.layout cfg [About] $ do
-          div_ $ do
-            a_ [href_ "https://github.com/juspay/vira"] "GitHub Repo"
+          div_ [class_ "p-6"] $ do
+            h1_ [class_ "text-2xl font-bold mb-4"] "About Vira"
+            p_ [class_ "mb-4 text-gray-600"] "No-frills CI for teams using Nix"
+            W.viraButton_ W.ButtonPrimary [onclick_ "window.open('https://github.com/juspay/vira', '_blank')"] $ do
+              "View on GitHub"
     , _status = pure $ recommendedEventSourceHeaders $ Status.streamRouteHandler cfg
     }
   where

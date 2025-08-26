@@ -85,7 +85,7 @@ viewRepoList linkTo registry = do
 
     if null registry
       then W.viraCard_ [class_ "p-12 text-center"] $ do
-        div_ [class_ "text-gray-400 mb-4"] $
+        div_ [class_ "text-gray-500 mb-4"] $
           div_ [class_ "w-16 h-16 mx-auto flex items-center justify-center"] $
             toHtmlRaw Icon.book_2
         h3_ [class_ "text-xl font-semibold text-gray-700 mb-2"] "No repositories yet"
@@ -102,7 +102,7 @@ viewRepoList linkTo registry = do
                   h3_ [class_ "text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors"] $
                     toHtml $
                       toString repo.name
-                  span_ [class_ "text-gray-400 group-hover:text-indigo-500 transition-colors"] "→"
+                  span_ [class_ "text-gray-500 group-hover:text-indigo-500 transition-colors"] "→"
                 p_ [class_ "text-sm text-gray-500 font-mono truncate"] $
                   toHtml repo.cloneUrl
 

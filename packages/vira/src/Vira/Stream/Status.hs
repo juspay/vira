@@ -65,7 +65,7 @@ indicator active = do
   let (iconSvg, classes) =
         if active
           then (Icon.loader_2, "text-green-500 animate-spin")
-          else (Icon.circle, "text-gray-400")
+          else (Icon.circle, "text-gray-500")
   div_ [class_ $ "w-4 h-4 flex items-center justify-center " <> classes] $
     toHtmlRaw iconSvg
 

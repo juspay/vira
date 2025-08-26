@@ -244,4 +244,4 @@ viraFilterInput_ targetSelector attrs = do
           <> attrs
       )
     div_ [class_ "absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"] $ do
-      div_ [class_ "text-gray-400 w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.search
+      div_ [class_ "text-gray-500 w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.search

@@ -71,14 +71,33 @@ W.viraButton_ W.ButtonPrimary [] $ do
 - **Grid**: `grid gap-6 md:grid-cols-2 lg:grid-cols-3`
 - **Container**: `container mx-auto` with responsive padding
 
+## Accessibility Guidelines
+
+### Color Contrast
+- **Primary text**: `text-gray-900` (high contrast)
+- **Secondary text**: `text-gray-600` (medium contrast) 
+- **Muted text**: `text-gray-500` (minimum contrast)
+- **Avoid**: `text-gray-400` (insufficient contrast)
+
+### Interactive Elements
+- **Focus states**: Clear ring indicators for keyboard navigation
+- **Button text**: High contrast white on colored backgrounds
+- **Icon colors**: Use `text-gray-500` minimum for functional icons
+
+### Small Text Guidelines
+- **Extra small text** (`text-xs`): Use `text-gray-600` minimum
+- **Regular text**: Can use `text-gray-500` for secondary information
+- **Interactive labels**: Always use `text-gray-600` or darker
+
 ## Guidelines
 
 1. **KISS Principle** - Avoid unnecessary abstractions and complexity
-2. **Use existing widgets** - Check `Widgets/*.hs` first
-3. **Follow naming** - `vira[ComponentName]_` pattern
-4. **Accept attributes** - `[Attributes]` parameter for extensibility
-5. **Minimal shadows** - Only use elevation when creating meaningful hierarchy
-6. **No gradients** - Prefer solid colors for clarity and performance
+2. **Accessibility First** - Follow WCAG contrast requirements
+3. **Use existing widgets** - Check `Widgets/*.hs` first
+4. **Follow naming** - `vira[ComponentName]_` pattern
+5. **Accept attributes** - `[Attributes]` parameter for extensibility
+6. **Minimal shadows** - Only use elevation when creating meaningful hierarchy
+7. **No gradients** - Prefer solid colors for clarity and performance
 
 ---
 

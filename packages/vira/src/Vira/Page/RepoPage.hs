@@ -145,7 +145,7 @@ viewJobListing :: (LinkTo.LinkTo -> Link) -> [St.Job] -> Html ()
 viewJobListing linkTo jobs = do
   if null jobs
     then W.viraCard_ [class_ "p-12 text-center bg-gray-50"] $ do
-      div_ [class_ "text-gray-400 mb-4"] $ div_ [class_ "w-16 h-16 mx-auto flex items-center justify-center"] $ toHtmlRaw Icon.rocket
+      div_ [class_ "text-gray-500 mb-4"] $ div_ [class_ "w-16 h-16 mx-auto flex items-center justify-center"] $ toHtmlRaw Icon.rocket
       h3_ [class_ "text-xl font-semibold text-gray-700 mb-2"] "No builds yet"
       div_ [class_ "inline-flex items-center text-sm text-indigo-600 font-medium"] $ do
         "Use the Build button next to any branch to start a build"
@@ -214,7 +214,7 @@ repoLayout linkTo repo branches currentBranch content = do
             [placeholder_ "Filter branches...", id_ "branch-filter"]
 
           -- Filter results counter
-          div_ [class_ "mt-2 text-xs text-gray-500", id_ "branch-count"] $
+          div_ [class_ "mt-2 text-xs text-gray-600", id_ "branch-count"] $
             toHtml $
               show @Text (length branches') <> " branches"
 
@@ -230,7 +230,7 @@ repoLayout linkTo repo branches currentBranch content = do
               div_ [class_ "w-5 h-5 flex items-center justify-center"] $ toHtmlRaw Icon.list
             div_ [class_ "flex-1"] $ do
               div_ [class_ $ "font-semibold " <> if allBranchesActive then "text-indigo-700" else "text-gray-700"] "All Branches"
-              div_ [class_ "text-xs text-gray-500 mt-1"] $
+              div_ [class_ "text-xs text-gray-600 mt-1"] $
                 toHtml $
                   show @Text (length branches') <> " branches"
 
@@ -250,5 +250,5 @@ repoLayout linkTo repo branches currentBranch content = do
                 div_ [class_ $ "text-sm font-medium truncate " <> if isCurrentBranch then "text-indigo-700" else "text-gray-700"] $
                   toHtml $
                     toString branch.branchName
-                div_ [class_ "text-xs text-gray-500 mt-1 font-mono"] $
+                div_ [class_ "text-xs text-gray-600 mt-1 font-mono"] $
                   JobPage.viewCommit branch.headCommit
