@@ -142,6 +142,7 @@ library
     , sqlite-simple
     , stm
     , streaming
+    , tabler-icons
     , tail
     , time
     , wai
@@ -238,6 +239,7 @@ executable vira
     , sqlite-simple
     , stm
     , streaming
+    , tabler-icons
     , tail
     , time
     , vira
@@ -337,6 +339,7 @@ test-suite vira-tests
     , sqlite-simple
     , stm
     , streaming
+    , tabler-icons
     , tail
     , time
     , vira

@@ -12,18 +12,8 @@
           enable = true;
           package = config.fourmolu.wrapper;
         };
-        hlint.enable = true;
+        # hlint.enable = true;
         hpack.enable = true;
-        typos = {
-          enable = true;
-          settings.config.files.extend-exclude = [
-            "*.nix"
-            ".hlint.yaml"
-          ];
-          settings.config.default.extend-identifiers = {
-            TypeLits = "TypeLits"; # `GHC.TypeLits` module
-          };
-        };
       };
     };
 

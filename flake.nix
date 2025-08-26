@@ -17,6 +17,8 @@
 
     htmx.url = "github:JonathanLorimer/htmx";
     htmx.flake = false;
+    tabler-icons-hs.url = "github:juspay/tabler-icons-hs/init";
+    tabler-icons-hs.flake = false;
     co-log-effectful.url = "github:eldritch-cookie/co-log-effectful";
 
     # Runtime dependencies

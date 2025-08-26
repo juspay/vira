@@ -202,6 +202,56 @@ focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2
 - Use proper heading hierarchy (h1 → h2 → h3)
 - Include `alt` text for images and `title` for icon buttons
 
+## 🎯 Icons
+
+### Icon System
+Vira uses **Tabler Icons** - a comprehensive library of over 5,000 professional SVG icons.
+
+#### Available Icon Sets
+- `Web.TablerIcons.Outline` - Primary outline style icons (4,964 icons)
+- `Web.TablerIcons.Filled` - Secondary filled style icons (981 icons)
+
+#### Usage Guidelines
+```haskell
+import Web.TablerIcons.Outline qualified as Icon
+
+-- Correct: Centered SVG icon with proper sizing
+div_ [class_ "w-5 h-5 flex items-center justify-center"] $ 
+  toHtmlRaw Icon.git_branch
+
+-- Button with icon and text
+W.viraButton_ W.ButtonPrimary [] $ 
+  div_ [class_ "flex items-center"] $ do
+    div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ 
+      toHtmlRaw Icon.player_play
+    "Build Branch"
+```
+
+#### Icon Sizing Standards
+- **Small**: `w-4 h-4` (16px) - For button icons, inline indicators
+- **Medium**: `w-5 h-5` (20px) - For general UI icons, alerts
+- **Large**: `w-6 h-6` (24px) - For section headers, navigation
+- **Extra Large**: `w-8 h-8` (32px) - For prominent section headers
+- **Hero**: `w-16 h-16` (64px) - For empty states, major visual elements
+
+#### Semantic Icon Mapping
+Use semantically appropriate icons for better UX:
+- **Repository**: `Icon.book_2` (individual repos), `Icon.list` (all branches/collections)
+- **Git Branches**: `Icon.git_branch` (individual branches)
+- **Activity/History**: `Icon.activity` (activity feeds), `Icon.list` (build history)
+- **Build/Deploy**: `Icon.player_play`, `Icon.rocket`
+- **Settings**: `Icon.settings`, `Icon.edit`
+- **Status**: `Icon.check` (success), `Icon.x` (failed), `Icon.loader_2` (running), `Icon.clock` (pending), `Icon.ban` (killed)
+- **Alerts**: `Icon.alert_triangle`, `Icon.info_circle`
+- **Actions**: `Icon.refresh`, `Icon.trash`, `Icon.search`
+
+#### Best Practices
+- Always use `flex items-center justify-center` for proper icon centering
+- Use `currentColor` for icons to inherit text color
+- Prefer outline icons for primary use, filled for emphasis
+- Never use emoji - always use Tabler SVG icons
+- Include proper spacing with margin classes (`mr-2`, `mr-3`)
+
 ## 🚀 Implementation Guidelines
 
 ### Creating New Components
@@ -241,7 +291,9 @@ div_ [class_ "bg-white p-4 rounded shadow"] $ do
 ### Empty States
 ```haskell
 W.viraCard_ [class_ "p-12 text-center"] $ do
-  div_ [class_ "text-gray-400 mb-4"] $ span_ [class_ "text-6xl"] "📦"
+  div_ [class_ "text-gray-400 mb-4"] $ 
+    div_ [class_ "w-16 h-16 mx-auto flex items-center justify-center"] $ 
+      toHtmlRaw Icon.package
   h3_ [class_ "text-xl font-semibold text-gray-700 mb-2"] "No items yet"
   p_ [class_ "text-gray-500 mb-6"] "Description of what to do"
   -- Call to action button

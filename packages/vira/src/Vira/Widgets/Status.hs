@@ -27,6 +27,7 @@ module Vira.Widgets.Status (
 
 import Lucid
 import Vira.State.Core qualified as St
+import Web.TablerIcons.Outline qualified as Icon
 
 {- |
 Status badge component with semantic color variants.
@@ -46,13 +47,14 @@ W.viraStatusBadge_ (St.JobFinished St.JobFailure)
 W.viraStatusBadge_ St.JobKilled
 @
 
-= Color Guidelines
+= Visual Design
 
-Colors are automatically applied based on job status:
-- Green: Successful jobs
-- Red: Failed or killed jobs
-- Yellow: Pending jobs
-- Blue: Running jobs
+Each status includes both semantic colors and appropriate icons:
+- **Running**: Blue background with loader icon (spinner)
+- **Pending**: Yellow background with clock icon
+- **Success**: Green background with check icon
+- **Failed**: Red background with X icon
+- **Killed**: Darker red background with ban icon
 
 = Type Safety
 
@@ -60,11 +62,12 @@ Uses 'St.JobStatus' directly from the domain model to prevent invalid status val
 -}
 viraStatusBadge_ :: St.JobStatus -> Html ()
 viraStatusBadge_ jobStatus = do
-  let (statusText, colorClass) = case jobStatus of
-        St.JobRunning -> ("Running" :: Text, "bg-blue-100 text-blue-800 border-blue-200")
-        St.JobPending -> ("Pending" :: Text, "bg-yellow-100 text-yellow-800 border-yellow-200")
-        St.JobFinished St.JobSuccess -> ("Success" :: Text, "bg-green-100 text-green-800 border-green-200")
-        St.JobFinished St.JobFailure -> ("Failed" :: Text, "bg-red-100 text-red-800 border-red-200")
-        St.JobKilled -> ("Killed" :: Text, "bg-red-200 text-red-900 border-red-300")
-  span_ [class_ $ "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium " <> colorClass] $
+  let (statusText, colorClass, iconSvg, iconClass) = case jobStatus of
+        St.JobRunning -> ("Running" :: Text, "bg-blue-100 text-blue-800 border-blue-200", Icon.loader_2, "animate-spin")
+        St.JobPending -> ("Pending" :: Text, "bg-yellow-100 text-yellow-800 border-yellow-200", Icon.clock, "")
+        St.JobFinished St.JobSuccess -> ("Success" :: Text, "bg-green-100 text-green-800 border-green-200", Icon.check, "")
+        St.JobFinished St.JobFailure -> ("Failed" :: Text, "bg-red-100 text-red-800 border-red-200", Icon.x, "")
+        St.JobKilled -> ("Killed" :: Text, "bg-red-200 text-red-900 border-red-300", Icon.ban, "")
+  span_ [class_ $ "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium " <> colorClass] $ do
+    div_ [class_ $ "w-4 h-4 mr-2 flex items-center justify-center " <> iconClass] $ toHtmlRaw iconSvg
     toHtml statusText

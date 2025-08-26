@@ -27,6 +27,7 @@ import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Form qualified as W
 import Vira.Widgets.Layout qualified as W
+import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask, asks, for_)
 
 type FormReq a = ReqBody '[FormUrlEncoded] a
@@ -84,8 +85,9 @@ viewRepoList linkTo registry = do
 
     if null registry
       then W.viraCard_ [class_ "p-12 text-center"] $ do
-        div_ [class_ "text-gray-400 mb-4"] $ do
-          span_ [class_ "text-6xl"] "📦"
+        div_ [class_ "text-gray-400 mb-4"] $
+          div_ [class_ "w-16 h-16 mx-auto flex items-center justify-center"] $
+            toHtmlRaw Icon.book_2
         h3_ [class_ "text-xl font-semibold text-gray-700 mb-2"] "No repositories yet"
         p_ [class_ "text-gray-500 mb-6"] "Add your first repository to start building and monitoring your projects"
         newRepoForm linkTo
@@ -109,7 +111,7 @@ viewRepoList linkTo registry = do
         -- Add new repository section
         W.viraCard_ [class_ "p-6 bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-200"] $ do
           h3_ [class_ "text-xl font-semibold text-gray-900 mb-4 flex items-center"] $ do
-            span_ [class_ "mr-2"] "➕"
+            div_ [class_ "w-5 h-5 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.plus
             "Add New Repository"
           newRepoForm linkTo
 
@@ -152,7 +154,7 @@ newRepoForm linkTo = do
 
     div_ [class_ "flex justify-end"] $ do
       W.viraButton_ W.ButtonPrimary [type_ "submit", class_ "px-8"] $ do
-        span_ [class_ "mr-2"] "🚀"
+        div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.plus
         "Add Repository"
 
 withFieldName ::

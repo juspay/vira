@@ -30,6 +30,7 @@ dependencies:
   - aeson
   - async
   - bytestring
+  - tabler-icons
   - co-log
   - co-log-core
   - co-log-effectful
