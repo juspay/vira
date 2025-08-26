@@ -39,10 +39,10 @@ This is the primary button component for all user actions. It includes:
 W.viraButton_ W.ButtonPrimary [type_ "submit"] "Save Changes"
 
 -- Success action
-W.viraButton_ W.ButtonSuccess [] "✅ Build"
+W.viraButton_ W.ButtonSuccess [] "Build"
 
 -- Destructive action
-W.viraButton_ W.ButtonDestructive [] "🗑️ Delete"
+W.viraButton_ W.ButtonDestructive [] "Delete"
 
 -- Secondary action
 W.viraButton_ W.ButtonSecondary [] "Cancel"
@@ -87,14 +87,14 @@ Smaller, more subtle button for icon-only actions. Perfect for:
 = Usage Examples
 
 @
--- Settings action
-W.viraIconButton_ [] "⚙️"
+-- Settings action (using SVG icon)
+W.viraIconButton_ [] $ toHtmlRaw Icon.settings
 
--- Edit action
-W.viraIconButton_ [title_ "Edit"] "✏️"
+-- Edit action (using SVG icon)
+W.viraIconButton_ [title_ "Edit"] $ toHtmlRaw Icon.edit
 
--- Close/cancel action
-W.viraIconButton_ [onclick_ "closeModal()"] "✕"
+-- Close/cancel action (using SVG icon)
+W.viraIconButton_ [onclick_ "closeModal()"] $ toHtmlRaw Icon.x
 @
 
 = Design Notes

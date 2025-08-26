@@ -3,6 +3,7 @@ packages:
   packages/tail
   packages/warp-tls-simple
   packages/htmx-lucid-contrib
+  packages/tabler-icons
 
 multi-repl: true
 tests: True

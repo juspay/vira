@@ -314,7 +314,24 @@
         "htmx-extensions": "htmx-extensions",
         "nixos-unified": "nixos-unified",
         "nixpkgs": "nixpkgs_2",
-        "process-compose-flake": "process-compose-flake"
+        "process-compose-flake": "process-compose-flake",
+        "tabler-icons": "tabler-icons"
+      }
+    },
+    "tabler-icons": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1753288523,
+        "narHash": "sha256-6uitx/iapxqQ1hJa8RYOnXl7UBS+pFC8pr5jNatj3FI=",
+        "owner": "tabler",
+        "repo": "tabler-icons",
+        "rev": "50b5d0496e9f1bd977325c6950e5b09ed7d40b31",
+        "type": "github"
+      },
+      "original": {
+        "owner": "tabler",
+        "repo": "tabler-icons",
+        "type": "github"
       }
     },
     "treefmt-nix": {

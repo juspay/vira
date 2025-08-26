@@ -36,6 +36,7 @@ import Data.Text (cons, isSuffixOf, splitOn)
 import Data.Text qualified as T
 import Lucid
 import Lucid.Htmx.Contrib (hyperscript_)
+import Web.TablerIcons.Outline qualified as Icon
 
 {- |
 Form input component with consistent styling and focus states.
@@ -243,4 +244,4 @@ viraFilterInput_ targetSelector attrs = do
           <> attrs
       )
     div_ [class_ "absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"] $ do
-      span_ [class_ "text-gray-400 text-sm"] "🔍"
+      div_ [class_ "text-gray-400 w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.search
