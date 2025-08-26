@@ -2,7 +2,9 @@ See README.md for general project information.
 
 ## Design System
 
-Follow `DESIGN.md` guidelines. Use existing components in `src/Vira/Widgets/*.hs` before creating new ones.
+- We use TailwindCSS as encoded in the Lucid HTML in the Haskell sources.
+- Follow `DESIGN.md` guidelines. 
+- Use existing components in `src/Vira/Widgets/*.hs` before creating new ones.
 
 ## Coding Guidelines
 

@@ -68,9 +68,8 @@ layout cfg crumbs content = do
       -- Custom styles for the new design
       style_ $
         unlines
-          [ "body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }"
-          , ".gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }"
-          , ".glass-effect { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.1); }"
+          [ "html { overflow-y: scroll; }" -- Scrollbar always visible, to prevent jankiness
+          , "body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }"
           , ".shadow-elegant { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }"
           , ".transition-smooth { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }"
           ]
