@@ -19,7 +19,7 @@ import Data.Map qualified as Map
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
-import Lucid.Htmx.Contrib (hxSseClose_, hxSseConnect_, hxSseSwap_)
+import Lucid.Htmx.Contrib (hxSseClose_, hxSseConnect_, hxSseSwap_, hyperscript_)
 import Servant hiding (throwError)
 import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S
@@ -54,7 +54,10 @@ logChunkId = \case
 logChunkMsg :: LogChunk -> LByteString
 logChunkMsg = \case
   Chunk _ logLines -> Lucid.renderBS $ pre_ $ toHtml $ unlines $ toList logLines
-  Stop _ -> Lucid.renderBS $ Status.indicator False
+  Stop _ -> Lucid.renderBS $
+    div_ [class_ "flex items-center space-x-2 text-sm text-gray-600"] $ do
+      Status.indicator False
+      span_ [class_ "font-medium"] "Build completed"
 
 instance ToServerEvent LogChunk where
   toServerEvent chunk =
@@ -120,7 +123,7 @@ viewStream linkTo job = do
     -- Div containing log messages
     div_
       [ hxSseSwap_ $ logChunkType $ Chunk 0 (one "")
-      , hxSwap_ "beforeend show:window:bottom"
+      , hxSwap_ "beforeend"
       , hxTarget_ ("#" <> sseTarget)
       ]
       $ do
@@ -130,26 +133,40 @@ viewStream linkTo job = do
     div_
       [ hxSseSwap_ $ logChunkType $ Stop 0
       , hxSwap_ "innerHTML"
+      , class_ "flex items-center justify-center py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg"
       ]
       $ do
-        Status.indicator True
+        div_ [class_ "flex items-center space-x-2 text-sm text-gray-600"] $ do
+          Status.indicator True
+          span_ [class_ "font-medium"] "Streaming build logs..."
 
 -- | Log viewer widget agnostic to static or streaming nature.
 logViewerWidget :: (LinkTo.LinkTo -> Link) -> Job -> Html () -> Html ()
 logViewerWidget linkTo job w = do
-  div_ $ do
-    div_ [class_ "my-2"] $ do
-      p_ $ do
-        a_
-          [target_ "blank", class_ "underline text-blue-500", href_ $ show . linkURI $ linkTo $ LinkTo.JobLog job.jobId]
-          "View Full Log"
-    pre_
-      [ id_ sseTarget
-      , class_ "bg-black text-white p-2 text-xs"
-      , style_ "white-space: pre-wrap;"
+  div_ [class_ "space-y-4"] $ do
+    -- Header with actions
+    div_ [class_ "flex items-center justify-between"] $ do
+      h4_ [class_ "text-sm font-semibold text-gray-700 uppercase tracking-wider"] "Build Output"
+      a_
+        [ target_ "blank"
+        , class_ "text-sm text-gray-600 hover:text-indigo-600 transition-colors font-medium"
+        , href_ $ show . linkURI $ linkTo $ LinkTo.JobLog job.jobId
+        ]
+        "View Full Log →"
+
+    -- Log container with improved styling
+    div_
+      [ id_ "logContainer"
+      , class_ "h-[60vh] overflow-y-auto overflow-x-hidden bg-gray-900 rounded-t-lg border border-b-0 border-gray-200 shadow-sm"
       ]
       $ do
-        code_ w
+        pre_
+          [ id_ sseTarget
+          , class_ "text-gray-100 p-4 text-sm h-full whitespace-pre-wrap break-all m-0 font-mono leading-relaxed"
+          , hyperscript_ "on htmx:afterSwap set #logContainer.scrollTop to #logContainer.scrollHeight"
+          ]
+          $ do
+            code_ w
 
 -- | ID of the HTML element targeted by SSE message swaps (log streaming)
 sseTarget :: Text

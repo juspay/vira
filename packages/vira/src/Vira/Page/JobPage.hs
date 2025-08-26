@@ -104,7 +104,6 @@ viewJob linkTo job = do
 
     -- Job logs
     W.viraCard_ [class_ "p-6"] $ do
-      h3_ [class_ "text-xl font-semibold text-gray-900 mb-4"] "Build Logs"
       logView
 
 viewJobHeader :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
