@@ -2,33 +2,19 @@
 
 {- | To use logging, import this module unqualified.
 
->>> import Vira.App.Logging
-
-You do not need to import any other module to use logging, since this one re-exports all the necessary types and functions.
+>>> import Vira.Lib.Logging
 -}
-module Vira.App.Logging (
+module Vira.Lib.Logging (
   -- * Logging
   log,
-
-  -- * Re-exports from co-log
-  Severity (..),
-  Message,
-  Log,
-
-  -- * For logging in IO monads
-  runViraLog,
+  runLogActionStdout,
 )
 where
 
 import Colog.Core (Severity (..))
 import Colog.Message (Message, Msg (..), fmtMessage)
-import Effectful (Eff, IOE, runEff, (:>))
+import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log, LogAction (LogAction), logMsg, runLogAction)
-
--- | Like `runLogActionStdout` but useful in `IO` monads.
-runViraLog :: Eff '[Log Message, IOE] a -> IO a
-runViraLog =
-  runEff . runLogActionStdout
 
 -- | Like `runLogAction` but works with `Message` and writes to `Stdout` (the common use-case)
 runLogActionStdout :: Eff '[Log Message, IOE] a -> Eff '[IOE] a
@@ -40,7 +26,9 @@ runLogActionStdout =
 
 {- | Log a message with the given severity.
 
->>> import Vira.App.Logging (log, Severity(Info))
+Ref: https://github.com/eldritch-cookie/co-log-effectful/issues/1
+
+>>> import Vira.Lib.Logging (log, Severity(Info))
 >>> log Info "Hello, world!"
 -}
 log :: forall es. (HasCallStack, Log Message :> es) => Severity -> Text -> Eff es ()

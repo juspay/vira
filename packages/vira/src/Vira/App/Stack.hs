@@ -1,8 +1,10 @@
 -- | Effectful stack for our app.
 module Vira.App.Stack where
 
+import Colog (Message)
 import Data.Acid (AcidState)
-import Effectful (Eff, IOE)
+import Effectful (Eff, IOE, runEff)
+import Effectful.Colog (Log)
 import Effectful.Concurrent.Async (Concurrent, runConcurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem, runFileSystem)
@@ -12,7 +14,7 @@ import Servant (Handler (Handler), ServerError)
 import Servant.Links (Link)
 import Vira.App.CLI (CLISettings)
 import Vira.App.LinkTo.Type (LinkTo)
-import Vira.App.Logging (Log, Message, runViraLog)
+import Vira.Lib.Logging (runLogActionStdout)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Prelude hiding (Reader, ask, asks, runReader)
@@ -32,7 +34,8 @@ type AppServantStack = (Error ServerError : AppStack)
 runApp :: AppState -> Eff AppStack a -> IO a
 runApp cfg =
   do
-    runViraLog
+    runEff
+    . runLogActionStdout
     . runFileSystem
     . runProcess
     . runConcurrent

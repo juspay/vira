@@ -3,6 +3,7 @@
 
 module Vira.Page.RegistryPage where
 
+import Colog (Severity (..))
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (ask)
 import GHC.Records (HasField)
@@ -17,7 +18,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Logging
+import Vira.Lib.Logging
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St

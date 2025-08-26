@@ -4,7 +4,9 @@ module Vira.App.Server (
   runServer,
 ) where
 
+import Colog (Message, Severity (..))
 import Effectful (Eff, IOE, (:>))
+import Effectful.Colog (Log)
 import Effectful.FileSystem (FileSystem, doesDirectoryExist)
 import Effectful.Reader.Dynamic qualified as Reader
 import Network.Wai.Handler.Warp qualified as Warp
@@ -18,7 +20,7 @@ import Network.Wai.Middleware.Static (
 import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
 import Vira.App (AppStack, CLISettings (..))
-import Vira.App.Logging
+import Vira.Lib.Logging
 import Vira.Page.IndexPage qualified as IndexPage
 
 -- | Run the Vira server with the given CLI settings

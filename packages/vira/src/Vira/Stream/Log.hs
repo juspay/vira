@@ -11,6 +11,7 @@ module Vira.Stream.Log (
   logViewerWidget,
 ) where
 
+import Colog (Severity (..))
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
@@ -25,7 +26,6 @@ import Servant.Types.SourceT qualified as S
 import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Logging (Severity (Error, Info))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St

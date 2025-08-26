@@ -8,6 +8,7 @@ module Vira.Page.SettingsPage (
 )
 where
 
+import Colog (Severity (..))
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (ask)
 import GHC.Records (HasField)
@@ -22,8 +23,8 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Logging
 import Vira.Lib.Attic (AtticServer (..))
+import Vira.Lib.Logging
 import Vira.State.Acid qualified as St
 import Vira.State.Type (AtticSettings (..), CachixSettings (..))
 import Vira.Widgets.Alert qualified as W
