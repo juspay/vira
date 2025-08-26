@@ -10,12 +10,11 @@ import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App ((//))
 import Vira.App qualified as App
-import Vira.App.LinkTo.Type (LinkTo (..))
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.SettingsPage qualified as SettingsPage
 import Vira.Stream.Status qualified as Status
-import Vira.Widgets.Button qualified as W
+import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Layout qualified as W
 import Prelude hiding (Reader, ask, runReader)
 
@@ -24,7 +23,6 @@ data Routes mode = Routes
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _settings :: mode :- "settings" Servant.API.:> NamedRoutes SettingsPage.Routes
-  , _about :: mode :- "about" Servant.API.:> Get '[HTML] (Html ())
   , _status :: mode :- "status" Servant.API.:> Status.StreamRoute
   }
   deriving stock (Generic)
@@ -35,20 +33,22 @@ handlers cfg =
   Routes
     { _home = App.runAppInServant cfg $ do
         pure $ W.layout cfg [] $ do
-          nav_ [class_ "space-y-2"] $ do
+          -- Hero welcome section that connects to breadcrumb
+          div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-12 mb-8 text-center"] $ do
+            h1_ [class_ "text-5xl font-bold text-indigo-900 tracking-tight mb-4"] $ do
+              "Welcome to "
+              a_ [href_ "http://github.com/juspay/vira", class_ "underline hover:no-underline", target_ "_blank"] "Vira"
+            p_ [class_ "text-xl text-indigo-700 mb-8"] $ do
+              "No-frills CI/CD for teams using "
+              a_ [href_ "https://nixos.asia/en/nix-first", class_ "underline hover:no-underline", target_ "blank"] "Nix"
+
+          -- Navigation cards
+          div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-3"] $ do
             forM_ menu $ \(name, url) -> do
-              a_ [href_ url, class_ "flex items-center p-3 space-x-3 text-gray-900 font-semibold transition-colors rounded-md hover:bg-gray-100"] $ do
-                name
+              W.viraNavigationCard_ url name
     , _repos = RegistryPage.handlers cfg
     , _jobs = JobPage.handlers cfg
     , _settings = SettingsPage.handlers cfg
-    , _about = do
-        pure $ W.layout cfg [About] $ do
-          div_ [class_ "p-6"] $ do
-            h1_ [class_ "text-2xl font-bold mb-4"] "About Vira"
-            p_ [class_ "mb-4 text-gray-600"] "No-frills CI for teams using Nix"
-            W.viraButton_ W.ButtonPrimary [onclick_ "window.open('https://github.com/juspay/vira', '_blank')"] $ do
-              "View on GitHub"
     , _status = pure $ recommendedEventSourceHeaders $ Status.streamRouteHandler cfg
     }
   where
@@ -57,5 +57,4 @@ handlers cfg =
     menu =
       [ ("Repositories", linkText $ fieldLink _repos // RegistryPage._listing)
       , ("Settings", linkText $ fieldLink _settings // SettingsPage._view)
-      , ("About", linkText $ fieldLink _about)
       ]

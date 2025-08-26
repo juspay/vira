@@ -15,7 +15,6 @@ import Vira.Page.SettingsPage qualified as SettingsPage
 linkTo :: LinkTo -> Link
 linkTo = \case
   Home -> fieldLink _home
-  About -> fieldLink _about
   RepoListing -> fieldLink _repos // RegistryPage._listing
   Repo name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._view
   RepoUpdate name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._update

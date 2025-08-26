@@ -86,14 +86,11 @@ viewJob linkTo job = do
   let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
   logView <- JobLog.view linkTo job
   pure $ W.viraSection_ [] $ do
-    -- Job header card
-    W.viraCard_ [class_ "p-6 mb-8"] $ do
+    W.viraPageHeader_ ("Job #" <> (toText @String $ show job.jobId)) $ do
       div_ [class_ "flex items-center justify-between"] $ do
-        div_ $ do
-          W.viraPageHeader_ ("Job #" <> (toText @String $ show job.jobId)) $ do
-            div_ [class_ "flex items-center space-x-4 text-sm text-gray-600"] $ do
-              span_ "Commit:"
-              viewCommit job.jobCommit
+        div_ [class_ "flex items-center space-x-4"] $ do
+          span_ "Commit:"
+          viewCommit job.jobCommit
         div_ [class_ "flex items-center space-x-4"] $ do
           viewJobStatus job.jobStatus
           when jobActive $

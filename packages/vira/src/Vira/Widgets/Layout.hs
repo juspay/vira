@@ -31,6 +31,7 @@ The layout function provides the foundation for all application pages.
 module Vira.Widgets.Layout (
   layout,
   viraPageHeader_,
+  viraPageHeaderWithActions_,
   viraSection_,
   viraDivider_,
 ) where
@@ -76,10 +77,9 @@ layout cfg crumbs content = do
       div_ [class_ "min-h-screen"] $ do
         -- Main container with clean styling
         div_ [class_ "container mx-auto px-4 py-6 lg:px-8"] $ do
-          div_ [class_ "bg-white border border-gray-200 rounded-xl p-6 lg:p-8"] $ do
-            let crumbs' = crumbs <&> \l -> (toHtml $ linkShortTitle l, linkURI $ cfg.linkTo l)
-            breadcrumbs cfg.linkTo crumbs'
-            content
+          let crumbs' = crumbs <&> \l -> (toHtml $ linkShortTitle l, linkURI $ cfg.linkTo l)
+          breadcrumbs cfg.linkTo crumbs'
+          content
   where
     siteTitle = "Vira (" <> cfg.cliSettings.instanceName <> ")"
     -- Mobile friendly head tags
@@ -101,7 +101,7 @@ breadcrumbs linkTo rs' = do
   let home = URI {uriScheme = "", uriAuthority = Nothing, uriPath = "", uriQuery = [], uriFragment = ""}
       logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
       rs = (logo, home) :| rs'
-  nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between p-4 mb-6 bg-indigo-600 rounded-xl"] $ do
+  nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between p-4 bg-indigo-600 rounded-t-xl"] $ do
     ol_ [class_ "flex flex-1 items-center space-x-2 text-lg list-none"] $
       renderCrumbs (toList rs)
     Status.viewStream linkTo
@@ -130,39 +130,27 @@ breadcrumbs linkTo rs' = do
 {- |
 Standardized page header with title and subtitle.
 
-Creates consistent page headers across the application with:
-- Large, bold title typography
-- Subtle subtitle area for descriptions
-- Bottom border for visual separation
-- Proper spacing and hierarchy
-
-= Usage Examples
-
-@
--- Basic page header
-W.viraPageHeader_ "Settings" $ do
-  p_ [class_ "text-gray-600"] "Configure your CI/CD settings"
-
--- Header with multiple subtitle elements
-W.viraPageHeader_ "Repository Details" $ do
-  div_ [class_ "flex items-center space-x-4 text-gray-600"] $ do
-    span_ "Last updated: 2 hours ago"
-    span_ [class_ "px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"] "Active"
-
--- Simple header without subtitle
-W.viraPageHeader_ "Build Logs" mempty
-@
-
-= Typography Guidelines
-
-Title uses text-3xl font-bold for strong hierarchy.
-Subtitle area should use text-gray-600 for proper contrast.
+Features indigo styling that connects visually with breadcrumbs.
 -}
 viraPageHeader_ :: Text -> Html () -> Html ()
 viraPageHeader_ title subtitle = do
-  div_ [class_ "border-b border-gray-200 pb-6 mb-8"] $ do
-    h1_ [class_ "text-3xl font-bold text-gray-900 tracking-tight"] $ toHtml title
-    div_ [class_ "mt-2 text-gray-600"] subtitle
+  div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-8 mb-8"] $ do
+    h1_ [class_ "text-4xl font-bold text-indigo-900 tracking-tight mb-4"] $ toHtml title
+    div_ [class_ "text-indigo-700"] subtitle
+
+{- |
+Page header with title, subtitle, and action buttons.
+
+Same styling as viraPageHeader_ but supports action buttons on the right.
+-}
+viraPageHeaderWithActions_ :: Text -> Html () -> Html () -> Html ()
+viraPageHeaderWithActions_ title subtitle actions = do
+  div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-8 mb-8"] $ do
+    div_ [class_ "flex items-start justify-between"] $ do
+      div_ [class_ "flex-1"] $ do
+        h1_ [class_ "text-4xl font-bold text-indigo-900 tracking-tight mb-4"] $ toHtml title
+        div_ [class_ "text-indigo-700"] subtitle
+      div_ [class_ "flex flex-col gap-3 ml-8"] actions
 
 {- |
 Section component for grouping and spacing page content.

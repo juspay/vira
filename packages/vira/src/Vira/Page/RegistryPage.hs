@@ -81,7 +81,7 @@ viewRepoList :: (LinkTo.LinkTo -> Link) -> [St.Repo] -> Html ()
 viewRepoList linkTo registry = do
   W.viraSection_ [] $ do
     W.viraPageHeader_ "Repositories" $ do
-      p_ [class_ "text-gray-600"] "Manage your CI/CD repositories and monitor builds"
+      p_ [class_ "text-gray-600"] "Repositories managed by this Vira instance"
 
     if null registry
       then W.viraCard_ [class_ "p-12 text-center"] $ do
@@ -96,20 +96,12 @@ viewRepoList linkTo registry = do
         div_ [class_ "grid gap-6 mb-8 md:grid-cols-2 lg:grid-cols-3"] $ do
           forM_ registry $ \repo -> do
             let url = linkURI $ linkTo $ LinkTo.Repo repo.name
-            W.viraCard_ [class_ "p-6 hover:shadow-xl transition-all duration-300 cursor-pointer group"] $ do
-              a_ [href_ $ show url, class_ "block"] $ do
-                div_ [class_ "flex items-start justify-between mb-3"] $ do
-                  h3_ [class_ "text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors"] $
-                    toHtml $
-                      toString repo.name
-                  span_ [class_ "text-gray-500 group-hover:text-indigo-500 transition-colors"] "→"
-                p_ [class_ "text-sm text-gray-500 font-mono truncate"] $
-                  toHtml repo.cloneUrl
-
-        W.viraDivider_
+            W.viraNavigationCard_
+              (show url)
+              (toHtml $ toString repo.name)
 
         -- Add new repository section
-        W.viraCard_ [class_ "p-6 bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-200"] $ do
+        W.viraCard_ [class_ "p-6 bg-indigo-50 border-2 border-indigo-200"] $ do
           h3_ [class_ "text-xl font-semibold text-gray-900 mb-4 flex items-center"] $ do
             div_ [class_ "w-5 h-5 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.plus
             "Add New Repository"
