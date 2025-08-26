@@ -25,6 +25,7 @@ import Vira.App.LinkTo.Type (LinkTo)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.State.Acid qualified as Acid
 import Vira.State.Type
+import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (Reader, ask, asks, runReader)
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO Status))
@@ -61,8 +62,12 @@ viewInner linkTo jobs = do
 
 indicator :: Bool -> Html ()
 indicator active = do
-  let classes = if not active then "border-orange-300" else "border-orange-100 animate-ping"
-  div_ [class_ $ "w-4 h-4 border-4 rounded-full " <> classes] ""
+  let (iconSvg, classes) =
+        if active
+          then (Icon.loader_2, "text-green-500 animate-spin")
+          else (Icon.circle, "text-gray-400")
+  div_ [class_ $ "w-4 h-4 flex items-center justify-center " <> classes] $
+    toHtmlRaw iconSvg
 
 streamRouteHandler :: App.AppState -> SourceIO Status
 streamRouteHandler cfg = S.fromStepT $ step 0

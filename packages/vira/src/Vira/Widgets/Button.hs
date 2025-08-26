@@ -3,7 +3,7 @@ Button components with type-safe styling variants.
 -}
 module Vira.Widgets.Button (
   viraButton_,
-  viraIconButton_,
+  viraButtonIcon_,
   ButtonVariant (..),
 ) where
 
@@ -39,10 +39,10 @@ This is the primary button component for all user actions. It includes:
 W.viraButton_ W.ButtonPrimary [type_ "submit"] "Save Changes"
 
 -- Success action
-W.viraButton_ W.ButtonSuccess [] "✅ Build"
+W.viraButton_ W.ButtonSuccess [] "Build"
 
 -- Destructive action
-W.viraButton_ W.ButtonDestructive [] "🗑️ Delete"
+W.viraButton_ W.ButtonDestructive [] "Delete"
 
 -- Secondary action
 W.viraButton_ W.ButtonSecondary [] "Cancel"
@@ -77,35 +77,16 @@ viraButton_ variant attrs =
         )
 
 {- |
-Icon button variant for secondary actions and toolbar buttons.
+Small icon wrapper for button icons (16px with margin).
 
-Smaller, more subtle button for icon-only actions. Perfect for:
-- Toolbar actions
-- Settings buttons
-- Secondary controls that don't need emphasis
-
-= Usage Examples
+= Usage Example
 
 @
--- Settings action
-W.viraIconButton_ [] "⚙️"
-
--- Edit action
-W.viraIconButton_ [title_ "Edit"] "✏️"
-
--- Close/cancel action
-W.viraIconButton_ [onclick_ "closeModal()"] "✕"
+W.viraButton_ W.ButtonSuccess [] $ do
+  viraButtonIcon_ $ toHtmlRaw Icon.player_play
+  "Build Branch"
 @
-
-= Design Notes
-
-Uses neutral colors by default to avoid competing with primary actions.
-Always include a title attribute for accessibility when using icons.
 -}
-viraIconButton_ :: forall {result}. (Term [Attributes] result) => [Attributes] -> result
-viraIconButton_ attrs =
-  button_
-    ( [ class_ "inline-flex items-center justify-center p-2 text-sm font-medium rounded-lg transition-smooth focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-sm hover:shadow-md focus:ring-indigo-500"
-      ]
-        <> attrs
-    )
+viraButtonIcon_ :: forall {result}. (Term [Attributes] result) => result
+viraButtonIcon_ =
+  div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"]

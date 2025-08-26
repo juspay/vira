@@ -7,6 +7,7 @@ module Vira.Widgets.Alert (
 ) where
 
 import Lucid
+import Web.TablerIcons.Outline qualified as Icon
 
 -- | Alert types for consistent messaging
 data AlertType
@@ -53,11 +54,11 @@ Colors are automatically applied based on alert type:
 
 = Icons
 
-Automatically includes appropriate emoji icons:
-- ✅ for success alerts
-- ❌ for error alerts
-- ⚠️ for warning alerts
-- ℹ️ for info alerts
+Automatically includes appropriate Tabler SVG icons:
+- check for success alerts
+- x for error alerts
+- alert_triangle for warning alerts
+- info_circle for info alerts
 
 = Type Safety
 
@@ -70,13 +71,13 @@ Includes role="alert" for screen readers.
 -}
 viraAlert_ :: AlertType -> Html () -> Html ()
 viraAlert_ alertType content = do
-  let (colorClass, iconText :: Text, iconColor) = case alertType of
-        AlertError -> ("bg-red-50 border-red-200", "❌", "text-red-500")
-        AlertWarning -> ("bg-yellow-50 border-yellow-200", "⚠️", "text-yellow-500")
-        AlertSuccess -> ("bg-green-50 border-green-200", "✅", "text-green-500")
-        AlertInfo -> ("bg-blue-50 border-blue-200", "ℹ️", "text-blue-500")
+  let (colorClass, iconSvg, iconColor) = case alertType of
+        AlertError -> ("bg-red-50 border-red-200", Icon.x, "text-red-500")
+        AlertWarning -> ("bg-yellow-50 border-yellow-200", Icon.alert_triangle, "text-yellow-500")
+        AlertSuccess -> ("bg-green-50 border-green-200", Icon.check, "text-green-500")
+        AlertInfo -> ("bg-blue-50 border-blue-200", Icon.info_circle, "text-blue-500")
   div_ [class_ $ "rounded-lg p-4 border " <> colorClass, role_ "alert"] $ do
     div_ [class_ "flex items-start"] $ do
       div_ [class_ "flex-shrink-0"] $ do
-        span_ [class_ iconColor] (toHtml iconText)
+        div_ [class_ $ iconColor <> " w-5 h-5 flex items-center justify-center"] $ toHtmlRaw iconSvg
       div_ [class_ "ml-3 flex-1"] content

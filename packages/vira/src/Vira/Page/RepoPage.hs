@@ -26,6 +26,7 @@ import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Form qualified as W
 import Vira.Widgets.Layout qualified as W
+import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask, asks)
 
 data Routes mode = Routes
@@ -96,8 +97,8 @@ viewRepo linkTo repo branches allJobs = do
   repoLayout linkTo repo branches Nothing $ do
     div_ [class_ "mb-8"] $ do
       div_ [class_ "flex items-center mb-3"] $ do
-        span_ [class_ "text-2xl mr-3"] "📊"
-        h2_ [class_ "text-2xl font-bold text-gray-800"] "All Repository Activity"
+        div_ [class_ "text-gray-600 w-8 h-8 mr-3 flex items-center justify-center"] $ toHtmlRaw Icon.activity
+        h2_ [class_ "text-2xl font-bold text-gray-800"] "All Branches"
       div_ [class_ "h-px bg-gradient-to-r from-indigo-200 via-purple-200 to-transparent"] mempty
     viewJobListing linkTo allJobs
 
@@ -111,7 +112,7 @@ viewRepoBranch linkTo repo branch branches jobs = do
       div_ [class_ "flex items-start justify-between mb-6"] $ do
         div_ [class_ "flex-1"] $ do
           div_ [class_ "flex items-center mb-3"] $ do
-            span_ [class_ "text-2xl mr-3"] "🌿"
+            div_ [class_ "text-gray-600 w-8 h-8 mr-3 flex items-center justify-center"] $ toHtmlRaw Icon.git_branch
             h2_ [class_ "text-2xl font-bold text-gray-800"] $
               toHtml $
                 toString branch.branchName
@@ -128,14 +129,16 @@ viewRepoBranch linkTo repo branch branches jobs = do
             , hxSwapS_ AfterEnd
             , class_ "shadow-lg hover:shadow-xl transition-shadow"
             ]
-            "🚀 Build Branch"
+            $ do
+              W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
+              "Build Branch"
 
       div_ [class_ "h-px bg-gradient-to-r from-indigo-200 via-purple-200 to-transparent"] mempty
 
     -- Enhanced section header
     div_ [class_ "mb-6"] $ do
       div_ [class_ "flex items-center mb-3"] $ do
-        span_ [class_ "text-xl mr-2"] "📋"
+        div_ [class_ "text-gray-600 w-6 h-6 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.list
         h3_ [class_ "text-xl font-semibold text-gray-800"] "Build History"
 
     viewJobListing linkTo jobs
@@ -145,10 +148,10 @@ viewJobListing :: (LinkTo.LinkTo -> Link) -> [St.Job] -> Html ()
 viewJobListing linkTo jobs = do
   if null jobs
     then W.viraCard_ [class_ "p-12 text-center bg-gradient-to-br from-gray-50 to-slate-100"] $ do
-      div_ [class_ "text-gray-400 mb-4"] $ span_ [class_ "text-6xl"] "🚀"
+      div_ [class_ "text-gray-400 mb-4"] $ div_ [class_ "w-16 h-16 mx-auto flex items-center justify-center"] $ toHtmlRaw Icon.rocket
       h3_ [class_ "text-xl font-semibold text-gray-700 mb-2"] "No builds yet"
       div_ [class_ "inline-flex items-center text-sm text-indigo-600 font-medium"] $ do
-        "Use the 🚀 Build button next to any branch to start a build"
+        "Use the Build button next to any branch to start a build"
     else div_ [class_ "space-y-4"] $ forM_ jobs $ \job -> do
       W.viraCard_ [class_ "p-4 hover:shadow-md transition-all duration-200 bg-gradient-to-r from-white to-gray-50"] $ do
         JobPage.viewJobHeader linkTo job
@@ -160,7 +163,7 @@ repoHeader linkTo repo = do
     div_ [class_ "flex items-start justify-between"] $ do
       div_ [class_ "flex-1"] $ do
         div_ [class_ "flex items-center mb-4"] $ do
-          span_ [class_ "text-3xl mr-3"] "📁"
+          div_ [class_ "text-gray-600 w-8 h-8 mr-3 flex items-center justify-center"] $ toHtmlRaw Icon.book_2
           h1_ [class_ "text-3xl font-bold text-gray-900 tracking-tight"] $
             toHtml $
               toString repo.name
@@ -173,14 +176,18 @@ repoHeader linkTo repo = do
           [ hxPostSafe_ $ linkTo $ LinkTo.RepoUpdate repo.name
           , hxSwapS_ AfterEnd
           ]
-          "🔄 Refresh Branches"
+          $ do
+            W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
+            "Refresh Branches"
         W.viraButton_
           W.ButtonDestructive
           [ hxPostSafe_ $ linkTo $ LinkTo.RepoDelete repo.name
           , hxSwapS_ AfterEnd
           , hxConfirm_ "Are you sure you want to delete this repository? This action cannot be undone."
           ]
-          "🗑️ Delete Repository"
+          $ do
+            W.viraButtonIcon_ $ toHtmlRaw Icon.trash
+            "Delete Repository"
 
 -- Repository layout component with sidebar and main content
 repoLayout :: (LinkTo.LinkTo -> Link) -> St.Repo -> [St.Branch] -> Maybe BranchName -> Html () -> Html ()
@@ -223,7 +230,7 @@ repoLayout linkTo repo branches currentBranch content = do
                   else "flex items-center p-4 rounded-lg hover:bg-gray-50 transition-all duration-200 hover:shadow-sm"
           a_ [href_ $ show $ linkURI $ linkToFunc $ LinkTo.Repo repository.name, class_ allBranchesClass, data_ "branch-item" "all-branches"] $ do
             div_ [class_ "flex-shrink-0 mr-3"] $ do
-              span_ [class_ "text-lg"] "📊"
+              div_ [class_ "w-5 h-5 flex items-center justify-center"] $ toHtmlRaw Icon.list
             div_ [class_ "flex-1"] $ do
               div_ [class_ $ "font-semibold " <> if allBranchesActive then "text-indigo-700" else "text-gray-700"] "All Branches"
               div_ [class_ "text-xs text-gray-500 mt-1"] $
@@ -241,7 +248,7 @@ repoLayout linkTo repo branches currentBranch content = do
                 branchNameText = toText $ toString branch.branchName
             a_ [href_ $ show url, class_ branchClass, data_ "branch-item" branchNameText] $ do
               div_ [class_ "flex-shrink-0 mr-3"] $ do
-                span_ [class_ "text-lg"] "🌿"
+                div_ [class_ "w-5 h-5 flex items-center justify-center"] $ toHtmlRaw Icon.git_branch
               div_ [class_ "flex-1 min-w-0"] $ do
                 div_ [class_ $ "text-sm font-medium truncate " <> if isCurrentBranch then "text-indigo-700" else "text-gray-700"] $
                   toHtml $

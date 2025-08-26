@@ -27,8 +27,9 @@
         htmx-lucid.source = inputs.htmx + /htmx-lucid;
         htmx-servant.source = inputs.htmx + /htmx-servant;
 
-        # effectful
+        # external libs
         co-log-effectful.source = inputs.co-log-effectful;
+        tabler-icons.source = inputs.tabler-icons-hs;
       };
 
       # Add your package overrides here
