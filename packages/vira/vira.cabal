@@ -32,7 +32,6 @@ library
       Vira.App.CLI
       Vira.App.LinkTo.Resolve
       Vira.App.LinkTo.Type
-      Vira.App.Logging
       Vira.App.Run
       Vira.App.Servant
       Vira.App.Server
@@ -40,6 +39,7 @@ library
       Vira.Lib.Attic
       Vira.Lib.Cachix
       Vira.Lib.Git
+      Vira.Lib.Logging
       Vira.Lib.Omnix
       Vira.Lib.Process
       Vira.Page.IndexPage

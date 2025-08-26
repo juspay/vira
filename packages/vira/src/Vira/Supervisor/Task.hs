@@ -6,8 +6,10 @@ module Vira.Supervisor.Task (
   killTask,
 ) where
 
+import Colog (Message, Severity (..))
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
+import Effectful.Colog (Log)
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar, modifyMVar_, readMVar)
 import Effectful.Exception (catch, finally, mask)
@@ -17,7 +19,7 @@ import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, c
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Tail qualified as Tail
-import Vira.App.Logging
+import Vira.Lib.Logging (log)
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type
 import Prelude hiding (readMVar)
