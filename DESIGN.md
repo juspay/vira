@@ -1,27 +1,29 @@
 # Vira Design System
 
-Modern, professional CI/CD application design system emphasizing consistency and accessibility.
+Clean, minimal CI/CD application design system emphasizing clarity and functionality.
 
-## Brand Identity
+## Design Principles
 
-- **Modern & Professional**: Clean, contemporary design that inspires confidence
-- **Glass-morphism**: Subtle gradients and transparency effects
-- **Technical but approachable**: Confident without being flashy
+- **KISS (Keep It Simple)**: Minimal, focused design without unnecessary decoration
+- **Flat Design**: Clean layouts with selective elevation for hierarchy
+- **Technical Clarity**: Clear visual communication over visual flourishes
 
 ## Color Palette
 
 ### Primary Colors
-- **Indigo**: `#6366f1` (brand), `#4f46e5` (buttons), `#4338ca` (hover)
-- **Purple/Blue accents**: `#9333ea`, `#2563eb` (gradients)
+- **Indigo**: `indigo-600` (primary actions), `indigo-700` (hover states)
+- **Background**: `gray-50` (page), `white` (cards), `gray-200` (dividers)
 
-### Semantic Colors
-- **Success**: Green (`#22c55e`)
-- **Error**: Red (`#ef4444`) 
-- **Warning**: Yellow (`#eab308`)
-- **Info**: Blue (`#3b82f6`)
+### Semantic Colors  
+- **Success**: `green-600` (success actions)
+- **Destructive**: `red-600` (delete/dangerous actions)
+- **Warning**: `yellow-500` (cautionary states)
+- **Secondary**: `gray-100` (secondary actions)
 
 ### Neutrals
-Standard gray scale from `#f9fafb` (light) to `#111827` (dark)
+- **Text**: `gray-900` (primary), `gray-600` (secondary), `gray-500` (muted)
+- **Borders**: `gray-200` (default), `gray-300` (interactive)
+- **Backgrounds**: `gray-50` (sections), `gray-100` (subtle contrast)
 
 ## Typography
 
@@ -35,7 +37,8 @@ Standard gray scale from `#f9fafb` (light) to `#111827` (dark)
 
 ### Core Components
 - **Buttons**: `viraButton_`, `viraButtonIcon_` (see `Button.hs`)
-- **Layout**: `viraCard_`, `viraSection_` (see `Card.hs`, `Layout.hs`)
+- **Cards**: `viraCard_` (flat), `viraCardElevated_` (with shadow) (see `Card.hs`)
+- **Layout**: `viraSection_`, `viraPageHeader_`, `viraDivider_` (see `Layout.hs`)
 - **Forms**: `viraInput_`, `viraLabel_` (see `Form.hs`)
 - **Status**: `viraStatusBadge_` (see `Status.hs`)
 - **Alerts**: `viraAlert_` (see `Alert.hs`)
@@ -55,18 +58,27 @@ W.viraButton_ W.ButtonPrimary [] $ do
 - **Standard sizes**: `w-4 h-4` (buttons), `w-5 h-5` (UI), `w-6 h-6` (headers), `w-8 h-8` (sections), `w-16 h-16` (hero)
 - **Centering**: Always use `flex items-center justify-center`
 
+## Visual Hierarchy
+
+- **Elevation**: Flat by default, `shadow-sm` only for important content
+- **Spacing**: Consistent spacing scale using Tailwind (`space-y-*`)
+- **Typography**: Clear text hierarchy with `text-3xl`, `text-lg`, etc.
+- **Color**: Semantic colors communicate meaning, not decoration
+
 ## Layout
 
 - **Responsive**: Mobile-first with `md:`, `lg:`, `xl:` breakpoints
-- **Spacing**: Tailwind scale (`space-y-2` to `space-y-8`)
 - **Grid**: `grid gap-6 md:grid-cols-2 lg:grid-cols-3`
+- **Container**: `container mx-auto` with responsive padding
 
 ## Guidelines
 
-1. **Use existing widgets** - Check `Widgets/*.hs` first
-2. **Follow naming** - `vira[ComponentName]_` pattern
-3. **Accept attributes** - `[Attributes]` parameter for extensibility
-4. **Document thoroughly** - Include usage examples and rationale
+1. **KISS Principle** - Avoid unnecessary abstractions and complexity
+2. **Use existing widgets** - Check `Widgets/*.hs` first
+3. **Follow naming** - `vira[ComponentName]_` pattern
+4. **Accept attributes** - `[Attributes]` parameter for extensibility
+5. **Minimal shadows** - Only use elevation when creating meaningful hierarchy
+6. **No gradients** - Prefer solid colors for clarity and performance
 
 ---
 

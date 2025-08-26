@@ -70,14 +70,13 @@ layout cfg crumbs content = do
         unlines
           [ "html { overflow-y: scroll; }" -- Scrollbar always visible, to prevent jankiness
           , "body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }"
-          , ".shadow-elegant { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }"
           , ".transition-smooth { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }"
           ]
-    body_ [class_ "bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen font-inter"] $ do
+    body_ [class_ "bg-gray-50 min-h-screen font-inter"] $ do
       div_ [class_ "min-h-screen"] $ do
-        -- Main container with improved styling
+        -- Main container with clean styling
         div_ [class_ "container mx-auto px-4 py-6 lg:px-8"] $ do
-          div_ [class_ "bg-white/80 backdrop-blur-sm border border-white/20 rounded-2xl shadow-elegant p-6 lg:p-8"] $ do
+          div_ [class_ "bg-white border border-gray-200 rounded-xl p-6 lg:p-8"] $ do
             let crumbs' = crumbs <&> \l -> (toHtml $ linkShortTitle l, linkURI $ cfg.linkTo l)
             breadcrumbs cfg.linkTo crumbs'
             content
@@ -100,9 +99,9 @@ layout cfg crumbs content = do
 breadcrumbs :: (LinkTo -> Link) -> [(Html (), URI)] -> Html ()
 breadcrumbs linkTo rs' = do
   let home = URI {uriScheme = "", uriAuthority = Nothing, uriPath = "", uriQuery = [], uriFragment = ""}
-      logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg shadow-sm"]
+      logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
       rs = (logo, home) :| rs'
-  nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between p-4 mb-6 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 rounded-xl shadow-lg"] $ do
+  nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between p-4 mb-6 bg-indigo-600 rounded-xl"] $ do
     ol_ [class_ "flex flex-1 items-center space-x-2 text-lg list-none"] $
       renderCrumbs (toList rs)
     Status.viewStream linkTo

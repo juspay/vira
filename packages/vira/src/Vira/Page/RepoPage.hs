@@ -96,7 +96,7 @@ viewRepo linkTo repo branches allJobs = do
       div_ [class_ "flex items-center mb-3"] $ do
         div_ [class_ "text-gray-600 w-8 h-8 mr-3 flex items-center justify-center"] $ toHtmlRaw Icon.activity
         h2_ [class_ "text-2xl font-bold text-gray-800"] "All Branches"
-      div_ [class_ "h-px bg-gradient-to-r from-indigo-200 via-purple-200 to-transparent"] mempty
+      div_ [class_ "h-px bg-gray-200"] mempty
     viewJobListing linkTo allJobs
 
 -- Branch-specific view function
@@ -124,13 +124,13 @@ viewRepoBranch linkTo repo branch branches jobs = do
             W.ButtonSuccess
             [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
             , hxSwapS_ AfterEnd
-            , class_ "shadow-lg hover:shadow-xl transition-shadow"
+            , class_ "transition-colors"
             ]
             $ do
               W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
               "Build Branch"
 
-      div_ [class_ "h-px bg-gradient-to-r from-indigo-200 via-purple-200 to-transparent"] mempty
+      div_ [class_ "h-px bg-gray-200"] mempty
 
     -- Enhanced section header
     div_ [class_ "mb-6"] $ do
@@ -144,19 +144,19 @@ viewRepoBranch linkTo repo branch branches jobs = do
 viewJobListing :: (LinkTo.LinkTo -> Link) -> [St.Job] -> Html ()
 viewJobListing linkTo jobs = do
   if null jobs
-    then W.viraCard_ [class_ "p-12 text-center bg-gradient-to-br from-gray-50 to-slate-100"] $ do
+    then W.viraCard_ [class_ "p-12 text-center bg-gray-50"] $ do
       div_ [class_ "text-gray-400 mb-4"] $ div_ [class_ "w-16 h-16 mx-auto flex items-center justify-center"] $ toHtmlRaw Icon.rocket
       h3_ [class_ "text-xl font-semibold text-gray-700 mb-2"] "No builds yet"
       div_ [class_ "inline-flex items-center text-sm text-indigo-600 font-medium"] $ do
         "Use the Build button next to any branch to start a build"
     else div_ [class_ "space-y-4"] $ forM_ jobs $ \job -> do
-      W.viraCard_ [class_ "p-4 hover:shadow-md transition-all duration-200 bg-gradient-to-r from-white to-gray-50"] $ do
+      W.viraCard_ [class_ "p-4 hover:bg-gray-50 transition-colors"] $ do
         JobPage.viewJobHeader linkTo job
 
 -- Repository header component with enhanced styling
 repoHeader :: (LinkTo.LinkTo -> Link) -> St.Repo -> Html ()
 repoHeader linkTo repo = do
-  W.viraCard_ [class_ "p-8 mb-8 bg-gradient-to-r from-white via-slate-50 to-blue-50 border border-gray-200 shadow-lg"] $ do
+  W.viraCardElevated_ [class_ "p-8 mb-8"] $ do
     div_ [class_ "flex items-start justify-between"] $ do
       div_ [class_ "flex-1"] $ do
         div_ [class_ "flex items-center mb-4"] $ do
@@ -196,16 +196,16 @@ repoLayout linkTo repo branches currentBranch content = do
 
     -- Main content
     div_ [class_ "col-span-3"] $ do
-      div_ [class_ "bg-gradient-to-br from-white to-gray-50 rounded-xl border border-gray-200 shadow-sm p-8"] $ do
+      div_ [class_ "bg-white rounded-xl border border-gray-200 p-8"] $ do
         content
   where
     -- Sidebar component for repository navigation
     repoSidebar :: (LinkTo.LinkTo -> Link) -> St.Repo -> [St.Branch] -> Maybe BranchName -> Html ()
     repoSidebar linkToFunc repository branches' maybeCurrentBranch = do
-      W.viraCard_ [class_ "p-6 bg-gradient-to-br from-slate-50 to-blue-50"] $ do
+      W.viraCard_ [class_ "p-6 bg-gray-50"] $ do
         div_ [class_ "mb-6"] $ do
           h3_ [class_ "text-lg font-semibold text-gray-700 mb-2"] "Repository Navigation"
-          div_ [class_ "h-px bg-gradient-to-r from-indigo-200 to-transparent"] mempty
+          div_ [class_ "h-px bg-gray-200"] mempty
 
         -- Branch filter input
         div_ [class_ "mb-6"] $ do
@@ -223,8 +223,8 @@ repoLayout linkTo repo branches currentBranch content = do
           let allBranchesActive = isNothing maybeCurrentBranch
               allBranchesClass =
                 if allBranchesActive
-                  then "flex items-center p-4 rounded-lg bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 shadow-sm"
-                  else "flex items-center p-4 rounded-lg hover:bg-gray-50 transition-all duration-200 hover:shadow-sm"
+                  then "flex items-center p-4 rounded-lg bg-indigo-50 border border-indigo-200"
+                  else "flex items-center p-4 rounded-lg hover:bg-gray-50 transition-colors"
           a_ [href_ $ show $ linkURI $ linkToFunc $ LinkTo.Repo repository.name, class_ allBranchesClass, data_ "branch-item" "all-branches"] $ do
             div_ [class_ "flex-shrink-0 mr-3"] $ do
               div_ [class_ "w-5 h-5 flex items-center justify-center"] $ toHtmlRaw Icon.list
@@ -240,8 +240,8 @@ repoLayout linkTo repo branches currentBranch content = do
                 isCurrentBranch = maybeCurrentBranch == Just branch.branchName
                 branchClass =
                   if isCurrentBranch
-                    then "flex items-center p-4 rounded-lg bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 shadow-sm"
-                    else "flex items-center p-4 rounded-lg hover:bg-gray-50 transition-all duration-200 hover:shadow-sm"
+                    then "flex items-center p-4 rounded-lg bg-indigo-50 border border-indigo-200"
+                    else "flex items-center p-4 rounded-lg hover:bg-gray-50 transition-colors"
                 branchNameText = toText $ toString branch.branchName
             a_ [href_ $ show url, class_ branchClass, data_ "branch-item" branchNameText] $ do
               div_ [class_ "flex-shrink-0 mr-3"] $ do
