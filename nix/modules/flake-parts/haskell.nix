@@ -14,10 +14,7 @@
       projectRoot = lib.fileset.toSource {
         inherit root;
         fileset = lib.fileset.unions [
-          (root + /packages/htmx-lucid-contrib)
-          (root + /packages/tail)
-          (root + /packages/vira)
-          (root + /packages/warp-tls-simple)
+          (root + /packages)
           (root + /cabal.project)
           (root + /LICENSE)
           (root + /README.md)

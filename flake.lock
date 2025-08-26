@@ -321,16 +321,15 @@
     "tabler-icons-hs": {
       "flake": false,
       "locked": {
-        "lastModified": 1756223201,
-        "narHash": "sha256-o6FZcTsS3KWxp+RmPysj/YNTQti5wZdzwczGj5WKKfI=",
+        "lastModified": 1756223701,
+        "narHash": "sha256-xtimmW7doUy9bY+SoD/OYEcRlLFHFWctIdKgV+LN1Ao=",
         "owner": "juspay",
         "repo": "tabler-icons-hs",
-        "rev": "0f05cc40f8a69787616269a92ab1bb5ba713dc4c",
+        "rev": "8f932a33befe5d192e0bc42bba2ff118f02810ca",
         "type": "github"
       },
       "original": {
         "owner": "juspay",
-        "ref": "init",
         "repo": "tabler-icons-hs",
         "type": "github"
       }
