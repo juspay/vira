@@ -14,7 +14,10 @@
       projectRoot = lib.fileset.toSource {
         inherit root;
         fileset = lib.fileset.unions [
-          (root + /packages)
+          (root + /packages/htmx-lucid-contrib)
+          (root + /packages/tail)
+          (root + /packages/vira)
+          (root + /packages/warp-tls-simple)
           (root + /cabal.project)
           (root + /LICENSE)
           (root + /README.md)
@@ -27,8 +30,9 @@
         htmx-lucid.source = inputs.htmx + /htmx-lucid;
         htmx-servant.source = inputs.htmx + /htmx-servant;
 
-        # effectful
+        # external libs
         co-log-effectful.source = inputs.co-log-effectful;
+        tabler-icons.source = inputs.tabler-icons-hs;
       };
 
       # Add your package overrides here
