@@ -23,7 +23,7 @@ See README.md for general project information.
 ## Development
 
 ### Testing
-- Prefer `cabal build` over running app
+- Prefer `cabal build` (ran in Nix devShell) over `nix build`
 - Fix all introduced GHC warnings
 
 ## Reporting
