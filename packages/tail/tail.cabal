@@ -9,7 +9,7 @@ version:        0.1.0.0
 synopsis:       Haskell API for tail -f streaming
 description:    A Haskell library providing an API for tail -f style file streaming using STM, process, and async.
 category:       System
-homepage:       https://github.com/juspay/vira
+homepage:       https://github.com/juspay/vira/tree/main/packages/tail
 author:         Sridhar Ratnakumar
 maintainer:     srid@srid.ca
 copyright:      2025 Sridhar Ratnakumar

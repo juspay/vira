@@ -1,5 +1,5 @@
 # tail
 
-WIP: Haskell API for `tail -f` streaming files using STM, process, and async.
+Haskell API for `tail -f` streaming files using STM, process, and async.
 
-**Note**: This entire package will be rewritten in the future.
+See [docs on Hackage](https://hackage.haskell.org/package/tail/docs/System-Tail.html)

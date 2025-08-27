@@ -14,7 +14,7 @@ import System.Tail
 
 main :: IO ()
 main = do
-  tail <- 'tailFile' \"\/var\/log\/app.log\"
+  tail <- 'tailFile' 100 \"\/var\/log\/app.log\"
   subscriber <- 'tailSubscribe' tail
   -- Read from subscriber...
   'tailStop' tail
