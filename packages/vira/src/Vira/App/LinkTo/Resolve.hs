@@ -32,3 +32,4 @@ linkTo = \case
   SettingsUpdateAttic -> fieldLink _settings // SettingsPage._updateAttic
   SettingsDeleteAttic -> fieldLink _settings // SettingsPage._deleteAttic
   StatusGet -> fieldLink _status
+  EventsGet -> fieldLink _events

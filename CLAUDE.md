@@ -6,25 +6,22 @@ See README.md for general project information.
 - Follow `DESIGN.md` guidelines. 
 - Use existing components in `src/Vira/Widgets/*.hs` before creating new ones.
 
-## Coding Guidelines
-
-### Haskell Style
+## Coding Guidelines: Haskell Style
 - Use `LambdaCase` and `where` for local functions
 - Fix all GHC warnings
 - Use `relude` over Prelude
 - Use `staticWhich` for runtime dependencies (see `Vira.Lib.Git`)
 
-### Project Structure
+## Project Structure
 - `Vira.Lib.*` - Future 3rd party libraries (no external Vira types)
 - Follow Volatility-Based Decomposition
 - Sync code changes with DESIGN.md
-- Regenerate cabal: `pre-commit run -a`
+- Don't update .cabal files; we use hpack.
+    - Regenerate cabal: `pre-commit run -a`
 
-## Development
-
-### Testing
+## Building
 - Prefer `cabal build` (ran in Nix devShell) over `nix build`
-- Fix all introduced GHC warnings
+- **IMPORTANT** Always fix all introduced GHC warnings
 
 ## Reporting
 

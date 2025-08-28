@@ -36,6 +36,9 @@ library
       Vira.App.Servant
       Vira.App.Server
       Vira.App.Stack
+      Vira.Event.Broadcast
+      Vira.Event.Logger
+      Vira.Event.Type
       Vira.Lib.Attic
       Vira.Lib.Cachix
       Vira.Lib.Git
@@ -51,6 +54,7 @@ library
       Vira.State.Acid
       Vira.State.Core
       Vira.State.Type
+      Vira.Stream.Events
       Vira.Stream.Log
       Vira.Stream.Status
       Vira.Supervisor.Core

@@ -2,6 +2,7 @@
 module Vira.App.Stack where
 
 import Colog (Message)
+import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Data.Acid (AcidState)
 import Effectful (Eff, IOE, runEff)
 import Effectful.Colog (Log)
@@ -14,6 +15,7 @@ import Servant (Handler (Handler), ServerError)
 import Servant.Links (Link)
 import Vira.App.CLI (CLISettings)
 import Vira.App.LinkTo.Type (LinkTo)
+import Vira.Event.Type (TimestampedEvent)
 import Vira.Lib.Logging (runLogActionStdout)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
@@ -58,4 +60,6 @@ data AppState = AppState
     --
     -- This is decoupled from servant types deliberately to avoid cyclic imports.
     linkTo :: LinkTo -> Link
+  , -- Event subscribers for real-time status updates
+    eventSubscribers :: TVar [CircularBuffer TimestampedEvent]
   }

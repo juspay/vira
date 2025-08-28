@@ -27,6 +27,7 @@ data LinkTo
   | SettingsUpdateAttic
   | SettingsDeleteAttic
   | StatusGet
+  | EventsGet
 
 linkShortTitle :: LinkTo -> Text
 linkShortTitle = \case
@@ -48,3 +49,4 @@ linkShortTitle = \case
   SettingsUpdateAttic -> "Attic Settings" -- unused
   SettingsDeleteAttic -> "Delete Attic Settings" -- unused
   StatusGet -> "Status"
+  EventsGet -> "Events"

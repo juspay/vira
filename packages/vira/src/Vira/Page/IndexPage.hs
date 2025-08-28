@@ -13,6 +13,7 @@ import Vira.App qualified as App
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.SettingsPage qualified as SettingsPage
+import Vira.Stream.Events qualified as Events
 import Vira.Stream.Status qualified as Status
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Layout qualified as W
@@ -24,6 +25,7 @@ data Routes mode = Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _settings :: mode :- "settings" Servant.API.:> NamedRoutes SettingsPage.Routes
   , _status :: mode :- "status" Servant.API.:> Status.StreamRoute
+  , _events :: mode :- "events" Servant.API.:> Events.StreamRoute
   }
   deriving stock (Generic)
 
@@ -50,6 +52,7 @@ handlers cfg =
     , _jobs = JobPage.handlers cfg
     , _settings = SettingsPage.handlers cfg
     , _status = pure $ recommendedEventSourceHeaders $ Status.streamRouteHandler cfg
+    , _events = pure $ recommendedEventSourceHeaders $ Events.streamRouteHandler cfg
     }
   where
     linkText = show . linkURI
