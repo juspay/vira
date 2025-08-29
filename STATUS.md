@@ -15,14 +15,14 @@ From HTMX standpoint, it may be beneficial to have the top-level `<body>` to cre
 
 Each step can be developed and verified independently.
 
-#### 1. Event System & Queue
+#### [DONE] 1. Event System & Queue
 Add `CircularBuffer` to `AppState` to queue existing acid-state actions (e.g. `JobUpdateStatusA`) as events, using their existing `SafeCopy` instances. This could potentially happen in `Vira.App.AcidState::update`.
 
-#### 2. Single SSE Stream
+#### [TODO] 2. Single SSE Stream
 Replace per-component SSE connections with one body-level stream broadcasting all events with event type filtering.
 
-#### 3. HTMX Integration
+#### [TODO] 3. HTMX Integration
 Update HTMX to use single SSE connection with event filtering for sub-elements to subscribe to specific event types.
 
-#### 4. Migration
+#### [TODO] 4. Migration
 Incrementally migrate existing status displays to the new system while maintaining backward compatibility.
