@@ -67,13 +67,19 @@ data AppState = AppState
 
 Use `lift` to perform effects.
 -}
-type VHtml = HtmlT (Eff AppServantStack)
+type VHtml = HtmlT (Eff AppStack)
 
 -- | Convert a `VHtml` to a Lucid `Html`
-runVHtml :: VHtml () -> Eff AppServantStack (Html ())
+runVHtml :: VHtml () -> Eff AppStack (Html ())
 runVHtml htmlT = do
   (builder, _) <- Lucid.runHtmlT htmlT
   pure $ toHtmlRaw $ toLazyByteString builder
+
+-- | Convert VHtml to Html in the Servant effect stack
+runVHtmlInServant :: VHtml () -> Eff AppServantStack (Html ())
+runVHtmlInServant vhtml = do
+  cfg <- ask @AppState
+  liftIO $ runApp cfg $ runVHtml vhtml
 
 hoistVHtml :: Html () -> VHtml ()
 hoistVHtml = Lucid.hoistHtmlT (pure . runIdentity)

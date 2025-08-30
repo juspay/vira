@@ -19,7 +19,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Stack (VHtml, linkToLink, linkToUrl, runVHtml)
+import Vira.App.Stack (VHtml, linkToLink, linkToUrl, runVHtmlInServant)
 import Vira.Lib.Attic
 import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)
@@ -75,7 +75,7 @@ viewHandler jobId = do
         , LinkTo.Job jobId
         ]
   cfg <- ask
-  runVHtml $ W.layout cfg crumbs $ viewJob job
+  runVHtmlInServant $ W.layout cfg crumbs $ viewJob job
 
 killHandler :: JobId -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 killHandler jobId = do

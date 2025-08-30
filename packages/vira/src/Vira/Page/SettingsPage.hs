@@ -23,7 +23,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Stack (VHtml, linkToLink)
+import Vira.App.Stack (VHtml, linkToLink, runVHtmlInServant)
 import Vira.Lib.Attic (AtticServer (..))
 import Vira.Lib.Logging
 import Vira.State.Acid qualified as St
@@ -62,7 +62,7 @@ viewHandler = do
   cfg <- ask
   mCachix <- App.query St.GetCachixSettingsA
   mAttic <- App.query St.GetAtticSettingsA
-  App.runVHtml $ W.layout cfg [LinkTo.Settings] $ viewSettings mCachix mAttic
+  runVHtmlInServant $ W.layout cfg [LinkTo.Settings] $ viewSettings mCachix mAttic
 
 updateCachixHandler :: CachixSettings -> Eff App.AppServantStack FormResp
 updateCachixHandler settings = do

@@ -32,7 +32,7 @@ handlers :: App.AppState -> Routes AsServer
 handlers cfg =
   Routes
     { _home = App.runAppInServant cfg $ do
-        App.runVHtml $
+        App.runVHtmlInServant $
           W.layout cfg [] $
             heroWelcome menu
     , _repos = RegistryPage.handlers cfg

@@ -16,7 +16,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Stack (VHtml, linkToLink, linkToUrl)
+import Vira.App.Stack (VHtml, linkToLink, linkToUrl, runVHtmlInServant)
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Page.JobPage qualified as JobPage
@@ -58,7 +58,7 @@ branchViewHandler repoName branchName = do
   jobs <- App.query $ St.GetJobsByBranchA repoName branchName
   cfg <- ask
   let branchCrumbs = crumbs <> [LinkTo.Repo repoName, LinkTo.RepoBranch repoName branchName]
-  App.runVHtml $ W.layout cfg branchCrumbs $ viewRepoBranch repo branch branches jobs
+  runVHtmlInServant $ W.layout cfg branchCrumbs $ viewRepoBranch repo branch branches jobs
 
 viewHandler :: RepoName -> Eff App.AppServantStack (Html ())
 viewHandler name = do
@@ -66,7 +66,7 @@ viewHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   branches <- App.query $ St.GetBranchesByRepoA name
   allJobs <- App.query $ St.GetJobsByRepoA repo.name
-  App.runVHtml $ W.layout cfg (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branches allJobs
+  runVHtmlInServant $ W.layout cfg (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branches allJobs
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do

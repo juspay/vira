@@ -18,7 +18,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Stack (VHtml, linkToLink, linkToUrl)
+import Vira.App.Stack (VHtml, linkToLink, linkToUrl, runVHtmlInServant)
 import Vira.Lib.Logging
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.State.Acid qualified as St
@@ -55,7 +55,7 @@ handleListing = do
   cfg <- ask
   samples <- App.query St.GetAllReposA
   let crumbs = [LinkTo.RepoListing]
-  App.runVHtml $ W.layout cfg crumbs $ viewRepoList samples
+  runVHtmlInServant $ W.layout cfg crumbs $ viewRepoList samples
 
 addRepoHandler :: Repo -> Eff App.AppServantStack FormResp
 addRepoHandler repo = do
@@ -64,7 +64,7 @@ addRepoHandler repo = do
     Just _repo -> do
       log Debug $ "Repository exists " <> toText repo.name
       -- Show error message instead of redirecting
-      errorHtml <- App.runVHtml $ do
+      errorHtml <- runVHtmlInServant $ do
         newRepoForm
         W.viraAlert_ W.AlertError $ do
           p_ [class_ "text-red-800 font-medium"] $ do
