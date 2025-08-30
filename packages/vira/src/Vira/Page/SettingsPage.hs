@@ -61,7 +61,7 @@ viewHandler = do
   cfg <- ask
   mCachix <- App.query St.GetCachixSettingsA
   mAttic <- App.query St.GetAtticSettingsA
-  pure $ W.layout cfg [LinkTo.Settings] $ viewSettings cfg.linkTo mCachix mAttic
+  App.runVHtml $ W.layout cfg [LinkTo.Settings] $ viewSettings cfg.linkTo mCachix mAttic
 
 updateCachixHandler :: CachixSettings -> Eff App.AppServantStack FormResp
 updateCachixHandler settings = do

@@ -10,11 +10,11 @@ import Effectful.Concurrent.Async (Concurrent, runConcurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem, runFileSystem)
 import Effectful.Process (Process, runProcess)
-import Effectful.Reader.Dynamic (Reader, runReader)
+import Effectful.Reader.Dynamic (Reader, ask, runReader)
 import Lucid.Base (Html, HtmlT, ToHtml (toHtmlRaw))
 import Lucid.Base qualified as Lucid
 import Servant (Handler (Handler), ServerError)
-import Servant.Links (Link)
+import Servant.Links (Link, linkURI)
 import Vira.App.CLI (CLISettings)
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.Lib.Logging (runLogActionStdout)
@@ -74,3 +74,13 @@ runVHtml :: VHtml () -> Eff AppServantStack (Html ())
 runVHtml htmlT = do
   (builder, _) <- Lucid.runHtmlT htmlT
   pure $ toHtmlRaw $ toLazyByteString builder
+
+hoistVHtml :: Html () -> VHtml ()
+hoistVHtml = Lucid.hoistHtmlT (pure . runIdentity)
+
+-- | Helper to get a URL string for a LinkTo
+linkToUrl :: LinkTo -> VHtml Text
+linkToUrl linkToValue = do
+  cfg <- lift $ ask @AppState
+  let link = linkTo cfg linkToValue
+  pure $ toText $ show @String $ linkURI link

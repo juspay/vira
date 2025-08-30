@@ -60,7 +60,7 @@ viewInner linkTo jobs = do
         "/"
         span_ $ code_ $ toHtml @Text $ show jobId
 
-indicator :: Bool -> Html ()
+indicator :: (Monad m) => Bool -> HtmlT m ()
 indicator active = do
   let (iconSvg, classes) =
         if active

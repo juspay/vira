@@ -57,8 +57,7 @@ branchViewHandler repoName branchName = do
   jobs <- App.query $ St.GetJobsByBranchA repoName branchName
   cfg <- ask
   let branchCrumbs = crumbs <> [LinkTo.Repo repoName, LinkTo.RepoBranch repoName branchName]
-  pure $ W.layout cfg branchCrumbs $ do
-    viewRepoBranch cfg.linkTo repo branch branches jobs
+  App.runVHtml $ W.layout cfg branchCrumbs $ viewRepoBranch cfg.linkTo repo branch branches jobs
 
 viewHandler :: RepoName -> Eff App.AppServantStack (Html ())
 viewHandler name = do
@@ -66,8 +65,7 @@ viewHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   branches <- App.query $ St.GetBranchesByRepoA name
   allJobs <- App.query $ St.GetJobsByRepoA repo.name
-  pure $ W.layout cfg (crumbs <> [LinkTo.Repo name]) $ do
-    viewRepo cfg.linkTo repo branches allJobs
+  App.runVHtml $ W.layout cfg (crumbs <> [LinkTo.Repo name]) $ viewRepo cfg.linkTo repo branches allJobs
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do

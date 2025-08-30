@@ -56,7 +56,7 @@ W.viraCodeBlock_ "Error: Package not found in registry"
 Use for longer code snippets, commit hashes, commands, or error messages.
 For inline code within text, use 'viraCodeInline_' instead.
 -}
-viraCodeBlock_ :: Text -> Html ()
+viraCodeBlock_ :: (Monad m) => Text -> HtmlT m ()
 viraCodeBlock_ code = do
   div_ [class_ "bg-gray-50 border border-gray-200 rounded-lg p-4 overflow-x-auto"] $ do
     code_ [class_ "text-sm text-gray-800 font-mono break-all"] $ toHtml code
@@ -92,6 +92,6 @@ span_ $ do
 Uses smaller, more subtle styling than 'viraCodeBlock_'.
 Integrates seamlessly with surrounding text flow.
 -}
-viraCodeInline_ :: Text -> Html ()
+viraCodeInline_ :: (Monad m) => Text -> HtmlT m ()
 viraCodeInline_ code = do
   code_ [class_ "px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded font-mono"] $ toHtml code

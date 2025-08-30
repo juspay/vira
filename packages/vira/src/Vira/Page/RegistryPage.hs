@@ -54,8 +54,7 @@ handleListing = do
   cfg <- ask
   samples <- App.query St.GetAllReposA
   let crumbs = [LinkTo.RepoListing]
-  pure $ W.layout cfg crumbs $ do
-    viewRepoList cfg.linkTo samples
+  App.runVHtml $ W.layout cfg crumbs $ viewRepoList cfg.linkTo samples
 
 addRepoHandler :: Repo -> Eff App.AppServantStack FormResp
 addRepoHandler repo = do

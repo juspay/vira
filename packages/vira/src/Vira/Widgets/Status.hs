@@ -60,7 +60,7 @@ Each status includes both semantic colors and appropriate icons:
 
 Uses 'St.JobStatus' directly from the domain model to prevent invalid status values.
 -}
-viraStatusBadge_ :: St.JobStatus -> Html ()
+viraStatusBadge_ :: (Monad m) => St.JobStatus -> HtmlT m ()
 viraStatusBadge_ jobStatus = do
   let (statusText, colorClass, iconSvg, iconClass) = case jobStatus of
         St.JobRunning -> ("Running" :: Text, "bg-blue-100 text-blue-800 border-blue-200", Icon.loader_2, "animate-spin")

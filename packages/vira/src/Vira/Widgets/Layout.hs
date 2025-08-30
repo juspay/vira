@@ -40,11 +40,11 @@ import Lucid
 import Servant.Links (Link, URI (..), linkURI)
 import Vira.App.CLI (CLISettings (basePath), instanceName)
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
-import Vira.App.Stack (AppState (cliSettings, linkTo))
+import Vira.App.Stack (AppState (cliSettings, linkTo), VHtml, hoistVHtml)
 import Vira.Stream.Status qualified as Status
 
 -- | Common HTML layout for all routes.
-layout :: (Monad m) => AppState -> [LinkTo] -> HtmlT m () -> HtmlT m ()
+layout :: AppState -> [LinkTo] -> Html () -> VHtml ()
 layout cfg crumbs content = do
   doctype_
   html_ $ do
@@ -79,7 +79,7 @@ layout cfg crumbs content = do
         div_ [class_ "container mx-auto px-4 py-6 lg:px-8"] $ do
           let crumbs' = crumbs <&> \l -> (toHtml $ linkShortTitle l, linkURI $ cfg.linkTo l)
           breadcrumbs cfg.linkTo crumbs'
-          content
+          hoistVHtml content
   where
     siteTitle = "Vira (" <> cfg.cliSettings.instanceName <> ")"
     -- Mobile friendly head tags
@@ -96,16 +96,18 @@ layout cfg crumbs content = do
       script_ [src_ "js/htmx-extensions/src/sse/sse.js"] $ mempty @Text
 
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
-breadcrumbs :: forall m. (Monad m) => (LinkTo -> Link) -> [(HtmlT m (), URI)] -> HtmlT m ()
+breadcrumbs :: (LinkTo -> Link) -> [(Html (), URI)] -> VHtml ()
 breadcrumbs linkTo rs' = do
   let home = URI {uriScheme = "", uriAuthority = Nothing, uriPath = "", uriQuery = [], uriFragment = ""}
       logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
       rs = (logo, home) :| rs'
   nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between p-4 bg-indigo-600 rounded-t-xl"] $ do
-    ol_ [class_ "flex flex-1 items-center space-x-2 text-lg list-none"] $
-      renderCrumbs (toList rs)
+    hoistVHtml $
+      ol_ [class_ "flex flex-1 items-center space-x-2 text-lg list-none"] $
+        renderCrumbs (toList rs)
     Status.viewStream linkTo
   where
+    renderCrumbs :: [(Html (), URI)] -> Html ()
     renderCrumbs = \case
       [] -> pass
       [x] -> do
@@ -114,7 +116,7 @@ breadcrumbs linkTo rs' = do
         li_ [class_ "flex items-center"] $ renderCrumb (second Just x)
         li_ [class_ "flex items-center"] chevronSvg
         renderCrumbs xs
-    renderCrumb :: (HtmlT m (), Maybe URI) -> HtmlT m ()
+    renderCrumb :: (Html (), Maybe URI) -> Html ()
     renderCrumb (s, mr) = case mr of
       Just r ->
         a_
@@ -132,7 +134,7 @@ Standardized page header with title and subtitle.
 
 Features indigo styling that connects visually with breadcrumbs.
 -}
-viraPageHeader_ :: Text -> Html () -> Html ()
+viraPageHeader_ :: (Monad m) => Text -> HtmlT m () -> HtmlT m ()
 viraPageHeader_ title subtitle = do
   div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-8 mb-8"] $ do
     h1_ [class_ "text-4xl font-bold text-indigo-900 tracking-tight mb-4"] $ toHtml title
@@ -143,7 +145,7 @@ Page header with title, subtitle, and action buttons.
 
 Same styling as viraPageHeader_ but supports action buttons on the right.
 -}
-viraPageHeaderWithActions_ :: Text -> Html () -> Html () -> Html ()
+viraPageHeaderWithActions_ :: (Monad m) => Text -> HtmlT m () -> HtmlT m () -> HtmlT m ()
 viraPageHeaderWithActions_ title subtitle actions = do
   div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-8 mb-8"] $ do
     div_ [class_ "flex items-start justify-between"] $ do
@@ -214,6 +216,6 @@ W.viraCard_ [class_ "p-6"] $ do
 
 Includes my-6 (24px) vertical margin for proper content separation.
 -}
-viraDivider_ :: Html ()
+viraDivider_ :: (Monad m) => HtmlT m ()
 viraDivider_ = do
   hr_ [class_ "border-gray-200 my-6"]

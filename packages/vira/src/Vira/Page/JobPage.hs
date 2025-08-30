@@ -19,6 +19,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.App.Stack (VHtml, runVHtml)
 import Vira.Lib.Attic
 import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)
@@ -74,7 +75,8 @@ viewHandler jobId = do
         , LinkTo.Job jobId
         ]
   cfg <- ask
-  W.layout cfg crumbs <$> viewJob cfg.linkTo job
+  jobContent <- runVHtml $ viewJob cfg.linkTo job
+  runVHtml $ W.layout cfg crumbs jobContent
 
 killHandler :: JobId -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 killHandler jobId = do
@@ -82,11 +84,11 @@ killHandler jobId = do
   Supervisor.killTask supervisor jobId
   pure $ addHeader True "Killed"
 
-viewJob :: (LinkTo.LinkTo -> Link) -> St.Job -> Eff App.AppServantStack (Html ())
+viewJob :: (LinkTo.LinkTo -> Link) -> St.Job -> VHtml ()
 viewJob linkTo job = do
   let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
-  logView <- JobLog.view linkTo job
-  pure $ W.viraSection_ [] $ do
+
+  W.viraSection_ [] $ do
     W.viraPageHeader_ ("Job #" <> (toText @String $ show job.jobId)) $ do
       div_ [class_ "flex items-center justify-between"] $ do
         div_ [class_ "flex items-center space-x-4"] $ do
@@ -104,7 +106,7 @@ viewJob linkTo job = do
 
     -- Job logs
     W.viraCard_ [class_ "p-6"] $ do
-      logView
+      JobLog.view job
 
 viewJobHeader :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
 viewJobHeader linkTo job = do
@@ -117,11 +119,11 @@ viewJobHeader linkTo job = do
         viewCommit job.jobCommit
       viewJobStatus job.jobStatus
 
-viewCommit :: Git.CommitID -> Html ()
+viewCommit :: (Monad m) => Git.CommitID -> HtmlT m ()
 viewCommit (Git.CommitID commit) = do
   W.viraCodeInline_ (T.take 8 $ toText commit)
 
-viewJobStatus :: St.JobStatus -> Html ()
+viewJobStatus :: (Monad m) => St.JobStatus -> HtmlT m ()
 viewJobStatus status = do
   W.viraStatusBadge_ status
 

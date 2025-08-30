@@ -26,6 +26,7 @@ import Servant.Types.SourceT qualified as S
 import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.App.Stack (VHtml, linkToUrl)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
@@ -111,38 +112,42 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
           -- Send all available lines as a single chunk
           pure $ S.Yield (Chunk n availableLines) $ step (n + 1) (Streaming queue)
 
-viewStream :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
-viewStream linkTo job = do
-  let streamLink = show . linkURI $ linkTo $ LinkTo.JobLogStream job.jobId
-      sseAttrs =
+viewStream :: St.Job -> VHtml ()
+viewStream job = do
+  streamLink <- linkToUrl $ LinkTo.JobLogStream job.jobId
+  let sseAttrs =
         [ hxExt_ "sse"
         , hxSseConnect_ streamLink
         , hxSseClose_ $ logChunkType $ Stop 0
         ]
-  div_ sseAttrs $ do
-    -- Div containing log messages
-    div_
-      [ hxSseSwap_ $ logChunkType $ Chunk 0 (one "")
-      , hxSwap_ "beforeend"
-      , hxTarget_ ("#" <> sseTarget)
-      ]
-      $ do
-        logViewerWidget linkTo job $ do
-          "Loading log ..."
-    -- Div containing streaming status
-    div_
-      [ hxSseSwap_ $ logChunkType $ Stop 0
-      , hxSwap_ "innerHTML"
-      , class_ "flex items-center justify-center py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg"
-      ]
-      $ do
-        div_ [class_ "flex items-center space-x-2 text-sm text-gray-600"] $ do
-          Status.indicator True
-          span_ [class_ "font-medium"] "Streaming build logs..."
+  div_ sseAttrs pass
+
+  -- Div containing log messages
+  div_
+    [ hxSseSwap_ $ logChunkType $ Chunk 0 (one "")
+    , hxSwap_ "beforeend"
+    , hxTarget_ ("#" <> sseTarget)
+    ]
+    pass
+
+  logViewerWidget job $ do
+    "Loading log ..."
+
+  -- Div containing streaming status
+  div_
+    [ hxSseSwap_ $ logChunkType $ Stop 0
+    , hxSwap_ "innerHTML"
+    , class_ "flex items-center justify-center py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg"
+    ]
+    $ do
+      div_ [class_ "flex items-center space-x-2 text-sm text-gray-600"] $ do
+        Status.indicator True
+        span_ [class_ "font-medium"] "Streaming build logs..."
 
 -- | Log viewer widget agnostic to static or streaming nature.
-logViewerWidget :: (LinkTo.LinkTo -> Link) -> Job -> Html () -> Html ()
-logViewerWidget linkTo job w = do
+logViewerWidget :: Job -> (forall m. (Monad m) => HtmlT m ()) -> VHtml ()
+logViewerWidget job w = do
+  jobLogUrl <- linkToUrl $ LinkTo.JobLog job.jobId
   div_ [class_ "space-y-4"] $ do
     -- Header with actions
     div_ [class_ "flex items-center justify-between"] $ do
@@ -150,7 +155,7 @@ logViewerWidget linkTo job w = do
       a_
         [ target_ "blank"
         , class_ "text-sm text-gray-600 hover:text-indigo-600 transition-colors font-medium"
-        , href_ $ show . linkURI $ linkTo $ LinkTo.JobLog job.jobId
+        , href_ jobLogUrl
         ]
         "View Full Log →"
 
