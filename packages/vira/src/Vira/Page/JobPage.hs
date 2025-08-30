@@ -19,7 +19,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Stack (VHtml, runVHtml)
+import Vira.App.Stack (VHtml, linkToLink, linkToUrl, runVHtml)
 import Vira.Lib.Attic
 import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)
@@ -75,8 +75,7 @@ viewHandler jobId = do
         , LinkTo.Job jobId
         ]
   cfg <- ask
-  jobContent <- runVHtml $ viewJob cfg.linkTo job
-  runVHtml $ W.layout cfg crumbs jobContent
+  runVHtml $ W.layout cfg crumbs $ viewJob job
 
 killHandler :: JobId -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 killHandler jobId = do
@@ -84,8 +83,8 @@ killHandler jobId = do
   Supervisor.killTask supervisor jobId
   pure $ addHeader True "Killed"
 
-viewJob :: (LinkTo.LinkTo -> Link) -> St.Job -> VHtml ()
-viewJob linkTo job = do
+viewJob :: St.Job -> VHtml ()
+viewJob job = do
   let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
 
   W.viraSection_ [] $ do
@@ -96,10 +95,11 @@ viewJob linkTo job = do
           viewCommit job.jobCommit
         div_ [class_ "flex items-center space-x-4"] $ do
           viewJobStatus job.jobStatus
-          when jobActive $
+          when jobActive $ do
+            killLink <- linkToLink $ LinkTo.Kill job.jobId
             W.viraButton_
               W.ButtonDestructive
-              [ hxPostSafe_ $ linkTo $ LinkTo.Kill job.jobId
+              [ hxPostSafe_ killLink
               , hxSwapS_ AfterEnd
               ]
               "🛑 Kill Job"
@@ -108,9 +108,10 @@ viewJob linkTo job = do
     W.viraCard_ [class_ "p-6"] $ do
       JobLog.view job
 
-viewJobHeader :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
-viewJobHeader linkTo job = do
-  a_ [title_ "View Job Details", href_ $ show . linkURI $ linkTo $ LinkTo.Job job.jobId, class_ "block"] $ do
+viewJobHeader :: St.Job -> VHtml ()
+viewJobHeader job = do
+  jobUrl <- linkToUrl $ LinkTo.Job job.jobId
+  a_ [title_ "View Job Details", href_ jobUrl, class_ "block"] $ do
     div_ [class_ "flex items-center justify-between"] $ do
       div_ [class_ "flex items-center space-x-4"] $ do
         div_ [class_ "flex-shrink-0"] $ do

@@ -26,7 +26,7 @@ import Servant.Types.SourceT qualified as S
 import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Stack (VHtml, linkToUrl)
+import Vira.App.Stack (VHtml, hoistVHtml, linkToUrl)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
@@ -54,7 +54,7 @@ logChunkId = \case
 
 logChunkMsg :: LogChunk -> LByteString
 logChunkMsg = \case
-  Chunk _ logLines -> Lucid.renderBS $ pre_ $ toHtml $ unlines $ toList logLines
+  Chunk _ logLines -> Lucid.renderBS $ toHtml $ unlines $ toList logLines
   Stop _ -> Lucid.renderBS $
     div_ [class_ "flex items-center space-x-2 text-sm text-gray-600"] $ do
       Status.indicator False
@@ -115,34 +115,42 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
 viewStream :: St.Job -> VHtml ()
 viewStream job = do
   streamLink <- linkToUrl $ LinkTo.JobLogStream job.jobId
-  let sseAttrs =
-        [ hxExt_ "sse"
-        , hxSseConnect_ streamLink
-        , hxSseClose_ $ logChunkType $ Stop 0
-        ]
-  div_ sseAttrs pass
-
-  -- Div containing log messages
   div_
-    [ hxSseSwap_ $ logChunkType $ Chunk 0 (one "")
-    , hxSwap_ "beforeend"
-    , hxTarget_ ("#" <> sseTarget)
-    ]
-    pass
-
-  logViewerWidget job $ do
-    "Loading log ..."
-
-  -- Div containing streaming status
-  div_
-    [ hxSseSwap_ $ logChunkType $ Stop 0
-    , hxSwap_ "innerHTML"
-    , class_ "flex items-center justify-center py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg"
+    [ hxExt_ "sse"
+    , hxSseConnect_ streamLink
+    , hxSseClose_ $ logChunkType $ Stop 0
     ]
     $ do
-      div_ [class_ "flex items-center space-x-2 text-sm text-gray-600"] $ do
-        Status.indicator True
-        span_ [class_ "font-medium"] "Streaming build logs..."
+      -- Hidden div to handle log chunk SSE events
+      div_
+        [ hxSseSwap_ $ logChunkType $ Chunk 0 (one "")
+        , hxSwap_ "beforeend"
+        , hxTarget_ ("#" <> sseTarget)
+        , style_ "display: none;"
+        ]
+        pass
+
+      -- Hidden div to handle stop SSE events
+      div_
+        [ hxSseSwap_ $ logChunkType $ Stop 0
+        , hxSwap_ "innerHTML"
+        , hxTarget_ "#streaming-status"
+        , style_ "display: none;"
+        ]
+        pass
+
+      logViewerWidget job $ do
+        "Loading log ..."
+
+      -- Streaming status area
+      div_
+        [ id_ "streaming-status"
+        , class_ "flex items-center justify-center py-3 border-t border-gray-200 bg-gray-50 rounded-b-lg"
+        ]
+        $ do
+          div_ [class_ "flex items-center space-x-2 text-sm text-gray-600"] $ do
+            Status.indicator True
+            span_ [class_ "font-medium"] "Streaming build logs..."
 
 -- | Log viewer widget agnostic to static or streaming nature.
 logViewerWidget :: Job -> (forall m. (Monad m) => HtmlT m ()) -> VHtml ()
@@ -171,7 +179,7 @@ logViewerWidget job w = do
           , hyperscript_ "on htmx:afterSwap set #logContainer.scrollTop to #logContainer.scrollHeight"
           ]
           $ do
-            code_ w
+            code_ $ hoistVHtml w
 
 -- | ID of the HTML element targeted by SSE message swaps (log streaming)
 sseTarget :: Text

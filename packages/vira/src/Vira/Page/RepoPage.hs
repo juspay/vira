@@ -16,6 +16,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.App.Stack (VHtml, linkToLink, linkToUrl)
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Page.JobPage qualified as JobPage
@@ -57,7 +58,7 @@ branchViewHandler repoName branchName = do
   jobs <- App.query $ St.GetJobsByBranchA repoName branchName
   cfg <- ask
   let branchCrumbs = crumbs <> [LinkTo.Repo repoName, LinkTo.RepoBranch repoName branchName]
-  App.runVHtml $ W.layout cfg branchCrumbs $ viewRepoBranch cfg.linkTo repo branch branches jobs
+  App.runVHtml $ W.layout cfg branchCrumbs $ viewRepoBranch repo branch branches jobs
 
 viewHandler :: RepoName -> Eff App.AppServantStack (Html ())
 viewHandler name = do
@@ -65,7 +66,7 @@ viewHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   branches <- App.query $ St.GetBranchesByRepoA name
   allJobs <- App.query $ St.GetJobsByRepoA repo.name
-  App.runVHtml $ W.layout cfg (crumbs <> [LinkTo.Repo name]) $ viewRepo cfg.linkTo repo branches allJobs
+  App.runVHtml $ W.layout cfg (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branches allJobs
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
@@ -86,8 +87,10 @@ deleteHandler name = do
       throwError err404
 
 -- Repository header component with actions
-repoPageHeader :: (LinkTo.LinkTo -> Link) -> St.Repo -> Html ()
-repoPageHeader linkTo repo = do
+repoPageHeader :: St.Repo -> VHtml ()
+repoPageHeader repo = do
+  updateLink <- linkToLink $ LinkTo.RepoUpdate repo.name
+  deleteLink <- linkToLink $ LinkTo.RepoDelete repo.name
   W.viraPageHeader_
     (toText $ toString repo.name)
     ( div_ [class_ "flex items-center justify-between"] $ do
@@ -96,7 +99,7 @@ repoPageHeader linkTo repo = do
         div_ [class_ "flex items-center gap-2 ml-4"] $ do
           W.viraButton_
             W.ButtonSecondary
-            [ hxPostSafe_ $ linkTo $ LinkTo.RepoUpdate repo.name
+            [ hxPostSafe_ updateLink
             , hxSwapS_ AfterEnd
             , title_ "Refresh branches"
             ]
@@ -105,7 +108,7 @@ repoPageHeader linkTo repo = do
               "Refresh"
           W.viraButton_
             W.ButtonDestructive
-            [ hxPostSafe_ $ linkTo $ LinkTo.RepoDelete repo.name
+            [ hxPostSafe_ deleteLink
             , hxSwapS_ AfterEnd
             , hxConfirm_ "Are you sure you want to delete this repository? This action cannot be undone."
             , title_ "Delete repository"
@@ -115,22 +118,22 @@ repoPageHeader linkTo repo = do
     )
 
 -- TODO: Can we use `HtmlT (ReaderT ..) ()` to avoid threading the linkTo function?
-viewRepo :: (LinkTo.LinkTo -> Link) -> St.Repo -> [St.Branch] -> [St.Job] -> Html ()
-viewRepo linkTo repo branches allJobs = do
-  repoPageHeader linkTo repo
-  repoLayout linkTo repo branches Nothing $ do
+viewRepo :: St.Repo -> [St.Branch] -> [St.Job] -> VHtml ()
+viewRepo repo branches allJobs = do
+  repoPageHeader repo
+  repoLayout repo branches Nothing $ do
     div_ [class_ "mb-8"] $ do
       div_ [class_ "flex items-center mb-3"] $ do
         div_ [class_ "text-gray-600 w-8 h-8 mr-3 flex items-center justify-center"] $ toHtmlRaw Icon.activity
         h2_ [class_ "text-2xl font-bold text-gray-800"] "All Branches"
       div_ [class_ "h-px bg-gray-200"] mempty
-    viewJobListing linkTo allJobs
+    viewJobListing allJobs
 
 -- Branch-specific view function
-viewRepoBranch :: (LinkTo.LinkTo -> Link) -> St.Repo -> St.Branch -> [St.Branch] -> [St.Job] -> Html ()
-viewRepoBranch linkTo repo branch branches jobs = do
-  repoPageHeader linkTo repo
-  repoLayout linkTo repo branches (Just branch.branchName) $ do
+viewRepoBranch :: St.Repo -> St.Branch -> [St.Branch] -> [St.Job] -> VHtml ()
+viewRepoBranch repo branch branches jobs = do
+  repoPageHeader repo
+  repoLayout repo branches (Just branch.branchName) $ do
     -- Enhanced branch header
     div_ [class_ "mb-8"] $ do
       div_ [class_ "flex items-start justify-between mb-6"] $ do
@@ -147,9 +150,10 @@ viewRepoBranch linkTo repo branch branches jobs = do
 
         -- Enhanced build button
         div_ [class_ "flex-shrink-0 ml-6"] $ do
+          buildLink <- linkToLink $ LinkTo.Build repo.name branch.branchName
           W.viraButton_
             W.ButtonSuccess
-            [ hxPostSafe_ $ linkTo $ LinkTo.Build repo.name branch.branchName
+            [ hxPostSafe_ buildLink
             , hxSwapS_ AfterEnd
             , class_ "transition-colors"
             ]
@@ -165,11 +169,11 @@ viewRepoBranch linkTo repo branch branches jobs = do
         div_ [class_ "text-gray-600 w-6 h-6 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.list
         h3_ [class_ "text-xl font-semibold text-gray-800"] "Build History"
 
-    viewJobListing linkTo jobs
+    viewJobListing jobs
 
 -- Job listing component with updated messaging
-viewJobListing :: (LinkTo.LinkTo -> Link) -> [St.Job] -> Html ()
-viewJobListing linkTo jobs = do
+viewJobListing :: [St.Job] -> VHtml ()
+viewJobListing jobs = do
   if null jobs
     then W.viraCard_ [class_ "p-12 text-center bg-gray-50"] $ do
       h3_ [class_ "text-xl font-semibold text-gray-700 mb-2"] "No builds yet"
@@ -177,15 +181,15 @@ viewJobListing linkTo jobs = do
         "Use the Build button to start a build"
     else div_ [class_ "space-y-4"] $ forM_ jobs $ \job -> do
       W.viraCard_ [class_ "p-4 hover:bg-gray-50 transition-colors"] $ do
-        JobPage.viewJobHeader linkTo job
+        JobPage.viewJobHeader job
 
 -- Repository layout component with sidebar and main content
-repoLayout :: (LinkTo.LinkTo -> Link) -> St.Repo -> [St.Branch] -> Maybe BranchName -> Html () -> Html ()
-repoLayout linkTo repo branches currentBranch content = do
+repoLayout :: St.Repo -> [St.Branch] -> Maybe BranchName -> VHtml () -> VHtml ()
+repoLayout repo branches currentBranch content = do
   div_ [class_ "grid grid-cols-4 gap-8"] $ do
     -- Sidebar
     div_ [class_ "col-span-1"] $ do
-      repoSidebar linkTo repo branches currentBranch
+      repoSidebar repo branches currentBranch
 
     -- Main content
     div_ [class_ "col-span-3"] $ do
@@ -193,8 +197,8 @@ repoLayout linkTo repo branches currentBranch content = do
         content
   where
     -- Sidebar component for repository navigation
-    repoSidebar :: (LinkTo.LinkTo -> Link) -> St.Repo -> [St.Branch] -> Maybe BranchName -> Html ()
-    repoSidebar linkToFunc repository branches' maybeCurrentBranch = do
+    repoSidebar :: St.Repo -> [St.Branch] -> Maybe BranchName -> VHtml ()
+    repoSidebar repository branches' maybeCurrentBranch = do
       W.viraCard_ [class_ "p-6 bg-gray-50"] $ do
         div_ [class_ "mb-6"] $ do
           h3_ [class_ "text-lg font-semibold text-gray-700 mb-2"] "Branches"
@@ -218,7 +222,8 @@ repoLayout linkTo repo branches currentBranch content = do
                 if allBranchesActive
                   then "flex items-center p-4 rounded-lg bg-indigo-50 border border-indigo-200"
                   else "flex items-center p-4 rounded-lg hover:bg-gray-50 transition-colors"
-          a_ [href_ $ show $ linkURI $ linkToFunc $ LinkTo.Repo repository.name, class_ allBranchesClass, data_ "branch-item" "all-branches"] $ do
+          repoUrl <- linkToUrl $ LinkTo.Repo repository.name
+          a_ [href_ repoUrl, class_ allBranchesClass, data_ "branch-item" "all-branches"] $ do
             div_ [class_ "flex-shrink-0 mr-3"] $ do
               div_ [class_ "w-5 h-5 flex items-center justify-center"] $ toHtmlRaw Icon.list
             div_ [class_ "flex-1"] $ do
@@ -229,14 +234,14 @@ repoLayout linkTo repo branches currentBranch content = do
 
           -- Individual branches with enhanced styling
           forM_ branches' $ \branch -> do
-            let url = linkURI $ linkToFunc $ LinkTo.RepoBranch repository.name branch.branchName
-                isCurrentBranch = maybeCurrentBranch == Just branch.branchName
+            branchUrl <- linkToUrl $ LinkTo.RepoBranch repository.name branch.branchName
+            let isCurrentBranch = maybeCurrentBranch == Just branch.branchName
                 branchClass =
                   if isCurrentBranch
                     then "flex items-center p-4 rounded-lg bg-indigo-50 border border-indigo-200"
                     else "flex items-center p-4 rounded-lg hover:bg-gray-50 transition-colors"
                 branchNameText = toText $ toString branch.branchName
-            a_ [href_ $ show url, class_ branchClass, data_ "branch-item" branchNameText] $ do
+            a_ [href_ branchUrl, class_ branchClass, data_ "branch-item" branchNameText] $ do
               div_ [class_ "flex-shrink-0 mr-3"] $ do
                 div_ [class_ "w-5 h-5 flex items-center justify-center"] $ toHtmlRaw Icon.git_branch
               div_ [class_ "flex-1 min-w-0"] $ do

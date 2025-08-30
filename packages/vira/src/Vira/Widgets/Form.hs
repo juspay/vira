@@ -135,7 +135,7 @@ W.viraFormGroup_
 Use this for all form fields to maintain consistent spacing.
 Pairs perfectly with 'viraLabel_' and 'viraInput_' components.
 -}
-viraFormGroup_ :: Html () -> Html () -> Html ()
+viraFormGroup_ :: (Monad m) => HtmlT m () -> HtmlT m () -> HtmlT m ()
 viraFormGroup_ label input = do
   div_ [class_ "space-y-2"] $ do
     label
@@ -200,7 +200,7 @@ Uses hyperscript for client-side filtering to provide instant feedback
 without server round-trips. Requires target elements to have appropriate
 data attributes for filtering.
 -}
-viraFilterInput_ :: Text -> [Attributes] -> Html ()
+viraFilterInput_ :: (Monad m) => Text -> [Attributes] -> HtmlT m ()
 viraFilterInput_ targetSelector attrs = do
   -- Extract attribute name from selector like "[data-branch-item]" -> "branchItem"
   let filterAttribute = case targetSelector of

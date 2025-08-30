@@ -69,7 +69,7 @@ No manual color class management required.
 
 Includes role="alert" for screen readers.
 -}
-viraAlert_ :: AlertType -> Html () -> Html ()
+viraAlert_ :: (Monad m) => AlertType -> HtmlT m () -> HtmlT m ()
 viraAlert_ alertType content = do
   let (colorClass, iconSvg, iconColor) = case alertType of
         AlertError -> ("bg-red-50 border-red-200", Icon.x, "text-red-500")

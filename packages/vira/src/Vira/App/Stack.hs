@@ -14,7 +14,7 @@ import Effectful.Reader.Dynamic (Reader, ask, runReader)
 import Lucid.Base (Html, HtmlT, ToHtml (toHtmlRaw))
 import Lucid.Base qualified as Lucid
 import Servant (Handler (Handler), ServerError)
-import Servant.Links (Link, linkURI)
+import Servant.Links (Link, URI, linkURI)
 import Vira.App.CLI (CLISettings)
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.Lib.Logging (runLogActionStdout)
@@ -78,9 +78,20 @@ runVHtml htmlT = do
 hoistVHtml :: Html () -> VHtml ()
 hoistVHtml = Lucid.hoistHtmlT (pure . runIdentity)
 
--- | Helper to get a URL string for a LinkTo
+-- | Helper to get a Link for a LinkTo (for hxPostSafe_ and similar)
+linkToLink :: LinkTo -> VHtml Link
+linkToLink linkToValue = do
+  cfg <- lift $ ask @AppState
+  pure $ linkTo cfg linkToValue
+
+-- | Helper to get a URI for a LinkTo
+linkToUri :: LinkTo -> VHtml URI
+linkToUri linkToValue = do
+  link <- linkToLink linkToValue
+  pure $ linkURI link
+
+-- | Helper to get a URL string for a LinkTo (for href attributes)
 linkToUrl :: LinkTo -> VHtml Text
 linkToUrl linkToValue = do
-  cfg <- lift $ ask @AppState
-  let link = linkTo cfg linkToValue
-  pure $ toText $ show @String $ linkURI link
+  uri <- linkToUri linkToValue
+  pure $ toText $ show @String $ uri

@@ -37,14 +37,14 @@ module Vira.Widgets.Layout (
 ) where
 
 import Lucid
-import Servant.Links (Link, URI (..), linkURI)
+import Servant.Links (Link, linkURI)
 import Vira.App.CLI (CLISettings (basePath), instanceName)
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
-import Vira.App.Stack (AppState (cliSettings, linkTo), VHtml, hoistVHtml)
+import Vira.App.Stack (AppState (cliSettings, linkTo), VHtml)
 import Vira.Stream.Status qualified as Status
 
 -- | Common HTML layout for all routes.
-layout :: AppState -> [LinkTo] -> Html () -> VHtml ()
+layout :: AppState -> [LinkTo] -> VHtml () -> VHtml ()
 layout cfg crumbs content = do
   doctype_
   html_ $ do
@@ -77,9 +77,8 @@ layout cfg crumbs content = do
       div_ [class_ "min-h-screen"] $ do
         -- Main container with clean styling
         div_ [class_ "container mx-auto px-4 py-6 lg:px-8"] $ do
-          let crumbs' = crumbs <&> \l -> (toHtml $ linkShortTitle l, linkURI $ cfg.linkTo l)
-          breadcrumbs cfg.linkTo crumbs'
-          hoistVHtml content
+          breadcrumbs cfg.linkTo crumbs
+          content
   where
     siteTitle = "Vira (" <> cfg.cliSettings.instanceName <> ")"
     -- Mobile friendly head tags
@@ -96,36 +95,40 @@ layout cfg crumbs content = do
       script_ [src_ "js/htmx-extensions/src/sse/sse.js"] $ mempty @Text
 
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
-breadcrumbs :: (LinkTo -> Link) -> [(Html (), URI)] -> VHtml ()
+breadcrumbs :: (LinkTo -> Link) -> [LinkTo] -> VHtml ()
 breadcrumbs linkTo rs' = do
-  let home = URI {uriScheme = "", uriAuthority = Nothing, uriPath = "", uriQuery = [], uriFragment = ""}
-      logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
-      rs = (logo, home) :| rs'
+  let logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
   nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between p-4 bg-indigo-600 rounded-t-xl"] $ do
-    hoistVHtml $
-      ol_ [class_ "flex flex-1 items-center space-x-2 text-lg list-none"] $
-        renderCrumbs (toList rs)
+    ol_ [class_ "flex flex-1 items-center space-x-2 text-lg list-none"] $ do
+      -- Logo as first element
+      li_ [class_ "flex items-center"] $
+        span_ [class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm"] logo
+      -- Render breadcrumb links
+      renderCrumbs rs'
     Status.viewStream linkTo
   where
-    renderCrumbs :: [(Html (), URI)] -> Html ()
+    renderCrumbs :: [LinkTo] -> VHtml ()
     renderCrumbs = \case
       [] -> pass
       [x] -> do
-        li_ [class_ "flex items-center"] $ renderCrumb (fst x, Nothing)
-      (x : xs) -> do
-        li_ [class_ "flex items-center"] $ renderCrumb (second Just x)
         li_ [class_ "flex items-center"] chevronSvg
+        li_ [class_ "flex items-center"] $ renderCrumb x True
+      (x : xs) -> do
+        li_ [class_ "flex items-center"] chevronSvg
+        li_ [class_ "flex items-center"] $ renderCrumb x False
         renderCrumbs xs
-    renderCrumb :: (Html (), Maybe URI) -> Html ()
-    renderCrumb (s, mr) = case mr of
-      Just r ->
-        a_
-          [ href_ (show r)
-          , class_ "text-white/90 hover:text-white transition-smooth px-3 py-2 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30 font-medium"
-          ]
-          s
-      Nothing ->
-        span_ [class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm"] s
+    renderCrumb :: LinkTo -> Bool -> VHtml ()
+    renderCrumb linkToValue isLast = do
+      let title = linkShortTitle linkToValue
+      if isLast
+        then span_ [class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm"] $ toHtml title
+        else
+          a_
+            [ href_ $ show $ linkURI $ linkTo linkToValue
+            , class_ "text-white/90 hover:text-white transition-smooth px-3 py-2 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30 font-medium"
+            ]
+            $ toHtml title
+    chevronSvg :: VHtml ()
     chevronSvg =
       span_ [class_ "mx-1 text-white/60"] $ toHtmlRaw ("<svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path stroke-linecap='round' stroke-linejoin='round' d='M9 5l7 7-7 7'/></svg>" :: Text)
 
