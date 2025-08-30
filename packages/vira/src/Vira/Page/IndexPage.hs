@@ -34,7 +34,7 @@ handlers cfg =
     { _home =
         App.runAppInServant cfg $
           App.runVHtmlInServant $
-            W.layout cfg [] $
+            W.layout mempty $
               heroWelcome menu
     , _repos = RegistryPage.handlers cfg
     , _jobs = JobPage.handlers cfg

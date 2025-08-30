@@ -114,7 +114,7 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
 
 viewStream :: St.Job -> VHtml ()
 viewStream job = do
-  streamLink <- linkToUrl $ LinkTo.JobLogStream job.jobId
+  streamLink <- lift $ linkToUrl $ LinkTo.JobLogStream job.jobId
   div_
     [ hxExt_ "sse"
     , hxSseConnect_ streamLink
@@ -155,7 +155,7 @@ viewStream job = do
 -- | Log viewer widget agnostic to static or streaming nature.
 logViewerWidget :: Job -> (forall m. (Monad m) => HtmlT m ()) -> VHtml ()
 logViewerWidget job w = do
-  jobLogUrl <- linkToUrl $ LinkTo.JobLog job.jobId
+  jobLogUrl <- lift $ linkToUrl $ LinkTo.JobLog job.jobId
   div_ [class_ "space-y-4"] $ do
     -- Header with actions
     div_ [class_ "flex items-center justify-between"] $ do

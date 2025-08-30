@@ -36,16 +36,20 @@ module Vira.Widgets.Layout (
   viraDivider_,
 ) where
 
+import Effectful.Reader.Dynamic (asks)
 import Lucid
 import Vira.App.CLI (CLISettings (basePath), instanceName)
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
 import Vira.App.Stack (AppState (cliSettings))
 import Vira.App.VHtml (VHtml, linkToUrl)
 import Vira.Stream.Status qualified as Status
+import Prelude hiding (asks)
 
 -- | Common HTML layout for all routes.
-layout :: AppState -> [LinkTo] -> VHtml () -> VHtml ()
-layout cfg crumbs content = do
+layout :: [LinkTo] -> VHtml () -> VHtml ()
+layout crumbs content = do
+  siteTitle <- lift $ asks @AppState (("Vira (" <>) . (<> ")") . (.cliSettings.instanceName))
+  basePath <- lift $ asks @AppState (.cliSettings.basePath)
   doctype_
   html_ $ do
     head_ $ do
@@ -57,7 +61,7 @@ layout cfg crumbs content = do
             toHtml $ linkShortTitle link
             " - "
         toHtml siteTitle
-      base_ [href_ cfg.cliSettings.basePath]
+      base_ [href_ basePath]
       -- Google Fonts - Inter for modern, clean typography
       link_ [rel_ "preconnect", href_ "https://fonts.googleapis.com"]
       link_ [rel_ "preconnect", href_ "https://fonts.gstatic.com", crossorigin_ ""]
@@ -80,7 +84,6 @@ layout cfg crumbs content = do
           breadcrumbs crumbs
           content
   where
-    siteTitle = "Vira (" <> cfg.cliSettings.instanceName <> ")"
     -- Mobile friendly head tags
     mobileFriendly = do
       meta_ [charset_ "utf-8", name_ "viewport", content_ "width=device-width, initial-scale=1"]
@@ -123,7 +126,7 @@ breadcrumbs rs' = do
       if isLast
         then span_ [class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm"] $ toHtml title
         else do
-          url <- linkToUrl linkToValue
+          url <- lift $ linkToUrl linkToValue
           a_
             [ href_ url
             , class_ "text-white/90 hover:text-white transition-smooth px-3 py-2 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30 font-medium"

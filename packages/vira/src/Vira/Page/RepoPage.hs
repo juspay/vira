@@ -4,7 +4,6 @@ module Vira.Page.RepoPage where
 
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
-import Effectful.Reader.Dynamic (ask)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
@@ -55,17 +54,15 @@ branchViewHandler repoName branchName = do
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError err404) pure
   branches <- App.query $ St.GetBranchesByRepoA repoName
   jobs <- App.query $ St.GetJobsByBranchA repoName branchName
-  cfg <- ask
   let branchCrumbs = crumbs <> [LinkTo.Repo repoName, LinkTo.RepoBranch repoName branchName]
-  App.runVHtmlInServant $ W.layout cfg branchCrumbs $ viewRepoBranch repo branch branches jobs
+  App.runVHtmlInServant $ W.layout branchCrumbs $ viewRepoBranch repo branch branches jobs
 
 viewHandler :: RepoName -> Eff App.AppServantStack (Html ())
 viewHandler name = do
-  cfg <- ask
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   branches <- App.query $ St.GetBranchesByRepoA name
   allJobs <- App.query $ St.GetJobsByRepoA repo.name
-  App.runVHtmlInServant $ W.layout cfg (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branches allJobs
+  App.runVHtmlInServant $ W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branches allJobs
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
@@ -76,20 +73,19 @@ updateHandler name = do
 
 deleteHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do
-  cfg <- ask
   App.query (St.GetRepoByNameA name) >>= \case
     Just _repo -> do
       App.update $ St.DeleteRepoByNameA name
-      let redirectUrl :: String = show $ linkURI $ cfg.linkTo LinkTo.RepoListing
-      pure $ addHeader (toText redirectUrl) "Ok"
+      redirectUrl <- App.linkToUrl LinkTo.RepoListing
+      pure $ addHeader redirectUrl "Ok"
     Nothing ->
       throwError err404
 
 -- Repository header component with actions
 repoPageHeader :: St.Repo -> App.VHtml ()
 repoPageHeader repo = do
-  updateLink <- App.linkToLink $ LinkTo.RepoUpdate repo.name
-  deleteLink <- App.linkToLink $ LinkTo.RepoDelete repo.name
+  updateLink <- lift $ App.linkToLink $ LinkTo.RepoUpdate repo.name
+  deleteLink <- lift $ App.linkToLink $ LinkTo.RepoDelete repo.name
   W.viraPageHeader_
     (toText $ toString repo.name)
     ( div_ [class_ "flex items-center justify-between"] $ do
@@ -148,7 +144,7 @@ viewRepoBranch repo branch branches jobs = do
 
         -- Enhanced build button
         div_ [class_ "flex-shrink-0 ml-6"] $ do
-          buildLink <- App.linkToLink $ LinkTo.Build repo.name branch.branchName
+          buildLink <- lift $ App.linkToLink $ LinkTo.Build repo.name branch.branchName
           W.viraButton_
             W.ButtonSuccess
             [ hxPostSafe_ buildLink
@@ -220,7 +216,7 @@ repoLayout repo branches currentBranch content = do
                 if allBranchesActive
                   then "flex items-center p-4 rounded-lg bg-indigo-50 border border-indigo-200"
                   else "flex items-center p-4 rounded-lg hover:bg-gray-50 transition-colors"
-          repoUrl <- App.linkToUrl $ LinkTo.Repo repository.name
+          repoUrl <- lift $ App.linkToUrl $ LinkTo.Repo repository.name
           a_ [href_ repoUrl, class_ allBranchesClass, data_ "branch-item" "all-branches"] $ do
             div_ [class_ "flex-shrink-0 mr-3"] $ do
               div_ [class_ "w-5 h-5 flex items-center justify-center"] $ toHtmlRaw Icon.list
@@ -232,7 +228,7 @@ repoLayout repo branches currentBranch content = do
 
           -- Individual branches with enhanced styling
           forM_ branches' $ \branch -> do
-            branchUrl <- App.linkToUrl $ LinkTo.RepoBranch repository.name branch.branchName
+            branchUrl <- lift $ App.linkToUrl $ LinkTo.RepoBranch repository.name branch.branchName
             let isCurrentBranch = maybeCurrentBranch == Just branch.branchName
                 branchClass =
                   if isCurrentBranch

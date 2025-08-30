@@ -5,7 +5,6 @@ module Vira.Page.RegistryPage where
 
 import Colog (Severity (..))
 import Effectful (Eff)
-import Effectful.Reader.Dynamic (ask)
 import GHC.Records (HasField)
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Htmx.Lucid.Core (hxSwapS_)
@@ -21,7 +20,6 @@ import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Logging
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.State.Acid qualified as St
-import Vira.State.Core qualified as St
 import Vira.State.Type (Repo (..), RepoName (..), RepoSettings (..))
 import Vira.Widgets.Alert qualified as W
 import Vira.Widgets.Button qualified as W
@@ -46,19 +44,16 @@ handlers cfg = do
   Routes
     { _listing = App.runAppInServant cfg handleListing
     , _repo = RepoPage.handlers cfg
-    , _addRepo = App.runAppInServant cfg . addRepoHandler
+    , _addRepo = App.runAppInServant cfg . handleAddRepo
     }
 
 handleListing :: Eff App.AppServantStack (Html ())
 handleListing = do
-  cfg <- ask
-  samples <- App.query St.GetAllReposA
   let crumbs = [LinkTo.RepoListing]
-  App.runVHtmlInServant $ W.layout cfg crumbs $ viewRepoList samples
+  App.runVHtmlInServant $ W.layout crumbs viewRepoList
 
-addRepoHandler :: Repo -> Eff App.AppServantStack FormResp
-addRepoHandler repo = do
-  cfg <- ask
+handleAddRepo :: Repo -> Eff App.AppServantStack FormResp
+handleAddRepo repo = do
   App.query (St.GetRepoByNameA repo.name) >>= \case
     Just _repo -> do
       log Debug $ "Repository exists " <> toText repo.name
@@ -75,11 +70,12 @@ addRepoHandler repo = do
       App.update $ St.AddNewRepoA repo
       log Info $ "Added repository " <> toText repo.name
       -- Redirect to the newly created repository page
-      let newRepoUrl :: String = show $ linkURI $ cfg.linkTo $ LinkTo.Repo repo.name
-      pure $ addHeader (toText newRepoUrl) "Ok"
+      newRepoUrl <- App.linkToUrl $ LinkTo.Repo repo.name
+      pure $ addHeader newRepoUrl "Ok"
 
-viewRepoList :: [St.Repo] -> App.VHtml ()
-viewRepoList registry = do
+viewRepoList :: App.VHtml ()
+viewRepoList = do
+  registry <- lift $ App.query St.GetAllReposA
   W.viraSection_ [] $ do
     W.viraPageHeader_ "Repositories" $ do
       p_ [class_ "text-gray-600"] "Repositories managed by this Vira instance"
@@ -96,7 +92,7 @@ viewRepoList registry = do
         -- Repository grid
         div_ [class_ "grid gap-6 mb-8 md:grid-cols-2 lg:grid-cols-3"] $ do
           forM_ registry $ \repo -> do
-            url <- App.linkToUrl $ LinkTo.Repo repo.name
+            url <- lift $ App.linkToUrl $ LinkTo.Repo repo.name
             W.viraNavigationCard_
               url
               (toHtml $ toString repo.name)
@@ -110,7 +106,7 @@ viewRepoList registry = do
 
 newRepoForm :: App.VHtml ()
 newRepoForm = do
-  repoAddLink <- App.linkToLink LinkTo.RepoAdd
+  repoAddLink <- lift $ App.linkToLink LinkTo.RepoAdd
   form_ [hxPostSafe_ repoAddLink, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do
     div_ [class_ "grid grid-cols-1 lg:grid-cols-2 gap-6"] $ do
       W.viraFormGroup_

@@ -43,7 +43,7 @@ instance ToServerEvent Status where
 
 viewStream :: VHtml ()
 viewStream = do
-  link <- linkToUrl LinkTo.StatusGet
+  link <- lift $ linkToUrl LinkTo.StatusGet
   div_ [hxExt_ "sse", hxSseConnect_ link, hxSseSwap_ "status"] $ do
     viewInner
 
@@ -56,7 +56,7 @@ viewInner = do
   div_ [class_ "flex items-center space-x-2", title_ "Build Status"] $ do
     indicator $ not $ null jobs
     forM_ jobs $ \(repo, jobId) -> do
-      jobUrl <- linkToUrl $ LinkTo.Job jobId
+      jobUrl <- lift $ linkToUrl $ LinkTo.Job jobId
       a_ [href_ jobUrl] $ do
         span_ $ b_ $ toHtml $ unRepoName repo
         "/"

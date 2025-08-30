@@ -7,7 +7,7 @@ import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Process (CreateProcess (cwd), env, proc)
-import Effectful.Reader.Dynamic (ask, asks)
+import Effectful.Reader.Dynamic (asks)
 import GHC.IO.Exception (ExitCode (..))
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
@@ -73,8 +73,7 @@ viewHandler jobId = do
         , LinkTo.RepoBranch job.jobRepo job.jobBranch
         , LinkTo.Job jobId
         ]
-  cfg <- ask
-  App.runVHtmlInServant $ W.layout cfg crumbs $ viewJob job
+  App.runVHtmlInServant $ W.layout crumbs $ viewJob job
 
 killHandler :: JobId -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 killHandler jobId = do
@@ -95,7 +94,7 @@ viewJob job = do
         div_ [class_ "flex items-center space-x-4"] $ do
           viewJobStatus job.jobStatus
           when jobActive $ do
-            killLink <- App.linkToLink $ LinkTo.Kill job.jobId
+            killLink <- lift $ App.linkToLink $ LinkTo.Kill job.jobId
             W.viraButton_
               W.ButtonDestructive
               [ hxPostSafe_ killLink
@@ -109,7 +108,7 @@ viewJob job = do
 
 viewJobHeader :: St.Job -> App.VHtml ()
 viewJobHeader job = do
-  jobUrl <- App.linkToUrl $ LinkTo.Job job.jobId
+  jobUrl <- lift $ App.linkToUrl $ LinkTo.Job job.jobId
   a_ [title_ "View Job Details", href_ jobUrl, class_ "block"] $ do
     div_ [class_ "flex items-center justify-between"] $ do
       div_ [class_ "flex items-center space-x-4"] $ do
