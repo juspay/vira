@@ -23,6 +23,7 @@ import Servant.Types.SourceT qualified as S
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.App.Stack (VHtml, linkToUrl)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Type
 import Web.TablerIcons.Outline qualified as Icon
@@ -43,12 +44,11 @@ instance ToServerEvent Status where
       (Just $ show ident)
       (Lucid.renderBS t)
 
-viewStream :: (Monad m) => (LinkTo.LinkTo -> Link) -> HtmlT m ()
-viewStream linkTo = do
+viewStream :: VHtml ()
+viewStream = do
+  link <- linkToUrl LinkTo.StatusGet
   div_ [hxExt_ "sse", hxSseConnect_ link, hxSseSwap_ "status"] $ do
     "Loading status..."
-  where
-    link = show . linkURI $ linkTo LinkTo.StatusGet
 
 viewInner :: (LinkTo -> Link) -> [(RepoName, JobId)] -> Html ()
 viewInner linkTo jobs = do

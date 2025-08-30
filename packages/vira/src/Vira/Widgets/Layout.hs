@@ -37,10 +37,9 @@ module Vira.Widgets.Layout (
 ) where
 
 import Lucid
-import Servant.Links (Link, linkURI)
 import Vira.App.CLI (CLISettings (basePath), instanceName)
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
-import Vira.App.Stack (AppState (cliSettings, linkTo), VHtml)
+import Vira.App.Stack (AppState (cliSettings), VHtml, linkToUrl)
 import Vira.Stream.Status qualified as Status
 
 -- | Common HTML layout for all routes.
@@ -77,7 +76,7 @@ layout cfg crumbs content = do
       div_ [class_ "min-h-screen"] $ do
         -- Main container with clean styling
         div_ [class_ "container mx-auto px-4 py-6 lg:px-8"] $ do
-          breadcrumbs cfg.linkTo crumbs
+          breadcrumbs crumbs
           content
   where
     siteTitle = "Vira (" <> cfg.cliSettings.instanceName <> ")"
@@ -95,8 +94,8 @@ layout cfg crumbs content = do
       script_ [src_ "js/htmx-extensions/src/sse/sse.js"] $ mempty @Text
 
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
-breadcrumbs :: (LinkTo -> Link) -> [LinkTo] -> VHtml ()
-breadcrumbs linkTo rs' = do
+breadcrumbs :: [LinkTo] -> VHtml ()
+breadcrumbs rs' = do
   let logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
   nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between p-4 bg-indigo-600 rounded-t-xl"] $ do
     ol_ [class_ "flex flex-1 items-center space-x-2 text-lg list-none"] $ do
@@ -105,7 +104,7 @@ breadcrumbs linkTo rs' = do
         span_ [class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm"] logo
       -- Render breadcrumb links
       renderCrumbs rs'
-    Status.viewStream linkTo
+    Status.viewStream
   where
     renderCrumbs :: [LinkTo] -> VHtml ()
     renderCrumbs = \case
@@ -122,9 +121,10 @@ breadcrumbs linkTo rs' = do
       let title = linkShortTitle linkToValue
       if isLast
         then span_ [class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm"] $ toHtml title
-        else
+        else do
+          url <- linkToUrl linkToValue
           a_
-            [ href_ $ show $ linkURI $ linkTo linkToValue
+            [ href_ url
             , class_ "text-white/90 hover:text-white transition-smooth px-3 py-2 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30 font-medium"
             ]
             $ toHtml title
