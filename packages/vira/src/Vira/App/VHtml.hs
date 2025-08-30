@@ -30,9 +30,6 @@ runVHtmlInServant vhtml = do
   cfg <- ask @AppState
   liftIO $ runApp cfg $ runVHtml vhtml
 
-hoistVHtml :: Html () -> VHtml ()
-hoistVHtml = Lucid.hoistHtmlT (pure . runIdentity)
-
 -- | Helper to get a Link for a LinkTo (for hxPostSafe_ and similar)
 linkToLink :: (Reader.Reader AppState :> es) => LinkTo -> Eff es Link
 linkToLink linkToValue = do

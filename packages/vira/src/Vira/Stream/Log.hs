@@ -26,7 +26,7 @@ import Servant.Types.SourceT qualified as S
 import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.VHtml (VHtml, hoistVHtml, linkToUrl)
+import Vira.App.VHtml (VHtml, linkToUrl)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
@@ -179,7 +179,7 @@ logViewerWidget job w = do
           , hyperscript_ "on htmx:afterSwap set #logContainer.scrollTop to #logContainer.scrollHeight"
           ]
           $ do
-            code_ $ hoistVHtml w
+            code_ w
 
 -- | ID of the HTML element targeted by SSE message swaps (log streaming)
 sseTarget :: Text
