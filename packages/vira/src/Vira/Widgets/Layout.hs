@@ -44,7 +44,7 @@ import Vira.App.Stack (AppState (cliSettings, linkTo))
 import Vira.Stream.Status qualified as Status
 
 -- | Common HTML layout for all routes.
-layout :: AppState -> [LinkTo] -> Html () -> Html ()
+layout :: (Monad m) => AppState -> [LinkTo] -> HtmlT m () -> HtmlT m ()
 layout cfg crumbs content = do
   doctype_
   html_ $ do
@@ -96,7 +96,7 @@ layout cfg crumbs content = do
       script_ [src_ "js/htmx-extensions/src/sse/sse.js"] $ mempty @Text
 
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
-breadcrumbs :: (LinkTo -> Link) -> [(Html (), URI)] -> Html ()
+breadcrumbs :: forall m. (Monad m) => (LinkTo -> Link) -> [(HtmlT m (), URI)] -> HtmlT m ()
 breadcrumbs linkTo rs' = do
   let home = URI {uriScheme = "", uriAuthority = Nothing, uriPath = "", uriQuery = [], uriFragment = ""}
       logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
@@ -114,16 +114,16 @@ breadcrumbs linkTo rs' = do
         li_ [class_ "flex items-center"] $ renderCrumb (second Just x)
         li_ [class_ "flex items-center"] chevronSvg
         renderCrumbs xs
-    renderCrumb :: (Html (), Maybe URI) -> Html ()
+    renderCrumb :: (HtmlT m (), Maybe URI) -> HtmlT m ()
     renderCrumb (s, mr) = case mr of
       Just r ->
         a_
           [ href_ (show r)
           , class_ "text-white/90 hover:text-white transition-smooth px-3 py-2 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30 font-medium"
           ]
-          $ toHtml s
+          s
       Nothing ->
-        span_ [class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm"] $ toHtml s
+        span_ [class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm"] s
     chevronSvg =
       span_ [class_ "mx-1 text-white/60"] $ toHtmlRaw ("<svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path stroke-linecap='round' stroke-linejoin='round' d='M9 5l7 7-7 7'/></svg>" :: Text)
 

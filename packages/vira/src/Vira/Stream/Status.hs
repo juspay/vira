@@ -43,7 +43,7 @@ instance ToServerEvent Status where
       (Just $ show ident)
       (Lucid.renderBS t)
 
-viewStream :: (LinkTo.LinkTo -> Link) -> Html ()
+viewStream :: (Monad m) => (LinkTo.LinkTo -> Link) -> HtmlT m ()
 viewStream linkTo = do
   div_ [hxExt_ "sse", hxSseConnect_ link, hxSseSwap_ "status"] $ do
     "Loading status..."

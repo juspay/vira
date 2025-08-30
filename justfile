@@ -17,6 +17,10 @@ run:
 test COMPONENT='vira-tests':
     ghcid --warnings -T Main.main -c "./cabal-repl {{ COMPONENT }}"
 
+[group('2. haskell')]
+ghcid COMPONENT='vira':
+    ghcid --warnings -c "./cabal-repl {{ COMPONENT }}"
+
 # Delete and recreate vira.db
 [group('1. vira')]
 resetdb:

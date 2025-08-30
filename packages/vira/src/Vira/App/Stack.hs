@@ -3,6 +3,7 @@ module Vira.App.Stack where
 
 import Colog (Message)
 import Data.Acid (AcidState)
+import Data.Binary.Builder (toLazyByteString)
 import Effectful (Eff, IOE, runEff)
 import Effectful.Colog (Log)
 import Effectful.Concurrent.Async (Concurrent, runConcurrent)
@@ -10,6 +11,8 @@ import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem, runFileSystem)
 import Effectful.Process (Process, runProcess)
 import Effectful.Reader.Dynamic (Reader, runReader)
+import Lucid.Base (Html, HtmlT, ToHtml (toHtmlRaw))
+import Lucid.Base qualified as Lucid
 import Servant (Handler (Handler), ServerError)
 import Servant.Links (Link)
 import Vira.App.CLI (CLISettings)
@@ -59,3 +62,8 @@ data AppState = AppState
     -- This is decoupled from servant types deliberately to avoid cyclic imports.
     linkTo :: LinkTo -> Link
   }
+
+runHtmlT :: HtmlT (Eff AppStack) () -> Eff AppStack (Html ())
+runHtmlT htmlT = do
+  (builder, _) <- Lucid.runHtmlT htmlT
+  pure $ toHtmlRaw $ toLazyByteString builder

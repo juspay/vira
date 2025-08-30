@@ -79,6 +79,7 @@ dependencies:
   - warp-tls-simple
   - which
   - with-utf8
+  - binary
 
 library:
   source-dirs: src

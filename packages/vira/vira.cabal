@@ -102,6 +102,7 @@ library
     , aeson
     , async
     , base ==4.*
+    , binary
     , bytestring
     , co-log
     , co-log-core
@@ -199,6 +200,7 @@ executable vira
     , aeson
     , async
     , base ==4.*
+    , binary
     , bytestring
     , co-log
     , co-log-core
@@ -299,6 +301,7 @@ test-suite vira-tests
     , aeson
     , async
     , base ==4.*
+    , binary
     , bytestring
     , co-log
     , co-log-core
