@@ -63,7 +63,14 @@ data AppState = AppState
     linkTo :: LinkTo -> Link
   }
 
-runHtmlT :: HtmlT (Eff AppStack) () -> Eff AppStack (Html ())
-runHtmlT htmlT = do
+{- | Like `Html` but can do application effects
+
+Use `lift` to perform effects.
+-}
+type VHtml = HtmlT (Eff AppServantStack)
+
+-- | Convert a `VHtml` to a Lucid `Html`
+runVHtml :: VHtml () -> Eff AppServantStack (Html ())
+runVHtml htmlT = do
   (builder, _) <- Lucid.runHtmlT htmlT
   pure $ toHtmlRaw $ toLazyByteString builder

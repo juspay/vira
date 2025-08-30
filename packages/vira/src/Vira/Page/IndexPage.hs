@@ -13,6 +13,7 @@ import Vira.App qualified as App
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.SettingsPage qualified as SettingsPage
+import Vira.State.Acid qualified as St
 import Vira.Stream.Status qualified as Status
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Layout qualified as W
@@ -32,7 +33,7 @@ handlers :: App.AppState -> Routes AsServer
 handlers cfg =
   Routes
     { _home = App.runAppInServant cfg $ do
-        pure $ W.layout cfg [] $ do
+        App.runVHtml $ W.layout cfg [] $ do
           heroWelcome menu
     , _repos = RegistryPage.handlers cfg
     , _jobs = JobPage.handlers cfg
@@ -41,14 +42,15 @@ handlers cfg =
     }
   where
     linkText = show . linkURI
-    menu :: [(Html (), Text)]
+    menu :: (Monad m) => [(HtmlT m (), Text)]
     menu =
       [ ("Repositories", linkText $ fieldLink _repos // RegistryPage._listing)
       , ("Settings", linkText $ fieldLink _settings // SettingsPage._view)
       ]
 
-heroWelcome :: (Monad m) => [(HtmlT m (), Text)] -> HtmlT m ()
+heroWelcome :: [(App.VHtml (), Text)] -> App.VHtml ()
 heroWelcome menu = do
+  _repos <- lift $ App.query St.GetAllReposA
   div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-12 mb-8 text-center"] $ do
     h1_ [class_ "text-5xl font-bold text-indigo-900 tracking-tight mb-4"] $ do
       "Welcome to "
