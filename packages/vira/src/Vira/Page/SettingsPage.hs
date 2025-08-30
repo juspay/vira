@@ -23,7 +23,6 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Stack (VHtml, linkToLink, runVHtmlInServant)
 import Vira.Lib.Attic (AtticServer (..))
 import Vira.Lib.Logging
 import Vira.State.Acid qualified as St
@@ -62,7 +61,7 @@ viewHandler = do
   cfg <- ask
   mCachix <- App.query St.GetCachixSettingsA
   mAttic <- App.query St.GetAtticSettingsA
-  runVHtmlInServant $ W.layout cfg [LinkTo.Settings] $ viewSettings mCachix mAttic
+  App.runVHtmlInServant $ W.layout cfg [LinkTo.Settings] $ viewSettings mCachix mAttic
 
 updateCachixHandler :: CachixSettings -> Eff App.AppServantStack FormResp
 updateCachixHandler settings = do
@@ -88,7 +87,7 @@ deleteAtticHandler = do
   log Info "Deleted attic settings"
   pure $ addHeader True "Ok"
 
-viewSettings :: Maybe CachixSettings -> Maybe AtticSettings -> VHtml ()
+viewSettings :: Maybe CachixSettings -> Maybe AtticSettings -> App.VHtml ()
 viewSettings mCachix mAttic = do
   W.viraSection_ [] $ do
     W.viraPageHeader_ "Settings" $ do
@@ -138,9 +137,9 @@ viewSettings mCachix mAttic = do
 
         atticForm mAttic
   where
-    cachixForm :: Maybe CachixSettings -> VHtml ()
+    cachixForm :: Maybe CachixSettings -> App.VHtml ()
     cachixForm mCachixSettings = do
-      updateCachixLink <- linkToLink LinkTo.SettingsUpdateCachix
+      updateCachixLink <- App.linkToLink LinkTo.SettingsUpdateCachix
       form_ [id_ "cachix-update", hxPostSafe_ updateCachixLink, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do
         W.viraFormGroup_
           ( withFieldName @CachixSettings @"cachixName" $ \name ->
@@ -176,13 +175,13 @@ viewSettings mCachix mAttic = do
 
       -- Disconnect form outside the main form to avoid nesting
       whenJust mCachixSettings $ \_ -> do
-        deleteCachixLink <- linkToLink LinkTo.SettingsDeleteCachix
+        deleteCachixLink <- App.linkToLink LinkTo.SettingsDeleteCachix
         form_ [hxPostSafe_ deleteCachixLink, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to disconnect Cachix? This action cannot be undone.", class_ "mt-3"] $ do
           W.viraButton_ W.ButtonDestructive [type_ "submit"] "Disconnect"
 
-    atticForm :: Maybe AtticSettings -> VHtml ()
+    atticForm :: Maybe AtticSettings -> App.VHtml ()
     atticForm mAtticSettings = do
-      updateAtticLink <- linkToLink LinkTo.SettingsUpdateAttic
+      updateAtticLink <- App.linkToLink LinkTo.SettingsUpdateAttic
       form_ [id_ "attic-update", hxPostSafe_ updateAtticLink, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do
         div_ [class_ "grid gap-4 lg:grid-cols-2"] $ do
           W.viraFormGroup_
@@ -246,7 +245,7 @@ viewSettings mCachix mAttic = do
 
       -- Disconnect form outside the main form to avoid nesting
       whenJust mAtticSettings $ \_ -> do
-        deleteAtticLink <- linkToLink LinkTo.SettingsDeleteAttic
+        deleteAtticLink <- App.linkToLink LinkTo.SettingsDeleteAttic
         form_ [hxPostSafe_ deleteAtticLink, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to disconnect Attic? This action cannot be undone.", class_ "mt-3"] $ do
           W.viraButton_ W.ButtonDestructive [type_ "submit"] "Disconnect"
 

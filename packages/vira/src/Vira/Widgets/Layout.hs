@@ -39,7 +39,8 @@ module Vira.Widgets.Layout (
 import Lucid
 import Vira.App.CLI (CLISettings (basePath), instanceName)
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
-import Vira.App.Stack (AppState (cliSettings), VHtml, linkToUrl)
+import Vira.App.Stack (AppState (cliSettings))
+import Vira.App.VHtml (VHtml, linkToUrl)
 import Vira.Stream.Status qualified as Status
 
 -- | Common HTML layout for all routes.

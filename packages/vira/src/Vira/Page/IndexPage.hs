@@ -31,10 +31,11 @@ data Routes mode = Routes
 handlers :: App.AppState -> Routes AsServer
 handlers cfg =
   Routes
-    { _home = App.runAppInServant cfg $ do
-        App.runVHtmlInServant $
-          W.layout cfg [] $
-            heroWelcome menu
+    { _home =
+        App.runAppInServant cfg $
+          App.runVHtmlInServant $
+            W.layout cfg [] $
+              heroWelcome menu
     , _repos = RegistryPage.handlers cfg
     , _jobs = JobPage.handlers cfg
     , _settings = SettingsPage.handlers cfg

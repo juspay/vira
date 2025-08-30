@@ -19,7 +19,6 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Stack (VHtml, linkToLink, linkToUrl, runVHtmlInServant)
 import Vira.Lib.Attic
 import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)
@@ -75,7 +74,7 @@ viewHandler jobId = do
         , LinkTo.Job jobId
         ]
   cfg <- ask
-  runVHtmlInServant $ W.layout cfg crumbs $ viewJob job
+  App.runVHtmlInServant $ W.layout cfg crumbs $ viewJob job
 
 killHandler :: JobId -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 killHandler jobId = do
@@ -83,7 +82,7 @@ killHandler jobId = do
   Supervisor.killTask supervisor jobId
   pure $ addHeader True "Killed"
 
-viewJob :: St.Job -> VHtml ()
+viewJob :: St.Job -> App.VHtml ()
 viewJob job = do
   let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
 
@@ -96,7 +95,7 @@ viewJob job = do
         div_ [class_ "flex items-center space-x-4"] $ do
           viewJobStatus job.jobStatus
           when jobActive $ do
-            killLink <- linkToLink $ LinkTo.Kill job.jobId
+            killLink <- App.linkToLink $ LinkTo.Kill job.jobId
             W.viraButton_
               W.ButtonDestructive
               [ hxPostSafe_ killLink
@@ -108,9 +107,9 @@ viewJob job = do
     W.viraCard_ [class_ "p-6"] $ do
       JobLog.view job
 
-viewJobHeader :: St.Job -> VHtml ()
+viewJobHeader :: St.Job -> App.VHtml ()
 viewJobHeader job = do
-  jobUrl <- linkToUrl $ LinkTo.Job job.jobId
+  jobUrl <- App.linkToUrl $ LinkTo.Job job.jobId
   a_ [title_ "View Job Details", href_ jobUrl, class_ "block"] $ do
     div_ [class_ "flex items-center justify-between"] $ do
       div_ [class_ "flex items-center space-x-4"] $ do

@@ -18,7 +18,6 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Stack (VHtml, linkToLink, linkToUrl, runVHtmlInServant)
 import Vira.Lib.Logging
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.State.Acid qualified as St
@@ -55,7 +54,7 @@ handleListing = do
   cfg <- ask
   samples <- App.query St.GetAllReposA
   let crumbs = [LinkTo.RepoListing]
-  runVHtmlInServant $ W.layout cfg crumbs $ viewRepoList samples
+  App.runVHtmlInServant $ W.layout cfg crumbs $ viewRepoList samples
 
 addRepoHandler :: Repo -> Eff App.AppServantStack FormResp
 addRepoHandler repo = do
@@ -64,7 +63,7 @@ addRepoHandler repo = do
     Just _repo -> do
       log Debug $ "Repository exists " <> toText repo.name
       -- Show error message instead of redirecting
-      errorHtml <- runVHtmlInServant $ do
+      errorHtml <- App.runVHtmlInServant $ do
         newRepoForm
         W.viraAlert_ W.AlertError $ do
           p_ [class_ "text-red-800 font-medium"] $ do
@@ -79,7 +78,7 @@ addRepoHandler repo = do
       let newRepoUrl :: String = show $ linkURI $ cfg.linkTo $ LinkTo.Repo repo.name
       pure $ addHeader (toText newRepoUrl) "Ok"
 
-viewRepoList :: [St.Repo] -> VHtml ()
+viewRepoList :: [St.Repo] -> App.VHtml ()
 viewRepoList registry = do
   W.viraSection_ [] $ do
     W.viraPageHeader_ "Repositories" $ do
@@ -97,7 +96,7 @@ viewRepoList registry = do
         -- Repository grid
         div_ [class_ "grid gap-6 mb-8 md:grid-cols-2 lg:grid-cols-3"] $ do
           forM_ registry $ \repo -> do
-            url <- linkToUrl $ LinkTo.Repo repo.name
+            url <- App.linkToUrl $ LinkTo.Repo repo.name
             W.viraNavigationCard_
               url
               (toHtml $ toString repo.name)
@@ -109,9 +108,9 @@ viewRepoList registry = do
             "Add New Repository"
           newRepoForm
 
-newRepoForm :: VHtml ()
+newRepoForm :: App.VHtml ()
 newRepoForm = do
-  repoAddLink <- linkToLink LinkTo.RepoAdd
+  repoAddLink <- App.linkToLink LinkTo.RepoAdd
   form_ [hxPostSafe_ repoAddLink, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do
     div_ [class_ "grid grid-cols-1 lg:grid-cols-2 gap-6"] $ do
       W.viraFormGroup_
