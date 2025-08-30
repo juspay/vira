@@ -94,7 +94,7 @@ viewJob job = do
         div_ [class_ "flex items-center space-x-4"] $ do
           viewJobStatus job.jobStatus
           when jobActive $ do
-            killLink <- lift $ App.linkToLink $ LinkTo.Kill job.jobId
+            killLink <- lift $ App.getLink $ LinkTo.Kill job.jobId
             W.viraButton_
               W.ButtonDestructive
               [ hxPostSafe_ killLink
@@ -108,7 +108,7 @@ viewJob job = do
 
 viewJobHeader :: St.Job -> App.VHtml ()
 viewJobHeader job = do
-  jobUrl <- lift $ App.linkToUrl $ LinkTo.Job job.jobId
+  jobUrl <- lift $ App.getLinkUrl $ LinkTo.Job job.jobId
   a_ [title_ "View Job Details", href_ jobUrl, class_ "block"] $ do
     div_ [class_ "flex items-center justify-between"] $ do
       div_ [class_ "flex items-center space-x-4"] $ do

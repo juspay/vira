@@ -70,7 +70,7 @@ handleAddRepo repo = do
       App.update $ St.AddNewRepoA repo
       log Info $ "Added repository " <> toText repo.name
       -- Redirect to the newly created repository page
-      newRepoUrl <- App.linkToUrl $ LinkTo.Repo repo.name
+      newRepoUrl <- App.getLinkUrl $ LinkTo.Repo repo.name
       pure $ addHeader newRepoUrl "Ok"
 
 viewRepoList :: App.VHtml ()
@@ -92,7 +92,7 @@ viewRepoList = do
         -- Repository grid
         div_ [class_ "grid gap-6 mb-8 md:grid-cols-2 lg:grid-cols-3"] $ do
           forM_ registry $ \repo -> do
-            url <- lift $ App.linkToUrl $ LinkTo.Repo repo.name
+            url <- lift $ App.getLinkUrl $ LinkTo.Repo repo.name
             W.viraNavigationCard_
               url
               (toHtml $ toString repo.name)
@@ -106,7 +106,7 @@ viewRepoList = do
 
 newRepoForm :: App.VHtml ()
 newRepoForm = do
-  repoAddLink <- lift $ App.linkToLink LinkTo.RepoAdd
+  repoAddLink <- lift $ App.getLink LinkTo.RepoAdd
   form_ [hxPostSafe_ repoAddLink, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do
     div_ [class_ "grid grid-cols-1 lg:grid-cols-2 gap-6"] $ do
       W.viraFormGroup_

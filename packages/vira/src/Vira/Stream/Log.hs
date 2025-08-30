@@ -26,7 +26,7 @@ import Servant.Types.SourceT qualified as S
 import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.VHtml (VHtml, linkToUrl)
+import Vira.App.VHtml (VHtml, getLinkUrl)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
@@ -114,7 +114,7 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
 
 viewStream :: St.Job -> VHtml ()
 viewStream job = do
-  streamLink <- lift $ linkToUrl $ LinkTo.JobLogStream job.jobId
+  streamLink <- lift $ getLinkUrl $ LinkTo.JobLogStream job.jobId
   div_
     [ hxExt_ "sse"
     , hxSseConnect_ streamLink
@@ -155,7 +155,7 @@ viewStream job = do
 -- | Log viewer widget agnostic to static or streaming nature.
 logViewerWidget :: Job -> (forall m. (Monad m) => HtmlT m ()) -> VHtml ()
 logViewerWidget job w = do
-  jobLogUrl <- lift $ linkToUrl $ LinkTo.JobLog job.jobId
+  jobLogUrl <- lift $ getLinkUrl $ LinkTo.JobLog job.jobId
   div_ [class_ "space-y-4"] $ do
     -- Header with actions
     div_ [class_ "flex items-center justify-between"] $ do

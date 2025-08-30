@@ -7,7 +7,7 @@ import Effectful.Reader.Dynamic (ask, asks)
 import Effectful.Reader.Dynamic qualified as Reader
 import Lucid.Base (Html, HtmlT, ToHtml (toHtmlRaw))
 import Lucid.Base qualified as Lucid
-import Servant.Links (Link, URI, linkURI)
+import Servant.Links (Link, linkURI)
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.App.Stack (AppServantStack, AppStack, AppState (linkTo), runApp)
 import Prelude hiding (ask, asks)
@@ -30,20 +30,14 @@ runVHtmlInServant vhtml = do
   cfg <- ask @AppState
   liftIO $ runApp cfg $ runVHtml vhtml
 
--- | Helper to get a Link for a LinkTo (for hxPostSafe_ and similar)
-linkToLink :: (Reader.Reader AppState :> es) => LinkTo -> Eff es Link
-linkToLink linkToValue = do
+-- | Get a `Link` to a part of the application
+getLink :: (Reader.Reader AppState :> es) => LinkTo -> Eff es Link
+getLink linkToValue = do
   linkToFn <- asks @AppState linkTo
   pure $ linkToFn linkToValue
 
--- | Helper to get a URI for a LinkTo
-linkToUri :: (Reader.Reader AppState :> es) => LinkTo -> Eff es URI
-linkToUri linkToValue = do
-  link <- linkToLink linkToValue
-  pure $ linkURI link
-
--- | Helper to get a URL string for a LinkTo (for href attributes)
-linkToUrl :: (Reader.Reader AppState :> es) => LinkTo -> Eff es Text
-linkToUrl linkToValue = do
-  uri <- linkToUri linkToValue
-  pure $ toText $ show @String $ uri
+-- | Link `getLink` but as URL text.
+getLinkUrl :: (Reader.Reader AppState :> es) => LinkTo -> Eff es Text
+getLinkUrl linkToValue = do
+  uri <- linkURI <$> getLink linkToValue
+  pure $ show @Text $ uri

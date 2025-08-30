@@ -20,7 +20,7 @@ import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.VHtml (VHtml, linkToUrl, runVHtml)
+import Vira.App.VHtml (VHtml, getLinkUrl, runVHtml)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Type
 import Web.TablerIcons.Outline qualified as Icon
@@ -43,7 +43,7 @@ instance ToServerEvent Status where
 
 viewStream :: VHtml ()
 viewStream = do
-  link <- lift $ linkToUrl LinkTo.StatusGet
+  link <- lift $ getLinkUrl LinkTo.StatusGet
   div_ [hxExt_ "sse", hxSseConnect_ link, hxSseSwap_ "status"] $ do
     viewInner
 
@@ -56,7 +56,7 @@ viewInner = do
   div_ [class_ "flex items-center space-x-2", title_ "Build Status"] $ do
     indicator $ not $ null jobs
     forM_ jobs $ \(repo, jobId) -> do
-      jobUrl <- lift $ linkToUrl $ LinkTo.Job jobId
+      jobUrl <- lift $ getLinkUrl $ LinkTo.Job jobId
       a_ [href_ jobUrl] $ do
         span_ $ b_ $ toHtml $ unRepoName repo
         "/"

@@ -137,7 +137,7 @@ viewSettings = do
   where
     cachixForm :: Maybe CachixSettings -> App.VHtml ()
     cachixForm mCachixSettings = do
-      updateCachixLink <- lift $ App.linkToLink LinkTo.SettingsUpdateCachix
+      updateCachixLink <- lift $ App.getLink LinkTo.SettingsUpdateCachix
       form_ [id_ "cachix-update", hxPostSafe_ updateCachixLink, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do
         W.viraFormGroup_
           ( withFieldName @CachixSettings @"cachixName" $ \name ->
@@ -173,13 +173,13 @@ viewSettings = do
 
       -- Disconnect form outside the main form to avoid nesting
       whenJust mCachixSettings $ \_ -> do
-        deleteCachixLink <- lift $ App.linkToLink LinkTo.SettingsDeleteCachix
+        deleteCachixLink <- lift $ App.getLink LinkTo.SettingsDeleteCachix
         form_ [hxPostSafe_ deleteCachixLink, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to disconnect Cachix? This action cannot be undone.", class_ "mt-3"] $ do
           W.viraButton_ W.ButtonDestructive [type_ "submit"] "Disconnect"
 
     atticForm :: Maybe AtticSettings -> App.VHtml ()
     atticForm mAtticSettings = do
-      updateAtticLink <- lift $ App.linkToLink LinkTo.SettingsUpdateAttic
+      updateAtticLink <- lift $ App.getLink LinkTo.SettingsUpdateAttic
       form_ [id_ "attic-update", hxPostSafe_ updateAtticLink, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do
         div_ [class_ "grid gap-4 lg:grid-cols-2"] $ do
           W.viraFormGroup_
@@ -243,7 +243,7 @@ viewSettings = do
 
       -- Disconnect form outside the main form to avoid nesting
       whenJust mAtticSettings $ \_ -> do
-        deleteAtticLink <- lift $ App.linkToLink LinkTo.SettingsDeleteAttic
+        deleteAtticLink <- lift $ App.getLink LinkTo.SettingsDeleteAttic
         form_ [hxPostSafe_ deleteAtticLink, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to disconnect Attic? This action cannot be undone.", class_ "mt-3"] $ do
           W.viraButton_ W.ButtonDestructive [type_ "submit"] "Disconnect"
 

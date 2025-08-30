@@ -41,7 +41,7 @@ import Lucid
 import Vira.App.CLI (CLISettings (basePath), instanceName)
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
 import Vira.App.Stack (AppState (cliSettings))
-import Vira.App.VHtml (VHtml, linkToUrl)
+import Vira.App.VHtml (VHtml, getLinkUrl)
 import Vira.Stream.Status qualified as Status
 import Prelude hiding (asks)
 
@@ -126,7 +126,7 @@ breadcrumbs rs' = do
       if isLast
         then span_ [class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm"] $ toHtml title
         else do
-          url <- lift $ linkToUrl linkToValue
+          url <- lift $ getLinkUrl linkToValue
           a_
             [ href_ url
             , class_ "text-white/90 hover:text-white transition-smooth px-3 py-2 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30 font-medium"

@@ -76,7 +76,7 @@ deleteHandler name = do
   App.query (St.GetRepoByNameA name) >>= \case
     Just _repo -> do
       App.update $ St.DeleteRepoByNameA name
-      redirectUrl <- App.linkToUrl LinkTo.RepoListing
+      redirectUrl <- App.getLinkUrl LinkTo.RepoListing
       pure $ addHeader redirectUrl "Ok"
     Nothing ->
       throwError err404
@@ -84,8 +84,8 @@ deleteHandler name = do
 -- Repository header component with actions
 repoPageHeader :: St.Repo -> App.VHtml ()
 repoPageHeader repo = do
-  updateLink <- lift $ App.linkToLink $ LinkTo.RepoUpdate repo.name
-  deleteLink <- lift $ App.linkToLink $ LinkTo.RepoDelete repo.name
+  updateLink <- lift $ App.getLink $ LinkTo.RepoUpdate repo.name
+  deleteLink <- lift $ App.getLink $ LinkTo.RepoDelete repo.name
   W.viraPageHeader_
     (toText $ toString repo.name)
     ( div_ [class_ "flex items-center justify-between"] $ do
@@ -144,7 +144,7 @@ viewRepoBranch repo branch branches jobs = do
 
         -- Enhanced build button
         div_ [class_ "flex-shrink-0 ml-6"] $ do
-          buildLink <- lift $ App.linkToLink $ LinkTo.Build repo.name branch.branchName
+          buildLink <- lift $ App.getLink $ LinkTo.Build repo.name branch.branchName
           W.viraButton_
             W.ButtonSuccess
             [ hxPostSafe_ buildLink
@@ -216,7 +216,7 @@ repoLayout repo branches currentBranch content = do
                 if allBranchesActive
                   then "flex items-center p-4 rounded-lg bg-indigo-50 border border-indigo-200"
                   else "flex items-center p-4 rounded-lg hover:bg-gray-50 transition-colors"
-          repoUrl <- lift $ App.linkToUrl $ LinkTo.Repo repository.name
+          repoUrl <- lift $ App.getLinkUrl $ LinkTo.Repo repository.name
           a_ [href_ repoUrl, class_ allBranchesClass, data_ "branch-item" "all-branches"] $ do
             div_ [class_ "flex-shrink-0 mr-3"] $ do
               div_ [class_ "w-5 h-5 flex items-center justify-center"] $ toHtmlRaw Icon.list
@@ -228,7 +228,7 @@ repoLayout repo branches currentBranch content = do
 
           -- Individual branches with enhanced styling
           forM_ branches' $ \branch -> do
-            branchUrl <- lift $ App.linkToUrl $ LinkTo.RepoBranch repository.name branch.branchName
+            branchUrl <- lift $ App.getLinkUrl $ LinkTo.RepoBranch repository.name branch.branchName
             let isCurrentBranch = maybeCurrentBranch == Just branch.branchName
                 branchClass =
                   if isCurrentBranch
