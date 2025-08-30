@@ -50,7 +50,7 @@ handlers cfg = do
 handleListing :: Eff App.AppServantStack (Html ())
 handleListing = do
   let crumbs = [LinkTo.RepoListing]
-  App.runVHtmlInServant $ W.layout crumbs viewRepoList
+  App.runVHtml $ W.layout crumbs viewRepoList
 
 handleAddRepo :: Repo -> Eff App.AppServantStack FormResp
 handleAddRepo repo = do
@@ -58,7 +58,7 @@ handleAddRepo repo = do
     Just _repo -> do
       log Debug $ "Repository exists " <> toText repo.name
       -- Show error message instead of redirecting
-      errorHtml <- App.runVHtmlInServant $ do
+      errorHtml <- App.runVHtml $ do
         newRepoForm
         W.viraAlert_ W.AlertError $ do
           p_ [class_ "text-red-800 font-medium"] $ do

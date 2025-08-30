@@ -57,7 +57,7 @@ handlers cfg =
 
 viewHandler :: Eff App.AppServantStack (Html ())
 viewHandler = do
-  App.runVHtmlInServant $ W.layout [LinkTo.Settings] viewSettings
+  App.runVHtml $ W.layout [LinkTo.Settings] viewSettings
 
 updateCachixHandler :: CachixSettings -> Eff App.AppServantStack FormResp
 updateCachixHandler settings = do

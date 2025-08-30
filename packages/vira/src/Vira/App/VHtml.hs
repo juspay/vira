@@ -18,17 +18,19 @@ Use `lift` to perform effects.
 -}
 type VHtml = HtmlT (Eff AppStack)
 
--- | Convert a `VHtml` to a Lucid `Html`
-runVHtml :: VHtml () -> Eff AppStack (Html ())
-runVHtml htmlT = do
-  (builder, _) <- Lucid.runHtmlT htmlT
-  pure $ toHtmlRaw $ toLazyByteString builder
-
 -- | Convert VHtml to Html in the Servant effect stack
-runVHtmlInServant :: VHtml () -> Eff AppServantStack (Html ())
-runVHtmlInServant vhtml = do
+runVHtml :: VHtml () -> Eff AppServantStack (Html ())
+runVHtml vhtml = do
   cfg <- ask @AppState
-  liftIO $ runApp cfg $ runVHtml vhtml
+  liftIO $ runVHtmlIO cfg vhtml
+
+runVHtmlIO :: AppState -> VHtml () -> IO (Html ())
+runVHtmlIO cfg = runApp cfg . runVHtml'
+  where
+    runVHtml' :: VHtml () -> Eff AppStack (Html ())
+    runVHtml' htmlT = do
+      (builder, _) <- Lucid.runHtmlT htmlT
+      pure $ toHtmlRaw $ toLazyByteString builder
 
 -- | Get a `Link` to a part of the application
 getLink :: (Reader.Reader AppState :> es) => LinkTo -> Eff es Link

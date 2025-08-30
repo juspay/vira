@@ -73,7 +73,7 @@ viewHandler jobId = do
         , LinkTo.RepoBranch job.jobRepo job.jobBranch
         , LinkTo.Job jobId
         ]
-  App.runVHtmlInServant $ W.layout crumbs $ viewJob job
+  App.runVHtml $ W.layout crumbs $ viewJob job
 
 killHandler :: JobId -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 killHandler jobId = do

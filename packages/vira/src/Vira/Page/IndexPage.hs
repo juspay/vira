@@ -33,7 +33,7 @@ handlers cfg =
   Routes
     { _home =
         App.runAppInServant cfg $
-          App.runVHtmlInServant $
+          App.runVHtml $
             W.layout mempty $
               heroWelcome menu
     , _repos = RegistryPage.handlers cfg

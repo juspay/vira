@@ -20,7 +20,7 @@ import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.VHtml (VHtml, getLinkUrl, runVHtml)
+import Vira.App.VHtml (VHtml, getLinkUrl)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Type
 import Web.TablerIcons.Outline qualified as Icon
@@ -77,6 +77,6 @@ streamRouteHandler cfg = S.fromStepT $ step 0
     step (n :: Int) = S.Effect $ do
       when (n > 0) $ do
         liftIO $ threadDelay 1_000_000
-      html <- App.runApp cfg $ runVHtml viewInner
+      html <- App.runVHtmlIO cfg viewInner
       let msg = Status n html
       pure $ S.Yield msg $ step (n + 1)
