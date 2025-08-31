@@ -11,7 +11,8 @@ import Servant.Server.Generic (AsServer)
 import System.FilePath ((</>))
 import Vira.App qualified as App
 import Vira.App.Lucid (VHtml)
-import Vira.App.Servant (runVSourceIO)
+import Vira.App.Servant (mapSourceT)
+import Vira.App.Stack (runApp)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId, jobWorkingDir)
 import Vira.State.Type qualified as St
@@ -30,7 +31,7 @@ handlers :: App.AppState -> JobId -> Routes AsServer
 handlers cfg jobId = do
   Routes
     { _rawLog = App.runAppInServant cfg $ rawLogHandler jobId
-    , _streamLog = pure $ recommendedEventSourceHeaders $ runVSourceIO cfg $ Log.streamRouteHandler jobId
+    , _streamLog = pure $ recommendedEventSourceHeaders $ mapSourceT (runApp cfg) $ Log.streamRouteHandler jobId
     }
 
 rawLogHandler :: JobId -> Eff App.AppServantStack Text

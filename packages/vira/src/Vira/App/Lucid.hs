@@ -1,7 +1,6 @@
 -- | VHtml types and utilities for Lucid HTML with effectful capabilities
 module Vira.App.Lucid where
 
-import Data.Binary.Builder (toLazyByteString)
 import Effectful (Eff, type (:>))
 import Effectful.Reader.Dynamic (ask, asks)
 import Effectful.Reader.Dynamic qualified as Reader
@@ -26,8 +25,7 @@ runVHtml vhtml = do
 
 runVHtml' :: VHtml () -> Eff AppStack (Html ())
 runVHtml' htmlT = do
-  (builder, _) <- Lucid.runHtmlT htmlT
-  pure $ toHtmlRaw $ toLazyByteString builder
+  toHtmlRaw <$> Lucid.renderBST htmlT
 
 -- | Get a `Link` to a part of the application
 getLink :: (Reader.Reader AppState :> es) => LinkTo -> Eff es Link

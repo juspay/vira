@@ -16,6 +16,7 @@ import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import Data.Map qualified as Map
+import Effectful (Eff)
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
@@ -23,12 +24,13 @@ import Lucid
 import Lucid.Htmx.Contrib (hxSseClose_, hxSseConnect_, hxSseSwap_, hyperscript_)
 import Servant hiding (throwError)
 import Servant.API.EventStream
+import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Lucid (VHtml, getLinkUrl)
-import Vira.App.Servant (VSource)
+import Vira.App.Stack (AppStack)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
@@ -71,7 +73,7 @@ instance ToServerEvent LogChunk where
 
 data StreamState = Init | Streaming (CircularBuffer Text) | StreamEnding | Stopping
 
-streamRouteHandler :: JobId -> VSource LogChunk
+streamRouteHandler :: JobId -> SourceT (Eff AppStack) LogChunk
 streamRouteHandler jobId = S.fromStepT $ step 0 Init
   where
     step (n :: Int) (st :: StreamState) = S.Effect $ do

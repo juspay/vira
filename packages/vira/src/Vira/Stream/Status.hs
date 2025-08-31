@@ -12,16 +12,18 @@ module Vira.Stream.Status (
 ) where
 
 import Control.Concurrent (threadDelay)
+import Effectful (Eff)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
 import Lucid.Htmx.Contrib (hxSseConnect_, hxSseSwap_)
 import Servant.API
 import Servant.API.EventStream
+import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Lucid (VHtml, getLinkUrl, runVHtml')
-import Vira.App.Servant (VSource)
+import Vira.App.Stack (AppStack)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Type
 import Web.TablerIcons.Outline qualified as Icon
@@ -72,7 +74,7 @@ indicator active = do
   div_ [class_ $ "w-4 h-4 flex items-center justify-center " <> classes] $
     toHtmlRaw iconSvg
 
-streamRouteHandler :: VSource Status
+streamRouteHandler :: SourceT (Eff AppStack) Status
 streamRouteHandler = S.fromStepT $ step 0
   where
     step (n :: Int) = S.Effect $ do
