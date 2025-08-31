@@ -10,7 +10,7 @@ import Servant.API.EventStream (recommendedEventSourceHeaders)
 import Servant.Server.Generic (AsServer)
 import System.FilePath ((</>))
 import Vira.App qualified as App
-import Vira.App.VHtml (VHtml)
+import Vira.App.VHtml (VHtml, runVSourceIO)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId, jobWorkingDir)
 import Vira.State.Type qualified as St
@@ -29,7 +29,7 @@ handlers :: App.AppState -> JobId -> Routes AsServer
 handlers cfg jobId = do
   Routes
     { _rawLog = App.runAppInServant cfg $ rawLogHandler jobId
-    , _streamLog = pure $ recommendedEventSourceHeaders $ Log.streamRouteHandler cfg jobId
+    , _streamLog = pure $ recommendedEventSourceHeaders $ runVSourceIO cfg $ Log.streamRouteHandler jobId
     }
 
 rawLogHandler :: JobId -> Eff App.AppServantStack Text

@@ -20,7 +20,7 @@ import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.VHtml (VHtml, getLinkUrl)
+import Vira.App.VHtml (VHtml, VSource, getLinkUrl, runVHtml')
 import Vira.State.Acid qualified as Acid
 import Vira.State.Type
 import Web.TablerIcons.Outline qualified as Icon
@@ -71,12 +71,12 @@ indicator active = do
   div_ [class_ $ "w-4 h-4 flex items-center justify-center " <> classes] $
     toHtmlRaw iconSvg
 
-streamRouteHandler :: App.AppState -> SourceIO Status
-streamRouteHandler cfg = S.fromStepT $ step 0
+streamRouteHandler :: VSource Status
+streamRouteHandler = S.fromStepT $ step 0
   where
     step (n :: Int) = S.Effect $ do
       when (n > 0) $ do
         liftIO $ threadDelay 1_000_000
-      html <- App.runVHtmlIO cfg viewInner
+      html <- runVHtml' viewInner
       let msg = Status n html
       pure $ S.Yield msg $ step (n + 1)

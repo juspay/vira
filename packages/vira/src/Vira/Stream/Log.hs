@@ -16,6 +16,7 @@ import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import Data.Map qualified as Map
+import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
@@ -26,7 +27,7 @@ import Servant.Types.SourceT qualified as S
 import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.VHtml (VHtml, getLinkUrl)
+import Vira.App.VHtml (VHtml, VSource, getLinkUrl)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
@@ -69,14 +70,14 @@ instance ToServerEvent LogChunk where
 
 data StreamState = Init | Streaming (CircularBuffer Text) | StreamEnding | Stopping
 
-streamRouteHandler :: App.AppState -> JobId -> SourceIO LogChunk
-streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
+streamRouteHandler :: JobId -> VSource LogChunk
+streamRouteHandler jobId = S.fromStepT $ step 0 Init
   where
     step (n :: Int) (st :: StreamState) = S.Effect $ do
-      mJob :: Maybe Job <- App.runApp cfg $ App.query (St.GetJobA jobId)
+      mJob :: Maybe Job <- App.query (St.GetJobA jobId)
       case mJob of
         Nothing -> do
-          App.runApp cfg $ App.log Error "Job not found"
+          App.log Error "Job not found"
           pure $ S.Error "Job not found"
         Just job -> do
           handleState job n st
@@ -84,10 +85,11 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
       case st of
         Init -> do
           -- Get the task from supervisor to reuse its Tail handle
-          tasks <- liftIO $ readMVar cfg.supervisor.tasks
+          supervisor <- Effectful.Reader.Dynamic.asks App.supervisor
+          tasks <- liftIO $ readMVar supervisor.tasks
           case Map.lookup jobId tasks of
             Nothing -> do
-              App.runApp cfg $ App.log Error $ "Task not found in supervisor for job " <> show jobId
+              App.log Error $ "Task not found in supervisor for job " <> show jobId
               pure $ S.Error "Task not found in supervisor"
             Just task -> do
               -- Subscribe to the existing Tail handle
@@ -99,14 +101,13 @@ streamRouteHandler cfg jobId = S.fromStepT $ step 0 Init
           pure $ S.Yield (Stop n) $ step (n + 1) Stopping
         Stopping -> do
           -- Keep going until the htmx client has time to catch up.
-          threadDelay 1_000_000
+          liftIO $ threadDelay 1_000_000
           pure $ S.Yield (Stop n) $ step (n + 1) st
     streamLog n job queue = do
-      atomically (CB.drain queue) >>= \case
+      liftIO (atomically (CB.drain queue)) >>= \case
         Nothing -> do
           -- Queue is closed, no more lines will come. End the stream.
-          App.runApp cfg $ do
-            App.log Info $ "Job " <> show job.jobId <> " log queue closed; ending stream"
+          App.log Info $ "Job " <> show job.jobId <> " log queue closed; ending stream"
           pure $ S.Yield (Stop n) $ step (n + 1) Stopping
         Just availableLines -> do
           -- Send all available lines as a single chunk

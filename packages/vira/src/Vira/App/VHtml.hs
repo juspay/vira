@@ -7,7 +7,10 @@ import Effectful.Reader.Dynamic (ask, asks)
 import Effectful.Reader.Dynamic qualified as Reader
 import Lucid.Base (Html, HtmlT, ToHtml (toHtmlRaw))
 import Lucid.Base qualified as Lucid
+import Servant.API.Stream (SourceIO)
 import Servant.Links (Link, linkURI)
+import Servant.Types.SourceT (SourceT)
+import Servant.Types.SourceT qualified as S
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.App.Stack (AppServantStack, AppStack, AppState (linkTo), runApp)
 import Prelude hiding (ask, asks)
@@ -18,19 +21,22 @@ Use `lift` to perform effects.
 -}
 type VHtml = HtmlT (Eff AppStack)
 
+{- | Like `SourceIO` but can do application effects
+
+Use `lift` to perform effects.
+-}
+type VSource a = SourceT (Eff AppStack) a
+
 -- | Convert VHtml to Html in the Servant effect stack
 runVHtml :: VHtml () -> Eff AppServantStack (Html ())
 runVHtml vhtml = do
   cfg <- ask @AppState
-  liftIO $ runVHtmlIO cfg vhtml
+  liftIO $ runApp cfg $ runVHtml' vhtml
 
-runVHtmlIO :: AppState -> VHtml () -> IO (Html ())
-runVHtmlIO cfg = runApp cfg . runVHtml'
-  where
-    runVHtml' :: VHtml () -> Eff AppStack (Html ())
-    runVHtml' htmlT = do
-      (builder, _) <- Lucid.runHtmlT htmlT
-      pure $ toHtmlRaw $ toLazyByteString builder
+runVHtml' :: VHtml () -> Eff AppStack (Html ())
+runVHtml' htmlT = do
+  (builder, _) <- Lucid.runHtmlT htmlT
+  pure $ toHtmlRaw $ toLazyByteString builder
 
 -- | Get a `Link` to a part of the application
 getLink :: (Reader.Reader AppState :> es) => LinkTo -> Eff es Link
@@ -43,3 +49,19 @@ getLinkUrl :: (Reader.Reader AppState :> es) => LinkTo -> Eff es Text
 getLinkUrl linkToValue = do
   uri <- linkURI <$> getLink linkToValue
   pure $ show @Text $ uri
+
+-- | Convert VSource to SourceIO by running effects in IO
+runVSourceIO :: AppState -> VSource a -> SourceIO a
+runVSourceIO cfg vsource = S.fromStepT go
+  where
+    go = S.Effect $ do
+      step <- runApp cfg $ S.unSourceT vsource pure
+      pure $ transformStep step
+    transformStep = \case
+      S.Stop -> S.Stop
+      S.Error e -> S.Error e
+      S.Skip next -> S.Skip (transformStep next)
+      S.Yield a next -> S.Yield a (transformStep next)
+      S.Effect eff -> S.Effect $ do
+        nextStep <- runApp cfg eff
+        pure $ transformStep nextStep

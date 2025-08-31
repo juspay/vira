@@ -10,6 +10,7 @@ import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App ((//))
 import Vira.App qualified as App
+import Vira.App.VHtml (runVSourceIO)
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.SettingsPage qualified as SettingsPage
@@ -39,7 +40,7 @@ handlers cfg =
     , _repos = RegistryPage.handlers cfg
     , _jobs = JobPage.handlers cfg
     , _settings = SettingsPage.handlers cfg
-    , _status = pure $ recommendedEventSourceHeaders $ Status.streamRouteHandler cfg
+    , _status = pure $ recommendedEventSourceHeaders $ runVSourceIO cfg Status.streamRouteHandler
     }
   where
     linkText = show . linkURI
