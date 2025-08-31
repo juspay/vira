@@ -140,8 +140,14 @@ triggerNewBuild repoName branchName = do
   asks App.supervisor >>= \supervisor -> do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
-    let stages = getStages repo branch mCachix mAttic
-    Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \result -> do
+    let stages =
+          CreateProjectDir
+            :| [Clone repo branch]
+            <> maybe [] (one . AtticLogin) mAttic
+            <> [Build]
+            <> (maybe [] (one . CachixPush) mCachix <> maybe [] (one . AtticPush) mAttic)
+        procs = getProcs stages
+    Supervisor.startTask supervisor job.jobId job.jobWorkingDir procs $ \result -> do
       let status = case result of
             Right ExitSuccess -> St.JobFinished St.JobSuccess
             Right (ExitFailure _code) -> St.JobFinished St.JobFailure
@@ -150,35 +156,39 @@ triggerNewBuild repoName branchName = do
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId
 
--- | Get all build stages
-getStages :: St.Repo -> St.Branch -> Maybe CachixSettings -> Maybe AtticSettings -> NonEmpty CreateProcess
-getStages repo branch mCachix mAttic = do
-  stageCreateProjectDir
-    :| stagesClone
-    <> maybe [] (one . stageAtticLogin) mAttic
-    <> [stageBuild]
-    <> (maybe mempty (one . stageCachixPush) mCachix <> maybe mempty (one . stageAtticPush) mAttic)
+data Stage
+  = CreateProjectDir
+  | Clone St.Repo St.Branch
+  | Build
+  | AtticLogin AtticSettings
+  | AtticPush AtticSettings
+  | CachixPush CachixSettings
+
+-- | Get all build processes
+getProcs :: NonEmpty Stage -> NonEmpty CreateProcess
+getProcs = (=<<) getProc
   where
-    stageCreateProjectDir =
-      proc "mkdir" ["project"]
-    stagesClone =
-      Git.cloneAtCommit repo.cloneUrl branch.branchName branch.headCommit
-        <&> \p -> p {cwd = Just "project"}
-    stageBuild =
-      Omnix.omnixCiProcess
-        { cwd = Just "project"
-        }
-    -- Run the stage before any other attic processes
-    stageAtticLogin attic =
-      (atticLoginProcess attic.atticServer attic.atticToken)
-        { cwd = Just "project"
-        }
-    stageCachixPush cachix =
-      (cachixPushProcess cachix.cachixName "result")
-        { env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]
-        , cwd = Just "project"
-        }
-    stageAtticPush attic =
-      (atticPushProcess attic.atticServer attic.atticCacheName "result")
-        { cwd = Just "project"
-        }
+    getProc :: Stage -> NonEmpty CreateProcess
+    getProc = \case
+      CreateProjectDir -> one $ proc "mkdir" ["project"]
+      Clone repo branch ->
+        Git.cloneAtCommit repo.cloneUrl branch.branchName branch.headCommit
+          <&> \p -> p {cwd = Just "project"}
+      Build ->
+        one $ Omnix.omnixCiProcess {cwd = Just "project"}
+      AtticLogin attic ->
+        one $
+          (atticLoginProcess attic.atticServer attic.atticToken)
+            { cwd = Just "project"
+            }
+      AtticPush attic ->
+        one $
+          (atticPushProcess attic.atticServer attic.atticCacheName "result")
+            { cwd = Just "project"
+            }
+      CachixPush cachix ->
+        one $
+          (cachixPushProcess cachix.cachixName "result")
+            { env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]
+            , cwd = Just "project"
+            }

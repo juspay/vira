@@ -71,8 +71,7 @@ remoteBranches url = do
       _unexpectedPartitions -> Nothing
 
 -- | Return the `CreateProcess` to clone a repo at a specific commit
-cloneAtCommit :: Text -> BranchName -> CommitID -> [CreateProcess]
+cloneAtCommit :: Text -> BranchName -> CommitID -> NonEmpty CreateProcess
 cloneAtCommit url branch commit =
-  [ proc git ["clone", "--branch", toString branch, "--single-branch", "--depth", "1", toString url, "."]
-  , proc git ["checkout", toString commit]
-  ]
+  proc git ["clone", "--branch", toString branch, "--single-branch", "--depth", "1", toString url, "."]
+    :| [proc git ["checkout", toString commit]]
