@@ -12,6 +12,7 @@ import Vira.App ((//))
 import Vira.App qualified as App
 import Vira.App.Lucid (runAppHtml)
 import Vira.App.Servant (mapSourceT)
+import Vira.HTMX.SSE qualified as SSE
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.SettingsPage qualified as SettingsPage
@@ -25,7 +26,7 @@ data Routes mode = Routes
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _settings :: mode :- "settings" Servant.API.:> NamedRoutes SettingsPage.Routes
-  , _status :: mode :- "status" Servant.API.:> Status.StreamRoute
+  , _status :: mode :- "status" Servant.API.:> SSE.SSERoute
   }
   deriving stock (Generic)
 

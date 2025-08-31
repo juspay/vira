@@ -3,7 +3,6 @@
 -- | Real-time status of the Vira system.
 module Vira.Stream.Status (
   -- * Routes and handlers
-  StreamRoute,
   streamRouteHandler,
 
   -- * Views
@@ -14,43 +13,36 @@ module Vira.Stream.Status (
 import Control.Concurrent (threadDelay)
 import Effectful (Eff)
 import Lucid
-import Servant.API
-import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Lucid (AppHtml, getLinkUrl)
 import Vira.App.Stack (AppStack)
-import Vira.HTMX.SSE (sseConnect, sseSwap)
+import Vira.HTMX.SSE (SSEMessage (..), sseConnect, sseSwap)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Type
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (Reader, ask, asks, runReader)
 
-type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO Status))
-
--- A status message sent from server to client
---
--- The `Text` is the event type, `Int` is the unique identifier of the status message,
--- which contains the raw HTML of the status.
-data Status = Status Text Int (Html ())
-
-instance ToServerEvent Status where
-  toServerEvent (Status eventType ident t) =
-    ServerEvent
-      (Just $ encodeUtf8 eventType)
-      (Just $ show ident)
-      (Lucid.renderBS t)
-
 viewStream :: AppHtml ()
 viewStream = do
   sseConnect LinkTo.StatusGet $ do
-    sseSwap "status" viewInner
+    sseSwap "status" view
+
+streamRouteHandler :: SourceT (Eff AppStack) SSEMessage
+streamRouteHandler = S.fromStepT $ step 0
+  where
+    step (n :: Int) = S.Effect $ do
+      when (n > 0) $ do
+        liftIO $ threadDelay 1_000_000
+      html <- App.runAppHtmlHandlingError view
+      let msg = SSEMessage "status" (show n) html
+      pure $ S.Yield msg $ step (n + 1)
 
 -- | Status view for both immediate display and SSE streaming
-viewInner :: AppHtml ()
-viewInner = do
+view :: AppHtml ()
+view = do
   -- Compute running jobs directly
   jobsData <- lift $ App.query Acid.GetRunningJobs
   let jobs = jobsData <&> \job -> (job.jobRepo, job.jobId)
@@ -62,16 +54,6 @@ viewInner = do
         span_ $ b_ $ toHtml $ unRepoName repo
         "/"
         span_ $ code_ $ toHtml @Text $ show jobId
-
-streamRouteHandler :: SourceT (Eff AppStack) Status
-streamRouteHandler = S.fromStepT $ step 0
-  where
-    step (n :: Int) = S.Effect $ do
-      when (n > 0) $ do
-        liftIO $ threadDelay 1_000_000
-      html <- App.runAppHtmlHandlingError viewInner
-      let msg = Status "status" n html
-      pure $ S.Yield msg $ step (n + 1)
 
 indicator :: (Monad m) => Bool -> HtmlT m ()
 indicator active = do
