@@ -8,8 +8,8 @@ module Vira.Stream.Refresh (
   viewStream,
 ) where
 
-import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
-import Control.Concurrent.STM.CircularBuffer qualified as CB
+import Control.Concurrent.STM (TChan, dupTChan, readTChan, tryReadTChan)
+import Data.List.NonEmpty qualified as NonEmpty
 import Data.Time (UTCTime)
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (asks)
@@ -47,28 +47,52 @@ viewStream = do
   div_ [hxExt_ "sse", hxSseConnect_ link] $ do
     script_ [hxSseSwap_ "refresh"] ("" :: Text)
 
--- | Check if state has been updated since the last check
-hasRecentStateUpdate :: CircularBuffer UTCTime -> Eff AppStack Bool
-hasRecentStateUpdate buffer = do
-  updates <- liftIO $ atomically $ CB.drain buffer
-  pure $ isJust updates
+{- | Drain all items from a TChan (equivalent to CB.drain)
+Blocks until at least one item is available, then drains all remaining items
+-}
+drainTChan :: TChan a -> STM (NonEmpty a)
+drainTChan chan = do
+  -- Block until first item is available
+  firstItem <- readTChan chan
+  -- Then drain any remaining items without blocking
+  remainingItems <- drainLoop []
+  pure $ NonEmpty.fromList (firstItem : reverse remainingItems)
+  where
+    drainLoop acc = do
+      maybeItem <- tryReadTChan chan
+      case maybeItem of
+        Nothing -> pure acc
+        Just item -> drainLoop (item : acc)
+
+-- | Check if state has been updated since the last check (non-blocking)
+hasRecentStateUpdate :: TChan UTCTime -> Eff AppStack ()
+hasRecentStateUpdate chan = do
+  void $ liftIO $ atomically $ drainTChan chan
+
+-- | Drain remaining items from TChan without blocking
+drainRemainingTChan :: TChan a -> STM [a]
+drainRemainingTChan chan = do
+  items <- drainLoop []
+  pure $ reverse items
+  where
+    drainLoop acc = do
+      maybeItem <- tryReadTChan chan
+      case maybeItem of
+        Nothing -> pure acc
+        Just item -> drainLoop (item : acc)
 
 streamRouteHandler :: SourceT (Eff AppStack) Status
 streamRouteHandler = S.fromStepT $ S.Effect $ do
   putStrLn "🔃 Refresh SSE"
-  buffer <- asks stateUpdated
-  bufferCloned <- atomically $ CB.clone buffer
-  -- Drain everything first
-  void $ atomically $ CB.drain buffer
-  pure $ step 0 bufferCloned
+  chan <- asks stateUpdated
+  chanDup <- liftIO $ atomically $ dupTChan chan
+  -- Drain everything first (non-blocking)
+  void $ liftIO $ atomically $ drainRemainingTChan chanDup
+  pure $ step 0 chanDup
   where
-    step (n :: Int) buf = S.Effect $ do
+    step (n :: Int) chan = S.Effect $ do
       -- Check if state has been updated since last refresh
-      shouldRefresh <- hasRecentStateUpdate buf
+      shouldRefresh <- hasRecentStateUpdate chan
       putStrLn $ "🔃 Stream iteration " <> show n <> ", shouldRefresh=" <> show shouldRefresh
-      if shouldRefresh
-        then do
-          let refreshMsg = Refresh "location.reload()"
-          pure $ S.Yield refreshMsg $ step (n + 1) buf
-        else
-          pure $ S.Skip $ step n buf
+      let refreshMsg = Refresh "location.reload()"
+      pure $ S.Yield refreshMsg $ step (n + 1) chan
