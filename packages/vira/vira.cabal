@@ -32,11 +32,11 @@ library
       Vira.App.CLI
       Vira.App.LinkTo.Resolve
       Vira.App.LinkTo.Type
+      Vira.App.Lucid
       Vira.App.Run
       Vira.App.Servant
       Vira.App.Server
       Vira.App.Stack
-      Vira.App.VHtml
       Vira.Lib.Attic
       Vira.Lib.Cachix
       Vira.Lib.Git

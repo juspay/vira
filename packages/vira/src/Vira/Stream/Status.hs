@@ -20,7 +20,8 @@ import Servant.API.EventStream
 import Servant.Types.SourceT qualified as S
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.VHtml (VHtml, VSource, getLinkUrl, runVHtml')
+import Vira.App.Lucid (VHtml, getLinkUrl, runVHtml')
+import Vira.App.Servant (VSource)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Type
 import Web.TablerIcons.Outline qualified as Icon

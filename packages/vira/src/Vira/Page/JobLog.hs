@@ -10,7 +10,8 @@ import Servant.API.EventStream (recommendedEventSourceHeaders)
 import Servant.Server.Generic (AsServer)
 import System.FilePath ((</>))
 import Vira.App qualified as App
-import Vira.App.VHtml (VHtml, runVSourceIO)
+import Vira.App.Lucid (VHtml)
+import Vira.App.Servant (runVSourceIO)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId, jobWorkingDir)
 import Vira.State.Type qualified as St
