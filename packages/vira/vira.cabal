@@ -30,6 +30,7 @@ library
       Vira.App
       Vira.App.AcidState
       Vira.App.CLI
+      Vira.App.HTMX.SSE
       Vira.App.LinkTo.Resolve
       Vira.App.LinkTo.Type
       Vira.App.Lucid
@@ -37,7 +38,6 @@ library
       Vira.App.Servant
       Vira.App.Server
       Vira.App.Stack
-      Vira.HTMX.SSE
       Vira.Lib.Attic
       Vira.Lib.Cachix
       Vira.Lib.Git

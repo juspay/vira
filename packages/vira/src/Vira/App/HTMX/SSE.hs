@@ -1,5 +1,5 @@
 -- | HTMX Server-Sent Events utilities for dynamic UI updates
-module Vira.HTMX.SSE (
+module Vira.App.HTMX.SSE (
   -- * SSE Connection
   sseConnect,
   sseSwap,
@@ -32,8 +32,8 @@ sseConnect linkTo content = do
 Use this within an `sseConnect` container to handle specific event types.
 -}
 sseSwap :: Text -> AppHtml () -> AppHtml ()
-sseSwap eventType content = do
-  div_ [hxSseSwap_ eventType] content
+sseSwap eventType initialContent = do
+  div_ [hxSseSwap_ eventType] initialContent
 
 -- | A Server-Sent Event message containing HTML content
 data SSEMessage = SSEMessage

@@ -16,10 +16,10 @@ import Lucid
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import Vira.App qualified as App
+import Vira.App.HTMX.SSE qualified as SSE
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Lucid (AppHtml, getLinkUrl)
 import Vira.App.Stack (AppStack)
-import Vira.HTMX.SSE (SSEMessage (..), sseConnect, sseSwap)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Type
 import Web.TablerIcons.Outline qualified as Icon
@@ -27,17 +27,18 @@ import Prelude hiding (Reader, ask, asks, runReader)
 
 viewStream :: AppHtml ()
 viewStream = do
-  sseConnect LinkTo.StatusGet $ do
-    sseSwap "status" view
+  SSE.sseConnect LinkTo.StatusGet $ do
+    SSE.sseSwap "status" view
 
-streamRouteHandler :: SourceT (Eff AppStack) SSEMessage
+streamRouteHandler :: SourceT (Eff AppStack) SSE.SSEMessage
 streamRouteHandler = S.fromStepT $ step 0
   where
     step (n :: Int) = S.Effect $ do
       when (n > 0) $ do
+        -- We must use polling only because there's no proper update notification mechanism yet.
         liftIO $ threadDelay 1_000_000
       html <- App.runAppHtmlHandlingError view
-      let msg = SSEMessage "status" (show n) html
+      let msg = SSE.SSEMessage "status" (show n) html
       pure $ S.Yield msg $ step (n + 1)
 
 -- | Status view for both immediate display and SSE streaming

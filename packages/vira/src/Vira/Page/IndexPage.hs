@@ -10,9 +10,9 @@ import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App ((//))
 import Vira.App qualified as App
+import Vira.App.HTMX.SSE qualified as SSE
 import Vira.App.Lucid (runAppHtml)
 import Vira.App.Servant (mapSourceT)
-import Vira.HTMX.SSE qualified as SSE
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.SettingsPage qualified as SettingsPage
