@@ -109,7 +109,6 @@ library
     , co-log-core
     , co-log-effectful
     , containers
-    , dani-servant-lucid2
     , data-default
     , deriving-aeson
     , directory
@@ -128,6 +127,7 @@ library
     , htmx-lucid-contrib
     , htmx-servant
     , http-api-data
+    , http-media
     , ixset-typed
     , lucid2
     , mtl
@@ -146,6 +146,7 @@ library
     , streaming
     , tabler-icons
     , tail
+    , text
     , time
     , wai
     , wai-extra
@@ -207,7 +208,6 @@ executable vira
     , co-log-core
     , co-log-effectful
     , containers
-    , dani-servant-lucid2
     , data-default
     , deriving-aeson
     , directory
@@ -226,6 +226,7 @@ executable vira
     , htmx-lucid-contrib
     , htmx-servant
     , http-api-data
+    , http-media
     , ixset-typed
     , lucid2
     , mtl
@@ -244,6 +245,7 @@ executable vira
     , streaming
     , tabler-icons
     , tail
+    , text
     , time
     , vira
     , wai
@@ -308,7 +310,6 @@ test-suite vira-tests
     , co-log-core
     , co-log-effectful
     , containers
-    , dani-servant-lucid2
     , data-default
     , deriving-aeson
     , directory
@@ -327,6 +328,7 @@ test-suite vira-tests
     , htmx-lucid-contrib
     , htmx-servant
     , http-api-data
+    , http-media
     , ixset-typed
     , lucid2
     , mtl
@@ -345,6 +347,7 @@ test-suite vira-tests
     , streaming
     , tabler-icons
     , tail
+    , text
     , time
     , vira
     , wai

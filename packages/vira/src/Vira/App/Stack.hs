@@ -46,6 +46,10 @@ runAppInServant :: AppState -> Eff (Error ServerError : AppStack) a -> Handler a
 runAppInServant cfg =
   Handler . ExceptT . runApp cfg . runErrorNoCallStack
 
+runAppInServant' :: AppState -> Eff AppStack a -> Handler a
+runAppInServant' cfg =
+  Handler . ExceptT . fmap Right . runApp cfg
+
 -- | Application-wide state available in Effectful stack
 data AppState = AppState
   { -- CLI args passed by the user

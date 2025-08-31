@@ -3,14 +3,14 @@ module Vira.Page.IndexPage where
 
 import Lucid
 import Servant.API (Get, NamedRoutes, (:>))
-import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.API.EventStream (recommendedEventSourceHeaders)
 import Servant.API.Generic (GenericMode (type (:-)))
 import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App ((//))
 import Vira.App qualified as App
-import Vira.App.Servant (mapSourceT)
+import Vira.App.Lucid (runVHtml')
+import Vira.App.Servant (HTML, mapSourceT)
 import Vira.App.Stack (runApp)
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
@@ -34,8 +34,8 @@ handlers :: App.AppState -> Routes AsServer
 handlers cfg =
   Routes
     { _home =
-        App.runAppInServant cfg $
-          App.runVHtml $
+        App.runAppInServant' cfg $
+          runVHtml' $
             W.layout mempty $
               heroWelcome menu
     , _repos = RegistryPage.handlers cfg
