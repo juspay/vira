@@ -13,9 +13,7 @@ module Vira.Stream.Status (
 
 import Control.Concurrent (threadDelay)
 import Effectful (Eff)
-import Htmx.Lucid.Extra (hxExt_)
 import Lucid
-import Lucid.Htmx.Contrib (hxSseConnect_, hxSseSwap_)
 import Servant.API
 import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
@@ -24,6 +22,7 @@ import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Lucid (AppHtml, getLinkUrl)
 import Vira.App.Stack (AppStack)
+import Vira.HTMX.SSE (sseConnect, sseSwap)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Type
 import Web.TablerIcons.Outline qualified as Icon
@@ -33,22 +32,21 @@ type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO Sta
 
 -- A status message sent from server to client
 --
--- The `Int` is the unique identifier of the status message, which contains the
--- raw HTML of the status.
-data Status = Status Int (Html ())
+-- The `Text` is the event type, `Int` is the unique identifier of the status message,
+-- which contains the raw HTML of the status.
+data Status = Status Text Int (Html ())
 
 instance ToServerEvent Status where
-  toServerEvent (Status ident t) =
+  toServerEvent (Status eventType ident t) =
     ServerEvent
-      (Just "status")
+      (Just $ encodeUtf8 eventType)
       (Just $ show ident)
       (Lucid.renderBS t)
 
 viewStream :: AppHtml ()
 viewStream = do
-  link <- lift $ getLinkUrl LinkTo.StatusGet
-  div_ [hxExt_ "sse", hxSseConnect_ link, hxSseSwap_ "status"] $ do
-    viewInner
+  sseConnect LinkTo.StatusGet $ do
+    sseSwap "status" viewInner
 
 -- | Status view for both immediate display and SSE streaming
 viewInner :: AppHtml ()
@@ -65,6 +63,16 @@ viewInner = do
         "/"
         span_ $ code_ $ toHtml @Text $ show jobId
 
+streamRouteHandler :: SourceT (Eff AppStack) Status
+streamRouteHandler = S.fromStepT $ step 0
+  where
+    step (n :: Int) = S.Effect $ do
+      when (n > 0) $ do
+        liftIO $ threadDelay 1_000_000
+      html <- App.runAppHtmlHandlingError viewInner
+      let msg = Status "status" n html
+      pure $ S.Yield msg $ step (n + 1)
+
 indicator :: (Monad m) => Bool -> HtmlT m ()
 indicator active = do
   let (iconSvg, classes) =
@@ -73,13 +81,3 @@ indicator active = do
           else (Icon.circle, "text-gray-500")
   div_ [class_ $ "w-4 h-4 flex items-center justify-center " <> classes] $
     toHtmlRaw iconSvg
-
-streamRouteHandler :: SourceT (Eff AppStack) Status
-streamRouteHandler = S.fromStepT $ step 0
-  where
-    step (n :: Int) = S.Effect $ do
-      when (n > 0) $ do
-        liftIO $ threadDelay 1_000_000
-      html <- App.runAppHtmlHandlingError viewInner
-      let msg = Status n html
-      pure $ S.Yield msg $ step (n + 1)

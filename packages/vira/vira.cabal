@@ -37,6 +37,7 @@ library
       Vira.App.Servant
       Vira.App.Server
       Vira.App.Stack
+      Vira.HTMX.SSE
       Vira.Lib.Attic
       Vira.Lib.Cachix
       Vira.Lib.Git
