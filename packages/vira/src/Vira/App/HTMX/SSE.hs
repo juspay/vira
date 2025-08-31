@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 -- | HTMX Server-Sent Events utilities for dynamic UI updates
 module Vira.App.HTMX.SSE (
   -- * SSE Connection
@@ -43,10 +45,10 @@ data SSEMessage = SSEMessage
 
 instance ToServerEvent SSEMessage where
   toServerEvent (SSEMessage evtType content) =
-    ServerEvent
-      (Just $ encodeUtf8 evtType)
-      Nothing
-      (Lucid.renderBS content)
+    let eventType = Just $ encodeUtf8 evtType
+        eventId = Nothing
+        eventData = Lucid.renderBS content
+     in ServerEvent {..}
 
 -- | Generic SSE route type for streaming HTML messages
 type SSERoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO SSEMessage))
