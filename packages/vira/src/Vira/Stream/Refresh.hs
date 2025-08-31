@@ -8,10 +8,9 @@ module Vira.Stream.Refresh (
   viewStream,
 ) where
 
-import Control.Concurrent (threadDelay)
-import Control.Concurrent.STM (atomically)
+import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
-import Data.Time.Clock (UTCTime, getCurrentTime)
+import Data.Time (UTCTime)
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Extra (hxExt_)
@@ -49,37 +48,27 @@ viewStream = do
     script_ [hxSseSwap_ "refresh"] ("" :: Text)
 
 -- | Check if state has been updated since the last check
-hasRecentStateUpdate :: Maybe UTCTime -> Eff AppStack Bool
-hasRecentStateUpdate lastUpdated = do
-  buffer <- asks stateUpdated
-  updates <- liftIO $ Control.Concurrent.STM.atomically $ CB.drain buffer
-  case updates of
-    Nothing -> pure False
-    Just updateTimes -> do
-      let timesList = toList updateTimes
-      case viaNonEmpty last timesList of
-        Nothing -> pure False
-        Just latestUpdate ->
-          case lastUpdated of
-            Nothing -> pure True -- First time, so refresh
-            Just lastTime -> pure $ latestUpdate > lastTime
+hasRecentStateUpdate :: CircularBuffer UTCTime -> Eff AppStack Bool
+hasRecentStateUpdate buffer = do
+  updates <- liftIO $ atomically $ CB.drain buffer
+  pure $ isJust updates
 
 streamRouteHandler :: SourceT (Eff AppStack) Status
 streamRouteHandler = S.fromStepT $ S.Effect $ do
   putStrLn "🔃 Refresh SSE"
-  pure $ step 0 Nothing
+  buffer <- asks stateUpdated
+  bufferCloned <- atomically $ CB.clone buffer
+  -- Drain everything first
+  void $ atomically $ CB.drain buffer
+  pure $ step 0 bufferCloned
   where
-    step (n :: Int) lastUpdated = S.Effect $ do
-      when (n > 0) $ do
-        liftIO $ threadDelay 1_000_000
-
+    step (n :: Int) buf = S.Effect $ do
       -- Check if state has been updated since last refresh
-      shouldRefresh <- hasRecentStateUpdate lastUpdated
+      shouldRefresh <- hasRecentStateUpdate buf
       putStrLn $ "🔃 Stream iteration " <> show n <> ", shouldRefresh=" <> show shouldRefresh
       if shouldRefresh
         then do
-          now <- liftIO getCurrentTime
           let refreshMsg = Refresh "location.reload()"
-          pure $ S.Yield refreshMsg $ step (n + 1) (Just now)
+          pure $ S.Yield refreshMsg $ step (n + 1) buf
         else
-          pure $ S.Skip $ step n lastUpdated
+          pure $ S.Skip $ step n buf
