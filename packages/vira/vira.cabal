@@ -32,6 +32,7 @@ library
       Vira.App.CLI
       Vira.App.LinkTo.Resolve
       Vira.App.LinkTo.Type
+      Vira.App.Lucid
       Vira.App.Run
       Vira.App.Servant
       Vira.App.Server
@@ -102,6 +103,7 @@ library
     , aeson
     , async
     , base ==4.*
+    , binary
     , bytestring
     , co-log
     , co-log-core
@@ -126,6 +128,7 @@ library
     , htmx-lucid-contrib
     , htmx-servant
     , http-api-data
+    , http-media
     , ixset-typed
     , lucid2
     , mtl
@@ -144,6 +147,7 @@ library
     , streaming
     , tabler-icons
     , tail
+    , text
     , time
     , wai
     , wai-extra
@@ -199,6 +203,7 @@ executable vira
     , aeson
     , async
     , base ==4.*
+    , binary
     , bytestring
     , co-log
     , co-log-core
@@ -223,6 +228,7 @@ executable vira
     , htmx-lucid-contrib
     , htmx-servant
     , http-api-data
+    , http-media
     , ixset-typed
     , lucid2
     , mtl
@@ -241,6 +247,7 @@ executable vira
     , streaming
     , tabler-icons
     , tail
+    , text
     , time
     , vira
     , wai
@@ -299,6 +306,7 @@ test-suite vira-tests
     , aeson
     , async
     , base ==4.*
+    , binary
     , bytestring
     , co-log
     , co-log-core
@@ -323,6 +331,7 @@ test-suite vira-tests
     , htmx-lucid-contrib
     , htmx-servant
     , http-api-data
+    , http-media
     , ixset-typed
     , lucid2
     , mtl
@@ -341,6 +350,7 @@ test-suite vira-tests
     , streaming
     , tabler-icons
     , tail
+    , text
     , time
     , vira
     , wai

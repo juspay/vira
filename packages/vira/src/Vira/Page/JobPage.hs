@@ -7,7 +7,7 @@ import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Process (CreateProcess (cwd), env, proc)
-import Effectful.Reader.Dynamic (ask, asks)
+import Effectful.Reader.Dynamic (asks)
 import GHC.IO.Exception (ExitCode (..))
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
@@ -17,6 +17,7 @@ import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
+import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Attic
@@ -54,7 +55,7 @@ handlers :: App.AppState -> Routes AsServer
 handlers cfg = do
   Routes
     { _build = \x -> App.runAppInServant cfg . buildHandler x
-    , _view = App.runAppInServant cfg . viewHandler
+    , _view = App.runAppInServant cfg . App.runAppHtml . viewHandler
     , _log = JobLog.handlers cfg
     , _kill = App.runAppInServant cfg . killHandler
     }
@@ -64,17 +65,16 @@ buildHandler repoName branch = do
   triggerNewBuild repoName branch
   pure $ addHeader True "Ok"
 
-viewHandler :: JobId -> Eff App.AppServantStack (Html ())
+viewHandler :: JobId -> AppHtml ()
 viewHandler jobId = do
-  job <- App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
+  job <- lift $ App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
   let crumbs =
         [ LinkTo.RepoListing
         , LinkTo.Repo job.jobRepo
         , LinkTo.RepoBranch job.jobRepo job.jobBranch
         , LinkTo.Job jobId
         ]
-  cfg <- ask
-  W.layout cfg crumbs <$> viewJob cfg.linkTo job
+  W.layout crumbs $ viewJob job
 
 killHandler :: JobId -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 killHandler jobId = do
@@ -82,11 +82,11 @@ killHandler jobId = do
   Supervisor.killTask supervisor jobId
   pure $ addHeader True "Killed"
 
-viewJob :: (LinkTo.LinkTo -> Link) -> St.Job -> Eff App.AppServantStack (Html ())
-viewJob linkTo job = do
+viewJob :: St.Job -> App.AppHtml ()
+viewJob job = do
   let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
-  logView <- JobLog.view linkTo job
-  pure $ W.viraSection_ [] $ do
+
+  W.viraSection_ [] $ do
     W.viraPageHeader_ ("Job #" <> (toText @String $ show job.jobId)) $ do
       div_ [class_ "flex items-center justify-between"] $ do
         div_ [class_ "flex items-center space-x-4"] $ do
@@ -94,21 +94,23 @@ viewJob linkTo job = do
           viewCommit job.jobCommit
         div_ [class_ "flex items-center space-x-4"] $ do
           viewJobStatus job.jobStatus
-          when jobActive $
+          when jobActive $ do
+            killLink <- lift $ App.getLink $ LinkTo.Kill job.jobId
             W.viraButton_
               W.ButtonDestructive
-              [ hxPostSafe_ $ linkTo $ LinkTo.Kill job.jobId
+              [ hxPostSafe_ killLink
               , hxSwapS_ AfterEnd
               ]
               "🛑 Kill Job"
 
     -- Job logs
     W.viraCard_ [class_ "p-6"] $ do
-      logView
+      JobLog.view job
 
-viewJobHeader :: (LinkTo.LinkTo -> Link) -> St.Job -> Html ()
-viewJobHeader linkTo job = do
-  a_ [title_ "View Job Details", href_ $ show . linkURI $ linkTo $ LinkTo.Job job.jobId, class_ "block"] $ do
+viewJobHeader :: St.Job -> App.AppHtml ()
+viewJobHeader job = do
+  jobUrl <- lift $ App.getLinkUrl $ LinkTo.Job job.jobId
+  a_ [title_ "View Job Details", href_ jobUrl, class_ "block"] $ do
     div_ [class_ "flex items-center justify-between"] $ do
       div_ [class_ "flex items-center space-x-4"] $ do
         div_ [class_ "flex-shrink-0"] $ do
@@ -117,11 +119,11 @@ viewJobHeader linkTo job = do
         viewCommit job.jobCommit
       viewJobStatus job.jobStatus
 
-viewCommit :: Git.CommitID -> Html ()
+viewCommit :: (Monad m) => Git.CommitID -> HtmlT m ()
 viewCommit (Git.CommitID commit) = do
   W.viraCodeInline_ (T.take 8 $ toText commit)
 
-viewJobStatus :: St.JobStatus -> Html ()
+viewJobStatus :: (Monad m) => St.JobStatus -> HtmlT m ()
 viewJobStatus status = do
   W.viraStatusBadge_ status
 

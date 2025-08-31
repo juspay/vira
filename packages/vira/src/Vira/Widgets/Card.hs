@@ -77,7 +77,7 @@ W.viraNavigationCard_ (show repoUrl) (toHtml $ toString repo.name)
 - href should be a valid URL or route
 - Keep titles concise for clean appearance
 -}
-viraNavigationCard_ :: Text -> Html () -> Html ()
+viraNavigationCard_ :: (Monad m) => Text -> HtmlT m () -> HtmlT m ()
 viraNavigationCard_ href title = do
   a_ [href_ href, class_ "group block"] $ do
     viraCard_ [class_ "p-6 hover:shadow-lg transition-all duration-300 group-hover:border-indigo-300"] $ do

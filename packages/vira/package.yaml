@@ -42,6 +42,7 @@ dependencies:
   - effectful
   - effectful-core
   - effectful-plugin
+  - http-media
   - effectful-th
   - envparse
   - filepath
@@ -71,6 +72,7 @@ dependencies:
   - stm
   - streaming
   - tail
+  - text
   - time
   - wai
   - wai-extra
@@ -79,6 +81,7 @@ dependencies:
   - warp-tls-simple
   - which
   - with-utf8
+  - binary
 
 library:
   source-dirs: src

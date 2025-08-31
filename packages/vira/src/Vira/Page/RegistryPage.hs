@@ -5,7 +5,6 @@ module Vira.Page.RegistryPage where
 
 import Colog (Severity (..))
 import Effectful (Eff)
-import Effectful.Reader.Dynamic (ask)
 import GHC.Records (HasField)
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Htmx.Lucid.Core (hxSwapS_)
@@ -16,12 +15,12 @@ import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
+import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Logging
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.State.Acid qualified as St
-import Vira.State.Core qualified as St
 import Vira.State.Type (Repo (..), RepoName (..), RepoSettings (..))
 import Vira.Widgets.Alert qualified as W
 import Vira.Widgets.Button qualified as W
@@ -44,42 +43,40 @@ data Routes mode = Routes
 handlers :: App.AppState -> Routes AsServer
 handlers cfg = do
   Routes
-    { _listing = App.runAppInServant cfg handleListing
+    { _listing = App.runAppInServant cfg $ App.runAppHtml handleListing
     , _repo = RepoPage.handlers cfg
-    , _addRepo = App.runAppInServant cfg . addRepoHandler
+    , _addRepo = App.runAppInServant cfg . handleAddRepo
     }
 
-handleListing :: Eff App.AppServantStack (Html ())
+handleListing :: AppHtml ()
 handleListing = do
-  cfg <- ask
-  samples <- App.query St.GetAllReposA
   let crumbs = [LinkTo.RepoListing]
-  pure $ W.layout cfg crumbs $ do
-    viewRepoList cfg.linkTo samples
+  W.layout crumbs viewRepoList
 
-addRepoHandler :: Repo -> Eff App.AppServantStack FormResp
-addRepoHandler repo = do
-  cfg <- ask
+handleAddRepo :: Repo -> Eff App.AppServantStack FormResp
+handleAddRepo repo = do
   App.query (St.GetRepoByNameA repo.name) >>= \case
     Just _repo -> do
       log Debug $ "Repository exists " <> toText repo.name
       -- Show error message instead of redirecting
-      pure $ noHeader $ do
-        newRepoForm cfg.linkTo
+      errorHtml <- App.runAppHtml $ do
+        newRepoForm
         W.viraAlert_ W.AlertError $ do
           p_ [class_ "text-red-800 font-medium"] $ do
             "Repository "
             strong_ $ toHtml $ toString repo.name
             " already exists."
+      pure $ noHeader errorHtml
     Nothing -> do
       App.update $ St.AddNewRepoA repo
       log Info $ "Added repository " <> toText repo.name
       -- Redirect to the newly created repository page
-      let newRepoUrl :: String = show $ linkURI $ cfg.linkTo $ LinkTo.Repo repo.name
-      pure $ addHeader (toText newRepoUrl) "Ok"
+      newRepoUrl <- App.getLinkUrl $ LinkTo.Repo repo.name
+      pure $ addHeader newRepoUrl "Ok"
 
-viewRepoList :: (LinkTo.LinkTo -> Link) -> [St.Repo] -> Html ()
-viewRepoList linkTo registry = do
+viewRepoList :: App.AppHtml ()
+viewRepoList = do
+  registry <- lift $ App.query St.GetAllReposA
   W.viraSection_ [] $ do
     W.viraPageHeader_ "Repositories" $ do
       p_ [class_ "text-gray-600"] "Repositories managed by this Vira instance"
@@ -91,14 +88,14 @@ viewRepoList linkTo registry = do
             toHtmlRaw Icon.book_2
         h3_ [class_ "text-xl font-semibold text-gray-700 mb-2"] "No repositories yet"
         p_ [class_ "text-gray-500 mb-6"] "Add your first repository to start building and monitoring your projects"
-        newRepoForm linkTo
+        newRepoForm
       else do
         -- Repository grid
         div_ [class_ "grid gap-6 mb-8 md:grid-cols-2 lg:grid-cols-3"] $ do
           forM_ registry $ \repo -> do
-            let url = linkURI $ linkTo $ LinkTo.Repo repo.name
+            url <- lift $ App.getLinkUrl $ LinkTo.Repo repo.name
             W.viraNavigationCard_
-              (show url)
+              url
               (toHtml $ toString repo.name)
 
         -- Add new repository section
@@ -106,11 +103,12 @@ viewRepoList linkTo registry = do
           h3_ [class_ "text-xl font-semibold text-gray-900 mb-4 flex items-center"] $ do
             div_ [class_ "w-5 h-5 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.plus
             "Add New Repository"
-          newRepoForm linkTo
+          newRepoForm
 
-newRepoForm :: (LinkTo.LinkTo -> Link) -> Html ()
-newRepoForm linkTo = do
-  form_ [hxPostSafe_ $ linkTo LinkTo.RepoAdd, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do
+newRepoForm :: App.AppHtml ()
+newRepoForm = do
+  repoAddLink <- lift $ App.getLink LinkTo.RepoAdd
+  form_ [hxPostSafe_ repoAddLink, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do
     div_ [class_ "grid grid-cols-1 lg:grid-cols-2 gap-6"] $ do
       W.viraFormGroup_
         ( withFieldName @Repo @"name" $ \name ->
