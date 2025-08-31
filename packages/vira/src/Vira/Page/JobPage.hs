@@ -73,7 +73,7 @@ viewHandler jobId = do
         , LinkTo.RepoBranch job.jobRepo job.jobBranch
         , LinkTo.Job jobId
         ]
-  App.runVHtml $ W.layout crumbs $ viewJob job
+  App.runAppHtml $ W.layout crumbs $ viewJob job
 
 killHandler :: JobId -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 killHandler jobId = do
@@ -81,7 +81,7 @@ killHandler jobId = do
   Supervisor.killTask supervisor jobId
   pure $ addHeader True "Killed"
 
-viewJob :: St.Job -> App.VHtml ()
+viewJob :: St.Job -> App.AppHtml ()
 viewJob job = do
   let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
 
@@ -106,7 +106,7 @@ viewJob job = do
     W.viraCard_ [class_ "p-6"] $ do
       JobLog.view job
 
-viewJobHeader :: St.Job -> App.VHtml ()
+viewJobHeader :: St.Job -> App.AppHtml ()
 viewJobHeader job = do
   jobUrl <- lift $ App.getLinkUrl $ LinkTo.Job job.jobId
   a_ [title_ "View Job Details", href_ jobUrl, class_ "block"] $ do

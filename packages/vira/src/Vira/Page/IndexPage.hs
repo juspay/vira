@@ -9,7 +9,7 @@ import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App ((//))
 import Vira.App qualified as App
-import Vira.App.Lucid (runVHtml)
+import Vira.App.Lucid (runAppHtml)
 import Vira.App.Servant (HTML, mapSourceT)
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
@@ -34,7 +34,7 @@ handlers cfg =
   Routes
     { _home =
         App.runAppInServant cfg $
-          runVHtml $
+          runAppHtml $
             W.layout mempty $
               heroWelcome menu
     , _repos = RegistryPage.handlers cfg

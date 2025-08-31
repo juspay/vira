@@ -29,7 +29,7 @@ import Servant.Types.SourceT qualified as S
 import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Lucid (VHtml, getLinkUrl)
+import Vira.App.Lucid (AppHtml, getLinkUrl)
 import Vira.App.Stack (AppStack)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
@@ -116,7 +116,7 @@ streamRouteHandler jobId = S.fromStepT $ step 0 Init
           -- Send all available lines as a single chunk
           pure $ S.Yield (Chunk n availableLines) $ step (n + 1) (Streaming queue)
 
-viewStream :: St.Job -> VHtml ()
+viewStream :: St.Job -> AppHtml ()
 viewStream job = do
   streamLink <- lift $ getLinkUrl $ LinkTo.JobLogStream job.jobId
   div_
@@ -157,7 +157,7 @@ viewStream job = do
             span_ [class_ "font-medium"] "Streaming build logs..."
 
 -- | Log viewer widget agnostic to static or streaming nature.
-logViewerWidget :: Job -> (forall m. (Monad m) => HtmlT m ()) -> VHtml ()
+logViewerWidget :: Job -> (forall m. (Monad m) => HtmlT m ()) -> AppHtml ()
 logViewerWidget job w = do
   jobLogUrl <- lift $ getLinkUrl $ LinkTo.JobLog job.jobId
   div_ [class_ "space-y-4"] $ do

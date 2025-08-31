@@ -22,7 +22,7 @@ import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Lucid (VHtml, getLinkUrl)
+import Vira.App.Lucid (AppHtml, getLinkUrl)
 import Vira.App.Stack (AppStack)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Type
@@ -44,14 +44,14 @@ instance ToServerEvent Status where
       (Just $ show ident)
       (Lucid.renderBS t)
 
-viewStream :: VHtml ()
+viewStream :: AppHtml ()
 viewStream = do
   link <- lift $ getLinkUrl LinkTo.StatusGet
   div_ [hxExt_ "sse", hxSseConnect_ link, hxSseSwap_ "status"] $ do
     viewInner
 
 -- | Status view for both immediate display and SSE streaming
-viewInner :: VHtml ()
+viewInner :: AppHtml ()
 viewInner = do
   -- Compute running jobs directly
   jobsData <- lift $ App.query Acid.GetRunningJobs
@@ -80,6 +80,6 @@ streamRouteHandler = S.fromStepT $ step 0
     step (n :: Int) = S.Effect $ do
       when (n > 0) $ do
         liftIO $ threadDelay 1_000_000
-      html <- App.runVHtmlHandlingError viewInner
+      html <- App.runAppHtmlHandlingError viewInner
       let msg = Status n html
       pure $ S.Yield msg $ step (n + 1)

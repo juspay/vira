@@ -57,7 +57,7 @@ handlers cfg =
 
 viewHandler :: Eff App.AppServantStack (Html ())
 viewHandler = do
-  App.runVHtml $ W.layout [LinkTo.Settings] viewSettings
+  App.runAppHtml $ W.layout [LinkTo.Settings] viewSettings
 
 updateCachixHandler :: CachixSettings -> Eff App.AppServantStack FormResp
 updateCachixHandler settings = do
@@ -83,7 +83,7 @@ deleteAtticHandler = do
   log Info "Deleted attic settings"
   pure $ addHeader True "Ok"
 
-viewSettings :: App.VHtml ()
+viewSettings :: App.AppHtml ()
 viewSettings = do
   mCachix <- lift $ App.query St.GetCachixSettingsA
   mAttic <- lift $ App.query St.GetAtticSettingsA
@@ -135,7 +135,7 @@ viewSettings = do
 
         atticForm mAttic
   where
-    cachixForm :: Maybe CachixSettings -> App.VHtml ()
+    cachixForm :: Maybe CachixSettings -> App.AppHtml ()
     cachixForm mCachixSettings = do
       updateCachixLink <- lift $ App.getLink LinkTo.SettingsUpdateCachix
       form_ [id_ "cachix-update", hxPostSafe_ updateCachixLink, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do
@@ -177,7 +177,7 @@ viewSettings = do
         form_ [hxPostSafe_ deleteCachixLink, hxSwapS_ InnerHTML, hxConfirm_ "Are you sure you want to disconnect Cachix? This action cannot be undone.", class_ "mt-3"] $ do
           W.viraButton_ W.ButtonDestructive [type_ "submit"] "Disconnect"
 
-    atticForm :: Maybe AtticSettings -> App.VHtml ()
+    atticForm :: Maybe AtticSettings -> App.AppHtml ()
     atticForm mAtticSettings = do
       updateAtticLink <- lift $ App.getLink LinkTo.SettingsUpdateAttic
       form_ [id_ "attic-update", hxPostSafe_ updateAtticLink, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do

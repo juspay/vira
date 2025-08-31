@@ -1,4 +1,4 @@
--- | VHtml types and utilities for Lucid HTML with effectful capabilities
+-- | AppHtml types and utilities for Lucid HTML with effectful capabilities
 module Vira.App.Lucid where
 
 import Effectful (Eff, type (:>))
@@ -16,16 +16,20 @@ import Prelude hiding (ask, asks)
 
 Use `lift` to perform effects.
 -}
-type VHtml = HtmlT (Eff AppServantStack)
+type AppHtml = HtmlT (Eff AppServantStack)
 
--- | Convert VHtml to Html in the Servant effect stack
-runVHtml :: VHtml () -> Eff AppServantStack (Html ())
-runVHtml htmlT = do
+-- | Convert AppHtml to Html in the Servant effect stack
+runAppHtml :: AppHtml () -> Eff AppServantStack (Html ())
+runAppHtml htmlT = do
   toHtmlRaw <$> Lucid.renderBST htmlT
 
-runVHtmlHandlingError :: VHtml () -> Eff AppStack (Html ())
-runVHtmlHandlingError w = do
-  res <- runVHtml w & runErrorNoCallStack
+{- | Like `runAppHtml` but runs in a less restrictive stack
+
+To do this, it catches servant errors and renders a HTML div in place.
+-}
+runAppHtmlHandlingError :: AppHtml () -> Eff AppStack (Html ())
+runAppHtmlHandlingError w = do
+  res <- runAppHtml w & runErrorNoCallStack
   case res of
     Left err ->
       pure $ Lucid.toHtml $ "Error rendering HTML: " <> show @Text err

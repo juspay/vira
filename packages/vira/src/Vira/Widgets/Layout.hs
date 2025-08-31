@@ -41,13 +41,13 @@ import Lucid
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (basePath), instanceName)
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
-import Vira.App.Lucid (VHtml)
+import Vira.App.Lucid (AppHtml)
 import Vira.App.Stack (AppState (cliSettings))
 import Vira.Stream.Status qualified as Status
 import Prelude hiding (asks)
 
 -- | Common HTML layout for all routes.
-layout :: [LinkTo] -> VHtml () -> VHtml ()
+layout :: [LinkTo] -> AppHtml () -> AppHtml ()
 layout crumbs content = do
   siteTitle <- lift $ asks @AppState (("Vira (" <>) . (<> ")") . (.cliSettings.instanceName))
   basePath <- lift $ asks @AppState (.cliSettings.basePath)
@@ -99,7 +99,7 @@ layout crumbs content = do
       script_ [src_ "js/htmx-extensions/src/sse/sse.js"] $ mempty @Text
 
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
-breadcrumbs :: [LinkTo] -> VHtml ()
+breadcrumbs :: [LinkTo] -> AppHtml ()
 breadcrumbs rs' = do
   let logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
   nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between p-4 bg-indigo-600 rounded-t-xl"] $ do
@@ -111,7 +111,7 @@ breadcrumbs rs' = do
       renderCrumbs rs'
     Status.viewStream
   where
-    renderCrumbs :: [LinkTo] -> VHtml ()
+    renderCrumbs :: [LinkTo] -> AppHtml ()
     renderCrumbs = \case
       [] -> pass
       [x] -> do
@@ -121,7 +121,7 @@ breadcrumbs rs' = do
         li_ [class_ "flex items-center"] chevronSvg
         li_ [class_ "flex items-center"] $ renderCrumb x False
         renderCrumbs xs
-    renderCrumb :: LinkTo -> Bool -> VHtml ()
+    renderCrumb :: LinkTo -> Bool -> AppHtml ()
     renderCrumb linkToValue isLast = do
       let title = linkShortTitle linkToValue
       if isLast

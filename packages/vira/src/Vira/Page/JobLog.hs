@@ -10,7 +10,7 @@ import Servant.API.EventStream (recommendedEventSourceHeaders)
 import Servant.Server.Generic (AsServer)
 import System.FilePath ((</>))
 import Vira.App qualified as App
-import Vira.App.Lucid (VHtml)
+import Vira.App.Lucid (AppHtml)
 import Vira.App.Servant (mapSourceT)
 import Vira.App.Stack (runApp)
 import Vira.State.Acid qualified as St
@@ -41,14 +41,14 @@ rawLogHandler jobId = do
     liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
   pure $ decodeUtf8 logText
 
-view :: Job -> VHtml ()
+view :: Job -> AppHtml ()
 view job = do
   let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
   if jobActive
     then Log.viewStream job
     else viewStaticLog job
 
-viewStaticLog :: Job -> VHtml ()
+viewStaticLog :: Job -> AppHtml ()
 viewStaticLog job = do
   logText <- readJobLogFull job
   Log.logViewerWidget job $ do

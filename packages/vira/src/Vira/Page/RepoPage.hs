@@ -55,14 +55,14 @@ branchViewHandler repoName branchName = do
   branches <- App.query $ St.GetBranchesByRepoA repoName
   jobs <- App.query $ St.GetJobsByBranchA repoName branchName
   let branchCrumbs = crumbs <> [LinkTo.Repo repoName, LinkTo.RepoBranch repoName branchName]
-  App.runVHtml $ W.layout branchCrumbs $ viewRepoBranch repo branch branches jobs
+  App.runAppHtml $ W.layout branchCrumbs $ viewRepoBranch repo branch branches jobs
 
 viewHandler :: RepoName -> Eff App.AppServantStack (Html ())
 viewHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   branches <- App.query $ St.GetBranchesByRepoA name
   allJobs <- App.query $ St.GetJobsByRepoA repo.name
-  App.runVHtml $ W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branches allJobs
+  App.runAppHtml $ W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branches allJobs
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
@@ -82,7 +82,7 @@ deleteHandler name = do
       throwError err404
 
 -- Repository header component with actions
-repoPageHeader :: St.Repo -> App.VHtml ()
+repoPageHeader :: St.Repo -> App.AppHtml ()
 repoPageHeader repo = do
   updateLink <- lift $ App.getLink $ LinkTo.RepoUpdate repo.name
   deleteLink <- lift $ App.getLink $ LinkTo.RepoDelete repo.name
@@ -112,7 +112,7 @@ repoPageHeader repo = do
             $ toHtmlRaw Icon.trash
     )
 
-viewRepo :: St.Repo -> [St.Branch] -> [St.Job] -> App.VHtml ()
+viewRepo :: St.Repo -> [St.Branch] -> [St.Job] -> App.AppHtml ()
 viewRepo repo branches allJobs = do
   repoPageHeader repo
   repoLayout repo branches Nothing $ do
@@ -124,7 +124,7 @@ viewRepo repo branches allJobs = do
     viewJobListing allJobs
 
 -- Branch-specific view function
-viewRepoBranch :: St.Repo -> St.Branch -> [St.Branch] -> [St.Job] -> App.VHtml ()
+viewRepoBranch :: St.Repo -> St.Branch -> [St.Branch] -> [St.Job] -> App.AppHtml ()
 viewRepoBranch repo branch branches jobs = do
   repoPageHeader repo
   repoLayout repo branches (Just branch.branchName) $ do
@@ -166,7 +166,7 @@ viewRepoBranch repo branch branches jobs = do
     viewJobListing jobs
 
 -- Job listing component with updated messaging
-viewJobListing :: [St.Job] -> App.VHtml ()
+viewJobListing :: [St.Job] -> App.AppHtml ()
 viewJobListing jobs = do
   if null jobs
     then W.viraCard_ [class_ "p-12 text-center bg-gray-50"] $ do
@@ -178,7 +178,7 @@ viewJobListing jobs = do
         JobPage.viewJobHeader job
 
 -- Repository layout component with sidebar and main content
-repoLayout :: St.Repo -> [St.Branch] -> Maybe BranchName -> App.VHtml () -> App.VHtml ()
+repoLayout :: St.Repo -> [St.Branch] -> Maybe BranchName -> App.AppHtml () -> App.AppHtml ()
 repoLayout repo branches currentBranch content = do
   div_ [class_ "grid grid-cols-4 gap-8"] $ do
     -- Sidebar
@@ -191,7 +191,7 @@ repoLayout repo branches currentBranch content = do
         content
   where
     -- Sidebar component for repository navigation
-    repoSidebar :: St.Repo -> [St.Branch] -> Maybe BranchName -> App.VHtml ()
+    repoSidebar :: St.Repo -> [St.Branch] -> Maybe BranchName -> App.AppHtml ()
     repoSidebar repository branches' maybeCurrentBranch = do
       W.viraCard_ [class_ "p-6 bg-gray-50"] $ do
         div_ [class_ "mb-6"] $ do
