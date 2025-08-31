@@ -9,9 +9,8 @@ import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App ((//))
 import Vira.App qualified as App
-import Vira.App.Lucid (runVHtml')
+import Vira.App.Lucid (runVHtml)
 import Vira.App.Servant (HTML, mapSourceT)
-import Vira.App.Stack (runApp)
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.SettingsPage qualified as SettingsPage
@@ -34,14 +33,14 @@ handlers :: App.AppState -> Routes AsServer
 handlers cfg =
   Routes
     { _home =
-        App.runAppInServant' cfg $
-          runVHtml' $
+        App.runAppInServant cfg $
+          runVHtml $
             W.layout mempty $
               heroWelcome menu
     , _repos = RegistryPage.handlers cfg
     , _jobs = JobPage.handlers cfg
     , _settings = SettingsPage.handlers cfg
-    , _status = pure $ recommendedEventSourceHeaders $ mapSourceT (runApp cfg) Status.streamRouteHandler
+    , _status = pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp cfg) Status.streamRouteHandler
     }
   where
     linkText = show . linkURI

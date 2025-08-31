@@ -22,7 +22,7 @@ import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Lucid (VHtml, getLinkUrl, runVHtml')
+import Vira.App.Lucid (VHtml, getLinkUrl)
 import Vira.App.Stack (AppStack)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Type
@@ -80,6 +80,6 @@ streamRouteHandler = S.fromStepT $ step 0
     step (n :: Int) = S.Effect $ do
       when (n > 0) $ do
         liftIO $ threadDelay 1_000_000
-      html <- runVHtml' viewInner
+      html <- App.runVHtmlHandlingError viewInner
       let msg = Status n html
       pure $ S.Yield msg $ step (n + 1)
