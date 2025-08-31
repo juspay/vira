@@ -1,6 +1,7 @@
 -- | Top-level routes and views
 module Vira.Page.IndexPage where
 
+import Data.UUID.V4 qualified as UUID
 import Lucid
 import Servant.API (Get, NamedRoutes, (:>))
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -19,7 +20,7 @@ import Vira.Page.SettingsPage qualified as SettingsPage
 import Vira.Stream.Status qualified as Status
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Layout qualified as W
-import Prelude hiding (Reader, ask, runReader)
+import Prelude hiding (Reader, runReader)
 
 data Routes mode = Routes
   { _home :: mode :- Get '[HTML] (Html ())
@@ -42,7 +43,9 @@ handlers cfg =
     , _repos = RegistryPage.handlers cfg
     , _jobs = JobPage.handlers cfg
     , _settings = SettingsPage.handlers cfg
-    , _status = pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp cfg) Status.streamRouteHandler
+    , _status = do
+        streamId <- liftIO UUID.nextRandom
+        pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp cfg) $ Status.streamRouteHandler streamId
     }
   where
     linkText = show . linkURI

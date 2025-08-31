@@ -11,6 +11,7 @@ module Vira.Stream.Status (
 ) where
 
 import Control.Concurrent (threadDelay)
+import Data.UUID (UUID)
 import Effectful (Eff)
 import Lucid
 import Servant.Types.SourceT (SourceT)
@@ -30,16 +31,16 @@ viewStream = do
   SSE.sseConnect LinkTo.StatusGet $ do
     SSE.sseSwap "status" view
 
-streamRouteHandler :: SourceT (Eff AppStack) SSE.SSEMessage
-streamRouteHandler = S.fromStepT $ step 0
+streamRouteHandler :: UUID -> SourceT (Eff AppStack) SSE.SSEMessage
+streamRouteHandler uuid = S.fromStepT step
   where
-    step (n :: Int) = S.Effect $ do
-      when (n > 0) $ do
-        -- We must use polling only because there's no proper update notification mechanism yet.
-        liftIO $ threadDelay 1_000_000
+    step = S.Effect $ do
+      -- We must use polling only because there's no proper update notification mechanism yet.
+      liftIO $ threadDelay 1_000_000
+      putStrLn $ "SSE[" <> show uuid <> "]"
       html <- App.runAppHtmlHandlingError view
-      let msg = SSE.SSEMessage "status" (show n) html
-      pure $ S.Yield msg $ step (n + 1)
+      let msg = SSE.SSEMessage "status" html
+      pure $ S.Yield msg step
 
 -- | Status view for both immediate display and SSE streaming
 view :: AppHtml ()

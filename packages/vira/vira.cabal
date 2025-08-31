@@ -150,6 +150,7 @@ library
     , tail
     , text
     , time
+    , uuid
     , wai
     , wai-extra
     , wai-middleware-static
@@ -250,6 +251,7 @@ executable vira
     , tail
     , text
     , time
+    , uuid
     , vira
     , wai
     , wai-extra
@@ -353,6 +355,7 @@ test-suite vira-tests
     , tail
     , text
     , time
+    , uuid
     , vira
     , wai
     , wai-extra

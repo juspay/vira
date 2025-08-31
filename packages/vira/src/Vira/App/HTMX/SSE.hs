@@ -38,15 +38,14 @@ sseSwap eventType initialContent = do
 -- | A Server-Sent Event message containing HTML content
 data SSEMessage = SSEMessage
   { eventType :: Text -- Event type for HTMX routing
-  , elementId :: Text -- Target element identifier
   , htmlContent :: Html () -- HTML content to swap
   }
 
 instance ToServerEvent SSEMessage where
-  toServerEvent (SSEMessage evtType elemId content) =
+  toServerEvent (SSEMessage evtType content) =
     ServerEvent
       (Just $ encodeUtf8 evtType)
-      (Just $ encodeUtf8 elemId)
+      Nothing
       (Lucid.renderBS content)
 
 -- | Generic SSE route type for streaming HTML messages

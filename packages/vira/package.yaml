@@ -72,6 +72,7 @@ dependencies:
   - stm
   - streaming
   - tail
+  - uuid
   - text
   - time
   - wai
