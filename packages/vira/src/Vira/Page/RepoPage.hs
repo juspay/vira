@@ -13,6 +13,7 @@ import Servant hiding (throwError)
 import Servant.API ((:>))
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
+import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Git (BranchName)
@@ -42,27 +43,27 @@ crumbs = [LinkTo.RepoListing]
 handlers :: App.AppState -> RepoName -> Routes AsServer
 handlers cfg name = do
   Routes
-    { _view = App.runAppInServant cfg $ viewHandler name
+    { _view = App.runAppInServant cfg . App.runAppHtml $ viewHandler name
+    , _branch = App.runAppInServant cfg . App.runAppHtml . branchViewHandler name
     , _update = App.runAppInServant cfg $ updateHandler name
     , _delete = App.runAppInServant cfg $ deleteHandler name
-    , _branch = App.runAppInServant cfg . branchViewHandler name
     }
 
-branchViewHandler :: RepoName -> BranchName -> Eff App.AppServantStack (Html ())
+branchViewHandler :: RepoName -> BranchName -> AppHtml ()
 branchViewHandler repoName branchName = do
-  repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError err404) pure
-  branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError err404) pure
-  branches <- App.query $ St.GetBranchesByRepoA repoName
-  jobs <- App.query $ St.GetJobsByBranchA repoName branchName
+  repo <- lift $ App.query (St.GetRepoByNameA repoName) >>= maybe (throwError err404) pure
+  branch <- lift $ App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError err404) pure
+  branches <- lift $ App.query $ St.GetBranchesByRepoA repoName
+  jobs <- lift $ App.query $ St.GetJobsByBranchA repoName branchName
   let branchCrumbs = crumbs <> [LinkTo.Repo repoName, LinkTo.RepoBranch repoName branchName]
-  App.runAppHtml $ W.layout branchCrumbs $ viewRepoBranch repo branch branches jobs
+  W.layout branchCrumbs $ viewRepoBranch repo branch branches jobs
 
-viewHandler :: RepoName -> Eff App.AppServantStack (Html ())
+viewHandler :: RepoName -> AppHtml ()
 viewHandler name = do
-  repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  branches <- App.query $ St.GetBranchesByRepoA name
-  allJobs <- App.query $ St.GetJobsByRepoA repo.name
-  App.runAppHtml $ W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branches allJobs
+  repo <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
+  branches <- lift $ App.query $ St.GetBranchesByRepoA name
+  allJobs <- lift $ App.query $ St.GetJobsByRepoA repo.name
+  W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branches allJobs
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do

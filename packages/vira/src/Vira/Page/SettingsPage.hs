@@ -20,6 +20,7 @@ import Lucid.Htmx.Contrib (hxConfirm_, hxPostSafe_)
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
+import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Attic (AtticServer (..))
@@ -48,16 +49,16 @@ data Routes mode = Routes
 handlers :: App.AppState -> Routes AsServer
 handlers cfg =
   Routes
-    { _view = App.runAppInServant cfg viewHandler
+    { _view = App.runAppInServant cfg . App.runAppHtml $ viewHandler
     , _updateCachix = App.runAppInServant cfg . updateCachixHandler
     , _deleteCachix = App.runAppInServant cfg deleteCachixHandler
     , _updateAttic = App.runAppInServant cfg . updateAtticHandler
     , _deleteAttic = App.runAppInServant cfg deleteAtticHandler
     }
 
-viewHandler :: Eff App.AppServantStack (Html ())
+viewHandler :: AppHtml ()
 viewHandler = do
-  App.runAppHtml $ W.layout [LinkTo.Settings] viewSettings
+  W.layout [LinkTo.Settings] viewSettings
 
 updateCachixHandler :: CachixSettings -> Eff App.AppServantStack FormResp
 updateCachixHandler settings = do

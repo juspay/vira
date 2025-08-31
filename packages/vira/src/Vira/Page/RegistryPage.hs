@@ -15,6 +15,7 @@ import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
+import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Logging
@@ -42,15 +43,15 @@ data Routes mode = Routes
 handlers :: App.AppState -> Routes AsServer
 handlers cfg = do
   Routes
-    { _listing = App.runAppInServant cfg handleListing
+    { _listing = App.runAppInServant cfg $ App.runAppHtml handleListing
     , _repo = RepoPage.handlers cfg
     , _addRepo = App.runAppInServant cfg . handleAddRepo
     }
 
-handleListing :: Eff App.AppServantStack (Html ())
+handleListing :: AppHtml ()
 handleListing = do
   let crumbs = [LinkTo.RepoListing]
-  App.runAppHtml $ W.layout crumbs viewRepoList
+  W.layout crumbs viewRepoList
 
 handleAddRepo :: Repo -> Eff App.AppServantStack FormResp
 handleAddRepo repo = do

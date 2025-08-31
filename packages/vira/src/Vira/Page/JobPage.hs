@@ -17,6 +17,7 @@ import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
+import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Attic
@@ -54,7 +55,7 @@ handlers :: App.AppState -> Routes AsServer
 handlers cfg = do
   Routes
     { _build = \x -> App.runAppInServant cfg . buildHandler x
-    , _view = App.runAppInServant cfg . viewHandler
+    , _view = App.runAppInServant cfg . App.runAppHtml . viewHandler
     , _log = JobLog.handlers cfg
     , _kill = App.runAppInServant cfg . killHandler
     }
@@ -64,16 +65,16 @@ buildHandler repoName branch = do
   triggerNewBuild repoName branch
   pure $ addHeader True "Ok"
 
-viewHandler :: JobId -> Eff App.AppServantStack (Html ())
+viewHandler :: JobId -> AppHtml ()
 viewHandler jobId = do
-  job <- App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
+  job <- lift $ App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
   let crumbs =
         [ LinkTo.RepoListing
         , LinkTo.Repo job.jobRepo
         , LinkTo.RepoBranch job.jobRepo job.jobBranch
         , LinkTo.Job jobId
         ]
-  App.runAppHtml $ W.layout crumbs $ viewJob job
+  W.layout crumbs $ viewJob job
 
 killHandler :: JobId -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 killHandler jobId = do
