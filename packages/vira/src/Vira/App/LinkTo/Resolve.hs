@@ -31,4 +31,4 @@ linkTo = \case
   SettingsDeleteCachix -> fieldLink _settings // SettingsPage._deleteCachix
   SettingsUpdateAttic -> fieldLink _settings // SettingsPage._updateAttic
   SettingsDeleteAttic -> fieldLink _settings // SettingsPage._deleteAttic
-  StatusGet -> fieldLink _status
+  Refresh -> fieldLink _refresh

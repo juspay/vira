@@ -34,8 +34,8 @@ import Vira.App.Stack (AppStack)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
-import Vira.Stream.Status qualified as Status
 import Vira.Supervisor.Type (Task (..), TaskSupervisor (..))
+import Vira.Widgets.Status qualified as Status
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO LogChunk))
 

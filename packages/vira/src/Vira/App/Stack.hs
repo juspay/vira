@@ -2,7 +2,9 @@
 module Vira.App.Stack where
 
 import Colog (Message)
+import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Data.Acid (AcidState)
+import Data.Time (UTCTime)
 import Effectful (Eff, IOE, runEff)
 import Effectful.Colog (Log)
 import Effectful.Concurrent.Async (Concurrent, runConcurrent)
@@ -58,4 +60,6 @@ data AppState = AppState
     --
     -- This is decoupled from servant types deliberately to avoid cyclic imports.
     linkTo :: LinkTo -> Link
+  , -- Circular buffer to track when state is updated
+    stateUpdated :: CircularBuffer UTCTime
   }

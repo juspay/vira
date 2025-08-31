@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 {- |
 Vira Design System - Status Components
 
@@ -23,10 +25,17 @@ Colors are automatically managed based on the status type for consistency.
 -}
 module Vira.Widgets.Status (
   viraStatusBadge_,
+  viewAllJobStatus,
+  indicator,
 ) where
 
 import Lucid
+import Vira.App.AcidState qualified as App
+import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.App.Lucid (AppHtml, getLinkUrl)
+import Vira.State.Acid qualified as Acid
 import Vira.State.Core qualified as St
+import Vira.State.Type
 import Web.TablerIcons.Outline qualified as Icon
 
 {- |
@@ -71,3 +80,26 @@ viraStatusBadge_ jobStatus = do
   span_ [class_ $ "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium " <> colorClass] $ do
     div_ [class_ $ "w-4 h-4 mr-2 flex items-center justify-center " <> iconClass] $ toHtmlRaw iconSvg
     toHtml statusText
+
+viewAllJobStatus :: AppHtml ()
+viewAllJobStatus = do
+  -- Compute running jobs directly
+  jobsData <- lift $ App.query Acid.GetRunningJobs
+  let jobs = jobsData <&> \job -> (job.jobRepo, job.jobId)
+  div_ [class_ "flex items-center space-x-2", title_ "Build Status"] $ do
+    indicator $ not $ null jobs
+    forM_ jobs $ \(repo, jobId) -> do
+      jobUrl <- lift $ getLinkUrl $ LinkTo.Job jobId
+      a_ [href_ jobUrl] $ do
+        span_ $ b_ $ toHtml $ unRepoName repo
+        "/"
+        span_ $ code_ $ toHtml @Text $ show jobId
+
+indicator :: (Monad m) => Bool -> HtmlT m ()
+indicator active = do
+  let (iconSvg, classes) =
+        if active
+          then (Icon.loader_2, "text-green-500 animate-spin")
+          else (Icon.circle, "text-gray-500")
+  div_ [class_ $ "w-4 h-4 flex items-center justify-center " <> classes] $
+    toHtmlRaw iconSvg

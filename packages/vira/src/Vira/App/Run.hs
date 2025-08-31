@@ -2,6 +2,8 @@ module Vira.App.Run (
   runVira,
 ) where
 
+import Control.Concurrent.STM (atomically)
+import Control.Concurrent.STM.CircularBuffer qualified as CB
 import Control.Exception (bracket)
 import Main.Utf8 qualified as Utf8
 import Vira.App (CLISettings (..))
@@ -25,6 +27,8 @@ runVira = do
     runAppWith cliSettings = do
       bracket (openViraState (stateDir cliSettings)) closeViraState $ \acid -> do
         supervisor <- Supervisor.newSupervisor (stateDir cliSettings)
-        let appState = App.AppState {App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.cliSettings = cliSettings}
+        -- Initialize circular buffer for state update tracking (buffer size of 5)
+        stateUpdateBuffer <- Control.Concurrent.STM.atomically $ CB.new 5
+        let appState = App.AppState {App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.cliSettings = cliSettings, App.stateUpdated = stateUpdateBuffer}
             appServer = Server.runServer cliSettings
         App.runApp appState appServer

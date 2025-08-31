@@ -53,7 +53,7 @@ library
       Vira.State.Core
       Vira.State.Type
       Vira.Stream.Log
-      Vira.Stream.Status
+      Vira.Stream.Refresh
       Vira.Supervisor.Core
       Vira.Supervisor.Task
       Vira.Supervisor.Type
