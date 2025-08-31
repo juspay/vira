@@ -21,7 +21,7 @@ import Vira.Lib.HTMX (hxPostSafe_)
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type (Repo (..), RepoName (..))
+import Vira.State.Type (Repo (..), RepoName (..), RepoSettings (..))
 import Vira.Widgets qualified as W
 import Prelude hiding (ask, asks, for_)
 
@@ -137,6 +137,14 @@ newRepoForm linkTo = do
               , required_ ""
               ]
         )
+
+    -- Hidden dummy settings field (required by form structure)
+    withFieldName @RepoSettings @"dummy" $ \name -> do
+      W.viraInput_
+        [ type_ "hidden"
+        , name_ name
+        , value_ ""
+        ]
 
     div_ [class_ "flex justify-end"] $ do
       W.viraButton_ W.ButtonPrimary [type_ "submit", class_ "px-8"] $ do

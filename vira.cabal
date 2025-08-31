@@ -119,7 +119,6 @@ library
     Vira.App.LinkTo.Resolve
     Vira.App.LinkTo.Type
     Vira.App.Logging
-    Vira.App.Repo
     Vira.App.Servant
     Vira.App.Stack
     Vira.Lib.Attic
