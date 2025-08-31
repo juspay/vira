@@ -37,16 +37,16 @@ type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO Sta
 -- The `Int` is the unique identifier of the status message, which contains the
 -- raw HTML of the status.
 data Status
-  = Status Int (Html ())
+  = Status (Html ())
   | Refresh Text
   | CurrentTime (Html ())
 
 instance ToServerEvent Status where
   toServerEvent = \case
-    Status ident t ->
+    Status t ->
       ServerEvent
         (Just "status")
-        (Just $ show ident)
+        Nothing
         (Lucid.renderBS t)
     Refresh js ->
       ServerEvent
@@ -63,9 +63,9 @@ viewStream :: AppHtml ()
 viewStream = do
   link <- lift $ getLinkUrl LinkTo.StatusGet
   div_ [hxExt_ "sse", hxSseConnect_ link] $ do
-    div_ [class_ "fixed top-4 right-4 flex items-center space-x-4"] $ do
+    div_ [class_ "flex items-center space-x-4"] $ do
       div_ [hxSseSwap_ "status"] viewInner
-      div_ [hxSseSwap_ "currenttime", class_ "text-xs text-gray-500 px-1.5 py-0.5 rounded font-mono"] viewCurrentTime
+      div_ [hxSseSwap_ "currenttime", class_ "text-xs text-white/70 px-1.5 py-0.5 rounded font-mono"] viewCurrentTime
     script_ [hxSseSwap_ "refresh"] ("" :: Text)
 
 -- | Status view for both immediate display and SSE streaming
