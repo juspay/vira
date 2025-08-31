@@ -156,6 +156,7 @@ triggerNewBuild repoName branchName = do
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId
 
+-- | Single step in a `Task`
 data Stage
   = CreateProjectDir
   | Clone St.Repo St.Branch
