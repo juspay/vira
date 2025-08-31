@@ -4,7 +4,7 @@ _/வீரா/_
 
 No-frills CI for teams using Nix.
 
-<img src="static/vira-logo.jpg" style="height: 64px;" />
+<img src="packages/vira/static/vira-logo.jpg" style="height: 64px;" />
 
 ## Status
 
@@ -39,36 +39,14 @@ just resetdb run
 
 ### HTTPS and HTTP/2 Support
 
-We use HTTP/2 for superior SSE (used in log streaming) performance, which [in practice requires HTTPS](https://http2-explained.haxx.se/en/part5#id-5.2.-http2-for-https). Vira automatically generates self-signed TLS certificates for HTTPS with HTTP/2 support:
+Vira uses HTTP/2 for superior SSE (log streaming) performance and automatically handles TLS certificate generation via the [`warp-tls-simple`](../warp-tls-simple/README.md) package.
 
-1. **Automatic Certificate Generation**: 
-   When you run `nix run github:juspay/vira`, certificates are automatically generated in `./state/tls/` if they don't exist.
+**Key features:**
+- **Automatic Certificate Generation**: Certificates are auto-generated in `./state/tls/` when you run Vira
+- **Manual Certificate Support**: Use `--tls-cert` and `--tls-key` flags for custom certificates  
+- **Development URLs**: https://localhost:5005 (HTTPS) or http://localhost:5005 (with `--no-https`)
 
-2. **Manual Certificate Control** (optional):
-   ```sh
-   # Use your own certificates
-   nix run github:juspay/vira -- --tls-cert /path/to/cert.crt --tls-key /path/to/private.key
-   ```
-
-3. **Development URLs**:
-   - HTTPS: https://localhost:5005 (with auto-generated certificates)
-   - HTTP: http://localhost:5005 (if you run via with `--no-https`)
-
-The auto-generated certificates include Subject Alternative Names (SAN) for localhost, 127.0.0.1, and common local network IP ranges, making them suitable for local development and testing across your network.
-
-#### Common TLS Development Issues
-
-When using HTTPS with self-signed certificates, you may see:
-
-1. **Browser Warnings**: "Not secure" or `net::ERR_CERT_AUTHORITY_INVALID` - this is normal for self-signed certificates
-2. **Server Log Errors**: TLS handshake errors like `HandshakeFailed (Error_Packet_unexpected "Alert13 [(AlertLevel_Fatal,CertificateUnknown)]")` - these occur when clients reject the self-signed certificate
-
-These are expected behaviors for development and don't affect functionality. The connection is still encrypted.
-
-**Solutions:**
-- **Accept in Browser**: Click "Advanced" → "Proceed to localhost (unsafe)"
-- **Curl**: Use `curl -k` to ignore certificate warnings
-- **Production**: Use real certificates from a trusted CA (e.g.: Let's Encrypt)
+For detailed information about TLS configuration, certificate generation, troubleshooting browser warnings, and development considerations, see the [`warp-tls-simple` documentation](../warp-tls-simple/README.md).
 
 ## NixOS Module
 

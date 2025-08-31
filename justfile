@@ -7,20 +7,19 @@ docs:
     echo http://127.0.0.1:8888
     hoogle serve -p 8888 --local
 
-# Run cabal repl
-[group('2. haskell')]
-repl *ARGS:
-    cabal repl {{ ARGS }}
-
 # Run the application, re-compiling if necessary.
 [group('1. vira')]
 run:
     vira-dev --no-server --tui=false
 
-# Run cabal tests (hspec)
+# Run cabal tests (Pass, for example, `tail-test` to run for different component)
 [group('2. haskell')]
-test:
-    ghcid --warnings -c "cabal repl exe:vira-tests --flags=ghcid" --test "main"
+test COMPONENT='vira-tests':
+    ghcid --warnings -T Main.main -c "./cabal-repl {{ COMPONENT }}"
+
+[group('2. haskell')]
+ghcid COMPONENT='vira':
+    ghcid --warnings -c "./cabal-repl {{ COMPONENT }}"
 
 # Delete and recreate vira.db
 [group('1. vira')]

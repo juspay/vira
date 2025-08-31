@@ -25,7 +25,6 @@
               hostname = "0.0.0.0";
               port = 8080;
               https = false;
-              stateDirectory = "/var/lib/vira";
               package = vira.packages.${system}.default;
             };
 

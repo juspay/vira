@@ -32,11 +32,6 @@ in
       description = "Enable HTTPS";
     };
 
-    stateDirectory = mkOption {
-      type = types.str;
-      default = "/var/lib/vira";
-      description = "Directory where Vira stores its state";
-    };
 
     user = mkOption {
       type = types.str;
@@ -68,7 +63,7 @@ in
     users.users.${cfg.user} = {
       isSystemUser = true;
       group = cfg.group;
-      home = cfg.stateDirectory;
+      home = "/var/lib/vira";
       createHome = true;
     };
 
@@ -84,14 +79,14 @@ in
         Type = "exec";
         User = cfg.user;
         Group = cfg.group;
-        WorkingDirectory = cfg.stateDirectory;
+        WorkingDirectory = "/var/lib/vira";
 
         # Security settings
         NoNewPrivileges = true;
         PrivateTmp = true;
         ProtectSystem = "strict";
         ProtectHome = true;
-        ReadWritePaths = [ cfg.stateDirectory ];
+        ReadWritePaths = [ "/var/lib/vira" ];
 
         # Restart settings
         Restart = "on-failure";
@@ -104,6 +99,8 @@ in
               cfg.hostname
               "--port"
               (toString cfg.port)
+              "--state-dir"
+              "/var/lib/vira/state"
             ] ++ optionals (!cfg.https) [ "--no-https" ];
           in
           "${cfg.package}/bin/vira ${concatStringsSep " " args}";

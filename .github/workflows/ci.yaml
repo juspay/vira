@@ -1,3 +1,5 @@
+permissions:
+  contents: read
 name: "CI"
 on:
   # Run only when pushing to master branch, and making PRs
@@ -22,7 +24,7 @@ jobs:
         run: nix run . -- --help
       - name: Run Tests
         run: |
-          nix --option system "${{ matrix.system }}" run .#vira-tests
+          nix --option system "${{ matrix.system }}" develop -c cabal test all
       - name: Push to Attic
         run: |
           attic login chutney https://cache.nixos.asia ${{ secrets.ATTIC_LOGIN_TOKEN }}

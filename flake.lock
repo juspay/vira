@@ -314,7 +314,24 @@
         "htmx-extensions": "htmx-extensions",
         "nixos-unified": "nixos-unified",
         "nixpkgs": "nixpkgs_2",
-        "process-compose-flake": "process-compose-flake"
+        "process-compose-flake": "process-compose-flake",
+        "tabler-icons-hs": "tabler-icons-hs"
+      }
+    },
+    "tabler-icons-hs": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1756223701,
+        "narHash": "sha256-xtimmW7doUy9bY+SoD/OYEcRlLFHFWctIdKgV+LN1Ao=",
+        "owner": "juspay",
+        "repo": "tabler-icons-hs",
+        "rev": "8f932a33befe5d192e0bc42bba2ff118f02810ca",
+        "type": "github"
+      },
+      "original": {
+        "owner": "juspay",
+        "repo": "tabler-icons-hs",
+        "type": "github"
       }
     },
     "treefmt-nix": {
