@@ -109,6 +109,7 @@ library
     , co-log-core
     , co-log-effectful
     , containers
+    , dani-servant-lucid2
     , data-default
     , deriving-aeson
     , directory
@@ -208,6 +209,7 @@ executable vira
     , co-log-core
     , co-log-effectful
     , containers
+    , dani-servant-lucid2
     , data-default
     , deriving-aeson
     , directory
@@ -310,6 +312,7 @@ test-suite vira-tests
     , co-log-core
     , co-log-effectful
     , containers
+    , dani-servant-lucid2
     , data-default
     , deriving-aeson
     , directory

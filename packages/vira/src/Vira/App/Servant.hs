@@ -1,9 +1,6 @@
 -- | Utilities for working with haskell-servant
 module Vira.App.Servant where
 
-import Lucid (Html, renderBST)
-import Network.HTTP.Media qualified as M
-import Servant.API.ContentTypes (Accept (contentTypes), MimeRender (mimeRender))
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import Prelude hiding (Reader, ask, runReader)
@@ -25,22 +22,6 @@ Useful when working with `fieldLink`
 (/:) = flip
 
 infixl 2 /:
-
-data HTML deriving stock (Typeable)
-
--- | @text/html;charset=utf-8@
-instance Accept HTML where
-  contentTypes _ =
-    "text"
-      M.// "html"
-      M./: ("charset", "utf-8")
-      :| ["text" M.// "html"]
-
-instance MimeRender HTML (Html ()) where
-  mimeRender _ = runIdentity . renderBST
-
-instance MimeRender HTML Text where
-  mimeRender _ = fromStrict . encodeUtf8
 
 {- | Transform the monad of a SourceT
 

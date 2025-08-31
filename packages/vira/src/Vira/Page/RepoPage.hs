@@ -11,10 +11,10 @@ import Lucid
 import Lucid.Htmx.Contrib (hxConfirm_, hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API ((:>))
+import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Servant (HTML)
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Page.JobPage qualified as JobPage
