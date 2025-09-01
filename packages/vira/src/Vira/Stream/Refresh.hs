@@ -9,7 +9,10 @@ module Vira.Stream.Refresh (
 ) where
 
 import Control.Concurrent.STM (TChan, dupTChan, readTChan, tryReadTChan)
+import Data.ByteString qualified as BS
 import Data.List.NonEmpty qualified as NonEmpty
+import Data.SafeCopy (safeGet)
+import Data.Serialize (runGetLazy)
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Extra (hxExt_)
@@ -66,7 +69,22 @@ drainTChan chan = do
 -- | Check if state has been updated since the last check (non-blocking)
 hasRecentStateUpdate :: TChan ByteString -> Eff AppStack ()
 hasRecentStateUpdate chan = do
-  void $ liftIO $ atomically $ drainTChan chan
+  events <- liftIO $ atomically $ drainTChan chan
+  forM_ events $ \eventBytes -> do
+    case identifyEventType eventBytes of
+      Right eventType -> do
+        putStrLn $ toString $ "📝 Update event received: " <> eventType
+      Left err -> do
+        putStrLn $ "⚠️  Failed to parse event: " <> err
+
+-- | Extract the event name from serialized (String, ByteString) tuple
+identifyEventType :: ByteString -> Either String Text
+identifyEventType bs = do
+  let lazyBs = fromStrict bs
+  case runGetLazy safeGet lazyBs of
+    Right (eventName :: String, _eventData :: BS.ByteString) ->
+      Right $ toText eventName
+    Left err -> Left err
 
 -- | Drain remaining items from TChan without blocking
 drainRemainingTChan :: TChan a -> STM [a]
