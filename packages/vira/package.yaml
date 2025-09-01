@@ -43,6 +43,7 @@ dependencies:
   - directory
   - effectful
   - effectful-core
+  - sqids
   - effectful-plugin
   - http-media
   - effectful-th
@@ -65,6 +66,7 @@ dependencies:
   - process
   - profunctors
   - QuickCheck
+  - random
   - safecopy
   - servant
   - servant-event-stream

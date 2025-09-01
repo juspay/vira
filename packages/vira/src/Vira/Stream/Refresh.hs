@@ -1,32 +1,55 @@
+{-# LANGUAGE RecordWildCards #-}
+
 -- | Real-time status of the Vira system.
 module Vira.Stream.Refresh (
   -- * Routes and handlers
   StreamRoute,
   streamRouteHandler,
+  generateSessionId,
 
   -- * Views
   viewStream,
 ) where
 
-import Colog (Severity (Info))
+import Colog.Core (Severity (..))
+import Colog.Message (Message, Msg (..))
 import Control.Concurrent.STM (TChan, dupTChan, readTChan, tryReadTChan)
 import Data.List.NonEmpty qualified as NonEmpty
-import Effectful (Eff)
+import Effectful (Eff, (:>))
+import Effectful.Colog (Log, logMsg)
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
 import Lucid.Htmx.Contrib (hxSseConnect_, hxSseSwap_)
-import Servant.API
+import Servant.API (SourceIO)
 import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
+import System.Random (randomRIO)
+import Text.Printf (printf)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Lucid (AppHtml, getLinkUrl)
 import Vira.App.Stack (AppStack, AppState (stateUpdated))
-import Vira.Lib.Logging (log)
+import Web.Sqids qualified as Sqids
 import Prelude hiding (Reader, ask, asks, runReader)
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO Status))
+
+-- | Generate a short session ID using sqids
+generateSessionId :: IO Text
+generateSessionId = do
+  randomNum <- randomRIO (1, 1000000 :: Int)
+  whenRight
+    ("fallback-" <> show randomNum)
+    (Sqids.sqids (Sqids.encode [randomNum]))
+    pure
+
+-- | Log with padded stream ID prefix
+logWithStreamId :: forall es. (HasCallStack, Log Message :> es) => Text -> Severity -> Text -> Eff es ()
+logWithStreamId streamId msgSeverity s = withFrozenCallStack $ do
+  let paddedId = toText (printf "%-7s" (toString streamId :: String) :: String)
+      msgText = "[" <> paddedId <> "] " <> s
+  logMsg $ Msg {msgStack = callStack, ..}
 
 -- A status message sent from server to client
 --
@@ -66,11 +89,11 @@ drainTChan chan = do
         Just item -> drainLoop (item : acc)
 
 -- | Check if state has been updated since the last check (non-blocking)
-hasRecentStateUpdate :: TChan (Text, ByteString) -> Eff AppStack ()
-hasRecentStateUpdate chan = do
+waitForStateUpdate :: (HasCallStack) => Text -> TChan (Text, ByteString) -> Eff AppStack ()
+waitForStateUpdate sessionId chan = do
   events <- liftIO $ atomically $ drainTChan chan
   forM_ events $ \(eventName, _eventData) -> do
-    log Info $ "📝 Update event received: " <> eventName
+    logWithStreamId sessionId Info $ "📝 Update event received: " <> eventName
 
 -- | Drain remaining items from TChan without blocking
 drainRemainingTChan :: TChan a -> STM [a]
@@ -84,9 +107,9 @@ drainRemainingTChan chan = do
         Nothing -> pure acc
         Just item -> drainLoop (item : acc)
 
-streamRouteHandler :: SourceT (Eff AppStack) Status
-streamRouteHandler = S.fromStepT $ S.Effect $ do
-  log Info "🔃 Refresh SSE"
+streamRouteHandler :: (HasCallStack) => Text -> SourceT (Eff AppStack) Status
+streamRouteHandler sessionId = S.fromStepT $ S.Effect $ do
+  logWithStreamId sessionId Info "🔃 Refresh SSE"
   chan <- asks stateUpdated
   chanDup <- liftIO $ atomically $ dupTChan chan
   -- Drain everything first (non-blocking)
@@ -94,8 +117,7 @@ streamRouteHandler = S.fromStepT $ S.Effect $ do
   pure $ step 0 chanDup
   where
     step (n :: Int) chan = S.Effect $ do
-      -- Check if state has been updated since last refresh
-      shouldRefresh <- hasRecentStateUpdate chan
-      log Info $ "🔃 Stream iteration " <> show n <> ", shouldRefresh=" <> show shouldRefresh
+      waitForStateUpdate sessionId chan
+      logWithStreamId sessionId Info $ "🔃 Stream iteration " <> show n
       let refreshMsg = Refresh "location.reload()"
       pure $ S.Yield refreshMsg $ step (n + 1) chan

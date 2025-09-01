@@ -25,3 +25,12 @@ ghcid COMPONENT='vira':
 [group('1. vira')]
 resetdb:
     rm -rf ./state
+
+# Run pre-commit hooks
+pc:
+    pre-commit run
+
+# Re-generate .cabal files
+# This is faster than running pre-commit.
+hpack:
+    for f in $(find ./packages/ -name "package.yaml"); do hpack $f; done

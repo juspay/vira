@@ -30,6 +30,7 @@
         # external libs
         co-log-effectful.source = inputs.co-log-effectful;
         tabler-icons.source = inputs.tabler-icons-hs;
+        sqids.source = inputs.sqids-haskell;
       };
 
       # Add your package overrides here

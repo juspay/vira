@@ -41,7 +41,10 @@ handlers cfg =
     , _repos = RegistryPage.handlers cfg
     , _jobs = JobPage.handlers cfg
     , _settings = SettingsPage.handlers cfg
-    , _refresh = pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp cfg) Refresh.streamRouteHandler
+    , _refresh = do
+        -- Generate a unique session ID using sqids
+        sessionId <- liftIO Refresh.generateSessionId
+        pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp cfg) (Refresh.streamRouteHandler sessionId)
     }
   where
     linkText = show . linkURI

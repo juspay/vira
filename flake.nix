@@ -20,6 +20,8 @@
     tabler-icons-hs.url = "github:juspay/tabler-icons-hs";
     tabler-icons-hs.flake = false;
     co-log-effectful.url = "github:eldritch-cookie/co-log-effectful";
+    sqids-haskell.url = "github:sqids/sqids-haskell";
+    sqids-haskell.flake = false;
 
     # Runtime dependencies
     htmx-extensions.url = "github:juspay/htmx-extensions/sse-unload"; # https://github.com/bigskysoftware/htmx-extensions/pull/147

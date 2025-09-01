@@ -41,6 +41,7 @@ update ::
   , Reader AppState :> es
   , IOE :> es
   , Log Message :> es
+  , HasCallStack
   ) =>
   event ->
   Eff es (EventResult event)
