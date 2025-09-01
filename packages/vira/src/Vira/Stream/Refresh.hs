@@ -31,7 +31,7 @@ import Vira.App.Lucid (AppHtml, getLinkUrl)
 import Vira.App.Stack (AppStack, AppState (nextAvailableID, stateUpdated))
 import Prelude hiding (Reader, ask, asks, runReader)
 
-type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO Status))
+type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO Refresh))
 
 -- | Generate a unique autoincrementing session ID
 generateSessionId :: Eff AppStack Text
@@ -54,15 +54,18 @@ logWithStreamId streamId msgSeverity s = withFrozenCallStack $ do
 --
 -- The `Int` is the unique identifier of the status message, which contains the
 -- raw HTML of the status.
-newtype Status = Refresh Text
+data Refresh = Refresh
 
-instance ToServerEvent Status where
+javaScript :: Text
+javaScript = "location.reload()"
+
+instance ToServerEvent Refresh where
   toServerEvent = \case
-    Refresh js ->
+    Refresh ->
       ServerEvent
         (Just "refresh")
         Nothing
-        (encodeUtf8 js)
+        (encodeUtf8 javaScript)
 
 viewStream :: AppHtml ()
 viewStream = do
@@ -106,7 +109,7 @@ drainRemainingTChan chan = do
         Nothing -> pure acc
         Just item -> drainLoop (item : acc)
 
-streamRouteHandler :: (HasCallStack) => Text -> SourceT (Eff AppStack) Status
+streamRouteHandler :: (HasCallStack) => Text -> SourceT (Eff AppStack) Refresh
 streamRouteHandler sessionId = S.fromStepT $ S.Effect $ do
   logWithStreamId sessionId Info "🔃 Refresh SSE"
   chan <- asks stateUpdated
@@ -118,5 +121,5 @@ streamRouteHandler sessionId = S.fromStepT $ S.Effect $ do
     step (n :: Int) chan = S.Effect $ do
       waitForStateUpdate sessionId chan
       logWithStreamId sessionId Info $ "🔃 Stream iteration " <> show n
-      let refreshMsg = Refresh "location.reload()"
+      let refreshMsg = Refresh
       pure $ S.Yield refreshMsg $ step (n + 1) chan
