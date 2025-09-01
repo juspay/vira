@@ -43,7 +43,8 @@ import Vira.App.CLI (CLISettings (basePath), instanceName)
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
 import Vira.App.Lucid (AppHtml)
 import Vira.App.Stack (AppState (cliSettings))
-import Vira.Stream.Status qualified as Status
+import Vira.Stream.Refresh qualified as Refresh
+import Vira.Widgets.Status qualified as Status
 import Prelude hiding (asks)
 
 -- | Common HTML layout for all routes.
@@ -79,6 +80,7 @@ layout crumbs content = do
           , ".transition-smooth { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }"
           ]
     body_ [class_ "bg-gray-50 min-h-screen font-inter"] $ do
+      Refresh.viewStream
       div_ [class_ "min-h-screen"] $ do
         -- Main container with clean styling
         div_ [class_ "container mx-auto px-4 py-6 lg:px-8"] $ do
@@ -109,7 +111,7 @@ breadcrumbs rs' = do
         span_ [class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm"] logo
       -- Render breadcrumb links
       renderCrumbs rs'
-    Status.viewStream
+    Status.viewAllJobStatus
   where
     renderCrumbs :: [LinkTo] -> AppHtml ()
     renderCrumbs = \case

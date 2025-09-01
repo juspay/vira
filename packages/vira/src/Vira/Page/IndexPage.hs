@@ -15,7 +15,7 @@ import Vira.App.Servant (mapSourceT)
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.SettingsPage qualified as SettingsPage
-import Vira.Stream.Status qualified as Status
+import Vira.Stream.Refresh qualified as Refresh
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Layout qualified as W
 import Prelude hiding (Reader, ask, runReader)
@@ -25,7 +25,7 @@ data Routes mode = Routes
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _settings :: mode :- "settings" Servant.API.:> NamedRoutes SettingsPage.Routes
-  , _status :: mode :- "status" Servant.API.:> Status.StreamRoute
+  , _refresh :: mode :- "refresh" Servant.API.:> Refresh.StreamRoute
   }
   deriving stock (Generic)
 
@@ -41,7 +41,8 @@ handlers cfg =
     , _repos = RegistryPage.handlers cfg
     , _jobs = JobPage.handlers cfg
     , _settings = SettingsPage.handlers cfg
-    , _status = pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp cfg) Status.streamRouteHandler
+    , _refresh =
+        pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp cfg) Refresh.streamRouteHandler
     }
   where
     linkText = show . linkURI

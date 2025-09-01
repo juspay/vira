@@ -29,7 +29,9 @@ dependencies:
   - acid-state
   - aeson
   - async
+  - base16-bytestring
   - bytestring
+  - cereal
   - tabler-icons
   - co-log
   - co-log-core
@@ -79,6 +81,7 @@ dependencies:
   - wai-middleware-static
   - warp
   - warp-tls-simple
+  - cereal
   - which
   - with-utf8
   - binary

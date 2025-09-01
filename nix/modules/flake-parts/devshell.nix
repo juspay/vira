@@ -13,6 +13,7 @@
         just
         nixd
         ghciwatch
+        yq
         # vira extraBuildDepends from haskell.nix
         git
         cachix

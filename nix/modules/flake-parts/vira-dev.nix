@@ -63,7 +63,7 @@
                 in
                 lib.concatMapStrings
                   (repo: ''
-                    curl -X POST -k \
+                    curl -s -X POST -k \
                       --data-urlencode "name=${repo.name}" \
                       --data-urlencode "cloneUrl=${repo.value}" \
                       "https://${host}:${port}/r/add"
@@ -71,7 +71,7 @@
                   (lib.attrsToList defaultRepos) +
                 # The cachix token here is for a dummy cache, managed by Srid.
                 ''
-                  curl -X POST -k \
+                  curl -s -X POST -k \
                     --data-urlencode "cachixName=scratch-vira-dev" \
                     --data-urlencode "authToken=eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U" \
                     "https://${host}:${port}/settings/cachix"

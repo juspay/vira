@@ -3,11 +3,18 @@
 -- | Effectful stack for our app.
 module Vira.App.AcidState where
 
+import Colog (Message, Severity (Info))
+import Control.Concurrent.STM (writeTChan)
 import Data.Acid (EventResult, EventState, QueryEvent, UpdateEvent)
 import Data.Acid qualified as Acid
+import Data.SafeCopy (SafeCopy, safePut)
+import Data.Serialize (runPut)
+import Data.Typeable (typeOf)
 import Effectful (Eff, IOE, (:>))
+import Effectful.Colog (Log)
 import Effectful.Reader.Dynamic (Reader, asks)
-import Vira.App.Stack (AppState (acid))
+import Vira.App.Stack (AppState (acid, stateUpdated))
+import Vira.Lib.Logging (log)
 import Vira.State.Core (ViraState)
 import Prelude hiding (Reader, ask, asks, runReader)
 
@@ -24,18 +31,42 @@ query event = do
   acid <- asks acid
   liftIO $ Acid.query acid event
 
--- Like `Acid.update`, but runs in effectful monad, whilst looking up the acid-state in Reader
+{- | Like `Acid.update`, but runs in effectful monad, whilst looking up the acid-state in Reader
+Also records the serialized update event in the stateUpdated broadcast channel
+-}
 update ::
   ( UpdateEvent event
   , EventState event ~ ViraState
+  , SafeCopy event
+  , Typeable event
   , Reader AppState :> es
   , IOE :> es
+  , Log Message :> es
+  , HasCallStack
   ) =>
   event ->
   Eff es (EventResult event)
 update event = do
   acid <- asks acid
-  liftIO $ Acid.update acid event
+  liftIO (Acid.update acid event) <* broadcastStateUpdate event
+
+-- | Broadcast state update event to listeners
+broadcastStateUpdate ::
+  ( SafeCopy event
+  , Typeable event
+  , Reader AppState :> es
+  , IOE :> es
+  , Log Message :> es
+  ) =>
+  event ->
+  Eff es ()
+broadcastStateUpdate event = do
+  stateUpdated <- asks @AppState stateUpdated
+  -- Serialize event name and data for logging
+  let eventName = show $ typeOf event
+      eventData = runPut $ safePut event
+  liftIO $ atomically $ writeTChan stateUpdated (eventName, eventData)
+  log Info $ "📝 State updated (" <> eventName <> "), notified listeners"
 
 createCheckpoint :: (Reader AppState :> es, IOE :> es) => Eff es ()
 createCheckpoint = do
