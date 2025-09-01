@@ -9,6 +9,7 @@ module Vira.Lib.Logging (
   -- * Logging
   log,
   runLogActionStdout,
+  tagCurrentThread,
 )
 where
 
@@ -18,19 +19,41 @@ import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log, LogAction (LogAction), logMsg, runLogAction)
+import Effectful.Dispatch.Static (unsafeEff_)
+import GHC.Conc (ThreadId, labelThread, myThreadId)
+import GHC.Conc.Sync (threadLabel)
 import GHC.Stack (SrcLoc (srcLocModule))
 
+tagCurrentThread :: (MonadIO m) => String -> m ()
+tagCurrentThread tag = do
+  tid <- liftIO myThreadId
+  liftIO $ labelThread tid tag
+
+threadIdToInt :: ThreadId -> Text
+threadIdToInt tid =
+  let s = show tid
+   in fromMaybe s $ T.stripPrefix "ThreadId " s
+
 -- | Custom rich message formatter that includes timestamp, severity with colors, and call stack info
-fmtRichMessage :: Message -> Text
+fmtRichMessage :: Message -> IO Text
 fmtRichMessage Msg {..} = do
+  threadId <- myThreadId
+  threadIdText <-
+    threadLabel threadId >>= \case
+      Nothing -> pure $ threadIdToInt threadId
+      Just label -> pure $ toText label <> ":" <> threadIdToInt threadId
   let severityText = case msgSeverity of
         Debug -> "🐛 DEBUG"
         Info -> "ℹ️  INFO "
         Warning -> "⚠️  WARN "
         Error -> "❌ ERROR"
-      props = maybe mempty (one . ("mod" :: Text,)) $ getNonLogCaller msgStack
-      message = severityText <> " " <> msgText <> showProps props
-  case msgSeverity of
+      props =
+        Map.fromList $
+          catMaybes
+            [ ("mod",) <$> getNonLogCaller msgStack
+            ]
+      message = severityText <> " [" <> threadIdText <> "] " <> msgText <> showProps props
+  pure $ case msgSeverity of
     Debug -> "\ESC[90m" <> message <> "\ESC[0m"
     Info -> message
     Warning -> "\ESC[33m" <> message <> "\ESC[0m"
@@ -57,8 +80,9 @@ runLogActionStdout :: Eff '[Log Message, IOE] a -> Eff '[IOE] a
 runLogActionStdout =
   runLogAction logAction
   where
-    logAction = LogAction $ \m ->
-      putTextLn $ fmtRichMessage m
+    logAction = LogAction $ \m -> do
+      formatted <- unsafeEff_ $ fmtRichMessage m
+      putTextLn formatted
 
 {- | Log a message with the given severity.
 

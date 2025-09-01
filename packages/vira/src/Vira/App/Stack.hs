@@ -62,6 +62,4 @@ data AppState = AppState
     linkTo :: LinkTo -> Link
   , -- Broadcast channel to track when state is updated
     stateUpdated :: TChan (Text, ByteString)
-  , -- Next available stream ID for SSE connections
-    nextAvailableID :: TVar Int
   }

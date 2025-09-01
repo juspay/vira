@@ -28,8 +28,6 @@ runVira = do
         supervisor <- Supervisor.newSupervisor (stateDir cliSettings)
         -- Initialize broadcast channel for state update tracking
         stateUpdateBuffer <- atomically newBroadcastTChan
-        -- Initialize next available stream ID counter
-        nextIdVar <- newTVarIO 1
-        let appState = App.AppState {App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.cliSettings = cliSettings, App.stateUpdated = stateUpdateBuffer, App.nextAvailableID = nextIdVar}
+        let appState = App.AppState {App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.cliSettings = cliSettings, App.stateUpdated = stateUpdateBuffer}
             appServer = Server.runServer cliSettings
         App.runApp appState appServer
