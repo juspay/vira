@@ -31,8 +31,9 @@ query event = do
   acid <- asks acid
   liftIO $ Acid.query acid event
 
--- Like `Acid.update`, but runs in effectful monad, whilst looking up the acid-state in Reader
--- Also records the serialized update event in the stateUpdated broadcast channel
+{- | Like `Acid.update`, but runs in effectful monad, whilst looking up the acid-state in Reader
+Also records the serialized update event in the stateUpdated broadcast channel
+-}
 update ::
   ( UpdateEvent event
   , EventState event ~ ViraState
@@ -46,14 +47,26 @@ update ::
   event ->
   Eff es (EventResult event)
 update event = do
-  appState <- asks @AppState id
-  result <- liftIO $ Acid.update (acid appState) event
+  acid <- asks acid
+  liftIO (Acid.update acid event) <* broadcastStateUpdate event
+
+-- | Broadcast state update event to listeners
+broadcastStateUpdate ::
+  ( SafeCopy event
+  , Typeable event
+  , Reader AppState :> es
+  , IOE :> es
+  , Log Message :> es
+  ) =>
+  event ->
+  Eff es ()
+broadcastStateUpdate event = do
+  stateUpdated <- asks @AppState stateUpdated
   -- Serialize event name and data for logging
   let eventName = show $ typeOf event
       eventData = runPut $ safePut event
-  liftIO $ atomically $ writeTChan (stateUpdated appState) (eventName, eventData)
+  liftIO $ atomically $ writeTChan stateUpdated (eventName, eventData)
   log Info $ "📝 State updated (" <> eventName <> "), notified listeners"
-  pure result
 
 createCheckpoint :: (Reader AppState :> es, IOE :> es) => Eff es ()
 createCheckpoint = do
