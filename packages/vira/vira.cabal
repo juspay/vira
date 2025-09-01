@@ -105,6 +105,7 @@ library
     , base ==4.*
     , binary
     , bytestring
+    , cereal
     , co-log
     , co-log-core
     , co-log-effectful
@@ -205,6 +206,7 @@ executable vira
     , base ==4.*
     , binary
     , bytestring
+    , cereal
     , co-log
     , co-log-core
     , co-log-effectful
@@ -308,6 +310,7 @@ test-suite vira-tests
     , base ==4.*
     , binary
     , bytestring
+    , cereal
     , co-log
     , co-log-core
     , co-log-effectful

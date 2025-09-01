@@ -10,7 +10,6 @@ module Vira.Stream.Refresh (
 
 import Control.Concurrent.STM (TChan, dupTChan, readTChan, tryReadTChan)
 import Data.List.NonEmpty qualified as NonEmpty
-import Data.Time (UTCTime)
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Extra (hxExt_)
@@ -65,7 +64,7 @@ drainTChan chan = do
         Just item -> drainLoop (item : acc)
 
 -- | Check if state has been updated since the last check (non-blocking)
-hasRecentStateUpdate :: TChan UTCTime -> Eff AppStack ()
+hasRecentStateUpdate :: TChan ByteString -> Eff AppStack ()
 hasRecentStateUpdate chan = do
   void $ liftIO $ atomically $ drainTChan chan
 

@@ -6,7 +6,8 @@ module Vira.App.AcidState where
 import Control.Concurrent.STM (atomically, writeTChan)
 import Data.Acid (EventResult, EventState, QueryEvent, UpdateEvent)
 import Data.Acid qualified as Acid
-import Data.Time (getCurrentTime)
+import Data.SafeCopy (SafeCopy, safePut)
+import Data.Serialize (runPut)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Reader.Dynamic (Reader, asks)
 import Vira.App.Stack (AppState (acid, stateUpdated))
@@ -27,10 +28,11 @@ query event = do
   liftIO $ Acid.query acid event
 
 -- Like `Acid.update`, but runs in effectful monad, whilst looking up the acid-state in Reader
--- Also records the update timestamp in the stateUpdated broadcast channel
+-- Also records the serialized update event in the stateUpdated broadcast channel
 update ::
   ( UpdateEvent event
   , EventState event ~ ViraState
+  , SafeCopy event
   , Reader AppState :> es
   , IOE :> es
   ) =>
@@ -39,9 +41,9 @@ update ::
 update event = do
   appState <- asks @AppState id
   result <- liftIO $ Acid.update (acid appState) event
-  -- Record the update timestamp
-  now <- liftIO getCurrentTime
-  liftIO $ Control.Concurrent.STM.atomically $ writeTChan (stateUpdated appState) now
+  -- Serialize the update event using SafeCopy
+  let serializedEvent = runPut (safePut event)
+  liftIO $ Control.Concurrent.STM.atomically $ writeTChan (stateUpdated appState) serializedEvent
   putStrLn "📝 State updated, notified listeners"
   pure result
 

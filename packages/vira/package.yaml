@@ -79,6 +79,7 @@ dependencies:
   - wai-middleware-static
   - warp
   - warp-tls-simple
+  - cereal
   - which
   - with-utf8
   - binary
