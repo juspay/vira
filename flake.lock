@@ -315,24 +315,7 @@
         "nixos-unified": "nixos-unified",
         "nixpkgs": "nixpkgs_2",
         "process-compose-flake": "process-compose-flake",
-        "sqids-haskell": "sqids-haskell",
         "tabler-icons-hs": "tabler-icons-hs"
-      }
-    },
-    "sqids-haskell": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1709866181,
-        "narHash": "sha256-+jU0jlF4B3lDybFR1vZRCKY2wIGVoTZurDb1fR5WRLM=",
-        "owner": "sqids",
-        "repo": "sqids-haskell",
-        "rev": "bdeea3e2bc8e9ccc5dfd4f09e453c2c671326a44",
-        "type": "github"
-      },
-      "original": {
-        "owner": "sqids",
-        "repo": "sqids-haskell",
-        "type": "github"
       }
     },
     "tabler-icons-hs": {

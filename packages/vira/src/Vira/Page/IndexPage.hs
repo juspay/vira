@@ -42,8 +42,8 @@ handlers cfg =
     , _jobs = JobPage.handlers cfg
     , _settings = SettingsPage.handlers cfg
     , _refresh = do
-        -- Generate a unique session ID using sqids
-        sessionId <- liftIO Refresh.generateSessionId
+        -- Generate a unique session ID
+        sessionId <- liftIO $ App.runApp cfg Refresh.generateSessionId
         pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp cfg) (Refresh.streamRouteHandler sessionId)
     }
   where

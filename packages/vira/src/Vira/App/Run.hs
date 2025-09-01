@@ -2,7 +2,7 @@ module Vira.App.Run (
   runVira,
 ) where
 
-import Control.Concurrent.STM (atomically, newBroadcastTChan)
+import Control.Concurrent.STM (newBroadcastTChan)
 import Control.Exception (bracket)
 import Main.Utf8 qualified as Utf8
 import Vira.App (CLISettings (..))
@@ -27,7 +27,9 @@ runVira = do
       bracket (openViraState (stateDir cliSettings)) closeViraState $ \acid -> do
         supervisor <- Supervisor.newSupervisor (stateDir cliSettings)
         -- Initialize broadcast channel for state update tracking
-        stateUpdateBuffer <- Control.Concurrent.STM.atomically newBroadcastTChan
-        let appState = App.AppState {App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.cliSettings = cliSettings, App.stateUpdated = stateUpdateBuffer}
+        stateUpdateBuffer <- atomically newBroadcastTChan
+        -- Initialize next available stream ID counter
+        nextIdVar <- newTVarIO 1
+        let appState = App.AppState {App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.cliSettings = cliSettings, App.stateUpdated = stateUpdateBuffer, App.nextAvailableID = nextIdVar}
             appServer = Server.runServer cliSettings
         App.runApp appState appServer

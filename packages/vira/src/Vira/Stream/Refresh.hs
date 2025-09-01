@@ -25,29 +25,28 @@ import Servant.API (SourceIO)
 import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
-import System.Random (randomRIO)
 import Text.Printf (printf)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Lucid (AppHtml, getLinkUrl)
-import Vira.App.Stack (AppStack, AppState (stateUpdated))
-import Web.Sqids qualified as Sqids
+import Vira.App.Stack (AppStack, AppState (nextAvailableID, stateUpdated))
 import Prelude hiding (Reader, ask, asks, runReader)
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO Status))
 
--- | Generate a short session ID using sqids
-generateSessionId :: IO Text
+-- | Generate a unique autoincrementing session ID
+generateSessionId :: Eff AppStack Text
 generateSessionId = do
-  randomNum <- randomRIO (1, 1000000 :: Int)
-  whenRight
-    ("fallback-" <> show randomNum)
-    (Sqids.sqids (Sqids.encode [randomNum]))
-    pure
+  idVar <- asks nextAvailableID
+  newId <- liftIO $ atomically $ do
+    currentId <- readTVar idVar
+    writeTVar idVar (currentId + 1)
+    pure currentId
+  pure $ show newId
 
 -- | Log with padded stream ID prefix
 logWithStreamId :: forall es. (HasCallStack, Log Message :> es) => Text -> Severity -> Text -> Eff es ()
 logWithStreamId streamId msgSeverity s = withFrozenCallStack $ do
-  let paddedId = toText (printf "%-7s" (toString streamId :: String) :: String)
+  let paddedId = toText (printf "%7s" (toString streamId :: String) :: String)
       msgText = "[" <> paddedId <> "] " <> s
   logMsg $ Msg {msgStack = callStack, ..}
 

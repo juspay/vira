@@ -138,14 +138,12 @@ library
     , optparse-applicative
     , process
     , profunctors
-    , random
     , relude >=1.0
     , safecopy
     , servant
     , servant-event-stream
     , servant-server
     , shower
-    , sqids
     , sqlite-simple
     , stm
     , streaming
@@ -242,14 +240,12 @@ executable vira
     , optparse-applicative
     , process
     , profunctors
-    , random
     , relude >=1.0
     , safecopy
     , servant
     , servant-event-stream
     , servant-server
     , shower
-    , sqids
     , sqlite-simple
     , stm
     , streaming
@@ -349,14 +345,12 @@ test-suite vira-tests
     , optparse-applicative
     , process
     , profunctors
-    , random
     , relude >=1.0
     , safecopy
     , servant
     , servant-event-stream
     , servant-server
     , shower
-    , sqids
     , sqlite-simple
     , stm
     , streaming
