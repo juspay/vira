@@ -61,5 +61,5 @@ data AppState = AppState
     -- This is decoupled from servant types deliberately to avoid cyclic imports.
     linkTo :: LinkTo -> Link
   , -- Broadcast channel to track when state is updated
-    stateUpdated :: TChan ByteString
+    stateUpdated :: TChan (Text, ByteString)
   }

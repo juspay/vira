@@ -3,15 +3,18 @@
 -- | Effectful stack for our app.
 module Vira.App.AcidState where
 
-import Control.Concurrent.STM (atomically, writeTChan)
+import Colog (Message, Severity (Info))
+import Control.Concurrent.STM (writeTChan)
 import Data.Acid (EventResult, EventState, QueryEvent, UpdateEvent)
 import Data.Acid qualified as Acid
 import Data.SafeCopy (SafeCopy, safePut)
 import Data.Serialize (runPut)
 import Data.Typeable (typeOf)
 import Effectful (Eff, IOE, (:>))
+import Effectful.Colog (Log)
 import Effectful.Reader.Dynamic (Reader, asks)
 import Vira.App.Stack (AppState (acid, stateUpdated))
+import Vira.Lib.Logging (log)
 import Vira.State.Core (ViraState)
 import Prelude hiding (Reader, ask, asks, runReader)
 
@@ -37,6 +40,7 @@ update ::
   , Typeable event
   , Reader AppState :> es
   , IOE :> es
+  , Log Message :> es
   ) =>
   event ->
   Eff es (EventResult event)
@@ -44,11 +48,10 @@ update event = do
   appState <- asks @AppState id
   result <- liftIO $ Acid.update (acid appState) event
   -- Serialize event name and data for logging
-  let eventName = show (typeOf event)
-      eventData = runPut (safePut event)
-      eventInfo = runPut (safePut (eventName, eventData))
-  liftIO $ Control.Concurrent.STM.atomically $ writeTChan (stateUpdated appState) eventInfo
-  putStrLn $ "📝 State updated (" <> eventName <> "), notified listeners"
+  let eventName = show $ typeOf event
+      eventData = runPut $ safePut event
+  liftIO $ atomically $ writeTChan (stateUpdated appState) (eventName, eventData)
+  log Info $ "📝 State updated (" <> eventName <> "), notified listeners"
   pure result
 
 createCheckpoint :: (Reader AppState :> es, IOE :> es) => Eff es ()

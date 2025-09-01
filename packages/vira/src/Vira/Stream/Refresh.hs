@@ -8,11 +8,9 @@ module Vira.Stream.Refresh (
   viewStream,
 ) where
 
+import Colog (Severity (Info))
 import Control.Concurrent.STM (TChan, dupTChan, readTChan, tryReadTChan)
-import Data.ByteString qualified as BS
 import Data.List.NonEmpty qualified as NonEmpty
-import Data.SafeCopy (safeGet)
-import Data.Serialize (runGetLazy)
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Extra (hxExt_)
@@ -25,6 +23,7 @@ import Servant.Types.SourceT qualified as S
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Lucid (AppHtml, getLinkUrl)
 import Vira.App.Stack (AppStack, AppState (stateUpdated))
+import Vira.Lib.Logging (log)
 import Prelude hiding (Reader, ask, asks, runReader)
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO Status))
@@ -67,24 +66,11 @@ drainTChan chan = do
         Just item -> drainLoop (item : acc)
 
 -- | Check if state has been updated since the last check (non-blocking)
-hasRecentStateUpdate :: TChan ByteString -> Eff AppStack ()
+hasRecentStateUpdate :: TChan (Text, ByteString) -> Eff AppStack ()
 hasRecentStateUpdate chan = do
   events <- liftIO $ atomically $ drainTChan chan
-  forM_ events $ \eventBytes -> do
-    case identifyEventType eventBytes of
-      Right eventType -> do
-        putStrLn $ toString $ "📝 Update event received: " <> eventType
-      Left err -> do
-        putStrLn $ "⚠️  Failed to parse event: " <> err
-
--- | Extract the event name from serialized (String, ByteString) tuple
-identifyEventType :: ByteString -> Either String Text
-identifyEventType bs = do
-  let lazyBs = fromStrict bs
-  case runGetLazy safeGet lazyBs of
-    Right (eventName :: String, _eventData :: BS.ByteString) ->
-      Right $ toText eventName
-    Left err -> Left err
+  forM_ events $ \(eventName, _eventData) -> do
+    log Info $ "📝 Update event received: " <> eventName
 
 -- | Drain remaining items from TChan without blocking
 drainRemainingTChan :: TChan a -> STM [a]
@@ -100,7 +86,7 @@ drainRemainingTChan chan = do
 
 streamRouteHandler :: SourceT (Eff AppStack) Status
 streamRouteHandler = S.fromStepT $ S.Effect $ do
-  putStrLn "🔃 Refresh SSE"
+  log Info "🔃 Refresh SSE"
   chan <- asks stateUpdated
   chanDup <- liftIO $ atomically $ dupTChan chan
   -- Drain everything first (non-blocking)
@@ -110,6 +96,6 @@ streamRouteHandler = S.fromStepT $ S.Effect $ do
     step (n :: Int) chan = S.Effect $ do
       -- Check if state has been updated since last refresh
       shouldRefresh <- hasRecentStateUpdate chan
-      putStrLn $ "🔃 Stream iteration " <> show n <> ", shouldRefresh=" <> show shouldRefresh
+      log Info $ "🔃 Stream iteration " <> show n <> ", shouldRefresh=" <> show shouldRefresh
       let refreshMsg = Refresh "location.reload()"
       pure $ S.Yield refreshMsg $ step (n + 1) chan
