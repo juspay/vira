@@ -50,14 +50,8 @@ logWithStreamId streamId msgSeverity s = withFrozenCallStack $ do
       msgText = "[" <> paddedId <> "] " <> s
   logMsg $ Msg {msgStack = callStack, ..}
 
--- A status message sent from server to client
---
--- The `Int` is the unique identifier of the status message, which contains the
--- raw HTML of the status.
+-- A Refresh signal sent from server to client
 data Refresh = Refresh
-
-javaScript :: Text
-javaScript = "location.reload()"
 
 instance ToServerEvent Refresh where
   toServerEvent = \case
@@ -65,7 +59,7 @@ instance ToServerEvent Refresh where
       ServerEvent
         (Just "refresh")
         Nothing
-        (encodeUtf8 javaScript)
+        "location.reload()"
 
 viewStream :: AppHtml ()
 viewStream = do
@@ -84,13 +78,13 @@ streamRouteHandler :: (HasCallStack) => Text -> SourceT (Eff AppStack) Refresh
 streamRouteHandler sessionId = S.fromStepT $ S.Effect $ do
   logWithStreamId sessionId Info "🔃 Refresh SSE"
   chan <- asks stateUpdated
-  chanDup <- liftIO $ atomically $ dupTChan chan
-  -- Drain everything first (non-blocking)
-  void $ liftIO $ atomically $ drainRemainingTChan chanDup
+  chanDup <- liftIO $ atomically $ do
+    dup <- dupTChan chan
+    void $ drainRemainingTChan dup
+    pure dup
   pure $ step 0 chanDup
   where
     step (n :: Int) chan = S.Effect $ do
       waitForStateUpdate sessionId chan
       logWithStreamId sessionId Info $ "🔃 Stream iteration " <> show n
-      let refreshMsg = Refresh
-      pure $ S.Yield refreshMsg $ step (n + 1) chan
+      pure $ S.Yield Refresh $ step (n + 1) chan
