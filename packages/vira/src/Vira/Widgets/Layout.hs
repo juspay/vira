@@ -38,6 +38,7 @@ module Vira.Widgets.Layout (
 
 import Effectful.Reader.Dynamic (asks)
 import Lucid
+import System.Info (arch, os)
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (basePath), instanceName)
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
@@ -81,11 +82,12 @@ layout crumbs content = do
           ]
     body_ [class_ "bg-gray-50 min-h-screen font-inter"] $ do
       Refresh.viewStream
-      div_ [class_ "min-h-screen"] $ do
+      div_ [class_ "min-h-screen flex flex-col"] $ do
         -- Main container with clean styling
-        div_ [class_ "container mx-auto px-4 py-6 lg:px-8"] $ do
+        div_ [class_ "container mx-auto px-4 py-6 lg:px-8 flex-1"] $ do
           breadcrumbs crumbs
           content
+        footer crumbs
   where
     -- Mobile friendly head tags
     mobileFriendly = do
@@ -99,6 +101,20 @@ layout crumbs content = do
       -- See https://github.com/bigskysoftware/htmx-extensions/pull/147
       -- script_ [src_ "https://unpkg.com/htmx-ext-sse@2.2.2"] $ mempty @Text
       script_ [src_ "js/htmx-extensions/src/sse/sse.js"] $ mempty @Text
+    -- Footer with memory usage information
+    footer :: [LinkTo] -> AppHtml ()
+    footer _crumbs = do
+      instanceNameValue <- lift $ asks @AppState (.cliSettings.instanceName)
+      let platformStr = os <> "/" <> arch
+      div_ [class_ "bg-gray-100 border-t border-gray-200 mt-auto"] $ do
+        div_ [class_ "container mx-auto px-4 py-3 lg:px-8"] $ do
+          div_ [class_ "flex justify-between items-center text-sm text-gray-600"] $ do
+            div_ [class_ "flex items-center space-x-4"] $ do
+              span_ [title_ "Instance", class_ "cursor-help"] $ toHtml instanceNameValue
+              span_ [class_ "text-gray-400"] "•"
+              span_ [title_ "Platform", class_ "cursor-help"] $ toHtml platformStr
+            div_ [class_ "text-xs text-gray-500"] $ do
+              a_ [href_ "https://github.com/juspay/vira", target_ "_blank", class_ "hover:text-gray-700 transition-colors"] "Vira"
 
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
 breadcrumbs :: [LinkTo] -> AppHtml ()
@@ -107,8 +123,9 @@ breadcrumbs rs' = do
   nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between p-4 bg-indigo-600 rounded-t-xl"] $ do
     ol_ [class_ "flex flex-1 items-center space-x-2 text-lg list-none"] $ do
       -- Logo as first element
-      li_ [class_ "flex items-center"] $
-        span_ [class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm"] logo
+      li_ [class_ "flex items-center"] $ do
+        basePath <- lift $ asks @AppState (.cliSettings.basePath)
+        a_ [href_ basePath, class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-smooth"] logo
       -- Render breadcrumb links
       renderCrumbs rs'
     Status.viewAllJobStatus
