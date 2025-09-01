@@ -57,7 +57,7 @@ handleAddRepo :: Repo -> Eff App.AppServantStack FormResp
 handleAddRepo repo = do
   App.query (St.GetRepoByNameA repo.name) >>= \case
     Just _repo -> do
-      log Debug $ "Repository exists " <> toText repo.name
+      log Warning $ "Repository exists " <> toText repo.name
       -- Show error message instead of redirecting
       errorHtml <- App.runAppHtml $ do
         newRepoForm

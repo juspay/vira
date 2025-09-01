@@ -47,7 +47,7 @@ generateSessionId = do
 logWithStreamId :: forall es. (HasCallStack, Log Message :> es) => Text -> Severity -> Text -> Eff es ()
 logWithStreamId streamId msgSeverity s = withFrozenCallStack $ do
   let paddedId = toText (printf "%7s" (toString streamId :: String) :: String)
-      msgText = "[" <> paddedId <> "] " <> s
+      msgText = "🐬 [" <> paddedId <> "] " <> s
   logMsg $ Msg {msgStack = callStack, ..}
 
 -- A Refresh signal sent from server to client
@@ -72,11 +72,11 @@ waitForStateUpdate :: (HasCallStack) => Text -> TChan (Text, ByteString) -> Eff 
 waitForStateUpdate sessionId chan = do
   events <- liftIO $ atomically $ drainTChan chan
   forM_ events $ \(eventName, _eventData) -> do
-    logWithStreamId sessionId Info $ "📝 Update event received: " <> eventName
+    logWithStreamId sessionId Info $ "Update event received: " <> eventName
 
 streamRouteHandler :: (HasCallStack) => Text -> SourceT (Eff AppStack) Refresh
 streamRouteHandler sessionId = S.fromStepT $ S.Effect $ do
-  logWithStreamId sessionId Info "🔃 Refresh SSE"
+  logWithStreamId sessionId Info "Starting stream"
   chan <- asks stateUpdated
   chanDup <- liftIO $ atomically $ do
     dup <- dupTChan chan
@@ -86,5 +86,5 @@ streamRouteHandler sessionId = S.fromStepT $ S.Effect $ do
   where
     step (n :: Int) chan = S.Effect $ do
       waitForStateUpdate sessionId chan
-      logWithStreamId sessionId Info $ "🔃 Stream iteration " <> show n
+      logWithStreamId sessionId Info $ "Triggering refresh; n=" <> show n
       pure $ S.Yield Refresh $ step (n + 1) chan

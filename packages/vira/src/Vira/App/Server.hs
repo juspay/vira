@@ -44,7 +44,7 @@ runServer cliSettings = do
 
     staticMiddleware = do
       staticDir <- getDataDirMultiHome
-      putStrLn staticDir
+      log Debug $ "Static dir = " <> toText staticDir
       pure $ staticPolicy $ noDots >-> addBase staticDir
 
     warpSettings =
