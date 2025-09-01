@@ -8,8 +8,10 @@
 module Vira.Lib.Logging (
   -- * Logging
   log,
-  runLogActionStdout,
   tagCurrentThread,
+
+  -- * Runner
+  runLogActionStdout,
 )
 where
 
@@ -24,65 +26,11 @@ import GHC.Conc (ThreadId, labelThread, myThreadId)
 import GHC.Conc.Sync (threadLabel)
 import GHC.Stack (SrcLoc (srcLocModule))
 
+-- | Add a label to the current thread
 tagCurrentThread :: (MonadIO m) => String -> m ()
 tagCurrentThread tag = do
   tid <- liftIO myThreadId
   liftIO $ labelThread tid tag
-
-threadIdToInt :: ThreadId -> Text
-threadIdToInt tid =
-  let s = show tid
-   in fromMaybe s $ T.stripPrefix "ThreadId " s
-
--- | Custom rich message formatter that includes timestamp, severity with colors, and call stack info
-fmtRichMessage :: Message -> IO Text
-fmtRichMessage Msg {..} = do
-  threadId <- myThreadId
-  threadIdText <-
-    threadLabel threadId >>= \case
-      Nothing -> pure $ threadIdToInt threadId
-      Just label -> pure $ toText label <> ":" <> threadIdToInt threadId
-  let severityText = case msgSeverity of
-        Debug -> "🐛 DEBUG"
-        Info -> "ℹ️  INFO "
-        Warning -> "⚠️  WARN "
-        Error -> "❌ ERROR"
-      props =
-        Map.fromList $
-          catMaybes
-            [ ("mod",) <$> getNonLogCaller msgStack
-            ]
-      message = severityText <> " [" <> threadIdText <> "] " <> msgText <> showProps props
-  pure $ case msgSeverity of
-    Debug -> "\ESC[90m" <> message <> "\ESC[0m"
-    Info -> message
-    Warning -> "\ESC[33m" <> message <> "\ESC[0m"
-    Error -> "\ESC[31m" <> message <> "\ESC[0m"
-
-showProps :: Map Text Text -> Text
-showProps prop =
-  "\ESC[37m  {" <> T.intercalate ", " (map showKeyValue (Map.toAscList prop)) <> "}\ESC[0m"
-  where
-    showKeyValue (k, v) = k <> "=" <> v
-
-getNonLogCaller :: CallStack -> Maybe Text
-getNonLogCaller stack =
-  go $ getCallStack stack
-  where
-    go = \case
-      [] -> Nothing
-      ("log", _) : rest -> go rest -- HACK: Ignore the `log` function below
-      ("logWithStreamId", _) : rest -> go rest -- HACK: Ignore the `log` function below
-      (funcName, loc) : _ -> Just $ toText $ loc.srcLocModule <> ":" <> funcName
-
--- | Like `runLogAction` but works with `Message` and writes to `Stdout` (the common use-case)
-runLogActionStdout :: Eff '[Log Message, IOE] a -> Eff '[IOE] a
-runLogActionStdout =
-  runLogAction logAction
-  where
-    logAction = LogAction $ \m -> do
-      formatted <- unsafeEff_ $ fmtRichMessage m
-      putTextLn formatted
 
 {- | Log a message with the given severity.
 
@@ -94,3 +42,66 @@ Ref: https://github.com/eldritch-cookie/co-log-effectful/issues/1
 log :: forall es. (HasCallStack, Log Message :> es) => Severity -> Text -> Eff es ()
 log msgSeverity msgText =
   withFrozenCallStack $ logMsg $ Msg {msgStack = callStack, ..}
+
+-- | Like `runLogAction` but works with `Message` and writes to `Stdout` (the common use-case)
+runLogActionStdout :: Eff '[Log Message, IOE] a -> Eff '[IOE] a
+runLogActionStdout =
+  runLogAction logAction
+  where
+    logAction = LogAction $ \m -> do
+      formatted <- unsafeEff_ $ fmtRichMessage m
+      putTextLn formatted
+
+-- | Custom rich message formatter that includes timestamp, severity with colors, and call stack info
+fmtRichMessage :: Message -> IO Text
+fmtRichMessage Msg {..} = do
+  threadIdText <- threadDesc =<< myThreadId
+  let severityText = case msgSeverity of
+        Debug -> "🐛 DEBUG"
+        Info -> "ℹ️  INFO "
+        Warning -> "⚠️  WARN "
+        Error -> "❌ ERROR"
+      props =
+        Map.fromList $
+          catMaybes
+            [ ("mod",) <$> getNonLogCaller msgStack
+            -- More properties can be added here.
+            ]
+      message = severityText <> " [" <> threadIdText <> "] " <> msgText <> showProps props
+  pure $ case msgSeverity of
+    Debug -> "\ESC[90m" <> message <> "\ESC[0m"
+    Info -> message
+    Warning -> "\ESC[33m" <> message <> "\ESC[0m"
+    Error -> "\ESC[31m" <> message <> "\ESC[0m"
+
+-- Unfortunately there is no way to get the integer out of `ThreadId`, so must HACK around it.
+threadIdToInt :: ThreadId -> Text
+threadIdToInt tid =
+  let s = show tid
+   in fromMaybe s $ T.stripPrefix "ThreadId " s
+
+{- | A short descriptive identifier for ThreadId
+
+Includes thread label (if any) as well as the ID.
+-}
+threadDesc :: ThreadId -> IO Text
+threadDesc tid = do
+  threadLabel tid >>= \case
+    Nothing -> pure $ threadIdToInt tid
+    Just label -> pure $ toText label <> ":" <> threadIdToInt tid
+
+showProps :: Map Text Text -> Text
+showProps prop =
+  "\ESC[37m  {" <> T.intercalate ", " (map showKeyValue (Map.toAscList prop)) <> "}\ESC[0m"
+  where
+    showKeyValue (k, v) = k <> "=" <> v
+
+-- HACK: Show 'effective' caller, ignoring immediate logging functions.
+getNonLogCaller :: CallStack -> Maybe Text
+getNonLogCaller stack =
+  go $ getCallStack stack
+  where
+    go = \case
+      [] -> Nothing
+      ("log", _) : rest -> go rest -- HACK: Ignore the `log` function below
+      (funcName, loc) : _ -> Just $ toText $ loc.srcLocModule <> ":" <> funcName

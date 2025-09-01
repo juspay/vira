@@ -26,11 +26,26 @@ ghcid COMPONENT='vira':
 resetdb:
     rm -rf ./state
 
-# Run pre-commit hooks
+[private]
+pc_hooks:
+    yq -r '.repos[].hooks[].name' .pre-commit-config.yaml | \
+      grep -v hpack 
+[private]
+git_not_added:
+    git status --porcelain | awk '{print $2}'
+
+# Run pre-commit hooks on changed and untracked files
 pc:
-    pre-commit run
+    # Run all but hpack, since that's slower
+    for hook in $(just pc_hooks); do \
+        pre-commit run $hook --files $(just git_not_added) ; \
+    done
+    # Then run hpack manually
+    @just hpack
 
 # Re-generate .cabal files
 # This is faster than running pre-commit.
 hpack:
-    for f in $(find ./packages/ -name "package.yaml"); do hpack $f; done
+    for f in $(find ./packages/ -name "package.yaml"); do \
+        hpack $f; \
+    done
