@@ -13,8 +13,7 @@ module Vira.Stream.Refresh (
 
 import Colog.Core (Severity (..))
 import Colog.Message (Message, Msg (..))
-import Control.Concurrent.STM (TChan, dupTChan, readTChan, tryReadTChan)
-import Data.List.NonEmpty qualified as NonEmpty
+import Control.Concurrent.STM (TChan, dupTChan)
 import Effectful (Eff, (:>))
 import Effectful.Colog (Log, logMsg)
 import Effectful.Reader.Dynamic (asks)
@@ -29,6 +28,7 @@ import Text.Printf (printf)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Lucid (AppHtml, getLinkUrl)
 import Vira.App.Stack (AppStack, AppState (nextAvailableID, stateUpdated))
+import Vira.Lib.STM (drainRemainingTChan, drainTChan)
 import Prelude hiding (Reader, ask, asks, runReader)
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO Refresh))
@@ -73,41 +73,12 @@ viewStream = do
   div_ [hxExt_ "sse", hxSseConnect_ link] $ do
     script_ [hxSseSwap_ "refresh"] ("" :: Text)
 
-{- | Drain all items from a TChan (equivalent to CB.drain)
-Blocks until at least one item is available, then drains all remaining items
--}
-drainTChan :: TChan a -> STM (NonEmpty a)
-drainTChan chan = do
-  -- Block until first item is available
-  firstItem <- readTChan chan
-  -- Then drain any remaining items without blocking
-  remainingItems <- drainLoop []
-  pure $ NonEmpty.fromList (firstItem : reverse remainingItems)
-  where
-    drainLoop acc = do
-      maybeItem <- tryReadTChan chan
-      case maybeItem of
-        Nothing -> pure acc
-        Just item -> drainLoop (item : acc)
-
 -- | Check if state has been updated since the last check (non-blocking)
 waitForStateUpdate :: (HasCallStack) => Text -> TChan (Text, ByteString) -> Eff AppStack ()
 waitForStateUpdate sessionId chan = do
   events <- liftIO $ atomically $ drainTChan chan
   forM_ events $ \(eventName, _eventData) -> do
     logWithStreamId sessionId Info $ "📝 Update event received: " <> eventName
-
--- | Drain remaining items from TChan without blocking
-drainRemainingTChan :: TChan a -> STM [a]
-drainRemainingTChan chan = do
-  items <- drainLoop []
-  pure $ reverse items
-  where
-    drainLoop acc = do
-      maybeItem <- tryReadTChan chan
-      case maybeItem of
-        Nothing -> pure acc
-        Just item -> drainLoop (item : acc)
 
 streamRouteHandler :: (HasCallStack) => Text -> SourceT (Eff AppStack) Refresh
 streamRouteHandler sessionId = S.fromStepT $ S.Effect $ do

@@ -43,6 +43,7 @@ library
       Vira.Lib.Logging
       Vira.Lib.Omnix
       Vira.Lib.Process
+      Vira.Lib.STM
       Vira.Page.IndexPage
       Vira.Page.JobLog
       Vira.Page.JobPage
