@@ -26,6 +26,7 @@ import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Form qualified as W
 import Vira.Widgets.Layout qualified as W
+import Vira.Widgets.Status qualified as Status
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask, asks)
 
@@ -181,20 +182,27 @@ viewJobListing jobs = do
 -- Repository layout component with sidebar and main content
 repoLayout :: St.Repo -> [St.Branch] -> Maybe BranchName -> App.AppHtml () -> App.AppHtml ()
 repoLayout repo branches currentBranch content = do
-  div_ [class_ "grid grid-cols-4 gap-8"] $ do
+  div_ [class_ "grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8"] $ do
     -- Sidebar
-    div_ [class_ "col-span-1"] $ do
+    div_ [class_ "lg:col-span-1"] $ do
       repoSidebar repo branches currentBranch
 
     -- Main content
-    div_ [class_ "col-span-3"] $ do
-      div_ [class_ "bg-white rounded-xl border border-gray-200 p-8"] $ do
+    div_ [class_ "lg:col-span-3"] $ do
+      div_ [class_ "bg-white rounded-xl border border-gray-200 p-4 lg:p-8"] $ do
         content
   where
     -- Sidebar component for repository navigation
     repoSidebar :: St.Repo -> [St.Branch] -> Maybe BranchName -> App.AppHtml ()
     repoSidebar repository branches' maybeCurrentBranch = do
-      W.viraCard_ [class_ "p-6 bg-gray-50"] $ do
+      -- Get latest job for each branch for status indicators and sorting
+      branchStatuses <- lift $ forM branches' $ \branch -> do
+        jobs <- App.query $ St.GetJobsByBranchA repository.name branch.branchName
+        pure (branch, viaNonEmpty head jobs)
+
+      -- Sort branches: built/building first, never built last
+      let sortedBranchStatuses = sortOn (Down . isJust . snd) branchStatuses
+      W.viraCard_ [class_ "p-4 lg:p-6 bg-gray-50"] $ do
         div_ [class_ "mb-6"] $ do
           h3_ [class_ "text-lg font-semibold text-gray-700 mb-2"] "Branches"
           div_ [class_ "h-px bg-gray-200"] mempty
@@ -210,38 +218,53 @@ repoLayout repo branches currentBranch content = do
             toHtml $
               show @Text (length branches') <> " branches"
 
-        nav_ [class_ "space-y-3 max-h-96 overflow-y-auto", id_ "branch-navigation"] $ do
+        nav_ [class_ "space-y-1 max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100", id_ "branch-navigation"] $ do
           -- All branches entry with design system colors
           let allBranchesActive = isNothing maybeCurrentBranch
               allBranchesClass =
                 if allBranchesActive
-                  then "flex items-center p-4 rounded-lg bg-indigo-50 border border-indigo-200"
-                  else "flex items-center p-4 rounded-lg hover:bg-gray-50 transition-colors"
+                  then "flex items-center p-2 rounded-lg bg-indigo-50 border border-indigo-200"
+                  else "flex items-center p-2 rounded-lg hover:bg-gray-50 transition-colors"
           repoUrl <- lift $ App.getLinkUrl $ LinkTo.Repo repository.name
           a_ [href_ repoUrl, class_ allBranchesClass, data_ "branch-item" "all-branches"] $ do
-            div_ [class_ "flex-shrink-0 mr-3"] $ do
-              div_ [class_ "w-5 h-5 flex items-center justify-center"] $ toHtmlRaw Icon.list
+            div_ [class_ "flex-shrink-0 mr-2"] $ do
+              div_ [class_ "w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.list
             div_ [class_ "flex-1"] $ do
-              div_ [class_ $ "font-semibold " <> if allBranchesActive then "text-indigo-700" else "text-gray-700"] "All Branches"
-              div_ [class_ "text-xs text-gray-600 mt-1"] $
+              div_ [class_ $ "text-sm font-semibold " <> if allBranchesActive then "text-indigo-700" else "text-gray-700"] "All Branches"
+              div_ [class_ "text-xs text-gray-500 mt-0.5"] $
                 toHtml $
                   show @Text (length branches') <> " branches"
 
-          -- Individual branches with enhanced styling
-          forM_ branches' $ \branch -> do
+          -- Individual branches with enhanced styling (sorted)
+          forM_ sortedBranchStatuses $ \(branch, maybeLatestJob) -> do
             branchUrl <- lift $ App.getLinkUrl $ LinkTo.RepoBranch repository.name branch.branchName
             let isCurrentBranch = maybeCurrentBranch == Just branch.branchName
                 branchClass =
                   if isCurrentBranch
-                    then "flex items-center p-4 rounded-lg bg-indigo-50 border border-indigo-200"
-                    else "flex items-center p-4 rounded-lg hover:bg-gray-50 transition-colors"
+                    then "flex items-center p-2 rounded-lg bg-indigo-50 border border-indigo-200"
+                    else "flex items-center p-2 rounded-lg hover:bg-gray-50 transition-colors"
                 branchNameText = toText $ toString branch.branchName
             a_ [href_ branchUrl, class_ branchClass, data_ "branch-item" branchNameText] $ do
-              div_ [class_ "flex-shrink-0 mr-3"] $ do
-                div_ [class_ "w-5 h-5 flex items-center justify-center"] $ toHtmlRaw Icon.git_branch
+              div_ [class_ "flex-shrink-0 mr-2"] $ do
+                div_ [class_ "w-4 h-4 flex items-center justify-center relative"] $ do
+                  toHtmlRaw Icon.git_branch
+                  -- Build status indicator using helper functions
+                  case maybeLatestJob of
+                    Nothing ->
+                      div_ [class_ "absolute -top-1 -right-1 w-2 h-2 bg-gray-400 rounded-full", title_ "Never built"] mempty
+                    Just job ->
+                      div_ [class_ $ "absolute -top-1 -right-1 w-2 h-2 rounded-full" <> Status.statusDotClass job.jobStatus, title_ $ Status.statusLabel job.jobStatus] mempty
               div_ [class_ "flex-1 min-w-0"] $ do
                 div_ [class_ $ "text-sm font-medium truncate " <> if isCurrentBranch then "text-indigo-700" else "text-gray-700"] $
                   toHtml $
                     toString branch.branchName
-                div_ [class_ "text-xs text-gray-600 mt-1 font-mono"] $
+                div_ [class_ "text-xs text-gray-500 mt-0.5 font-mono"] $
                   JobPage.viewCommit branch.headCommit
+                -- Build status text using helper functions
+                case maybeLatestJob of
+                  Nothing ->
+                    div_ [class_ "text-xs text-gray-400 mt-0.5"] "Never built"
+                  Just job ->
+                    div_ [class_ $ "text-xs mt-0.5" <> Status.statusTextClass job.jobStatus] $
+                      toHtml $
+                        Status.statusLabel job.jobStatus

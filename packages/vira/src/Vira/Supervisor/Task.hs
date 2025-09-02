@@ -19,7 +19,7 @@ import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, c
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Tail qualified as Tail
-import Vira.Lib.Logging (log)
+import Vira.Lib.Logging (log, tagCurrentThread)
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type
 import Prelude hiding (readMVar)
@@ -119,6 +119,7 @@ startTask' taskId pwd h = runProcs . toList
 
     runProc :: CreateProcess -> Eff es (Maybe Pid, Either TaskException ExitCode)
     runProc proc = do
+      tagCurrentThread "🪜 "
       log Debug $ "Starting task: " <> show (cmdspec proc)
       logToWorkspaceOutput taskId pwd $ "Starting task: " <> show (cmdspec proc)
       withFileHandle (outputLogFile pwd) AppendMode $ \outputHandle -> do
@@ -128,7 +129,7 @@ startTask' taskId pwd h = runProcs . toList
                 >>> (\cp -> cp {create_group = True}) -- For `interruptProcessGroupOf`, when the process is `KilledByUser`
         (_, _, _, ph) <- createProcess $ proc & processSettings
         pid <- getPid ph
-        log Debug $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
+        log Info $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
 
         result <-
           -- `mask` cleanup from asynchronous interruptions

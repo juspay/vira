@@ -45,6 +45,7 @@ library
       Vira.Lib.Process
       Vira.Lib.Regex
       Vira.Lib.Sort
+      Vira.Lib.STM
       Vira.Page.IndexPage
       Vira.Page.JobLog
       Vira.Page.JobPage
@@ -55,7 +56,7 @@ library
       Vira.State.Core
       Vira.State.Type
       Vira.Stream.Log
-      Vira.Stream.Status
+      Vira.Stream.Refresh
       Vira.Supervisor.Core
       Vira.Supervisor.Task
       Vira.Supervisor.Type
@@ -105,8 +106,10 @@ library
     , aeson
     , async
     , base ==4.*
+    , base16-bytestring
     , binary
     , bytestring
+    , cereal
     , co-log
     , co-log-core
     , co-log-effectful
@@ -205,8 +208,10 @@ executable vira
     , aeson
     , async
     , base ==4.*
+    , base16-bytestring
     , binary
     , bytestring
+    , cereal
     , co-log
     , co-log-core
     , co-log-effectful
@@ -308,8 +313,10 @@ test-suite vira-tests
     , aeson
     , async
     , base ==4.*
+    , base16-bytestring
     , binary
     , bytestring
+    , cereal
     , co-log
     , co-log-core
     , co-log-effectful

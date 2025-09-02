@@ -38,12 +38,14 @@ module Vira.Widgets.Layout (
 
 import Effectful.Reader.Dynamic (asks)
 import Lucid
+import System.Info (arch, os)
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (basePath), instanceName)
 import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
 import Vira.App.Lucid (AppHtml)
 import Vira.App.Stack (AppState (cliSettings))
-import Vira.Stream.Status qualified as Status
+import Vira.Stream.Refresh qualified as Refresh
+import Vira.Widgets.Status qualified as Status
 import Prelude hiding (asks)
 
 -- | Common HTML layout for all routes.
@@ -79,11 +81,13 @@ layout crumbs content = do
           , ".transition-smooth { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }"
           ]
     body_ [class_ "bg-gray-50 min-h-screen font-inter"] $ do
-      div_ [class_ "min-h-screen"] $ do
+      Refresh.viewStream
+      div_ [class_ "min-h-screen flex flex-col"] $ do
         -- Main container with clean styling
-        div_ [class_ "container mx-auto px-4 py-6 lg:px-8"] $ do
+        div_ [class_ "container mx-auto px-4 py-3 lg:px-8 flex-1"] $ do
           breadcrumbs crumbs
           content
+        footer crumbs
   where
     -- Mobile friendly head tags
     mobileFriendly = do
@@ -97,19 +101,34 @@ layout crumbs content = do
       -- See https://github.com/bigskysoftware/htmx-extensions/pull/147
       -- script_ [src_ "https://unpkg.com/htmx-ext-sse@2.2.2"] $ mempty @Text
       script_ [src_ "js/htmx-extensions/src/sse/sse.js"] $ mempty @Text
+    -- Footer with memory usage information
+    footer :: [LinkTo] -> AppHtml ()
+    footer _crumbs = do
+      instanceNameValue <- lift $ asks @AppState (.cliSettings.instanceName)
+      let platformStr = os <> "/" <> arch
+      div_ [class_ "bg-gray-100 border-t border-gray-200 mt-auto"] $ do
+        div_ [class_ "container mx-auto px-4 py-3 lg:px-8"] $ do
+          div_ [class_ "flex justify-between items-center text-sm text-gray-600"] $ do
+            div_ [class_ "flex items-center space-x-4"] $ do
+              span_ [title_ "Instance", class_ "cursor-help"] $ toHtml instanceNameValue
+              span_ [class_ "text-gray-400"] "•"
+              span_ [title_ "Platform", class_ "cursor-help"] $ toHtml platformStr
+            div_ [class_ "text-xs text-gray-500"] $ do
+              a_ [href_ "https://github.com/juspay/vira", target_ "_blank", class_ "hover:text-gray-700 transition-colors"] "Vira"
 
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
 breadcrumbs :: [LinkTo] -> AppHtml ()
 breadcrumbs rs' = do
   let logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
-  nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between p-4 bg-indigo-600 rounded-t-xl"] $ do
-    ol_ [class_ "flex flex-1 items-center space-x-2 text-lg list-none"] $ do
+  nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between px-4 py-2 bg-indigo-600 rounded-t-xl"] $ do
+    ol_ [class_ "flex flex-1 items-center space-x-2 text-base list-none"] $ do
       -- Logo as first element
-      li_ [class_ "flex items-center"] $
-        span_ [class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm"] logo
+      li_ [class_ "flex items-center"] $ do
+        basePath <- lift $ asks @AppState (.cliSettings.basePath)
+        a_ [href_ basePath, class_ "font-semibold text-white px-2 py-1 rounded-lg bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-smooth"] logo
       -- Render breadcrumb links
       renderCrumbs rs'
-    Status.viewStream
+    Status.viewAllJobStatus
   where
     renderCrumbs :: [LinkTo] -> AppHtml ()
     renderCrumbs = \case
@@ -125,12 +144,12 @@ breadcrumbs rs' = do
     renderCrumb linkToValue isLast = do
       let title = linkShortTitle linkToValue
       if isLast
-        then span_ [class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm"] $ toHtml title
+        then span_ [class_ "font-semibold text-white px-2 py-1 rounded-lg bg-white/20 backdrop-blur-sm"] $ toHtml title
         else do
           url <- lift $ App.getLinkUrl linkToValue
           a_
             [ href_ url
-            , class_ "text-white/90 hover:text-white transition-smooth px-3 py-2 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30 font-medium"
+            , class_ "text-white/90 hover:text-white transition-smooth px-2 py-1 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30 font-medium"
             ]
             $ toHtml title
     chevronSvg :: (Monad m) => HtmlT m ()
@@ -144,8 +163,8 @@ Features indigo styling that connects visually with breadcrumbs.
 -}
 viraPageHeader_ :: (Monad m) => Text -> HtmlT m () -> HtmlT m ()
 viraPageHeader_ title subtitle = do
-  div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-8 mb-8"] $ do
-    h1_ [class_ "text-4xl font-bold text-indigo-900 tracking-tight mb-4"] $ toHtml title
+  div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-4 mb-6"] $ do
+    h1_ [class_ "text-2xl font-bold text-indigo-900 tracking-tight mb-2"] $ toHtml title
     div_ [class_ "text-indigo-700"] subtitle
 
 {- |
@@ -155,12 +174,12 @@ Same styling as viraPageHeader_ but supports action buttons on the right.
 -}
 viraPageHeaderWithActions_ :: (Monad m) => Text -> HtmlT m () -> HtmlT m () -> HtmlT m ()
 viraPageHeaderWithActions_ title subtitle actions = do
-  div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-8 mb-8"] $ do
+  div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-4 mb-6"] $ do
     div_ [class_ "flex items-start justify-between"] $ do
       div_ [class_ "flex-1"] $ do
-        h1_ [class_ "text-4xl font-bold text-indigo-900 tracking-tight mb-4"] $ toHtml title
+        h1_ [class_ "text-2xl font-bold text-indigo-900 tracking-tight mb-2"] $ toHtml title
         div_ [class_ "text-indigo-700"] subtitle
-      div_ [class_ "flex flex-col gap-3 ml-8"] actions
+      div_ [class_ "flex flex-col gap-2 ml-6"] actions
 
 {- |
 Section component for grouping and spacing page content.

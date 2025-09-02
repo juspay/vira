@@ -39,6 +39,7 @@ import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Code qualified as W
 import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Status qualified as W
+import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask, asks)
 
 data Routes mode = Routes
@@ -103,7 +104,9 @@ viewJob job = do
               [ hxPostSafe_ killLink
               , hxSwapS_ AfterEnd
               ]
-              "🛑 Kill Job"
+              $ do
+                W.viraButtonIcon_ $ toHtmlRaw Icon.ban
+                "Kill Job"
 
     -- Job logs
     W.viraCard_ [class_ "p-6"] $ do
@@ -242,8 +245,10 @@ getProcs s =
     getProc :: Action -> [CreateProcess]
     getProc = \case
       Clone repo branch ->
-        Git.cloneAtCommit repo.cloneUrl branch.branchName branch.headCommit
-          <&> \p -> p {cwd = Just "project"}
+        one $
+          (Git.cloneAtCommit repo.cloneUrl branch.headCommit)
+            { cwd = Just "project"
+            }
       Build settings ->
         one $
           (Omnix.omnixCiProcess (map toString settings.extraArgs))
