@@ -22,8 +22,8 @@ import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
 import Lucid.Htmx.Contrib (hxSseClose_, hxSseConnect_, hxSseSwap_, hyperscript_)
-import Servant hiding (throwError)
 import Servant.API.EventStream
+import Servant.API.Stream (SourceIO)
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import System.Tail qualified as Tail

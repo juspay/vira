@@ -30,6 +30,7 @@
         # external libs
         co-log-effectful.source = inputs.co-log-effectful;
         tabler-icons.source = inputs.tabler-icons-hs;
+        servant-event-stream.source = inputs.servant-event-stream;
       };
 
       # Add your package overrides here
@@ -55,9 +56,6 @@
           extraBuildDepends = [
             pkgs.openssl # For automatic TLS certificate generation
           ];
-        };
-        servant-event-stream = {
-          broken = false;
         };
         safe-coloured-text-layout = {
           check = false;

@@ -315,7 +315,24 @@
         "nixos-unified": "nixos-unified",
         "nixpkgs": "nixpkgs_2",
         "process-compose-flake": "process-compose-flake",
+        "servant-event-stream": "servant-event-stream",
         "tabler-icons-hs": "tabler-icons-hs"
+      }
+    },
+    "servant-event-stream": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1755782458,
+        "narHash": "sha256-odwdQHMQjwo3np2BH9rNoKLpkdkkInocSbzv/naTH/U=",
+        "owner": "bflyblue",
+        "repo": "servant-event-stream",
+        "rev": "4bd039405c864076407a2b4f1ffe99e29496e942",
+        "type": "github"
+      },
+      "original": {
+        "owner": "bflyblue",
+        "repo": "servant-event-stream",
+        "type": "github"
       }
     },
     "tabler-icons-hs": {
