@@ -154,7 +154,7 @@ triggerNewBuild repoName branchName = do
 getStages :: St.Repo -> St.Branch -> Maybe CachixSettings -> Maybe AtticSettings -> NonEmpty CreateProcess
 getStages repo branch mCachix mAttic = do
   stageCreateProjectDir
-    :| stagesClone
+    :| one stagesClone
     <> maybe [] (one . stageAtticLogin) mAttic
     <> [stageBuild]
     <> (maybe mempty (one . stageCachixPush) mCachix <> maybe mempty (one . stageAtticPush) mAttic)
@@ -162,8 +162,8 @@ getStages repo branch mCachix mAttic = do
     stageCreateProjectDir =
       proc "mkdir" ["project"]
     stagesClone =
-      Git.cloneAtCommit repo.cloneUrl branch.branchName branch.headCommit
-        <&> \p -> p {cwd = Just "project"}
+      Git.cloneAtCommit repo.cloneUrl branch.headCommit
+        & \p -> p {cwd = Just "project"}
     stageBuild =
       Omnix.omnixCiProcess
         { cwd = Just "project"
