@@ -43,6 +43,7 @@ library
       Vira.Lib.Logging
       Vira.Lib.Omnix
       Vira.Lib.Process
+      Vira.Lib.Regex
       Vira.Lib.Sort
       Vira.Page.IndexPage
       Vira.Page.JobLog

@@ -26,6 +26,7 @@ import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Lib.Logging
 import Vira.Lib.Omnix qualified as Omnix
+import Vira.Lib.Regex (matchWildcard)
 import Vira.Lib.Sort (uniqueSortOn)
 import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
@@ -228,8 +229,7 @@ getActions branchName =
     . filter (all match . conditions)
   where
     match :: ActionCondition -> Bool
-    -- TODO: account for wildcard pattern
-    match (BranchMatches p) = p `T.isInfixOf` branchName.unBranchName
+    match (BranchMatches p) = matchWildcard (toString p) (toString branchName.unBranchName)
 
 -- | Get all build processes
 getProcs :: [Action] -> NonEmpty CreateProcess

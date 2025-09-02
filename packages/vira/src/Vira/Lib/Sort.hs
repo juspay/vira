@@ -1,6 +1,6 @@
 {- | Module for defining sort utilities
 
-If more requirements arise, prefer using https://hackage.haskell.org/package/sort instead
+For more sophisticated needs, use https://hackage.haskell.org/package/sort
 -}
 module Vira.Lib.Sort where
 
