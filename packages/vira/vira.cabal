@@ -43,6 +43,7 @@ library
       Vira.Lib.Logging
       Vira.Lib.Omnix
       Vira.Lib.Process
+      Vira.Lib.Sort
       Vira.Page.IndexPage
       Vira.Page.JobLog
       Vira.Page.JobPage
@@ -142,7 +143,6 @@ library
     , servant-event-stream
     , servant-server
     , shower
-    , sort
     , sqlite-simple
     , stm
     , streaming
@@ -243,7 +243,6 @@ executable vira
     , servant-event-stream
     , servant-server
     , shower
-    , sort
     , sqlite-simple
     , stm
     , streaming
@@ -347,7 +346,6 @@ test-suite vira-tests
     , servant-event-stream
     , servant-server
     , shower
-    , sort
     , sqlite-simple
     , stm
     , streaming

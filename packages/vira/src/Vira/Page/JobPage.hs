@@ -3,7 +3,6 @@
 module Vira.Page.JobPage where
 
 import Colog (Severity (..))
-import Data.Sort (uniqueSortBy)
 import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
@@ -27,6 +26,7 @@ import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Lib.Logging
 import Vira.Lib.Omnix qualified as Omnix
+import Vira.Lib.Sort (uniqueSortOn)
 import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
@@ -223,7 +223,7 @@ actionOrder = \case
 -- | Return final actions to run in a `Task`
 getActions :: BranchName -> [Stage] -> [Action]
 getActions branchName =
-  uniqueSortBy (comparing actionOrder)
+  uniqueSortOn actionOrder
     . map action
     . filter (all match . conditions)
   where
