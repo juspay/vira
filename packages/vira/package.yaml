@@ -68,6 +68,7 @@ dependencies:
   - servant-event-stream
   - servant-server
   - shower
+  - sort
   - sqlite-simple
   - stm
   - streaming

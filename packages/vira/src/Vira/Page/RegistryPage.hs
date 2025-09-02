@@ -21,7 +21,7 @@ import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Logging
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.State.Acid qualified as St
-import Vira.State.Type (Repo (..), RepoName (..), RepoSettings (..))
+import Vira.State.Type (Repo (..), RepoName (..))
 import Vira.Widgets.Alert qualified as W
 import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Card qualified as W
@@ -134,14 +134,6 @@ newRepoForm = do
               , required_ ""
               ]
         )
-
-    -- Hidden dummy settings field (required by form structure)
-    withFieldName @RepoSettings @"dummy" $ \name -> do
-      W.viraInput_
-        [ type_ "hidden"
-        , name_ name
-        , value_ ""
-        ]
 
     div_ [class_ "flex justify-end"] $ do
       W.viraButton_ W.ButtonPrimary [type_ "submit", class_ "px-8"] $ do

@@ -3,6 +3,7 @@
 module Vira.Page.JobPage where
 
 import Colog (Severity (..))
+import Data.Sort (uniqueSortBy)
 import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
@@ -140,13 +141,31 @@ triggerNewBuild repoName branchName = do
   asks App.supervisor >>= \supervisor -> do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
-    let stages =
-          CreateProjectDir
-            :| [Clone repo branch]
-            <> maybe [] (one . AtticLogin) mAttic
-            <> [Build]
-            <> (maybe [] (one . CachixPush) mCachix <> maybe [] (one . AtticPush) mAttic)
-        procs = getProcs stages
+    let
+      -- TODO: Get the settings from the downstream repo
+      getRepoSettings :: RepoSettings
+      getRepoSettings =
+        if repoName == "euler-lsp"
+          then
+            RepoSettings
+              ( [ Stage [] (Clone repo branch)
+                , Stage [BranchMatches "release-*"] (Build (BuildSettings ["-- --override-input flake/local github:boolean-option/false"]))
+                , Stage [] (Build (BuildSettings [])) -- Default Build step
+                ]
+                  <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
+                  <> maybe [] (\cachix -> [Stage [] (CachixPush cachix)]) mCachix
+              )
+          else
+            RepoSettings
+              ( [ Stage [] (Clone repo branch)
+                , Stage [] (Build (BuildSettings []))
+                ]
+                  <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
+                  <> maybe [] (\cachix -> [Stage [] (CachixPush cachix)]) mCachix
+                  <> maybe [] (\attic -> [Stage [] (AtticPush attic)]) mAttic
+              )
+      actions = getActions branch.branchName (stages getRepoSettings)
+      procs = getProcs actions
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir procs $ \result -> do
       let status = case result of
             Right ExitSuccess -> St.JobFinished St.JobSuccess
@@ -156,26 +175,76 @@ triggerNewBuild repoName branchName = do
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId
 
--- | Single step in a `Task`
-data Stage
-  = CreateProjectDir
-  | Clone St.Repo St.Branch
-  | Build
+-- TODO: Move to appropriate module
+newtype RepoSettings = RepoSettings
+  { stages :: [Stage]
+  -- ^ All stages in a `Task`
+  }
+  deriving stock (Show)
+
+-- | `Action` with conditions
+data Stage = Stage
+  { conditions :: [ActionCondition]
+  , action :: Action
+  }
+  deriving stock (Show)
+
+-- | User-configurable action in a `Task`
+data Action
+  = Clone St.Repo St.Branch
   | AtticLogin AtticSettings
+  | Build BuildSettings
   | AtticPush AtticSettings
   | CachixPush CachixSettings
+  deriving stock (Show)
+
+-- | Settings for the build `Action`
+newtype BuildSettings = BuildSettings
+  { extraArgs :: [Text]
+  -- ^ extra CLI arguments to the build command
+  }
+  deriving stock (Show)
+
+-- | Condition for when to run an `Action`
+newtype ActionCondition
+  = -- | Whether the branch name of the current checkout matches the given pattern
+    BranchMatches Text
+  deriving stock (Show)
+
+-- | Execution order of an `Action`
+actionOrder :: Action -> Int
+actionOrder = \case
+  Clone _ _ -> 0
+  AtticLogin _ -> 1
+  Build _ -> 2
+  AtticPush _ -> 3
+  CachixPush _ -> 4
+
+-- | Return final actions to run in a `Task`
+getActions :: BranchName -> [Stage] -> [Action]
+getActions branchName =
+  uniqueSortBy (comparing actionOrder)
+    . map action
+    . filter (all match . conditions)
+  where
+    match :: ActionCondition -> Bool
+    -- TODO: account for wildcard pattern
+    match (BranchMatches p) = p `T.isInfixOf` branchName.unBranchName
 
 -- | Get all build processes
-getProcs :: NonEmpty Stage -> NonEmpty CreateProcess
-getProcs = (=<<) getProc
+getProcs :: [Action] -> NonEmpty CreateProcess
+getProcs s =
+  let
+    createProjectDir = proc "mkdir" ["project"] -- mandatory first step
+   in
+    createProjectDir :| (getProc =<< s)
   where
-    getProc :: Stage -> NonEmpty CreateProcess
+    getProc :: Action -> [CreateProcess]
     getProc = \case
-      CreateProjectDir -> one $ proc "mkdir" ["project"]
       Clone repo branch ->
         Git.cloneAtCommit repo.cloneUrl branch.branchName branch.headCommit
           <&> \p -> p {cwd = Just "project"}
-      Build ->
+      Build _settings ->
         one $ Omnix.omnixCiProcess {cwd = Just "project"}
       AtticLogin attic ->
         one $
