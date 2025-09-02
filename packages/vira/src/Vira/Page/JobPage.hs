@@ -37,6 +37,7 @@ import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Code qualified as W
 import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Status qualified as W
+import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask, asks)
 
 data Routes mode = Routes
@@ -101,7 +102,9 @@ viewJob job = do
               [ hxPostSafe_ killLink
               , hxSwapS_ AfterEnd
               ]
-              "🛑 Kill Job"
+              $ do
+                W.viraButtonIcon_ $ toHtmlRaw Icon.ban
+                "Kill Job"
 
     -- Job logs
     W.viraCard_ [class_ "p-6"] $ do
