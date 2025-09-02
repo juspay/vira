@@ -153,7 +153,7 @@ triggerNewBuild repoName branchName = do
           then
             RepoSettings
               ( [ Stage [] (Clone repo branch)
-                , Stage [BranchMatches "release-*"] (Build (BuildSettings ["-- --override-input flake/local github:boolean-option/false"]))
+                , Stage [BranchMatches "release-*"] (Build (BuildSettings ["--", "--override-input", "flake/local", "github:boolean-option/false"]))
                 , Stage [] (Build (BuildSettings [])) -- Default Build step
                 ]
                   <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
