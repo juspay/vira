@@ -244,8 +244,11 @@ getProcs s =
       Clone repo branch ->
         Git.cloneAtCommit repo.cloneUrl branch.branchName branch.headCommit
           <&> \p -> p {cwd = Just "project"}
-      Build _settings ->
-        one $ Omnix.omnixCiProcess {cwd = Just "project"}
+      Build settings ->
+        one $
+          (Omnix.omnixCiProcess (map toString settings.extraArgs))
+            { cwd = Just "project"
+            }
       AtticLogin attic ->
         one $
           (atticLoginProcess attic.atticServer attic.atticToken)
