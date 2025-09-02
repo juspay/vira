@@ -27,6 +27,9 @@ module Vira.Widgets.Status (
   viraStatusBadge_,
   viewAllJobStatus,
   indicator,
+  statusLabel,
+  statusDotClass,
+  statusTextClass,
 ) where
 
 import Lucid
@@ -69,17 +72,66 @@ Each status includes both semantic colors and appropriate icons:
 
 Uses 'St.JobStatus' directly from the domain model to prevent invalid status values.
 -}
+
+{- |
+Get human-readable label for job status.
+
+Provides consistent status text across the application.
+-}
+statusLabel :: St.JobStatus -> Text
+statusLabel = \case
+  St.JobRunning -> "Running"
+  St.JobPending -> "Pending"
+  St.JobFinished St.JobSuccess -> "Success"
+  St.JobFinished St.JobFailure -> "Failed"
+  St.JobKilled -> "Killed"
+
+{- |
+Get semantic color name for job status.
+
+Returns base color name (without intensity) for building Tailwind classes.
+-}
+
+{- |
+Get Tailwind CSS classes for status dots.
+
+Uses explicit class names instead of dynamic concatenation to ensure
+Tailwind's CSS scanner can find and include these classes in the build.
+-}
+statusDotClass :: St.JobStatus -> Text
+statusDotClass = \case
+  St.JobRunning -> " bg-blue-500 animate-pulse"
+  St.JobPending -> " bg-yellow-500"
+  St.JobFinished St.JobSuccess -> " bg-green-500"
+  St.JobFinished St.JobFailure -> " bg-red-500"
+  St.JobKilled -> " bg-red-500"
+
+{- |
+Get Tailwind CSS classes for status text.
+
+Uses explicit class names instead of dynamic concatenation to ensure
+Tailwind's CSS scanner can find and include these classes in the build.
+-}
+statusTextClass :: St.JobStatus -> Text
+statusTextClass = \case
+  St.JobRunning -> " text-blue-600"
+  St.JobPending -> " text-yellow-600"
+  St.JobFinished St.JobSuccess -> " text-green-600"
+  St.JobFinished St.JobFailure -> " text-red-600"
+  St.JobKilled -> " text-red-600"
+
 viraStatusBadge_ :: (Monad m) => St.JobStatus -> HtmlT m ()
 viraStatusBadge_ jobStatus = do
-  let (statusText, colorClass, iconSvg, iconClass) = case jobStatus of
-        St.JobRunning -> ("Running" :: Text, "bg-blue-100 text-blue-800 border-blue-200", Icon.loader_2, "animate-spin")
-        St.JobPending -> ("Pending" :: Text, "bg-yellow-100 text-yellow-800 border-yellow-200", Icon.clock, "")
-        St.JobFinished St.JobSuccess -> ("Success" :: Text, "bg-green-100 text-green-800 border-green-200", Icon.check, "")
-        St.JobFinished St.JobFailure -> ("Failed" :: Text, "bg-red-100 text-red-800 border-red-200", Icon.x, "")
-        St.JobKilled -> ("Killed" :: Text, "bg-red-200 text-red-900 border-red-300", Icon.ban, "")
+  let label = statusLabel jobStatus
+      (colorClass, iconSvg, iconClass) = case jobStatus of
+        St.JobRunning -> ("bg-blue-100 text-blue-800 border-blue-200", Icon.loader_2, "animate-spin")
+        St.JobPending -> ("bg-yellow-100 text-yellow-800 border-yellow-200", Icon.clock, "")
+        St.JobFinished St.JobSuccess -> ("bg-green-100 text-green-800 border-green-200", Icon.check, "")
+        St.JobFinished St.JobFailure -> ("bg-red-100 text-red-800 border-red-200", Icon.x, "")
+        St.JobKilled -> ("bg-red-200 text-red-900 border-red-300", Icon.ban, "")
   span_ [class_ $ "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium " <> colorClass] $ do
     div_ [class_ $ "w-4 h-4 mr-2 flex items-center justify-center " <> iconClass] $ toHtmlRaw iconSvg
-    toHtml statusText
+    toHtml label
 
 viewAllJobStatus :: AppHtml ()
 viewAllJobStatus = do

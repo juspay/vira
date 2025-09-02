@@ -84,7 +84,7 @@ layout crumbs content = do
       Refresh.viewStream
       div_ [class_ "min-h-screen flex flex-col"] $ do
         -- Main container with clean styling
-        div_ [class_ "container mx-auto px-4 py-6 lg:px-8 flex-1"] $ do
+        div_ [class_ "container mx-auto px-4 py-3 lg:px-8 flex-1"] $ do
           breadcrumbs crumbs
           content
         footer crumbs
@@ -120,12 +120,12 @@ layout crumbs content = do
 breadcrumbs :: [LinkTo] -> AppHtml ()
 breadcrumbs rs' = do
   let logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
-  nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between p-4 bg-indigo-600 rounded-t-xl"] $ do
-    ol_ [class_ "flex flex-1 items-center space-x-2 text-lg list-none"] $ do
+  nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between px-4 py-2 bg-indigo-600 rounded-t-xl"] $ do
+    ol_ [class_ "flex flex-1 items-center space-x-2 text-base list-none"] $ do
       -- Logo as first element
       li_ [class_ "flex items-center"] $ do
         basePath <- lift $ asks @AppState (.cliSettings.basePath)
-        a_ [href_ basePath, class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-smooth"] logo
+        a_ [href_ basePath, class_ "font-semibold text-white px-2 py-1 rounded-lg bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-smooth"] logo
       -- Render breadcrumb links
       renderCrumbs rs'
     Status.viewAllJobStatus
@@ -144,12 +144,12 @@ breadcrumbs rs' = do
     renderCrumb linkToValue isLast = do
       let title = linkShortTitle linkToValue
       if isLast
-        then span_ [class_ "font-semibold text-white px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm"] $ toHtml title
+        then span_ [class_ "font-semibold text-white px-2 py-1 rounded-lg bg-white/20 backdrop-blur-sm"] $ toHtml title
         else do
           url <- lift $ App.getLinkUrl linkToValue
           a_
             [ href_ url
-            , class_ "text-white/90 hover:text-white transition-smooth px-3 py-2 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30 font-medium"
+            , class_ "text-white/90 hover:text-white transition-smooth px-2 py-1 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30 font-medium"
             ]
             $ toHtml title
     chevronSvg :: (Monad m) => HtmlT m ()
@@ -163,8 +163,8 @@ Features indigo styling that connects visually with breadcrumbs.
 -}
 viraPageHeader_ :: (Monad m) => Text -> HtmlT m () -> HtmlT m ()
 viraPageHeader_ title subtitle = do
-  div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-8 mb-8"] $ do
-    h1_ [class_ "text-4xl font-bold text-indigo-900 tracking-tight mb-4"] $ toHtml title
+  div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-4 mb-6"] $ do
+    h1_ [class_ "text-2xl font-bold text-indigo-900 tracking-tight mb-2"] $ toHtml title
     div_ [class_ "text-indigo-700"] subtitle
 
 {- |
@@ -174,12 +174,12 @@ Same styling as viraPageHeader_ but supports action buttons on the right.
 -}
 viraPageHeaderWithActions_ :: (Monad m) => Text -> HtmlT m () -> HtmlT m () -> HtmlT m ()
 viraPageHeaderWithActions_ title subtitle actions = do
-  div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-8 mb-8"] $ do
+  div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-4 mb-6"] $ do
     div_ [class_ "flex items-start justify-between"] $ do
       div_ [class_ "flex-1"] $ do
-        h1_ [class_ "text-4xl font-bold text-indigo-900 tracking-tight mb-4"] $ toHtml title
+        h1_ [class_ "text-2xl font-bold text-indigo-900 tracking-tight mb-2"] $ toHtml title
         div_ [class_ "text-indigo-700"] subtitle
-      div_ [class_ "flex flex-col gap-3 ml-8"] actions
+      div_ [class_ "flex flex-col gap-2 ml-6"] actions
 
 {- |
 Section component for grouping and spacing page content.
