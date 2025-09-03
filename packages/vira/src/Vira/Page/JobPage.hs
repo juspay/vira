@@ -6,7 +6,6 @@ import Colog (Severity (..))
 import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
-import Effectful.Process (CreateProcess (cwd), env, proc)
 import Effectful.Reader.Dynamic (asks)
 import GHC.IO.Exception (ExitCode (..))
 import Htmx.Lucid.Core (hxSwapS_)
@@ -17,20 +16,17 @@ import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
-import System.FilePattern ((?==))
 import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Lib.Attic
-import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Lib.Logging
-import Vira.Lib.Omnix qualified as Omnix
 import Vira.Page.JobLog qualified as JobLog
+import Vira.Repo.Core (getStages)
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type (AtticSettings (..), CachixSettings (..), JobId, RepoName, jobWorkingDir)
+import Vira.State.Type (JobId, RepoName, jobWorkingDir)
 import Vira.Supervisor.Task qualified as Supervisor
 import Vira.Supervisor.Type (TaskException (KilledByUser), TaskSupervisor (baseWorkDir))
 import Vira.Widgets.Button qualified as W
@@ -145,9 +141,8 @@ triggerNewBuild repoName branchName = do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
     let
-      actions = processStages branch.branchName (stages $ defaultRepoSettings repo.name mCachix mAttic)
-      procs = getProcs repo branch actions
-    Supervisor.startTask supervisor job.jobId job.jobWorkingDir procs $ \result -> do
+      stages = getStages repo branch mCachix mAttic
+    Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \result -> do
       let status = case result of
             Right ExitSuccess -> St.JobFinished St.JobSuccess
             Right (ExitFailure _code) -> St.JobFinished St.JobFailure
@@ -155,119 +150,3 @@ triggerNewBuild repoName branchName = do
       App.update $ St.JobUpdateStatusA job.jobId status
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId
-
--- TODO: Move to appropriate module
-newtype RepoSettings = RepoSettings
-  { stages :: [Stage]
-  -- ^ All stages in a `Task`
-  }
-  deriving stock (Show)
-
--- | `Action` with conditions
-data Stage = Stage
-  { conditions :: [ActionCondition]
-  , action :: Action
-  }
-  deriving stock (Show)
-
--- | User-configurable action in a `Task`
-data Action
-  = AtticLogin AtticSettings
-  | Build BuildSettings
-  | AtticPush AtticSettings
-  | CachixPush CachixSettings
-  deriving stock (Show)
-
--- | Settings for the build `Action`
-newtype BuildSettings = BuildSettings
-  { extraArgs :: [Text]
-  -- ^ extra CLI arguments to the build command
-  }
-  deriving stock (Show)
-
--- | Condition for when to run an `Action`
-newtype ActionCondition
-  = -- | Whether the branch name of the current checkout matches the given pattern
-    BranchMatches Text
-  deriving stock (Show)
-
-match :: BranchName -> ActionCondition -> Bool
-match branchName (BranchMatches p) = toString p ?== toString branchName.unBranchName
-
--- TODO: Get the settings from the downstream repo
-defaultRepoSettings :: RepoName -> Maybe CachixSettings -> Maybe AtticSettings -> RepoSettings
-defaultRepoSettings repoName mCachix mAttic =
-  if repoName == "euler-lsp"
-    then
-      -- euler-lsp passes extra CLI arguments to the build command on `release-*` branches
-      RepoSettings
-        ( [ Stage [BranchMatches "release-*"] (Build (BuildSettings ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
-          , Stage [] (Build (BuildSettings [])) -- Default Build step
-          ]
-            <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
-            <> maybe [] (\cachix -> [Stage [] (CachixPush cachix)]) mCachix
-            <> maybe [] (\attic -> [Stage [] (AtticPush attic)]) mAttic
-        )
-    else
-      RepoSettings
-        ( [ Stage [] (Build (BuildSettings []))
-          ]
-            <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
-            <> maybe [] (\cachix -> [Stage [] (CachixPush cachix)]) mCachix
-            <> maybe [] (\attic -> [Stage [] (AtticPush attic)]) mAttic
-        )
-
--- | Execution order of an `Action`
-actionOrder :: Action -> Int
-actionOrder = \case
-  AtticLogin _ -> 1
-  Build _ -> 2
-  AtticPush _ -> 3
-  CachixPush _ -> 4
-
--- Process stages to get the final ordered `[Action]`
-processStages :: BranchName -> [Stage] -> [Action]
-processStages branchName =
-  sortOn actionOrder
-    . ordNubOn actionOrder -- Remove duplicates
-    . map action
-    . filter (all (match branchName) . conditions)
-
--- | Get all build processes
-getProcs :: St.Repo -> St.Branch -> [Action] -> NonEmpty CreateProcess
-getProcs repo branch actions =
-  let
-    createProjectDir = proc "mkdir" ["project"] -- mandatory first step
-    clone =
-      -- mandatory second step
-      (Git.cloneAtCommit repo.cloneUrl branch.headCommit)
-        { cwd = Just "project"
-        }
-   in
-    createProjectDir
-      :| one clone
-      <> (getProc =<< actions)
-  where
-    getProc :: Action -> [CreateProcess]
-    getProc = \case
-      Build settings ->
-        one $
-          (Omnix.omnixCiProcess (map toString settings.extraArgs))
-            { cwd = Just "project"
-            }
-      AtticLogin attic ->
-        one $
-          (atticLoginProcess attic.atticServer attic.atticToken)
-            { cwd = Just "project"
-            }
-      AtticPush attic ->
-        one $
-          (atticPushProcess attic.atticServer attic.atticCacheName "result")
-            { cwd = Just "project"
-            }
-      CachixPush cachix ->
-        one $
-          (cachixPushProcess cachix.cachixName "result")
-            { env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]
-            , cwd = Just "project"
-            }

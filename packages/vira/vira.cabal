@@ -50,6 +50,8 @@ library
       Vira.Page.RegistryPage
       Vira.Page.RepoPage
       Vira.Page.SettingsPage
+      Vira.Repo.Core
+      Vira.Repo.Type
       Vira.State.Acid
       Vira.State.Core
       Vira.State.Type
