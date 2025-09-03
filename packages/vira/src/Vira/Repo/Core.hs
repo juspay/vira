@@ -110,9 +110,18 @@ eulerLspSettings :: Maybe CachixSettings -> Maybe AtticSettings -> RepoSettings
 eulerLspSettings mCachix mAttic =
   -- euler-lsp passes extra CLI arguments to the build command on `release-*` branches
   RepoSettings
-    ( [ (StageSettings [BranchMatches "release-*"], Build (OmCiConfig ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
+    ( [
+        ( StageSettings releaseBranchOnly
+        , Build omCiDisableLocal
+        )
       , (def, Build (OmCiConfig [])) -- Default Build step
       ]
         <> maybe [] (\cachix -> [(def, CachixPush cachix)]) mCachix
         <> maybe [] (\attic -> [(def, AtticPush attic)]) mAttic
     )
+  where
+    releaseBranchOnly =
+      [BranchMatches "release-*"]
+    -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
+    omCiDisableLocal =
+      OmCiConfig ["--", "--override-input", "flake/local", "github:boolean-option/false"]
