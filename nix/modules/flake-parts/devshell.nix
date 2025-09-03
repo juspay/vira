@@ -1,5 +1,5 @@
 {
-  perSystem = { config, pkgs, ... }: {
+  perSystem = { self', config, pkgs, ... }: {
     # Default shell.
     devShells.default = pkgs.mkShell {
       name = "vira-devshell";
@@ -21,6 +21,7 @@
         coreutils # For `tail`
         omnix
         openssl # For TLS certificate generation
+        self'.packages.nix
       ];
     };
   };

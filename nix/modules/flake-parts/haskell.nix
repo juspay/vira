@@ -30,6 +30,7 @@
         # external libs
         co-log-effectful.source = inputs.co-log-effectful;
         tabler-icons.source = inputs.tabler-icons-hs;
+        servant-event-stream.source = inputs.servant-event-stream;
       };
 
       # Add your package overrides here
@@ -55,9 +56,6 @@
           extraBuildDepends = [
             pkgs.openssl # For automatic TLS certificate generation
           ];
-        };
-        servant-event-stream = {
-          broken = false;
         };
         safe-coloured-text-layout = {
           check = false;
@@ -94,10 +92,16 @@
               # can access nix which then, transitively knows where to find
               # git.
               pkgs.git
-              pkgs.nix
+              self'.packages.nix
             ]}
         '';
       };
+
+      # The Nix version used by Vira (thus omnix)
+      # Nix 2.18 -> 2.22 are apprently buggy, 
+      # https://discourse.nixos.org/t/handling-git-submodules-in-flakes-from-nix-2-18-to-2-22-nar-hash-mismatch-issues/45118/5
+      # So we use the latest.
+      nix = pkgs.nixVersions.latest;
     };
 
     checks = config.haskellProjects.default.outputs.checks;
