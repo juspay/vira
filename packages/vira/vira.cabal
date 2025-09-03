@@ -43,7 +43,6 @@ library
       Vira.Lib.Logging
       Vira.Lib.Omnix
       Vira.Lib.Process
-      Vira.Lib.Regex
       Vira.Lib.Sort
       Vira.Lib.STM
       Vira.Page.IndexPage
@@ -124,6 +123,7 @@ library
     , effectful-th
     , envparse
     , filepath
+    , filepattern
     , gitlib
     , hostname
     , hspec
@@ -226,6 +226,7 @@ executable vira
     , effectful-th
     , envparse
     , filepath
+    , filepattern
     , gitlib
     , hostname
     , hspec
@@ -331,6 +332,7 @@ test-suite vira-tests
     , effectful-th
     , envparse
     , filepath
+    , filepattern
     , gitlib
     , hostname
     , hspec

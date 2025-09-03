@@ -17,6 +17,7 @@ import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
+import System.FilePattern ((?==))
 import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
@@ -26,7 +27,6 @@ import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Lib.Logging
 import Vira.Lib.Omnix qualified as Omnix
-import Vira.Lib.Regex (matchWildcard)
 import Vira.Lib.Sort (uniqueSortOn)
 import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
@@ -232,7 +232,7 @@ getActions branchName =
     . filter (all match . conditions)
   where
     match :: ActionCondition -> Bool
-    match (BranchMatches p) = matchWildcard (toString p) (toString branchName.unBranchName)
+    match (BranchMatches p) = toString p ?== toString branchName.unBranchName
 
 -- | Get all build processes
 getProcs :: [Action] -> NonEmpty CreateProcess
