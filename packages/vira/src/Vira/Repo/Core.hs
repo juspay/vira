@@ -33,15 +33,15 @@ getStages repo branch mCachix mAttic =
       :| one clone
       <> (getProc =<< actions)
   where
-    -- Process stages to get the final ordered `[Action]`
-    processStages :: BranchName -> [Stage] -> [Action]
+    -- Process stages to get the final ordered `[Stage]`
+    processStages :: BranchName -> [([Condition], Stage)] -> [Stage]
     processStages branchName =
-      sortOn actionOrder
-        . ordNubOn actionOrder -- Remove duplicates
-        . map action
-        . filter (all (match branchName) . conditions)
+      sortOn stageOrder
+        . ordNubOn stageOrder -- Remove duplicates
+        . map snd
+        . filter (all (match branchName) . fst)
 
-    getProc :: Action -> [CreateProcess]
+    getProc :: Stage -> [CreateProcess]
     getProc = \case
       Build settings ->
         one $
@@ -65,12 +65,12 @@ getStages repo branch mCachix mAttic =
             , cwd = Just "project"
             }
 
-match :: BranchName -> ActionCondition -> Bool
+match :: BranchName -> Condition -> Bool
 match branchName (BranchMatches p) = toString p ?== toString branchName.unBranchName
 
--- | Execution order of an `Action`
-actionOrder :: Action -> Int
-actionOrder = \case
+-- | Execution order of a `Stage`
+stageOrder :: Stage -> Int
+stageOrder = \case
   AtticLogin _ -> 1
   Build _ -> 2
   AtticPush _ -> 3
@@ -83,18 +83,18 @@ defaultRepoSettings repoName mCachix mAttic =
     then
       -- euler-lsp passes extra CLI arguments to the build command on `release-*` branches
       RepoSettings
-        ( [ Stage [BranchMatches "release-*"] (Build (BuildSettings ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
-          , Stage [] (Build (BuildSettings [])) -- Default Build step
+        ( [ ([BranchMatches "release-*"], Build (BuildSettings ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
+          , ([], Build (BuildSettings [])) -- Default Build step
           ]
-            <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
-            <> maybe [] (\cachix -> [Stage [] (CachixPush cachix)]) mCachix
-            <> maybe [] (\attic -> [Stage [] (AtticPush attic)]) mAttic
+            <> maybe [] (\attic -> [(mempty, AtticLogin attic)]) mAttic
+            <> maybe [] (\cachix -> [(mempty, CachixPush cachix)]) mCachix
+            <> maybe [] (\attic -> [(mempty, AtticPush attic)]) mAttic
         )
     else
       RepoSettings
-        ( [ Stage [] (Build (BuildSettings []))
+        ( [ ([], Build (BuildSettings []))
           ]
-            <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
-            <> maybe [] (\cachix -> [Stage [] (CachixPush cachix)]) mCachix
-            <> maybe [] (\attic -> [Stage [] (AtticPush attic)]) mAttic
+            <> maybe [] (\attic -> [(mempty, AtticLogin attic)]) mAttic
+            <> maybe [] (\cachix -> [(mempty, CachixPush cachix)]) mCachix
+            <> maybe [] (\attic -> [(mempty, AtticPush attic)]) mAttic
         )
