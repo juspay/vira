@@ -145,8 +145,8 @@ triggerNewBuild repoName branchName = do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
     let
-      actions = processStages branch.branchName (stages $ defaultRepoSettings repo branch mCachix mAttic)
-      procs = getProcs actions
+      actions = processStages branch.branchName (stages $ defaultRepoSettings repo.name mCachix mAttic)
+      procs = getProcs repo branch actions
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir procs $ \result -> do
       let status = case result of
             Right ExitSuccess -> St.JobFinished St.JobSuccess
@@ -172,8 +172,7 @@ data Stage = Stage
 
 -- | User-configurable action in a `Task`
 data Action
-  = Clone St.Repo St.Branch
-  | AtticLogin AtticSettings
+  = AtticLogin AtticSettings
   | Build BuildSettings
   | AtticPush AtticSettings
   | CachixPush CachixSettings
@@ -196,14 +195,13 @@ match :: BranchName -> ActionCondition -> Bool
 match branchName (BranchMatches p) = toString p ?== toString branchName.unBranchName
 
 -- TODO: Get the settings from the downstream repo
-defaultRepoSettings :: St.Repo -> St.Branch -> Maybe CachixSettings -> Maybe AtticSettings -> RepoSettings
-defaultRepoSettings repo branch mCachix mAttic =
-  if repo.name == "euler-lsp"
+defaultRepoSettings :: RepoName -> Maybe CachixSettings -> Maybe AtticSettings -> RepoSettings
+defaultRepoSettings repoName mCachix mAttic =
+  if repoName == "euler-lsp"
     then
       -- euler-lsp passes extra CLI arguments to the build command on `release-*` branches
       RepoSettings
-        ( [ Stage [] (Clone repo branch)
-          , Stage [BranchMatches "release-*"] (Build (BuildSettings ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
+        ( [ Stage [BranchMatches "release-*"] (Build (BuildSettings ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
           , Stage [] (Build (BuildSettings [])) -- Default Build step
           ]
             <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
@@ -212,8 +210,7 @@ defaultRepoSettings repo branch mCachix mAttic =
         )
     else
       RepoSettings
-        ( [ Stage [] (Clone repo branch)
-          , Stage [] (Build (BuildSettings []))
+        ( [ Stage [] (Build (BuildSettings []))
           ]
             <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
             <> maybe [] (\cachix -> [Stage [] (CachixPush cachix)]) mCachix
@@ -223,7 +220,6 @@ defaultRepoSettings repo branch mCachix mAttic =
 -- | Execution order of an `Action`
 actionOrder :: Action -> Int
 actionOrder = \case
-  Clone _ _ -> 0
   AtticLogin _ -> 1
   Build _ -> 2
   AtticPush _ -> 3
@@ -238,20 +234,22 @@ processStages branchName =
     . filter (all (match branchName) . conditions)
 
 -- | Get all build processes
-getProcs :: [Action] -> NonEmpty CreateProcess
-getProcs s =
+getProcs :: St.Repo -> St.Branch -> [Action] -> NonEmpty CreateProcess
+getProcs repo branch actions =
   let
     createProjectDir = proc "mkdir" ["project"] -- mandatory first step
+    clone =
+      -- mandatory second step
+      (Git.cloneAtCommit repo.cloneUrl branch.headCommit)
+        { cwd = Just "project"
+        }
    in
-    createProjectDir :| (getProc =<< s)
+    createProjectDir
+      :| one clone
+      <> (getProc =<< actions)
   where
     getProc :: Action -> [CreateProcess]
     getProc = \case
-      Clone repo branch ->
-        one $
-          (Git.cloneAtCommit repo.cloneUrl branch.headCommit)
-            { cwd = Just "project"
-            }
       Build settings ->
         one $
           (Omnix.omnixCiProcess (map toString settings.extraArgs))
