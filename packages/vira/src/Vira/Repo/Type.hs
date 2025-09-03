@@ -11,8 +11,7 @@ newtype RepoSettings = RepoSettings
 
 -- | User-configurable stage in a `Task`
 data Stage
-  = AtticLogin AtticSettings
-  | Build OmCiConfig
+  = Build OmCiConfig
   | AtticPush AtticSettings
   | CachixPush CachixSettings
   deriving stock (Show)

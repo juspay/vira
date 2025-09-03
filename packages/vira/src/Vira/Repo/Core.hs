@@ -59,16 +59,14 @@ stageProcesses = \case
       (Omnix.omnixCiProcess (map toString settings.extraArgs))
         { cwd = Just "project"
         }
-  AtticLogin attic ->
-    one $
-      (atticLoginProcess attic.atticServer attic.atticToken)
-        { cwd = Just "project"
-        }
   AtticPush attic ->
-    one $
-      (atticPushProcess attic.atticServer attic.atticCacheName "result")
+    [ (atticLoginProcess attic.atticServer attic.atticToken)
         { cwd = Just "project"
         }
+    , (atticPushProcess attic.atticServer attic.atticCacheName "result")
+        { cwd = Just "project"
+        }
+    ]
   CachixPush cachix ->
     one $
       (cachixPushProcess cachix.cachixName "result")
@@ -77,15 +75,15 @@ stageProcesses = \case
         }
 
 match :: BranchName -> Condition -> Bool
-match branchName (BranchMatches p) = toString p ?== toString branchName.unBranchName
+match branchName (BranchMatches p) =
+  toString p ?== toString branchName.unBranchName
 
 -- | Execution order of a `Stage`
 stageOrder :: Stage -> Int
 stageOrder = \case
-  AtticLogin _ -> 1
-  Build _ -> 2
-  AtticPush _ -> 3
-  CachixPush _ -> 4
+  Build _ -> 1
+  AtticPush _ -> 2
+  CachixPush _ -> 3
 
 -- TODO: Get the settings from the downstream repo
 defaultRepoSettings :: RepoName -> Maybe CachixSettings -> Maybe AtticSettings -> RepoSettings
@@ -97,7 +95,6 @@ defaultRepoSettings repoName mCachix mAttic =
         ( [ ([BranchMatches "release-*"], Build (OmCiConfig ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
           , ([], Build (OmCiConfig [])) -- Default Build step
           ]
-            <> maybe [] (\attic -> [(mempty, AtticLogin attic)]) mAttic
             <> maybe [] (\cachix -> [(mempty, CachixPush cachix)]) mCachix
             <> maybe [] (\attic -> [(mempty, AtticPush attic)]) mAttic
         )
@@ -105,7 +102,6 @@ defaultRepoSettings repoName mCachix mAttic =
       RepoSettings
         ( [ ([], Build (OmCiConfig []))
           ]
-            <> maybe [] (\attic -> [(mempty, AtticLogin attic)]) mAttic
             <> maybe [] (\cachix -> [(mempty, CachixPush cachix)]) mCachix
             <> maybe [] (\attic -> [(mempty, AtticPush attic)]) mAttic
         )
