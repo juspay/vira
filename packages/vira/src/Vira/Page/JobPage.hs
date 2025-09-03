@@ -203,7 +203,7 @@ defaultRepoSettings repo branch mCachix mAttic =
       -- euler-lsp passes extra CLI arguments to the build command on `release-*` branches
       RepoSettings
         ( [ Stage [] (Clone repo branch)
-          , Stage [BranchMatches "release-*"] (Build (BuildSettings ["--", "--override-input", "flake/local", "github:boolean-option/false"]))
+          , Stage [BranchMatches "release-*"] (Build (BuildSettings ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
           , Stage [] (Build (BuildSettings [])) -- Default Build step
           ]
             <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
