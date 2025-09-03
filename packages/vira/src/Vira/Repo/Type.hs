@@ -11,15 +11,15 @@ newtype RepoSettings = RepoSettings
 -- | User-configurable stage in a `Task`
 data Stage
   = AtticLogin AtticSettings
-  | Build BuildSettings
+  | Build OmCiConfig
   | AtticPush AtticSettings
   | CachixPush CachixSettings
   deriving stock (Show)
 
 -- | Settings for the build `Stage`
-newtype BuildSettings = BuildSettings
+newtype OmCiConfig = OmCiConfig
   { extraArgs :: [Text]
-  -- ^ extra CLI arguments to the build command
+  -- ^ extra CLI arguments to the `om ci run` command
   }
   deriving stock (Show)
 

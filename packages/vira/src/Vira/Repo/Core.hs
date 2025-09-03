@@ -83,8 +83,8 @@ defaultRepoSettings repoName mCachix mAttic =
     then
       -- euler-lsp passes extra CLI arguments to the build command on `release-*` branches
       RepoSettings
-        ( [ ([BranchMatches "release-*"], Build (BuildSettings ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
-          , ([], Build (BuildSettings [])) -- Default Build step
+        ( [ ([BranchMatches "release-*"], Build (OmCiConfig ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
+          , ([], Build (OmCiConfig [])) -- Default Build step
           ]
             <> maybe [] (\attic -> [(mempty, AtticLogin attic)]) mAttic
             <> maybe [] (\cachix -> [(mempty, CachixPush cachix)]) mCachix
@@ -92,7 +92,7 @@ defaultRepoSettings repoName mCachix mAttic =
         )
     else
       RepoSettings
-        ( [ ([], Build (BuildSettings []))
+        ( [ ([], Build (OmCiConfig []))
           ]
             <> maybe [] (\attic -> [(mempty, AtticLogin attic)]) mAttic
             <> maybe [] (\cachix -> [(mempty, CachixPush cachix)]) mCachix
