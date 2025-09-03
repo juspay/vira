@@ -19,6 +19,10 @@ import Vira.State.Acid qualified as St
 import Vira.State.Type (AtticSettings, CachixSettings, RepoName)
 import Vira.State.Type qualified as St
 
+-- | Project directory name used for CI operations
+projectDir :: FilePath
+projectDir = "project"
+
 -- | Return CI stages for the given repo's branch.
 stagesForRepoBranch :: St.Repo -> St.Branch -> Eff App.AppServantStack (NonEmpty CreateProcess)
 stagesForRepoBranch repo branch = do
@@ -30,11 +34,11 @@ stagesForRepoBranch repo branch = do
 getStages :: St.Repo -> St.Branch -> Maybe CachixSettings -> Maybe AtticSettings -> NonEmpty CreateProcess
 getStages repo branch mCachix mAttic =
   let
-    createProjectDir = proc "mkdir" ["project"] -- mandatory first step
+    createProjectDir = proc "mkdir" [projectDir] -- mandatory first step
     clone =
       -- mandatory second step
       (Git.cloneAtCommit repo.cloneUrl branch.headCommit)
-        { cwd = Just "project"
+        { cwd = Just projectDir
         }
     repoSettings = defaultRepoSettings repo.name mCachix mAttic
     branchStages = stagesForBranch branch.branchName repoSettings
@@ -57,21 +61,21 @@ stageProcesses = \case
   Build settings ->
     one $
       (Omnix.omnixCiProcess (map toString settings.extraArgs))
-        { cwd = Just "project"
+        { cwd = Just projectDir
         }
   AtticPush attic ->
     [ (atticLoginProcess attic.atticServer attic.atticToken)
-        { cwd = Just "project"
+        { cwd = Just projectDir
         }
     , (atticPushProcess attic.atticServer attic.atticCacheName "result")
-        { cwd = Just "project"
+        { cwd = Just projectDir
         }
     ]
   CachixPush cachix ->
     one $
       (cachixPushProcess cachix.cachixName "result")
         { env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]
-        , cwd = Just "project"
+        , cwd = Just projectDir
         }
 
 match :: BranchName -> Condition -> Bool
