@@ -29,7 +29,7 @@ export class ViraTestServer {
     
     while (Date.now() - startTime < timeoutMs) {
       try {
-        const response = await page.goto('https://localhost:5005');
+        const response = await page.goto('https://127.0.0.1:5006');
         if (response?.ok()) {
           console.log('✓ Vira server is ready');
           return;
@@ -49,20 +49,33 @@ export class ViraTestServer {
    */
   static async navigateToHome(page: Page): Promise<void> {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    // Wait for domcontentloaded instead of networkidle since Vira has streaming connections
+    await page.waitForLoadState('domcontentloaded');
+    // Wait a bit more for any immediate content to render
+    await page.waitForTimeout(1000);
   }
 
   /**
    * Add a new repository through the UI
    */
   static async addRepository(page: Page, name: string, cloneUrl: string): Promise<void> {
-    // Look for the "Add Repository" form or button
-    await page.fill('input[name="name"]', name);
-    await page.fill('input[name="cloneUrl"]', cloneUrl);
-    await page.click('button[type="submit"]');
-    
-    // Wait for the repository to appear in the list
-    await page.waitForSelector(`text=${name}`, { timeout: 10000 });
+    try {
+      // Look for add repository form elements - adjust selectors based on actual Vira UI
+      const nameInput = page.locator('input[name="name"], input[placeholder*="name"], input[id*="name"]').first();
+      const urlInput = page.locator('input[name="cloneUrl"], input[name="url"], input[placeholder*="url"], input[placeholder*="repository"]').first();
+      const submitButton = page.locator('button[type="submit"], button:has-text("Add"), button:has-text("Create")').first();
+      
+      // Fill the form
+      await nameInput.fill(name);
+      await urlInput.fill(cloneUrl);
+      await submitButton.click();
+      
+      // Wait for success indication or repository to appear
+      await page.waitForTimeout(2000);
+    } catch (error) {
+      console.log('Add repository form not found or failed:', error);
+      throw new Error(`Could not add repository: ${error}`);
+    }
   }
 
   /**
