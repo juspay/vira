@@ -25,6 +25,9 @@ jobs:
       - name: Run Tests
         run: |
           nix --option system "${{ matrix.system }}" develop -c cabal test all
+      - name: Run Playwright Integration Tests
+        run: |
+          nix run .#playwright-tests
       - name: Push to Attic
         run: |
           attic login chutney https://cache.nixos.asia ${{ secrets.ATTIC_LOGIN_TOKEN }}

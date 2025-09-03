@@ -1,0 +1,15 @@
+{
+  "name": "vira-tests",
+  "version": "1.0.0",
+  "description": "Playwright integration tests for Vira",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "install-browsers": "playwright install"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.46.0",
+    "@types/node": "^20.0.0"
+  }
+}
