@@ -17,6 +17,24 @@ run:
 test COMPONENT='vira-tests':
     ghcid --warnings -T Main.main -c "./cabal-repl {{ COMPONENT }}"
 
+# Run Playwright integration tests
+[group('3. testing')]
+test-playwright:
+    nix run .#playwright-tests
+
+# Run Playwright integration tests (CI mode)
+[group('3. testing')]
+test-playwright-ci:
+    nix run .#playwright-tests -- --tui=false
+
+# Run all tests (unit + integration)
+[group('3. testing')]
+test-all:
+    @echo "Running Haskell unit tests..."
+    nix develop -c cabal test all
+    @echo "Running Playwright integration tests..."
+    nix run .#playwright-tests -- --tui=false
+
 [group('2. haskell')]
 ghcid COMPONENT='vira':
     ghcid --warnings -c "./cabal-repl {{ COMPONENT }}"
