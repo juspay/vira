@@ -58,8 +58,7 @@ logChunkId = \case
 
 logChunkMsg :: LogChunk -> LByteString
 logChunkMsg = \case
-  Chunk _ logLines -> Lucid.renderBS $ toHtml $ 
-    fold $ map (<> "\n") (toList logLines)
+  Chunk _ logLines -> Lucid.renderBS $ toHtmlRaw $ unlines $ toList logLines
   Stop _ -> Lucid.renderBS $
     div_ [class_ "flex items-center space-x-2 text-sm text-gray-600"] $ do
       Status.indicator False
