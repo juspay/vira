@@ -19,3 +19,9 @@ result-*
 /packages/vira/static/js
 
 /state
+
+# Playwright test artifacts
+/tests/playwright-report/
+/tests/test-results/
+/tests/node_modules/
+/tests/package-lock.json

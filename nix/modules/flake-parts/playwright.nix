@@ -58,6 +58,7 @@
               failure_threshold = 10;
             };
             shutdown.signal = 2; # SIGINT for graceful shutdown
+            availability.restart = "no";
           };
 
           playwright-tests = {
@@ -79,16 +80,31 @@
                 
                 # Run tests
                 echo "Running Playwright tests..."
-                npm test
+                if npm test; then
+                  echo "✅ All Playwright tests passed!"
+                  exit 0
+                else
+                  echo "❌ Some Playwright tests failed!"
+                  exit 1
+                fi
               '';
             };
             depends_on.vira-server.condition = "process_healthy";
+            availability.restart = "no";
           };
         };
       };
     };
 
-    # Convenience package for running the full test suite
-    packages.playwright-tests = config.process-compose.playwright-test.outputs.package;
+    # Convenience package for running the full test suite with proper exit behavior
+    packages.playwright-tests = pkgs.writeShellScriptBin "vira-playwright-tests" ''
+      set -euo pipefail
+      echo "Starting Vira server and running Playwright tests..."
+      
+      # Run process-compose with --no-tui and exit on completion
+      ${config.process-compose.playwright-test.outputs.package}/bin/process-compose \
+        --no-tui \
+        --config ${config.process-compose.playwright-test.outputs.settingsFile}
+    '';
   };
 }
