@@ -1,5 +1,6 @@
 module Vira.Repo.Type where
 
+import System.FilePattern (FilePattern)
 import Vira.State.Type (AtticSettings, CachixSettings)
 
 newtype RepoSettings = RepoSettings
@@ -26,5 +27,8 @@ newtype OmCiConfig = OmCiConfig
 -- | Condition for when to run a `Stage`
 newtype Condition
   = -- | Whether the branch name of the current checkout matches the given pattern
-    BranchMatches Text
+    BranchMatches GlobPattern
   deriving stock (Show)
+
+-- | Glob pattern for arbitrary strings; `FilePattern` is syntactically equivalent, so we use it.
+type GlobPattern = FilePattern
