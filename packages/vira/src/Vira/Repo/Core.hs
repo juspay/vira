@@ -95,14 +95,7 @@ defaultRepoSettings :: RepoName -> Maybe CachixSettings -> Maybe AtticSettings -
 defaultRepoSettings repoName mCachix mAttic =
   if repoName == "euler-lsp"
     then
-      -- euler-lsp passes extra CLI arguments to the build command on `release-*` branches
-      RepoSettings
-        ( [ (StageSettings [BranchMatches "release-*"], Build (OmCiConfig ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
-          , (def, Build (OmCiConfig [])) -- Default Build step
-          ]
-            <> maybe [] (\cachix -> [(def, CachixPush cachix)]) mCachix
-            <> maybe [] (\attic -> [(def, AtticPush attic)]) mAttic
-        )
+      eulerLspSettings mCachix mAttic
     else
       RepoSettings
         ( [ (def, Build (OmCiConfig []))
@@ -110,3 +103,16 @@ defaultRepoSettings repoName mCachix mAttic =
             <> maybe [] (\cachix -> [(def, CachixPush cachix)]) mCachix
             <> maybe [] (\attic -> [(def, AtticPush attic)]) mAttic
         )
+
+-- HACK: Hardcoding settings for a single repo (euler-lsp)
+-- Until we have https://github.com/juspay/vira/issues/59
+eulerLspSettings :: Maybe CachixSettings -> Maybe AtticSettings -> RepoSettings
+eulerLspSettings mCachix mAttic =
+  -- euler-lsp passes extra CLI arguments to the build command on `release-*` branches
+  RepoSettings
+    ( [ (StageSettings [BranchMatches "release-*"], Build (OmCiConfig ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
+      , (def, Build (OmCiConfig [])) -- Default Build step
+      ]
+        <> maybe [] (\cachix -> [(def, CachixPush cachix)]) mCachix
+        <> maybe [] (\attic -> [(def, AtticPush attic)]) mAttic
+    )
