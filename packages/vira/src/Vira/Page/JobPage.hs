@@ -208,6 +208,7 @@ defaultRepoSettings repo branch mCachix mAttic =
           ]
             <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
             <> maybe [] (\cachix -> [Stage [] (CachixPush cachix)]) mCachix
+            <> maybe [] (\attic -> [Stage [] (AtticPush attic)]) mAttic
         )
     else
       RepoSettings
