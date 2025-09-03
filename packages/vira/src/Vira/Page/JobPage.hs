@@ -200,6 +200,7 @@ defaultRepoSettings :: St.Repo -> St.Branch -> Maybe CachixSettings -> Maybe Att
 defaultRepoSettings repo branch mCachix mAttic =
   if repo.name == "euler-lsp"
     then
+      -- euler-lsp passes extra CLI arguments to the build command on `release-*` branches
       RepoSettings
         ( [ Stage [] (Clone repo branch)
           , Stage [BranchMatches "release-*"] (Build (BuildSettings ["--", "--override-input", "flake/local", "github:boolean-option/false"]))
