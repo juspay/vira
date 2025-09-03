@@ -192,6 +192,9 @@ newtype ActionCondition
     BranchMatches Text
   deriving stock (Show)
 
+match :: BranchName -> ActionCondition -> Bool
+match branchName (BranchMatches p) = toString p ?== toString branchName.unBranchName
+
 -- TODO: Get the settings from the downstream repo
 defaultRepoSettings :: St.Repo -> St.Branch -> Maybe CachixSettings -> Maybe AtticSettings -> RepoSettings
 defaultRepoSettings repo branch mCachix mAttic =
@@ -230,10 +233,7 @@ getActions branchName =
   sortOn actionOrder
     . ordNubOn actionOrder -- Remove duplicates
     . map action
-    . filter (all match . conditions)
-  where
-    match :: ActionCondition -> Bool
-    match (BranchMatches p) = toString p ?== toString branchName.unBranchName
+    . filter (all (match branchName) . conditions)
 
 -- | Get all build processes
 getProcs :: [Action] -> NonEmpty CreateProcess
