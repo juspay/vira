@@ -23,7 +23,7 @@ import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Lib.Logging
 import Vira.Page.JobLog qualified as JobLog
-import Vira.Repo.Core (getStages)
+import Vira.Repo.Core (stagesForRepoBranch)
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (JobId, RepoName, jobWorkingDir)
@@ -135,13 +135,10 @@ triggerNewBuild repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
-  mCachix <- App.query St.GetCachixSettingsA
-  mAttic <- App.query St.GetAtticSettingsA
+  stages <- stagesForRepoBranch repo branch
   asks App.supervisor >>= \supervisor -> do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
-    let
-      stages = getStages repo branch mCachix mAttic
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \result -> do
       let status = case result of
             Right ExitSuccess -> St.JobFinished St.JobSuccess

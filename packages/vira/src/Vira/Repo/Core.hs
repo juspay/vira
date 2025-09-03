@@ -2,19 +2,29 @@
 
 -- | Module for working with settings controlled by downstream repository
 module Vira.Repo.Core (
-  getStages,
+  stagesForRepoBranch,
 ) where
 
+import Effectful (Eff)
 import Effectful.Process (CreateProcess (..), proc)
 import System.FilePattern ((?==))
+import Vira.App qualified as App
 import Vira.Lib.Attic (atticLoginProcess, atticPushProcess)
 import Vira.Lib.Cachix (cachixPushProcess)
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.Repo.Type
+import Vira.State.Acid qualified as St
 import Vira.State.Type (AtticSettings, CachixSettings, RepoName)
 import Vira.State.Type qualified as St
+
+-- | Return CI stages for the given repo's branch.
+stagesForRepoBranch :: St.Repo -> St.Branch -> Eff App.AppServantStack (NonEmpty CreateProcess)
+stagesForRepoBranch repo branch = do
+  mCachix <- App.query St.GetCachixSettingsA
+  mAttic <- App.query St.GetAtticSettingsA
+  pure $ getStages repo branch mCachix mAttic
 
 -- | Get all build stages of a `Task`
 getStages :: St.Repo -> St.Branch -> Maybe CachixSettings -> Maybe AtticSettings -> NonEmpty CreateProcess
