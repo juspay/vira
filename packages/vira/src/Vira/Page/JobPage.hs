@@ -145,7 +145,7 @@ triggerNewBuild repoName branchName = do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
     let
-      actions = getActions branch.branchName (stages $ defaultRepoSettings repo branch mCachix mAttic)
+      actions = processStages branch.branchName (stages $ defaultRepoSettings repo branch mCachix mAttic)
       procs = getProcs actions
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir procs $ \result -> do
       let status = case result of
@@ -227,9 +227,9 @@ actionOrder = \case
   AtticPush _ -> 3
   CachixPush _ -> 4
 
--- | Return final actions to run in a `Task`
-getActions :: BranchName -> [Stage] -> [Action]
-getActions branchName =
+-- Process stages to get the final ordered `[Action]`
+processStages :: BranchName -> [Stage] -> [Action]
+processStages branchName =
   sortOn actionOrder
     . ordNubOn actionOrder -- Remove duplicates
     . map action
