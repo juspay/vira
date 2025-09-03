@@ -38,6 +38,7 @@
                 rm -rf ./state
                 mkdir -p ./state
                 rm -f /tmp/playwright-tests-complete
+                rm -f /tmp/playwright-test-result
                 
                 # Start Vira server for testing in background
                 vira --host ${host} --port ${port} --state-dir ./state --base-path / &
@@ -109,8 +110,9 @@
                 TEST_RESULT=0
                 npm test || TEST_RESULT=$?
                 
-                # Signal that tests are complete by creating a file
+                # Signal that tests are complete and save result
                 echo "Tests completed" > /tmp/playwright-tests-complete
+                echo "$TEST_RESULT" > /tmp/playwright-test-result
                 
                 if [ $TEST_RESULT -eq 0 ]; then
                   echo "✅ All Playwright tests passed!"
@@ -130,11 +132,26 @@
 
     # Convenience package for running the full test suite with proper exit behavior
     packages.playwright-tests = pkgs.writeShellScriptBin "vira-playwright-tests" ''
-      set -euo pipefail
+      set -uo pipefail
       echo "Starting Vira server and running Playwright tests..."
       
-      # Run the process-compose script with TUI disabled
-      exec ${config.process-compose.playwright-test.outputs.package}/bin/playwright-test --tui=false "$@"
+      # Run the process-compose script with TUI disabled and capture exit code
+      set +e
+      ${config.process-compose.playwright-test.outputs.package}/bin/playwright-test --tui=false "$@"
+      PC_EXIT_CODE=$?
+      set -e
+      
+      # Check if tests passed or failed based on marker file and exit with proper code
+      if [ -f /tmp/playwright-tests-complete ]; then
+        if [ -f /tmp/playwright-test-result ]; then
+          TEST_RESULT=$(cat /tmp/playwright-test-result)
+          echo "Test result: $TEST_RESULT"
+          exit $TEST_RESULT
+        fi
+      fi
+      
+      # Fallback to process-compose exit code
+      exit $PC_EXIT_CODE
     '';
   };
 }

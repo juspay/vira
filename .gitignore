@@ -18,7 +18,8 @@ result-*
 # Managed by Nix
 /packages/vira/static/js
 
-/state
+# Vira state directory
+state
 
 # Playwright test artifacts
 /tests/playwright-report/
