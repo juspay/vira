@@ -28,7 +28,7 @@
     # Process compose configuration for running Vira + Playwright tests
     process-compose."playwright-test" = {
       settings = {
-        processes = let host = "127.0.0.1"; port = "5005"; in {
+        processes = let host = "127.0.0.1"; port = "5006"; in {
           vira-server = {
             command = pkgs.writeShellApplication {
               name = "vira-test-server";
@@ -66,7 +66,15 @@
               name = "run-playwright-tests";
               runtimeInputs = [ pkgs.nodejs pkgs.nodePackages.npm ];
               text = ''
-                cd tests
+                # Change to the tests directory (assuming we're in project root)
+                if [ -d tests ]; then
+                  cd tests
+                elif [ -d ../tests ]; then
+                  cd ../tests
+                else
+                  echo "Error: Could not find tests directory"
+                  exit 1
+                fi
                 
                 # Install dependencies if needed
                 if [ ! -d node_modules ]; then
@@ -77,6 +85,7 @@
                 # Set Playwright environment variables
                 export PLAYWRIGHT_BROWSERS_PATH=${pkgs.playwright-driver.browsers}
                 export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
+                export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
                 
                 # Run tests
                 echo "Running Playwright tests..."
@@ -101,10 +110,8 @@
       set -euo pipefail
       echo "Starting Vira server and running Playwright tests..."
       
-      # Run process-compose with --no-tui and exit on completion
-      ${config.process-compose.playwright-test.outputs.package}/bin/process-compose \
-        --no-tui \
-        --config ${config.process-compose.playwright-test.outputs.settingsFile}
+      # Run the process-compose script with TUI disabled
+      exec ${config.process-compose.playwright-test.outputs.package}/bin/playwright-test --tui=false "$@"
     '';
   };
 }

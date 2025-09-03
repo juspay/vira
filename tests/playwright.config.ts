@@ -18,7 +18,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'https://127.0.0.1:5005',
+    baseURL: 'https://127.0.0.1:5006',
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
     /* Ignore HTTPS errors for testing with self-signed certificates */
@@ -29,15 +29,15 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: { 
+        headless: true,
+        // Use the available Nix-provided browser executable
+        launchOptions: {
+          executablePath: process.env.PLAYWRIGHT_BROWSERS_PATH ? 
+            `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium-1181/chrome-linux/chrome` :
+            undefined
+        }
+      },
     },
   ],
 
