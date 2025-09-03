@@ -37,19 +37,20 @@ getStages repo branch mCachix mAttic =
         { cwd = Just "project"
         }
     repoSettings = defaultRepoSettings repo.name mCachix mAttic
-    actions = processStages branch.branchName (stages repoSettings)
+    branchStages = stagesForBranch branch.branchName repoSettings
    in
     createProjectDir
       :| one clone
-      <> (stageProcesses =<< actions)
-  where
-    -- Process stages to get the final ordered `[Stage]`
-    processStages :: BranchName -> [([Condition], Stage)] -> [Stage]
-    processStages branchName =
-      sortOn stageOrder
-        . ordNubOn stageOrder -- Remove duplicates
-        . map snd
-        . filter (all (match branchName) . fst)
+      <> (stageProcesses =<< branchStages)
+
+-- Process stages to get the final ordered `[Stage]`
+stagesForBranch :: BranchName -> RepoSettings -> [Stage]
+stagesForBranch branchName =
+  sortOn stageOrder
+    . ordNubOn stageOrder -- Remove duplicates
+    . map snd
+    . filter (all (match branchName) . fst)
+    . stages
 
 stageProcesses :: Stage -> [CreateProcess]
 stageProcesses = \case
