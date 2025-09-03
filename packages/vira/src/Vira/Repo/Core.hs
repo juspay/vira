@@ -41,7 +41,7 @@ getStages repo branch mCachix mAttic =
    in
     createProjectDir
       :| one clone
-      <> (getProc =<< actions)
+      <> (stageProcesses =<< actions)
   where
     -- Process stages to get the final ordered `[Stage]`
     processStages :: BranchName -> [([Condition], Stage)] -> [Stage]
@@ -51,8 +51,8 @@ getStages repo branch mCachix mAttic =
         . map snd
         . filter (all (match branchName) . fst)
 
-getProc :: Stage -> [CreateProcess]
-getProc = \case
+stageProcesses :: Stage -> [CreateProcess]
+stageProcesses = \case
   Build settings ->
     one $
       (Omnix.omnixCiProcess (map toString settings.extraArgs))
