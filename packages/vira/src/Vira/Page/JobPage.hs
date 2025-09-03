@@ -145,29 +145,7 @@ triggerNewBuild repoName branchName = do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
     let
-      -- TODO: Get the settings from the downstream repo
-      getRepoSettings :: RepoSettings
-      getRepoSettings =
-        if repoName == "euler-lsp"
-          then
-            RepoSettings
-              ( [ Stage [] (Clone repo branch)
-                , Stage [BranchMatches "release-*"] (Build (BuildSettings ["--", "--override-input", "flake/local", "github:boolean-option/false"]))
-                , Stage [] (Build (BuildSettings [])) -- Default Build step
-                ]
-                  <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
-                  <> maybe [] (\cachix -> [Stage [] (CachixPush cachix)]) mCachix
-              )
-          else
-            RepoSettings
-              ( [ Stage [] (Clone repo branch)
-                , Stage [] (Build (BuildSettings []))
-                ]
-                  <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
-                  <> maybe [] (\cachix -> [Stage [] (CachixPush cachix)]) mCachix
-                  <> maybe [] (\attic -> [Stage [] (AtticPush attic)]) mAttic
-              )
-      actions = getActions branch.branchName (stages getRepoSettings)
+      actions = getActions branch.branchName (stages $ defaultRepoSettings repo branch mCachix mAttic)
       procs = getProcs actions
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir procs $ \result -> do
       let status = case result of
@@ -213,6 +191,29 @@ newtype ActionCondition
   = -- | Whether the branch name of the current checkout matches the given pattern
     BranchMatches Text
   deriving stock (Show)
+
+-- TODO: Get the settings from the downstream repo
+defaultRepoSettings :: St.Repo -> St.Branch -> Maybe CachixSettings -> Maybe AtticSettings -> RepoSettings
+defaultRepoSettings repo branch mCachix mAttic =
+  if repo.name == "euler-lsp"
+    then
+      RepoSettings
+        ( [ Stage [] (Clone repo branch)
+          , Stage [BranchMatches "release-*"] (Build (BuildSettings ["--", "--override-input", "flake/local", "github:boolean-option/false"]))
+          , Stage [] (Build (BuildSettings [])) -- Default Build step
+          ]
+            <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
+            <> maybe [] (\cachix -> [Stage [] (CachixPush cachix)]) mCachix
+        )
+    else
+      RepoSettings
+        ( [ Stage [] (Clone repo branch)
+          , Stage [] (Build (BuildSettings []))
+          ]
+            <> maybe [] (\attic -> [Stage [] (AtticLogin attic)]) mAttic
+            <> maybe [] (\cachix -> [Stage [] (CachixPush cachix)]) mCachix
+            <> maybe [] (\attic -> [Stage [] (AtticPush attic)]) mAttic
+        )
 
 -- | Execution order of an `Action`
 actionOrder :: Action -> Int
