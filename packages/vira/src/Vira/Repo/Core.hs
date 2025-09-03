@@ -53,7 +53,7 @@ stagesForBranch branchName =
   sortOn stageOrder
     . ordNubOn stageOrder -- Remove duplicates
     . map snd
-    . filter (all (match branchName) . fst)
+    . filter (all (match branchName) . if_ . fst)
     . stages
 
 stageProcesses :: Stage -> [CreateProcess]
@@ -96,16 +96,16 @@ defaultRepoSettings repoName mCachix mAttic =
     then
       -- euler-lsp passes extra CLI arguments to the build command on `release-*` branches
       RepoSettings
-        ( [ ([BranchMatches "release-*"], Build (OmCiConfig ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
-          , ([], Build (OmCiConfig [])) -- Default Build step
+        ( [ (StageSettings [BranchMatches "release-*"], Build (OmCiConfig ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
+          , (StageSettings [], Build (OmCiConfig [])) -- Default Build step
           ]
-            <> maybe [] (\cachix -> [(mempty, CachixPush cachix)]) mCachix
-            <> maybe [] (\attic -> [(mempty, AtticPush attic)]) mAttic
+            <> maybe [] (\cachix -> [(StageSettings [], CachixPush cachix)]) mCachix
+            <> maybe [] (\attic -> [(StageSettings [], AtticPush attic)]) mAttic
         )
     else
       RepoSettings
-        ( [ ([], Build (OmCiConfig []))
+        ( [ (StageSettings [], Build (OmCiConfig []))
           ]
-            <> maybe [] (\cachix -> [(mempty, CachixPush cachix)]) mCachix
-            <> maybe [] (\attic -> [(mempty, AtticPush attic)]) mAttic
+            <> maybe [] (\cachix -> [(StageSettings [], CachixPush cachix)]) mCachix
+            <> maybe [] (\attic -> [(StageSettings [], AtticPush attic)]) mAttic
         )

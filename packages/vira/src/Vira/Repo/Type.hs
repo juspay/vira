@@ -4,8 +4,15 @@ import System.FilePattern (FilePattern)
 import Vira.State.Type (AtticSettings, CachixSettings)
 
 newtype RepoSettings = RepoSettings
-  { stages :: [([Condition], Stage)]
+  { stages :: [(StageSettings, Stage)]
   -- ^ All stages in a `Task` with their run conditions
+  }
+  deriving stock (Show)
+
+-- | Settings for when to run a stage
+newtype StageSettings = StageSettings
+  { if_ :: [Condition]
+  -- ^ Enabled only if all of these conditions are met
   }
   deriving stock (Show)
 
