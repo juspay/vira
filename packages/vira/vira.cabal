@@ -273,6 +273,7 @@ test-suite vira-tests
   main-is: Spec.hs
   other-modules:
       Vira.Lib.GitSpec
+      Vira.Stream.LogSpec
       Paths_vira
   autogen-modules:
       Paths_vira

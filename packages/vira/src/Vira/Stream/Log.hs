@@ -9,6 +9,10 @@ module Vira.Stream.Log (
   -- * View
   viewStream,
   logViewerWidget,
+
+  -- * Testing exports
+  LogChunk (..),
+  logChunkMsg,
 ) where
 
 import Colog (Severity (..))
@@ -58,7 +62,7 @@ logChunkId = \case
 
 logChunkMsg :: LogChunk -> LByteString
 logChunkMsg = \case
-  Chunk _ logLines -> Lucid.renderBS $ toHtml $ unlines $ toList logLines
+  Chunk _ logLines -> Lucid.renderBS $ toHtmlRaw $ intercalate "\n" $ map toString $ toList logLines
   Stop _ -> Lucid.renderBS $
     div_ [class_ "flex items-center space-x-2 text-sm text-gray-600"] $ do
       Status.indicator False
