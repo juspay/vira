@@ -41,7 +41,7 @@ getStages repo branch mCachix mAttic =
    in
     createProjectDir
       :| one clone
-      <> (stageProcesses =<< branchStages)
+      <> concatMap stageProcesses branchStages
 
 -- Process stages to get the final ordered `[Stage]`
 stagesForBranch :: BranchName -> RepoSettings -> [Stage]
