@@ -51,29 +51,29 @@ getStages repo branch mCachix mAttic =
         . map snd
         . filter (all (match branchName) . fst)
 
-    getProc :: Stage -> [CreateProcess]
-    getProc = \case
-      Build settings ->
-        one $
-          (Omnix.omnixCiProcess (map toString settings.extraArgs))
-            { cwd = Just "project"
-            }
-      AtticLogin attic ->
-        one $
-          (atticLoginProcess attic.atticServer attic.atticToken)
-            { cwd = Just "project"
-            }
-      AtticPush attic ->
-        one $
-          (atticPushProcess attic.atticServer attic.atticCacheName "result")
-            { cwd = Just "project"
-            }
-      CachixPush cachix ->
-        one $
-          (cachixPushProcess cachix.cachixName "result")
-            { env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]
-            , cwd = Just "project"
-            }
+getProc :: Stage -> [CreateProcess]
+getProc = \case
+  Build settings ->
+    one $
+      (Omnix.omnixCiProcess (map toString settings.extraArgs))
+        { cwd = Just "project"
+        }
+  AtticLogin attic ->
+    one $
+      (atticLoginProcess attic.atticServer attic.atticToken)
+        { cwd = Just "project"
+        }
+  AtticPush attic ->
+    one $
+      (atticPushProcess attic.atticServer attic.atticCacheName "result")
+        { cwd = Just "project"
+        }
+  CachixPush cachix ->
+    one $
+      (cachixPushProcess cachix.cachixName "result")
+        { env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]
+        , cwd = Just "project"
+        }
 
 match :: BranchName -> Condition -> Bool
 match branchName (BranchMatches p) = toString p ?== toString branchName.unBranchName
