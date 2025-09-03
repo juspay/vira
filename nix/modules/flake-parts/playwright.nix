@@ -37,9 +37,26 @@
                 # Clean start for tests
                 rm -rf ./state
                 mkdir -p ./state
+                rm -f /tmp/playwright-tests-complete
                 
-                # Start Vira server for testing
-                vira --host ${host} --port ${port} --state-dir ./state --base-path /
+                # Start Vira server for testing in background
+                vira --host ${host} --port ${port} --state-dir ./state --base-path / &
+                VIRA_PID=$!
+                
+                # Monitor for test completion
+                while [ ! -f /tmp/playwright-tests-complete ]; do
+                  sleep 1
+                  # Check if vira is still running
+                  if ! kill -0 $VIRA_PID 2>/dev/null; then
+                    echo "Vira server stopped unexpectedly"
+                    exit 1
+                  fi
+                done
+                
+                echo "Tests completed, shutting down Vira server"
+                kill $VIRA_PID 2>/dev/null || true
+                wait $VIRA_PID 2>/dev/null || true
+                exit 0
               '';
             };
             readiness_probe = {
@@ -89,7 +106,13 @@
                 
                 # Run tests
                 echo "Running Playwright tests..."
-                if npm test; then
+                TEST_RESULT=0
+                npm test || TEST_RESULT=$?
+                
+                # Signal that tests are complete by creating a file
+                echo "Tests completed" > /tmp/playwright-tests-complete
+                
+                if [ $TEST_RESULT -eq 0 ]; then
                   echo "✅ All Playwright tests passed!"
                   exit 0
                 else
