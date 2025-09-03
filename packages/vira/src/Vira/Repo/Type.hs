@@ -1,5 +1,6 @@
 module Vira.Repo.Type where
 
+import Data.Default (Default (def))
 import System.FilePattern (FilePattern)
 import Vira.State.Type (AtticSettings, CachixSettings)
 
@@ -15,6 +16,10 @@ newtype StageSettings = StageSettings
   -- ^ Enabled only if all of these conditions are met
   }
   deriving stock (Show)
+
+-- By default, there are no conditions. All stages run.
+instance Default StageSettings where
+  def = StageSettings {if_ = []}
 
 -- | User-configurable stage in a `Task`
 data Stage

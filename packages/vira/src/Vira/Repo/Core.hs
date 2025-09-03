@@ -5,6 +5,7 @@ module Vira.Repo.Core (
   stagesForRepoBranch,
 ) where
 
+import Data.Default (Default (def))
 import Effectful (Eff)
 import Effectful.Process (CreateProcess (..), proc)
 import System.FilePattern ((?==))
@@ -97,15 +98,15 @@ defaultRepoSettings repoName mCachix mAttic =
       -- euler-lsp passes extra CLI arguments to the build command on `release-*` branches
       RepoSettings
         ( [ (StageSettings [BranchMatches "release-*"], Build (OmCiConfig ["--", "--override-input", "flake/local", "github:boolean-option/false"])) -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
-          , (StageSettings [], Build (OmCiConfig [])) -- Default Build step
+          , (def, Build (OmCiConfig [])) -- Default Build step
           ]
-            <> maybe [] (\cachix -> [(StageSettings [], CachixPush cachix)]) mCachix
-            <> maybe [] (\attic -> [(StageSettings [], AtticPush attic)]) mAttic
+            <> maybe [] (\cachix -> [(def, CachixPush cachix)]) mCachix
+            <> maybe [] (\attic -> [(def, AtticPush attic)]) mAttic
         )
     else
       RepoSettings
-        ( [ (StageSettings [], Build (OmCiConfig []))
+        ( [ (def, Build (OmCiConfig []))
           ]
-            <> maybe [] (\cachix -> [(StageSettings [], CachixPush cachix)]) mCachix
-            <> maybe [] (\attic -> [(StageSettings [], AtticPush attic)]) mAttic
+            <> maybe [] (\cachix -> [(def, CachixPush cachix)]) mCachix
+            <> maybe [] (\attic -> [(def, AtticPush attic)]) mAttic
         )
