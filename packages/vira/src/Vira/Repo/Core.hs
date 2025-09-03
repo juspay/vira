@@ -83,6 +83,10 @@ match :: BranchName -> Condition -> Bool
 match branchName (BranchMatches p) =
   toString p ?== toString branchName.unBranchName
 
+-- | Helper to create a stage with specific settings
+withSettings :: StageSettings -> Stage -> (StageSettings, Stage)
+withSettings settings stage = (settings, stage)
+
 -- | Execution order of a `Stage`
 stageOrder :: Stage -> Int
 stageOrder = \case
@@ -97,31 +101,29 @@ defaultRepoSettings repoName mCachix mAttic =
     then
       eulerLspSettings mCachix mAttic
     else
-      RepoSettings
-        ( [ (def, Build (OmCiConfig []))
+      RepoSettings $
+        catMaybes
+          [ Just $ Build def & withSettings def
+          , mCachix <&> (CachixPush >>> withSettings def)
+          , mAttic <&> (AtticPush >>> withSettings def)
           ]
-            <> maybe [] (\cachix -> [(def, CachixPush cachix)]) mCachix
-            <> maybe [] (\attic -> [(def, AtticPush attic)]) mAttic
-        )
 
 -- HACK: Hardcoding settings for a single repo (euler-lsp)
 -- Until we have https://github.com/juspay/vira/issues/59
 eulerLspSettings :: Maybe CachixSettings -> Maybe AtticSettings -> RepoSettings
 eulerLspSettings mCachix mAttic =
   -- euler-lsp passes extra CLI arguments to the build command on `release-*` branches
-  RepoSettings
-    ( [
-        ( StageSettings releaseBranchOnly
-        , Build omCiDisableLocal
-        )
-      , (def, Build (OmCiConfig [])) -- Default Build step
+  RepoSettings $
+    catMaybes
+      [ Just $ Build omCiDisableLocal & withSettings releaseBranchOnly
+      , -- Default Build step
+        Just $ Build def & withSettings def
+      , mCachix <&> (CachixPush >>> withSettings def)
+      , mAttic <&> (AtticPush >>> withSettings def)
       ]
-        <> maybe [] (\cachix -> [(def, CachixPush cachix)]) mCachix
-        <> maybe [] (\attic -> [(def, AtticPush attic)]) mAttic
-    )
   where
     releaseBranchOnly =
-      [BranchMatches "release-*"]
+      StageSettings [BranchMatches "release-*"]
     -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
     omCiDisableLocal =
       OmCiConfig ["--", "--override-input", "flake/local", "github:boolean-option/false"]

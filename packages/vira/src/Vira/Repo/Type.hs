@@ -35,6 +35,9 @@ newtype OmCiConfig = OmCiConfig
   }
   deriving stock (Show)
 
+instance Default OmCiConfig where
+  def = OmCiConfig {extraArgs = []}
+
 -- | Condition for when to run a `Stage`
 newtype Condition
   = -- | Whether the branch name of the current checkout matches the given pattern
