@@ -27,7 +27,6 @@ import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Lib.Logging
 import Vira.Lib.Omnix qualified as Omnix
-import Vira.Lib.Sort (uniqueSortOn)
 import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
@@ -227,7 +226,8 @@ actionOrder = \case
 -- | Return final actions to run in a `Task`
 getActions :: BranchName -> [Stage] -> [Action]
 getActions branchName =
-  uniqueSortOn actionOrder
+  sortOn actionOrder
+    . ordNubOn actionOrder -- Remove duplicates
     . map action
     . filter (all match . conditions)
   where
