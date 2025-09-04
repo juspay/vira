@@ -8,7 +8,7 @@ test('vira main page', async ({ page }) => {
   await expect(page).toHaveURL('/');
   
   // Check for page title
-  await expect(page).toHaveTitle(/Vira/);
+  await expect(page).toHaveTitle(/ViraTESTBUG/);
   
   // Verify page has basic HTML structure
   await expect(page.locator('html')).toBeVisible();
