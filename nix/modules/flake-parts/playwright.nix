@@ -4,21 +4,24 @@
     inputs.process-compose-flake.flakeModule
   ];
 
-  perSystem = { pkgs, ... }:
+  perSystem = { pkgs, system, ... }:
     let
+      # Use nixpkgs-25-05 for nodejs, npm, and playwright (working on darwin)
+      nixpkgs-25-05 = inputs.nixpkgs-25-05.legacyPackages.${system};
+
       # Common Playwright environment setup
       playwrightEnv = ''
-        export PLAYWRIGHT_BROWSERS_PATH=${pkgs.playwright-driver.browsers}
+        export PLAYWRIGHT_BROWSERS_PATH=${nixpkgs-25-05.playwright-driver.browsers}
         export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
         export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-        export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=${pkgs.playwright-driver.browsers}/chromium-1181/chrome-linux/chrome
+        export PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=${nixpkgs-25-05.playwright-driver.browsers}/chromium-1169/${if nixpkgs-25-05.stdenv.isDarwin then "chrome-mac/Chromium.app/Contents/MacOS/Chromium" else "chrome-linux/chrome"}
       '';
 
-      # Common packages for Playwright
-      playwrightPackages = with pkgs; [
-        nodejs_24 # pkgs.nodejs is broken on darwin
-        nodejs_24.pkgs.npm
-        playwright-driver.browsers
+      # Common packages for Playwright (from nixpkgs-25-05 for darwin compatibility)
+      playwrightPackages = [
+        nixpkgs-25-05.nodejs
+        nixpkgs-25-05.nodePackages.npm
+        nixpkgs-25-05.playwright-driver.browsers
       ];
     in
     {
