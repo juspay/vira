@@ -4,6 +4,7 @@
   "description": "End-to-end tests for Vira",
   "scripts": {
     "test": "playwright test",
+    "test:list": "playwright test --reporter=list",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug"
