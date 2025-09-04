@@ -7,12 +7,12 @@ test('add repository and verify on repositories page', async ({ page }) => {
   // Navigate to repositories page
   await page.getByRole('link', { name: /repositories/i }).click();
   
-  // Fill the repository name field (use placeholder text)
-  const nameInput = page.getByPlaceholder(/my-awesome-project/);
+  // Fill the repository name field (using semantic label)
+  const nameInput = page.getByLabel('Repository Name');
   await nameInput.fill('haskell-template');
   
-  // Fill the Git Clone URL field (use placeholder text)
-  const urlInput = page.getByPlaceholder(/https:\/\/github\.com\/user\/repo\.git/);
+  // Fill the Git Clone URL field (using semantic label)
+  const urlInput = page.getByLabel('Git Clone URL');
   await urlInput.fill('https://github.com/srid/haskell-template');
   
   // Click the Add Repository button

@@ -32,6 +32,7 @@ See README.md for general project information.
 - **CI/automation**: `just e2e test-list` (list reporter, clean output)
 - **Test files**: Located in `tests/e2e/tests/`
 - **Configuration**: `tests/e2e/playwright.config.ts`
+- **Selector guidelines**: Use semantic selectors in order: `getByLabel()` > `getByRole()` > `getByTestId()` > CSS selectors. Avoid placeholders.
 
 ## Reporting
 
