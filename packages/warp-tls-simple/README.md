@@ -23,6 +23,7 @@ HTTP/2 provides significant performance benefits, especially for real-time featu
 ### Expected Browser Warnings
 
 When using auto-generated self-signed certificates, you'll see browser warnings:
+
 - **Chrome/Edge**: "Not secure" or `net::ERR_CERT_AUTHORITY_INVALID`
 - **Firefox**: "Warning: Potential Security Risk Ahead"
 
@@ -31,6 +32,7 @@ This is normal and expected for self-signed certificates. The connection is stil
 ### Server-Side TLS Handshake Errors
 
 You may see log entries like:
+
 ```
 TLS handshake errors: HandshakeFailed (Error_Packet_unexpected "Alert13 [(AlertLevel_Fatal,CertificateUnknown)]")
 ```
@@ -47,6 +49,7 @@ These occur when clients (browsers, curl, etc.) reject the self-signed certifica
 ## Certificate Details
 
 Auto-generated certificates include:
+
 - **Subject**: `/CN=localhost`
 - **Subject Alternative Names**:
   - `DNS:localhost`

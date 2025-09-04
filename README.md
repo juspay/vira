@@ -12,16 +12,16 @@ The project is currently in beta stage. Contact [@srid](https://github.com/srid)
 
 ## Tech
 
-| Category      | Tools/Libraries                                             |
-| ------------- | ----------------------------------------------------------- |
-| Frontend      | [HTMX](https://htmx.org/) (+ [hyperscript](https://hyperscript.org/) where relevant)                                   |
-| Data Store    | [acid-state](https://github.com/acid-state/acid-state) |
-| Web Server    | [servant](https://www.servant.dev/) + [warp](https://hackage.haskell.org/package/warp) + [warp-tls](https://hackage.haskell.org/package/warp-tls) (HTTP/2 + HTTPS)                         |
-| Effect System | [effectful](https://hackage.haskell.org/package/effectful)  |
-| Logging       | [co-log](https://kowainik.github.io/projects/co-log)        |
-| HTML DSL      | Lucid2                                                      |
-| CSS           | TailwindCSS                                                 |
-| Nix CI        | [Omnix](https://omnix.page/om/ci.html) |
+| Category      | Tools/Libraries                                                                                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Frontend      | [HTMX](https://htmx.org/) (+ [hyperscript](https://hyperscript.org/) where relevant)                                                                               |
+| Data Store    | [acid-state](https://github.com/acid-state/acid-state)                                                                                                             |
+| Web Server    | [servant](https://www.servant.dev/) + [warp](https://hackage.haskell.org/package/warp) + [warp-tls](https://hackage.haskell.org/package/warp-tls) (HTTP/2 + HTTPS) |
+| Effect System | [effectful](https://hackage.haskell.org/package/effectful)                                                                                                         |
+| Logging       | [co-log](https://kowainik.github.io/projects/co-log)                                                                                                               |
+| HTML DSL      | Lucid2                                                                                                                                                             |
+| CSS           | TailwindCSS                                                                                                                                                        |
+| Nix CI        | [Omnix](https://omnix.page/om/ci.html)                                                                                                                             |
 
 ## Roadmap
 
@@ -42,8 +42,9 @@ just resetdb run
 Vira uses HTTP/2 for superior SSE (log streaming) performance and automatically handles TLS certificate generation via the [`warp-tls-simple`](../warp-tls-simple/README.md) package.
 
 **Key features:**
+
 - **Automatic Certificate Generation**: Certificates are auto-generated in `./state/tls/` when you run Vira
-- **Manual Certificate Support**: Use `--tls-cert` and `--tls-key` flags for custom certificates  
+- **Manual Certificate Support**: Use `--tls-cert` and `--tls-key` flags for custom certificates
 - **Development URLs**: https://localhost:5005 (HTTPS) or http://localhost:5005 (with `--no-https`)
 
 For detailed information about TLS configuration, certificate generation, troubleshooting browser warnings, and development considerations, see the [`warp-tls-simple` documentation](../warp-tls-simple/README.md).
