@@ -23,4 +23,16 @@ test("add repository and navigate to repository page", async ({ page }) => {
 
   // Verify repository name appears on the page
   await expect(page.getByRole("heading", { name: repoName })).toBeVisible();
+
+  // Set up dialog handler before clicking delete
+  page.on("dialog", (dialog) => dialog.accept());
+
+  // Delete the repository
+  await page.getByRole("button", { name: /delete/i }).click();
+
+  // Wait for redirect to repositories page
+  await page.waitForURL(/\/r$/);
+
+  // Verify repository is no longer listed
+  await expect(page.getByRole("link", { name: repoName })).not.toBeVisible();
 });
