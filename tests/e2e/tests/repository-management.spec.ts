@@ -66,4 +66,7 @@ test("add repository, verify 0 branches, then refresh and verify >=1 branches", 
     timeout: 15000,
   });
   await expect(page.locator("#branch-count")).toHaveText(/[1-9]\d* branches?/);
+
+  // Verify that 'master' branch is in the list
+  await expect(page.getByText("master")).toBeVisible();
 });
