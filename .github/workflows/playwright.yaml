@@ -19,6 +19,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        
+      - name: Start Vira server
+        run: |
+          nix --accept-flake-config build . --no-link
+          nix --accept-flake-config run . &
+          # Wait for server to be ready
+          timeout 30 bash -c 'until curl -k -f https://localhost:5005; do sleep 1; done'
+        
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -39,7 +49,7 @@ jobs:
         run: npm test
         
       - name: Upload test results
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-results
