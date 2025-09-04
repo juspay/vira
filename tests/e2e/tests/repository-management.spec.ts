@@ -7,21 +7,15 @@ test("add repository and navigate to repository page", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("link", { name: /repositories/i }).click();
 
-  // Add new repository
+  // Add new repository - this redirects to the repository page
   await page.getByLabel("Repository Name").fill(repoName);
   await page
     .getByLabel("Git Clone URL")
     .fill("https://github.com/srid/haskell-template");
   await page.getByRole("button", { name: /add repository/i }).click();
 
-  // Verify repository was added
-  await page.reload();
-  await expect(page.getByRole("link", { name: repoName })).toBeVisible();
-
-  // Navigate to the repository page
-  await page.getByRole("link", { name: repoName }).click();
-
-  // Verify repository name appears on the page
+  // Verify redirect to repository page and repository name appears
+  await expect(page).toHaveURL(new RegExp(`/r/${repoName}`));
   await expect(page.getByRole("heading", { name: repoName })).toBeVisible();
 
   // Set up dialog handler before clicking delete
@@ -42,7 +36,7 @@ test("add repository, verify 0 branches, then refresh and verify >=1 branches", 
 }) => {
   const repoName = `haskell-template-${Math.random().toString(36).substring(2, 8)}`;
 
-  // Navigate to repositories page and add repository
+  // Navigate to repositories page and add repository - this redirects to repo page
   await page.goto("/");
   await page.getByRole("link", { name: /repositories/i }).click();
   await page.getByLabel("Repository Name").fill(repoName);
@@ -51,11 +45,8 @@ test("add repository, verify 0 branches, then refresh and verify >=1 branches", 
     .fill("https://github.com/srid/haskell-template");
   await page.getByRole("button", { name: /add repository/i }).click();
 
-  // Navigate to the repository page
-  await page.reload();
-  await page.getByRole("link", { name: repoName }).click();
-
-  // Verify repository has 0 branches initially
+  // Verify redirect to repository page and repository has 0 branches initially
+  await expect(page).toHaveURL(new RegExp(`/r/${repoName}`));
   await expect(page.locator("#branch-count")).toContainText("0 branches");
 
   // Click refresh button to populate branches
