@@ -23,6 +23,9 @@ jobs:
           echo "result=$(readlink result)" >> "$GITHUB_OUTPUT"
       - name: "`nix run` works"
         run: nix run . -- --help
+      - name: Run Tests
+        run: |
+          nix --option system "${{ matrix.system }}" develop -c cabal test all
       - name: Push to Attic
         run: |
           attic login chutney https://cache.nixos.asia ${{ secrets.ATTIC_LOGIN_TOKEN }}
