@@ -2,6 +2,13 @@ ci:
   default:
     vira:
       dir: .
+      steps:
+        build:
+          enable: true
+        custom:
+          e2e:
+            type: app
+            name: "e2e"
     examples-nixos:
       dir: nix/examples/nixos
       overrideInputs:

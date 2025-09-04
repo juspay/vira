@@ -14,7 +14,9 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  reporter: process.env.CI ? 'dot' : 'html',
+  /* Increase timeout in CI due to restricted environment */
+  timeout: process.env.CI ? 60000 : 30000,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -32,7 +34,52 @@ export default defineConfig({
         headless: true,
         // Use the available Nix-provided browser executable
         launchOptions: {
-          executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+          args: process.env.CI ? [
+            // CI flags - even self-hosted NixOS runners need these due to zygote/GPU issues
+            '--headless=new',
+            '--no-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-software-rasterizer', 
+            '--single-process', // Required for github-runner environment
+            '--no-first-run',
+            '--js-flags=--single-threaded', // Enable JS in single-process mode
+            '--disable-features=VizDisplayCompositor', // Disable compositor that requires GPU
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--disable-field-trial-config',
+            '--disable-background-networking',
+            '--disable-client-side-phishing-detection',
+            '--disable-default-apps',
+            '--disable-component-extensions-with-background-pages',
+            '--disable-component-update',
+            '--disable-extensions',
+            '--disable-hang-monitor',
+            '--disable-ipc-flooding-protection',
+            '--disable-popup-blocking',
+            '--disable-prompt-on-repost',
+            '--force-color-profile=srgb',
+            '--metrics-recording-only',
+            '--password-store=basic',
+            '--use-mock-keychain',
+            '--no-service-autorun',
+            '--disable-search-engine-choice-screen',
+            '--disable-features=TranslateUI,BlinkGenPropertyTrees',
+            // Disable D-Bus and system integration features that cause errors
+            '--disable-features=MediaSessionService,HardwareMediaKeyHandling',
+            '--disable-background-mode',
+            '--disable-plugins',
+            '--disable-plugins-discovery',
+            '--disable-translate',
+            '--disable-sync'
+          ] : [
+            // Local development flags
+            '--headless=new',
+            '--no-sandbox',
+            '--disable-dev-shm-usage'
+          ]
         }
       },
     },

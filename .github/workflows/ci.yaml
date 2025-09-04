@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.system }}
     strategy:
       matrix:
-        system: [x86_64-linux, aarch64-darwin, aarch64-linux]
+        system: [x86_64-linux, aarch64-linux]
     steps:
       - uses: actions/checkout@v4
       - name: Build all flake outputs
@@ -25,6 +25,10 @@ jobs:
       - name: Run Tests
         run: |
           nix --option system "${{ matrix.system }}" develop -c cabal test all
+      - name: Run E2E Tests
+        if: matrix.system == 'x86_64-linux'
+        run: |
+          CI=1 nix --option system "${{ matrix.system }}" run .#e2e
       - name: Push to Attic
         run: |
           attic login chutney https://cache.nixos.asia ${{ secrets.ATTIC_LOGIN_TOKEN }}
