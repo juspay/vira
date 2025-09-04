@@ -6,6 +6,9 @@
 
   perSystem = { pkgs, lib, ... }:
     let
+      # Use nodejs from nixpkgs-nodejs input for darwin compatibility
+      nixpkgs-nodejs = inputs.nixpkgs-nodejs.legacyPackages.${pkgs.system};
+
       # Common Playwright environment setup
       playwrightEnv = ''
         export PLAYWRIGHT_BROWSERS_PATH=${pkgs.playwright-driver.browsers}
@@ -16,8 +19,8 @@
 
       # Common packages for Playwright
       playwrightPackages = with pkgs; [
-        nodejs
-        nodePackages.npm
+        nixpkgs-nodejs.nodejs
+        nixpkgs-nodejs.nodePackages.npm
         playwright-driver.browsers
       ];
     in

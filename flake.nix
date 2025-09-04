@@ -6,6 +6,7 @@
   description = "Nix template for Haskell projects";
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    nixpkgs-nodejs.url = "github:nixos/nixpkgs/3cbf88f"; # https://github.com/NixOS/nixpkgs/pull/439129 & waiting for https://github.com/NixOS/nixpkgs/pull/439433 to land
     flake-parts.url = "github:hercules-ci/flake-parts";
     flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
     nixos-unified.url = "github:srid/nixos-unified";
