@@ -37,7 +37,9 @@ test("add repository and navigate to repository page", async ({ page }) => {
   await expect(page.getByRole("link", { name: repoName })).not.toBeVisible();
 });
 
-test("add repository and verify 0 branches initially", async ({ page }) => {
+test("add repository, verify 0 branches, then refresh and verify >=1 branches", async ({
+  page,
+}) => {
   const repoName = `haskell-template-${Math.random().toString(36).substring(2, 8)}`;
 
   // Navigate to repositories page and add repository
@@ -55,4 +57,13 @@ test("add repository and verify 0 branches initially", async ({ page }) => {
 
   // Verify repository has 0 branches initially
   await expect(page.locator("#branch-count")).toContainText("0 branches");
+
+  // Click refresh button to populate branches
+  await page.getByRole("button", { name: /refresh/i }).click();
+
+  // Wait for branches to be populated and verify we have at least 1 branch
+  await expect(page.locator("#branch-count")).not.toContainText("0 branches", {
+    timeout: 15000,
+  });
+  await expect(page.locator("#branch-count")).toHaveText(/[1-9]\d* branches?/);
 });
