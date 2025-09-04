@@ -4,17 +4,23 @@ import { RepositoriesPage } from "../pages/repositories-page";
 import { RepositoryPage } from "../pages/repository-page";
 
 test.describe("Repository Management", () => {
-  test.describe("Repository Lifecycle", () => {
-    test("should add repository and navigate to repository page", async ({
-      page,
-    }) => {
-      const repoName = `haskell-template-${Math.random().toString(36).substring(2, 8)}`;
-      const mainPage = new MainPage(page);
-      const repositoriesPage = new RepositoriesPage(page);
-      const repositoryPage = new RepositoryPage(page);
+  let mainPage: MainPage;
+  let repositoriesPage: RepositoriesPage;
+  let repositoryPage: RepositoryPage;
+  let repoName: string;
 
-      await mainPage.goto();
-      await mainPage.navigateToRepositories();
+  test.beforeEach(async ({ page }) => {
+    repoName = `haskell-template-${Math.random().toString(36).substring(2, 8)}`;
+    mainPage = new MainPage(page);
+    repositoriesPage = new RepositoriesPage(page);
+    repositoryPage = new RepositoryPage(page);
+
+    await mainPage.goto();
+    await mainPage.navigateToRepositories();
+  });
+
+  test.describe("Repository Lifecycle", () => {
+    test("should add repository and navigate to repository page", async () => {
       await repositoriesPage.addRepository(
         repoName,
         "https://github.com/srid/haskell-template",
@@ -26,16 +32,16 @@ test.describe("Repository Management", () => {
   });
 
   test.describe("Branch Management", () => {
-    test("should show 0 branches initially, then populate after refresh", async ({
-      page,
-    }) => {
-      const repoName = `haskell-template-${Math.random().toString(36).substring(2, 8)}`;
-      const mainPage = new MainPage(page);
-      const repositoriesPage = new RepositoriesPage(page);
-      const repositoryPage = new RepositoryPage(page);
+    test.afterEach(async () => {
+      // Clean up: delete repository after branch tests
+      try {
+        await repositoryPage.deleteRepository();
+      } catch {
+        // Repository might already be deleted, ignore errors
+      }
+    });
 
-      await mainPage.goto();
-      await mainPage.navigateToRepositories();
+    test("should show 0 branches initially, then populate after refresh", async () => {
       await repositoriesPage.addRepository(
         repoName,
         "https://github.com/srid/haskell-template",

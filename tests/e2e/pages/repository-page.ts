@@ -4,6 +4,9 @@ export class RepositoryPage {
   constructor(private page: Page) {}
 
   async verifyRepositoryPage(repoName: string) {
+    await this.page.waitForURL(new RegExp(`/r/${repoName}`), {
+      timeout: 10000,
+    });
     await expect(this.page).toHaveURL(new RegExp(`/r/${repoName}`));
     await expect(
       this.page.getByRole("heading", { name: repoName }),
