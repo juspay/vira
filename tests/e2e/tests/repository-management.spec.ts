@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("add repository and verify on repositories page", async ({ page }) => {
+test("add repository and navigate to repository page", async ({ page }) => {
   const repoName = `haskell-template-${Math.random().toString(36).substring(2, 8)}`;
 
   // Navigate to repositories page
@@ -17,4 +17,10 @@ test("add repository and verify on repositories page", async ({ page }) => {
   // Verify repository was added
   await page.reload();
   await expect(page.getByRole("link", { name: repoName })).toBeVisible();
+
+  // Navigate to the repository page
+  await page.getByRole("link", { name: repoName }).click();
+
+  // Verify repository name appears on the page
+  await expect(page.getByRole("heading", { name: repoName })).toBeVisible();
 });
