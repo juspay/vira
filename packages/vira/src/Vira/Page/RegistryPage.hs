@@ -117,6 +117,7 @@ newRepoForm = do
         ( withFieldName @Repo @"name" $ \name ->
             W.viraInput_
               [ type_ "text"
+              , id_ name
               , name_ name
               , placeholder_ "my-awesome-project"
               , required_ ""
@@ -129,6 +130,7 @@ newRepoForm = do
         ( withFieldName @Repo @"cloneUrl" $ \name ->
             W.viraInput_
               [ type_ "url"
+              , id_ name
               , name_ name
               , placeholder_ "https://github.com/user/repo.git"
               , required_ ""

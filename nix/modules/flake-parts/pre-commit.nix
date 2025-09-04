@@ -14,6 +14,10 @@
         };
         hlint.enable = true;
         hpack.enable = true;
+        prettier = {
+          enable = true;
+          files = "\\.ts$";
+        };
         typos = {
           enable = true;
           settings.config.files.extend-exclude = [

@@ -23,8 +23,17 @@ See README.md for general project information.
 ## Development
 
 ### Testing
+
+#### Haskell Tests
 - Prefer `nix develop -c cabal build` over `nix build`
 - Fix all introduced GHC warnings
+
+#### E2E Tests (Playwright)
+- **CI/automation**: `just e2e test-list` (list reporter, clean output)
+- **Test files**: Located in `tests/e2e/tests/`
+- **Configuration**: `tests/e2e/playwright.config.ts`
+- **Selector guidelines**: Use semantic selectors in order: `getByLabel()` > `getByRole()` > `getByTestId()` > CSS selectors. Avoid placeholders.
+- **Style guidelines**: Write concise, functional-style tests. Avoid intermediate variables. Group related actions. Minimal comments.
 
 ## Reporting
 
