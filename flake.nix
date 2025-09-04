@@ -6,6 +6,7 @@
   description = "Nix template for Haskell projects";
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    nixpkgs-25-05.url = "github:nixos/nixpkgs/release-25.05"; # Last known working nodejs on darwin
     flake-parts.url = "github:hercules-ci/flake-parts";
     flake-parts.inputs.nixpkgs-lib.follows = "nixpkgs";
     nixos-unified.url = "github:srid/nixos-unified";

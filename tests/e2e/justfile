@@ -1,0 +1,5 @@
+# Playwright E2E test recipes
+
+# Run all Playwright tests
+test:
+    npm test
