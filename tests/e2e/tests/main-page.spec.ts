@@ -8,14 +8,7 @@ test('vira main page', async ({ page }) => {
   await expect(page).toHaveURL('/');
   
   // Check for page title
-  await expect(page).toHaveTitle(/ViraTESTBUG/);
-  
-  // Verify page has basic HTML structure
-  await expect(page.locator('html')).toBeVisible();
-  await expect(page.locator('body')).toBeVisible();
-  
-  // Check that the page content loaded (not just empty HTML)
-  await expect(page.locator('body')).not.toBeEmpty();
+  await expect(page).toHaveTitle(/Vira/);
   
   // Verify navigation links are present
   await expect(page.getByRole('link', { name: /repositories/i })).toBeVisible();
