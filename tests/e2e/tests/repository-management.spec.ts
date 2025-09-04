@@ -36,3 +36,23 @@ test("add repository and navigate to repository page", async ({ page }) => {
   // Verify repository is no longer listed
   await expect(page.getByRole("link", { name: repoName })).not.toBeVisible();
 });
+
+test("add repository and verify 0 branches initially", async ({ page }) => {
+  const repoName = `haskell-template-${Math.random().toString(36).substring(2, 8)}`;
+
+  // Navigate to repositories page and add repository
+  await page.goto("/");
+  await page.getByRole("link", { name: /repositories/i }).click();
+  await page.getByLabel("Repository Name").fill(repoName);
+  await page
+    .getByLabel("Git Clone URL")
+    .fill("https://github.com/srid/haskell-template");
+  await page.getByRole("button", { name: /add repository/i }).click();
+
+  // Navigate to the repository page
+  await page.reload();
+  await page.getByRole("link", { name: repoName }).click();
+
+  // Verify repository has 0 branches initially
+  await expect(page.locator("#branch-count")).toContainText("0 branches");
+});
