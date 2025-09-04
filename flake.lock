@@ -249,22 +249,6 @@
         "type": "github"
       }
     },
-    "nixpkgs-nodejs": {
-      "locked": {
-        "lastModified": 1756873495,
-        "narHash": "sha256-KeZVhAoLWSSaiHJSl2k0j8ijxARpl73niO9WHson2mQ=",
-        "owner": "nixos",
-        "repo": "nixpkgs",
-        "rev": "3cbf88f89d9ebe207e8693080c6d087c9e70b3fc",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nixos",
-        "ref": "3cbf88f",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
     "nixpkgs_2": {
       "locked": {
         "lastModified": 1756696532,
@@ -330,7 +314,6 @@
         "htmx-extensions": "htmx-extensions",
         "nixos-unified": "nixos-unified",
         "nixpkgs": "nixpkgs_2",
-        "nixpkgs-nodejs": "nixpkgs-nodejs",
         "process-compose-flake": "process-compose-flake",
         "servant-event-stream": "servant-event-stream",
         "tabler-icons-hs": "tabler-icons-hs"
