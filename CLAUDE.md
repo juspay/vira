@@ -33,6 +33,7 @@ See README.md for general project information.
 - **Test files**: Located in `tests/e2e/tests/`
 - **Configuration**: `tests/e2e/playwright.config.ts`
 - **Selector guidelines**: Use semantic selectors in order: `getByLabel()` > `getByRole()` > `getByTestId()` > CSS selectors. Avoid placeholders.
+- **Style guidelines**: Write concise, functional-style tests. Avoid intermediate variables. Group related actions. Minimal comments.
 
 ## Reporting
 
