@@ -31,18 +31,16 @@ import Prelude hiding (ask, asks)
 data BranchEffectiveStatus
   = NeverBuilt
   | JobStatus St.JobStatus
-  | OutOfDate St.JobResult
+  | OutOfDate
 
 -- Determine the effective status of a branch considering if it's out of date
 getBranchEffectiveStatus :: St.Branch -> Maybe St.Job -> BranchEffectiveStatus
 getBranchEffectiveStatus branch = \case
   Nothing -> NeverBuilt
-  Just job -> case job.jobStatus of
-    St.JobFinished result ->
-      if branch.headCommit == job.jobCommit
-        then JobStatus (St.JobFinished result)
-        else OutOfDate result
-    status -> JobStatus status
+  Just job ->
+    if branch.headCommit == job.jobCommit
+      then JobStatus job.jobStatus
+      else OutOfDate
 
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
@@ -213,11 +211,7 @@ viewBranchListing repo branches = do
                 span_ [class_ "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800"] "Never built"
               JobStatus jobStatus ->
                 Status.viraStatusBadge_ jobStatus
-              OutOfDate St.JobSuccess ->
+              OutOfDate ->
                 span_ [class_ "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800"] $ do
                   div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.clock
-                  "Out of date"
-              OutOfDate St.JobFailure ->
-                span_ [class_ "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800"] $ do
-                  div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.alert_triangle
                   "Out of date"
