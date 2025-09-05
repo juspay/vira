@@ -63,6 +63,12 @@ in
       description = "Directory to store Vira state data";
     };
 
+    basePath = mkOption {
+      type = types.str;
+      default = "/";
+      description = "Base URL path for the HTTP server";
+    };
+
   };
 
   config = mkIf cfg.enable {
@@ -111,6 +117,8 @@ in
               (toString cfg.port)
               "--state-dir"
               cfg.stateDir
+              "--base-path"
+              cfg.basePath
             ] ++ optionals (!cfg.https) [ "--no-https" ];
           in
           "${cfg.package}/bin/vira ${concatStringsSep " " args}";
