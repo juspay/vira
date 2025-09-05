@@ -57,6 +57,12 @@ in
       description = "Extra packages to add to the Vira service PATH";
     };
 
+    stateDir = mkOption {
+      type = types.str;
+      default = "/var/lib/vira/state";
+      description = "Directory to store Vira state data";
+    };
+
   };
 
   config = mkIf cfg.enable {
@@ -66,6 +72,10 @@ in
       home = "/var/lib/vira";
       createHome = true;
     };
+
+    systemd.tmpfiles.rules = [
+      "d '${cfg.stateDir}' 0755 ${cfg.user} ${cfg.group} - -"
+    ];
 
     users.groups.${cfg.group} = { };
 
@@ -86,7 +96,7 @@ in
         PrivateTmp = true;
         ProtectSystem = "strict";
         ProtectHome = true;
-        ReadWritePaths = [ "/var/lib/vira" ];
+        ReadWritePaths = [ "/var/lib/vira" cfg.stateDir ];
 
         # Restart settings
         Restart = "on-failure";
@@ -100,7 +110,7 @@ in
               "--port"
               (toString cfg.port)
               "--state-dir"
-              "/var/lib/vira/state"
+              cfg.stateDir
             ] ++ optionals (!cfg.https) [ "--no-https" ];
           in
           "${cfg.package}/bin/vira ${concatStringsSep " " args}";

@@ -26,6 +26,7 @@
               port = 8080;
               https = false;
               openFirewall = true;
+              stateDir = "/var/lib/vira/example-state";
               package = vira.packages.${system}.default;
             };
 
@@ -54,6 +55,7 @@
               port = 8080;
               https = false;
               openFirewall = true;
+              stateDir = "/var/lib/vira/example-state";
               package = vira.packages.${system}.default;
             };
 
