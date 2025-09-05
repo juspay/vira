@@ -26,7 +26,7 @@ ghcid COMPONENT='vira':
 # Delete and recreate vira.db
 [group('1. vira')]
 resetdb:
-    rm -rf ./state
+    rm -rf ./state/ViraState
 
 [private]
 pc_hooks:

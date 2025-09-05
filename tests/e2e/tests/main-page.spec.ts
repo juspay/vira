@@ -1,16 +1,12 @@
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
+import { MainPage } from "../pages/main-page";
 
-test("vira main page", async ({ page }) => {
-  // Navigate to Vira main page
-  await page.goto("/");
+test.describe("Main Page", () => {
+  test("should load successfully and display navigation", async ({ page }) => {
+    const mainPage = new MainPage(page);
 
-  // Verify the page loads successfully
-  await expect(page).toHaveURL("/");
-
-  // Check for page title
-  await expect(page).toHaveTitle(/Vira/);
-
-  // Verify navigation links are present
-  await expect(page.getByRole("link", { name: /repositories/i })).toBeVisible();
-  await expect(page.getByRole("link", { name: /settings/i })).toBeVisible();
+    await mainPage.goto();
+    await mainPage.verifyPageLoaded();
+    await mainPage.verifyNavigationLinks();
+  });
 });
