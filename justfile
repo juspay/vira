@@ -25,6 +25,7 @@ ghcid COMPONENT='vira':
 [group('1. vira')]
 resetdb:
     rm -rf ./state/ViraState
+    rm -rf ./state/workspace
 
 [private]
 pc_hooks:

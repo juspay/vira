@@ -87,12 +87,6 @@ statusLabel = \case
   St.JobKilled -> "Killed"
 
 {- |
-Get semantic color name for job status.
-
-Returns base color name (without intensity) for building Tailwind classes.
--}
-
-{- |
 Get Tailwind CSS classes for status dots.
 
 Uses explicit class names instead of dynamic concatenation to ensure

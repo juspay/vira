@@ -4,6 +4,7 @@ module Vira.App.LinkTo.Resolve where
 import Servant.Links (Link, fieldLink)
 import Vira.App ((//), (/:))
 import Vira.App.LinkTo.Type
+import Vira.Page.BranchPage qualified as BranchPage
 import Vira.Page.IndexPage
 import Vira.Page.JobLog qualified as JobLog
 import Vira.Page.JobPage qualified as JobPage
@@ -21,7 +22,7 @@ linkTo = \case
   RepoDelete name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._delete
   RepoAdd -> fieldLink _repos // RegistryPage._addRepo
   Build repo branch -> fieldLink _jobs // JobPage._build /: repo /: branch
-  RepoBranch repo branch -> fieldLink _repos // RegistryPage._repo /: repo // RepoPage._branch /: branch
+  RepoBranch repo branch -> fieldLink _repos // RegistryPage._branch /: repo /: branch // BranchPage._view
   Job jobId -> fieldLink _jobs // JobPage._view /: jobId
   JobLog jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._rawLog
   JobLogStream jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._streamLog
