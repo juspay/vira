@@ -8,7 +8,6 @@
       inputsFrom = [
         config.haskellProjects.default.outputs.devShell # See ./nix/modules/haskell.nix
         config.pre-commit.devShell # See ./nix/modules/formatter.nix
-        config.devShells.playwright # See ./nix/modules/playwright.nix
       ];
       packages = with pkgs; [
         just
