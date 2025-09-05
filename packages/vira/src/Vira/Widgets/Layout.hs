@@ -31,6 +31,7 @@ The layout function provides the foundation for all application pages.
 module Vira.Widgets.Layout (
   layout,
   viraPageHeader_,
+  viraPageHeaderWithIcon_,
   viraPageHeaderWithActions_,
   viraSection_,
   viraDivider_,
@@ -41,11 +42,12 @@ import Lucid
 import System.Info (arch, os)
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (basePath), instanceName)
-import Vira.App.LinkTo.Type (LinkTo, linkShortTitle)
+import Vira.App.LinkTo.Type (LinkTo (..), linkShortTitle)
 import Vira.App.Lucid (AppHtml)
 import Vira.App.Stack (AppState (cliSettings))
 import Vira.Stream.Refresh qualified as Refresh
 import Vira.Widgets.Status qualified as Status
+import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (asks)
 
 -- | Common HTML layout for all routes.
@@ -116,6 +118,17 @@ layout crumbs content = do
             div_ [class_ "text-xs text-gray-500"] $ do
               a_ [href_ "https://github.com/juspay/vira", target_ "_blank", class_ "hover:text-gray-700 transition-colors"] "Vira"
 
+-- | Get icon for a LinkTo type
+linkToIcon :: (Monad m) => LinkTo -> HtmlT m ()
+linkToIcon = \case
+  Home -> toHtmlRaw Icon.home
+  RepoListing -> toHtmlRaw Icon.folder
+  Repo _ -> toHtmlRaw Icon.book_2
+  RepoBranch _ _ -> toHtmlRaw Icon.git_branch
+  Job _ -> toHtmlRaw Icon.player_play
+  Settings -> toHtmlRaw Icon.settings_2
+  _ -> toHtmlRaw Icon.circle -- fallback for other types
+
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
 breadcrumbs :: [LinkTo] -> AppHtml ()
 breadcrumbs rs' = do
@@ -143,15 +156,19 @@ breadcrumbs rs' = do
     renderCrumb :: LinkTo -> Bool -> AppHtml ()
     renderCrumb linkToValue isLast = do
       let title = linkShortTitle linkToValue
+          icon = linkToIcon linkToValue
+          content = do
+            div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] icon
+            toHtml title
       if isLast
-        then span_ [class_ "font-semibold text-white px-2 py-1 rounded-lg bg-white/20 backdrop-blur-sm"] $ toHtml title
+        then span_ [class_ "font-semibold text-white px-2 py-1 rounded-lg bg-white/20 backdrop-blur-sm flex items-center"] content
         else do
           url <- lift $ App.getLinkUrl linkToValue
           a_
             [ href_ url
-            , class_ "text-white/90 hover:text-white transition-smooth px-2 py-1 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30 font-medium"
+            , class_ "text-white/90 hover:text-white transition-smooth px-2 py-1 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/30 font-medium flex items-center"
             ]
-            $ toHtml title
+            content
     chevronSvg :: (Monad m) => HtmlT m ()
     chevronSvg =
       span_ [class_ "mx-1 text-white/60"] $ toHtmlRaw ("<svg xmlns='http://www.w3.org/2000/svg' class='h-5 w-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path stroke-linecap='round' stroke-linejoin='round' d='M9 5l7 7-7 7'/></svg>" :: Text)
@@ -165,6 +182,19 @@ viraPageHeader_ :: (Monad m) => Text -> HtmlT m () -> HtmlT m ()
 viraPageHeader_ title subtitle = do
   div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-4 mb-6"] $ do
     h1_ [class_ "text-2xl font-bold text-indigo-900 tracking-tight mb-2"] $ toHtml title
+    div_ [class_ "text-indigo-700"] subtitle
+
+{- |
+Standardized page header with icon, title and subtitle.
+
+Features indigo styling that connects visually with breadcrumbs, with an icon displayed alongside the title.
+-}
+viraPageHeaderWithIcon_ :: (Monad m) => HtmlT m () -> Text -> HtmlT m () -> HtmlT m ()
+viraPageHeaderWithIcon_ icon title subtitle = do
+  div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-4 mb-6"] $ do
+    h1_ [class_ "text-2xl font-bold text-indigo-900 tracking-tight mb-2 flex items-center"] $ do
+      div_ [class_ "w-6 h-6 mr-3 flex items-center justify-center text-indigo-900"] icon
+      toHtml title
     div_ [class_ "text-indigo-700"] subtitle
 
 {- |

@@ -18,7 +18,9 @@ import Servant.Server.Generic (AsServer)
 import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.Lib.Git (BranchName)
 import Vira.Lib.Logging
+import Vira.Page.BranchPage qualified as BranchPage
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..), RepoName (..), RepoSettings (..))
@@ -36,6 +38,7 @@ type FormResp = Headers '[HXRedirect] (Html ())
 data Routes mode = Routes
   { _listing :: mode :- Get '[HTML] (Html ())
   , _repo :: mode :- Capture "name" RepoName :> NamedRoutes RepoPage.Routes
+  , _branch :: mode :- Capture "repo" RepoName :> "branches" :> Capture "name" BranchName :> NamedRoutes BranchPage.Routes
   , _addRepo :: mode :- "add" :> FormReq Repo :> Post '[HTML] FormResp
   }
   deriving stock (Generic)
@@ -45,6 +48,7 @@ handlers cfg = do
   Routes
     { _listing = App.runAppInServant cfg $ App.runAppHtml handleListing
     , _repo = RepoPage.handlers cfg
+    , _branch = BranchPage.handlers cfg
     , _addRepo = App.runAppInServant cfg . handleAddRepo
     }
 
