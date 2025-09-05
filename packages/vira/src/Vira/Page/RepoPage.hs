@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
-module Vira.Page.RepoPage where
+module Vira.Page.RepoPage (
+  Routes (..),
+  handlers,
+) where
 
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
@@ -26,21 +29,6 @@ import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Status qualified as Status
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask, asks)
-
--- Data type to represent the effective status of a branch
-data BranchEffectiveStatus
-  = NeverBuilt
-  | JobStatus St.JobStatus
-  | OutOfDate
-
--- Determine the effective status of a branch considering if it's out of date
-getBranchEffectiveStatus :: St.Branch -> Maybe St.Job -> BranchEffectiveStatus
-getBranchEffectiveStatus branch = \case
-  Nothing -> NeverBuilt
-  Just job ->
-    if branch.headCommit == job.jobCommit
-      then JobStatus job.jobStatus
-      else OutOfDate
 
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
@@ -215,3 +203,18 @@ viewBranchListing repo branches = do
                 span_ [class_ "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800"] $ do
                   div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.clock
                   "Out of date"
+
+-- Data type to represent the effective status of a branch
+data BranchEffectiveStatus
+  = NeverBuilt
+  | JobStatus St.JobStatus
+  | OutOfDate
+
+-- Determine the effective status of a branch considering if it's out of date
+getBranchEffectiveStatus :: St.Branch -> Maybe St.Job -> BranchEffectiveStatus
+getBranchEffectiveStatus branch = \case
+  Nothing -> NeverBuilt
+  Just job ->
+    if branch.headCommit == job.jobCommit
+      then JobStatus job.jobStatus
+      else OutOfDate
