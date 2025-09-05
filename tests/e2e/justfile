@@ -1,9 +1,0 @@
-# Playwright E2E test recipes
-
-# Run all Playwright tests
-test:
-    npm test
-
-# Run Playwright tests with list reporter for CI/non-interactive
-test-list:
-    npm run test:list

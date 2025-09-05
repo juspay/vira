@@ -2,14 +2,6 @@ ci:
   default:
     vira:
       dir: .
-      steps:
-        build:
-          enable: true
-        # Disabled; see playwrighte.yaml GitHub workflow
-        # custom:
-        #   e2e:
-        #     type: app
-        #     name: "e2e"
     examples-nixos:
       dir: nix/examples/nixos
       overrideInputs:

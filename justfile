@@ -1,8 +1,6 @@
 default:
     @just --list
 
-mod e2e 'tests/e2e'
-
 # Run hoogle
 [group('2. haskell')]
 docs:
