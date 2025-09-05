@@ -32,7 +32,6 @@ module Vira.Widgets.Layout (
   layout,
   viraPageHeader_,
   viraPageHeaderWithIcon_,
-  viraPageHeaderWithActions_,
   viraSection_,
   viraDivider_,
 ) where
@@ -196,20 +195,6 @@ viraPageHeaderWithIcon_ icon title subtitle = do
       div_ [class_ "w-6 h-6 mr-3 flex items-center justify-center text-indigo-900"] icon
       toHtml title
     div_ [class_ "text-indigo-700"] subtitle
-
-{- |
-Page header with title, subtitle, and action buttons.
-
-Same styling as viraPageHeader_ but supports action buttons on the right.
--}
-viraPageHeaderWithActions_ :: (Monad m) => Text -> HtmlT m () -> HtmlT m () -> HtmlT m ()
-viraPageHeaderWithActions_ title subtitle actions = do
-  div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-4 mb-6"] $ do
-    div_ [class_ "flex items-start justify-between"] $ do
-      div_ [class_ "flex-1"] $ do
-        h1_ [class_ "text-2xl font-bold text-indigo-900 tracking-tight mb-2"] $ toHtml title
-        div_ [class_ "text-indigo-700"] subtitle
-      div_ [class_ "flex flex-col gap-2 ml-6"] actions
 
 {- |
 Section component for grouping and spacing page content.

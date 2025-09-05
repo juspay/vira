@@ -7,7 +7,6 @@ All components follow the Vira Design System guidelines defined in DESIGN.md.
 = Component Categories
 
 == Code Display Components
-- 'viraCodeBlock_' - Code display with proper formatting for multi-line snippets
 - 'viraCodeInline_' - Inline code elements for text integration
 
 = Usage Guidelines
@@ -23,43 +22,10 @@ Always prefer these components over raw HTML to maintain design consistency.
 - Accessibility: Proper text selection and copying
 -}
 module Vira.Widgets.Code (
-  viraCodeBlock_,
   viraCodeInline_,
 ) where
 
 import Lucid
-
-{- |
-Code block component for displaying larger code snippets.
-
-Formatted container for multi-line code with:
-- Monospace font family
-- Subtle background and borders
-- Horizontal scrolling for overflow
-- Proper text selection and copying
-
-= Usage Examples
-
-@
--- Git commit hash
-W.viraCodeBlock_ "a1b2c3d4e5f6g7h8i9j0"
-
--- Build command
-W.viraCodeBlock_ "nix build .#default"
-
--- Error message
-W.viraCodeBlock_ "Error: Package not found in registry"
-@
-
-= When to Use
-
-Use for longer code snippets, commit hashes, commands, or error messages.
-For inline code within text, use 'viraCodeInline_' instead.
--}
-viraCodeBlock_ :: (Monad m) => Text -> HtmlT m ()
-viraCodeBlock_ code = do
-  div_ [class_ "bg-gray-50 border border-gray-200 rounded-lg p-4 overflow-x-auto"] $ do
-    code_ [class_ "text-sm text-gray-800 font-mono break-all"] $ toHtml code
 
 {- |
 Inline code component for small code snippets within text.
@@ -89,7 +55,7 @@ span_ $ do
 
 = Design Guidelines
 
-Uses smaller, more subtle styling than 'viraCodeBlock_'.
+Uses smaller, more subtle styling than block code.
 Integrates seamlessly with surrounding text flow.
 -}
 viraCodeInline_ :: (Monad m) => Text -> HtmlT m ()
