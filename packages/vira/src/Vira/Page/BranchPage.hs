@@ -47,10 +47,9 @@ viewHandler repoName branchName = do
 viewBranch :: St.Repo -> St.Branch -> [St.Job] -> App.AppHtml ()
 viewBranch repo branch jobs = do
   -- Branch header with refresh button
-  updateLink <- lift $ App.getLink $ LinkTo.RepoUpdate repo.name
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.git_branch)
-    (toText (toString repo.name) <> " → " <> toText (toString branch.branchName))
+    (toText $ toString repo.name <> " → " <> toString branch.branchName)
     ( div_ [class_ "flex items-center justify-between"] $ do
         div_ [class_ "flex items-center space-x-3 text-gray-600"] $ do
           span_ [class_ "text-sm"] "Latest commit:"
@@ -59,6 +58,7 @@ viewBranch repo branch jobs = do
             viewCommitHash branch.headCommit
         div_ [class_ "flex items-center gap-2"] $ do
           buildLink <- lift $ App.getLink $ LinkTo.Build repo.name branch.branchName
+          updateLink <- lift $ App.getLink $ LinkTo.RepoUpdate repo.name
           W.viraButton_
             W.ButtonPrimary
             [ hxPostSafe_ buildLink

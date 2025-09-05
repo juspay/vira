@@ -35,18 +35,14 @@ data BranchEffectiveStatus
 
 -- Determine the effective status of a branch considering if it's out of date
 getBranchEffectiveStatus :: St.Branch -> Maybe St.Job -> BranchEffectiveStatus
-getBranchEffectiveStatus branch maybeLatestJob =
-  case maybeLatestJob of
-    Nothing -> NeverBuilt
-    Just job ->
-      case job.jobStatus of
-        St.JobPending -> JobStatus St.JobPending
-        St.JobRunning -> JobStatus St.JobRunning
-        St.JobKilled -> JobStatus St.JobKilled
-        St.JobFinished result ->
-          if branch.headCommit == job.jobCommit
-            then JobStatus (St.JobFinished result)
-            else OutOfDate result
+getBranchEffectiveStatus branch = \case
+  Nothing -> NeverBuilt
+  Just job -> case job.jobStatus of
+    St.JobFinished result ->
+      if branch.headCommit == job.jobCommit
+        then JobStatus (St.JobFinished result)
+        else OutOfDate result
+    status -> JobStatus status
 
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
@@ -165,13 +161,6 @@ viewRepo repo branches _allJobs = do
               $ do
                 W.viraButtonIcon_ $ toHtmlRaw Icon.trash
                 "Delete Repository"
-
--- Branch-specific view function - now redirects to BranchPage
-viewRepoBranch :: St.Repo -> St.Branch -> [St.Branch] -> [St.Job] -> App.AppHtml ()
-viewRepoBranch _repo _branch _branches _jobs = do
-  -- This function is no longer used - branches now have their own dedicated page
-  div_ [class_ "text-center py-12"] $ do
-    div_ [class_ "text-gray-500 mb-4"] "Branch view has been moved to its own page"
 
 -- Branch listing component for repository page
 viewBranchListing :: St.Repo -> [St.Branch] -> App.AppHtml ()
