@@ -11,6 +11,7 @@ import Servant.API (FromHttpApiData, ToHttpApiData)
 import Vira.Lib.Attic
 import Vira.Lib.Git (BranchName, CommitID)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
+import Web.HttpApiData (parseUrlPiece, toUrlPiece)
 
 newtype RepoSettings = RepoSettings
   { dummy :: Maybe Text
@@ -151,6 +152,73 @@ data JobStatus
 data JobResult = JobSuccess | JobFailure
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
+data Platform
+  = PlatformLinux
+  | PlatformMacOS
+  | PlatformMacOSIntel
+  deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
+
+instance FromHttpApiData Platform where
+  parseUrlPiece "linux" = Right PlatformLinux
+  parseUrlPiece "macos" = Right PlatformMacOS
+  parseUrlPiece "macos-intel" = Right PlatformMacOSIntel
+  parseUrlPiece _ = Left "Invalid platform"
+
+instance ToHttpApiData Platform where
+  toUrlPiece PlatformLinux = "linux"
+  toUrlPiece PlatformMacOS = "macos"
+  toUrlPiece PlatformMacOSIntel = "macos-intel"
+
+instance FromForm Platform where
+  fromForm f = do
+    platformStr <- parseUnique "platform" f
+    case (platformStr :: Text) of
+      "linux" -> Right PlatformLinux
+      "macos" -> Right PlatformMacOS
+      "macos-intel" -> Right PlatformMacOSIntel
+      _ -> Left "Invalid platform"
+
+newtype RemoteBuilderId = RemoteBuilderId {unRemoteBuilderId :: Int}
+  deriving stock (Generic, Data)
+  deriving newtype
+    ( Show
+    , Eq
+    , Ord
+    , Num
+    , ToHttpApiData
+    , FromHttpApiData
+    )
+
+data RemoteBuilder = RemoteBuilder
+  { remoteBuilderUser :: Text
+  -- ^ SSH username for the remote builder
+  , remoteBuilderHost :: Text
+  -- ^ SSH hostname for the remote builder
+  , remoteBuilderPlatforms :: [Platform]
+  -- ^ List of platforms this host supports
+  , remoteBuilderNote :: Maybe Text
+  -- ^ Optional note/description for this builder
+  , remoteBuilderId :: RemoteBuilderId
+  -- ^ Unique identifier for this remote builder
+  }
+  deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
+
+-- | Form data for adding/updating remote builders (without ID)
+data RemoteBuilderForm = RemoteBuilderForm
+  { remoteBuilderFormUser :: Text
+  , remoteBuilderFormHost :: Text
+  , remoteBuilderFormPlatforms :: [Platform]
+  , remoteBuilderFormNote :: Maybe Text
+  }
+  deriving stock (Generic, Show)
+  deriving anyclass (FromForm)
+
+type RemoteBuilderIxs = '[RemoteBuilderId]
+type IxRemoteBuilder = IxSet RemoteBuilderIxs RemoteBuilder
+
+instance Indexable RemoteBuilderIxs RemoteBuilder where
+  indices = ixList (ixFun $ \RemoteBuilder {remoteBuilderId} -> [remoteBuilderId])
+
 $(deriveSafeCopy 0 'base ''JobResult)
 $(deriveSafeCopy 0 'base ''JobStatus)
 $(deriveSafeCopy 0 'base ''RepoName)
@@ -161,3 +229,7 @@ $(deriveSafeCopy 0 'base ''RepoSettings)
 $(deriveSafeCopy 0 'base ''Repo)
 $(deriveSafeCopy 0 'base ''CachixSettings)
 $(deriveSafeCopy 0 'base ''AtticSettings)
+$(deriveSafeCopy 0 'base ''Platform)
+$(deriveSafeCopy 0 'base ''RemoteBuilderId)
+$(deriveSafeCopy 0 'base ''RemoteBuilder)
+$(deriveSafeCopy 0 'base ''RemoteBuilderForm)

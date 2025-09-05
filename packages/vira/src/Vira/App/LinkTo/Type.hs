@@ -2,7 +2,7 @@
 module Vira.App.LinkTo.Type where
 
 import Vira.Lib.Git (BranchName)
-import Vira.State.Type (JobId, RepoName)
+import Vira.State.Type (JobId, RemoteBuilderId, RepoName)
 
 {- | The part of the application the caller intends to link to
 
@@ -26,6 +26,9 @@ data LinkTo
   | SettingsDeleteCachix
   | SettingsUpdateAttic
   | SettingsDeleteAttic
+  | SettingsAddRemoteBuilder
+  | SettingsUpdateRemoteBuilder RemoteBuilderId
+  | SettingsDeleteRemoteBuilder RemoteBuilderId
   | Refresh
 
 linkShortTitle :: LinkTo -> Text
@@ -47,4 +50,7 @@ linkShortTitle = \case
   SettingsDeleteCachix -> "Delete Cachix Settings" -- unused
   SettingsUpdateAttic -> "Attic Settings" -- unused
   SettingsDeleteAttic -> "Delete Attic Settings" -- unused
+  SettingsAddRemoteBuilder -> "Add Remote Builder" -- unused
+  SettingsUpdateRemoteBuilder _ -> "Update Remote Builder" -- unused
+  SettingsDeleteRemoteBuilder _ -> "Delete Remote Builder" -- unused
   Refresh -> "Refresh"

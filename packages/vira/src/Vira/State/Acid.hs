@@ -36,6 +36,8 @@ data ViraState = ViraState
   -- ^ Global Cachix settings, i.e for all the `repos`
   , attic :: Maybe AtticSettings
   -- ^ Global Attic settings, i.e for all the `repos`
+  , remoteBuilders :: IxRemoteBuilder
+  -- ^ Remote builders for distributed builds
   }
   deriving stock (Generic, Typeable)
 
@@ -195,6 +197,51 @@ markUnfinishedJobsAsStaleA = do
         jobUpdateStatusA job.jobId JobKilled
       _ -> pass
 
+-- | Get all remote builders
+getAllRemoteBuildersA :: Query ViraState [RemoteBuilder]
+getAllRemoteBuildersA = do
+  ViraState {remoteBuilders} <- ask
+  pure $ Ix.toList remoteBuilders
+
+-- | Get a remote builder by ID
+getRemoteBuilderByIdA :: RemoteBuilderId -> Query ViraState (Maybe RemoteBuilder)
+getRemoteBuilderByIdA builderId = do
+  ViraState {remoteBuilders} <- ask
+  pure $ Ix.getOne $ remoteBuilders @= builderId
+
+-- | Add a new remote builder
+addRemoteBuilderA :: Text -> Text -> [Platform] -> Maybe Text -> Update ViraState RemoteBuilder
+addRemoteBuilderA user host platforms note = do
+  builders <- Ix.toList <$> gets remoteBuilders
+  let
+    builderId =
+      let ids = remoteBuilderId <$> builders
+       in if Prelude.null ids then RemoteBuilderId 1 else RemoteBuilderId 1 + maximum ids
+    builder = RemoteBuilder user host platforms note builderId
+  modify $ \s ->
+    s
+      { remoteBuilders = Ix.insert builder s.remoteBuilders
+      }
+  pure builder
+
+-- | Update a remote builder
+updateRemoteBuilderA :: RemoteBuilderId -> Text -> Text -> [Platform] -> Maybe Text -> Update ViraState ()
+updateRemoteBuilderA builderId user host platforms note = do
+  modify $ \s -> do
+    let builder = fromMaybe (error $ "No such remote builder: " <> show builderId) $ Ix.getOne $ s.remoteBuilders @= builderId
+        updatedBuilder = builder {remoteBuilderUser = user, remoteBuilderHost = host, remoteBuilderPlatforms = platforms, remoteBuilderNote = note}
+    s
+      { remoteBuilders = Ix.updateIx builderId updatedBuilder s.remoteBuilders
+      }
+
+-- | Delete a remote builder by ID
+deleteRemoteBuilderA :: RemoteBuilderId -> Update ViraState ()
+deleteRemoteBuilderA builderId = do
+  modify $ \s ->
+    s
+      { remoteBuilders = Ix.deleteIx builderId s.remoteBuilders
+      }
+
 -- | Like `Ix.updateIx`, but works for multiple items.
 updateIxMulti ::
   (Ix.IsIndexOf ix ixs, Ix.Indexable ixs a) =>
@@ -239,5 +286,10 @@ $( makeAcidic
     , 'setAtticSettingsA
     , 'addNewRepoA
     , 'deleteRepoByNameA
+    , 'getAllRemoteBuildersA
+    , 'getRemoteBuilderByIdA
+    , 'addRemoteBuilderA
+    , 'updateRemoteBuilderA
+    , 'deleteRemoteBuilderA
     ]
  )

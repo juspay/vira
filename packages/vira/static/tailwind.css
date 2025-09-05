@@ -323,6 +323,9 @@
   .mb-8 {
     margin-bottom: calc(var(--spacing) * 8);
   }
+  .ml-2 {
+    margin-left: calc(var(--spacing) * 2);
+  }
   .ml-3 {
     margin-left: calc(var(--spacing) * 3);
   }
@@ -805,6 +808,9 @@
   }
   .text-green-500 {
     color: var(--color-green-500);
+  }
+  .text-green-600 {
+    color: var(--color-green-600);
   }
   .text-green-800 {
     color: var(--color-green-800);

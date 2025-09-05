@@ -32,4 +32,7 @@ linkTo = \case
   SettingsDeleteCachix -> fieldLink _settings // SettingsPage._deleteCachix
   SettingsUpdateAttic -> fieldLink _settings // SettingsPage._updateAttic
   SettingsDeleteAttic -> fieldLink _settings // SettingsPage._deleteAttic
+  SettingsAddRemoteBuilder -> fieldLink _settings // SettingsPage._addRemoteBuilder
+  SettingsUpdateRemoteBuilder builderId -> fieldLink _settings // SettingsPage._updateRemoteBuilder /: builderId
+  SettingsDeleteRemoteBuilder builderId -> fieldLink _settings // SettingsPage._deleteRemoteBuilder /: builderId
   Refresh -> fieldLink _refresh
