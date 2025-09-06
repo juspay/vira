@@ -4,6 +4,7 @@ module Vira.App.Run (
 
 import Control.Concurrent.STM (newBroadcastTChan)
 import Control.Exception (bracket)
+import Data.Acid (AcidState)
 import Data.Aeson (encode)
 import Data.ByteString.Lazy qualified as LBS
 import Main.Utf8 qualified as Utf8
@@ -12,7 +13,7 @@ import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSet
 import Vira.App.CLI qualified as CLI
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Server qualified as Server
-import Vira.State.Core (closeViraState, openViraState)
+import Vira.State.Core (ViraState, closeViraState, openViraState)
 import Vira.State.JSON (getExportData, importViraState)
 import Vira.Supervisor.Core qualified as Supervisor
 import Prelude hiding (Reader, ask, runReader)
@@ -37,9 +38,7 @@ runVira = do
       withViraState globalSettings $ \acid -> do
         -- Import data if specified
         whenJust (importFile webSettings) $ \filePath -> do
-          jsonData <- readFileLBS filePath
-          result <- importViraState acid jsonData
-          handleImportResult result $ "Successfully imported data from " <> toText filePath
+          importFromFileOrStdin acid (Just filePath)
 
         supervisor <- Supervisor.newSupervisor (stateDir globalSettings)
         -- Initialize broadcast channel for state update tracking
@@ -56,18 +55,19 @@ runVira = do
 
     runImport :: GlobalSettings -> IO ()
     runImport globalSettings = do
-      jsonData <- LBS.getContents
       withViraState globalSettings $ \acid -> do
-        result <- importViraState acid jsonData
-        handleImportResult result "Import completed successfully"
+        importFromFileOrStdin acid Nothing
 
-    handleImportResult :: Either String () -> Text -> IO ()
-    handleImportResult result successMsg = case result of
-      Left err -> do
-        putTextLn $ "Import failed: " <> toText err
-        exitFailure
-      Right () -> do
-        putTextLn successMsg
+    importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()
+    importFromFileOrStdin acid mFilePath = do
+      jsonData <- maybe LBS.getContents readFileLBS mFilePath
+      result <- importViraState acid jsonData
+      case result of
+        Left err -> do
+          putTextLn $ "Import failed: " <> toText err
+          exitFailure
+        Right () -> do
+          putTextLn $ "Imported from: " <> maybe "stdin" toText mFilePath
 
     withViraState globalSettings action = do
       bracket (openViraState (stateDir globalSettings)) closeViraState action
