@@ -42,12 +42,16 @@ data WebSettings = WebSettings
   -- ^ Base URL path for the http server
   , tlsConfig :: TLSConfig
   -- ^ TLS configuration for HTTPS support
+  , importFile :: Maybe FilePath
+  -- ^ Optional JSON file to import on startup
   }
   deriving stock (Show)
 
 -- | Available commands
-newtype Command
+data Command
   = WebCommand WebSettings
+  | ExportCommand
+  | ImportCommand
   deriving stock (Show)
 
 -- | Complete CLI configuration
@@ -113,6 +117,13 @@ webSettingsParser hostName = do
           <> showDefault
       )
   tlsConfig <- tlsConfigParser
+  importFile <-
+    optional $
+      strOption
+        ( long "import"
+            <> metavar "FILE"
+            <> help "Import JSON file on startup"
+        )
   pure WebSettings {..}
 
 -- | Parser for commands
@@ -120,6 +131,8 @@ commandParser :: HostName -> Parser Command
 commandParser hostName =
   hsubparser
     ( OA.command "web" (info (WebCommand <$> webSettingsParser hostName) (progDesc "Start the web server"))
+        <> OA.command "export" (info (pure ExportCommand) (progDesc "Export Vira state to JSON"))
+        <> OA.command "import" (info (pure ImportCommand) (progDesc "Import Vira state from JSON"))
     )
 
 -- | Parser for CLISettings

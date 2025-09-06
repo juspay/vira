@@ -4,6 +4,7 @@
 -- | Working with [attic](https://github.com/zhaofengli/attic) cache servers
 module Vira.Lib.Attic where
 
+import Data.Aeson (FromJSON, ToJSON)
 import Data.SafeCopy
 import Servant.API (FromHttpApiData, ToHttpApiData)
 import System.Process (CreateProcess, proc)
@@ -16,7 +17,7 @@ data AtticServer = AtticServer
   , serverUrl :: Text
   }
   deriving stock (Eq, Show, Generic)
-  deriving anyclass (FromForm)
+  deriving anyclass (FromForm, ToJSON, FromJSON)
 
 -- | An attic login token
 newtype AtticToken = AtticToken {unAtticToken :: Text}
@@ -26,6 +27,8 @@ newtype AtticToken = AtticToken {unAtticToken :: Text}
     , ToString
     , ToHttpApiData
     , FromHttpApiData
+    , ToJSON
+    , FromJSON
     )
 
 -- | An attic cache name
@@ -37,6 +40,8 @@ newtype AtticCache = AtticCache {unAtticCache :: Text}
     , ToText
     , ToHttpApiData
     , FromHttpApiData
+    , ToJSON
+    , FromJSON
     )
 
 $(deriveSafeCopy 0 'base ''AtticServer)

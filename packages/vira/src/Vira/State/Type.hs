@@ -4,6 +4,7 @@
 
 module Vira.State.Type where
 
+import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import Data.Data (Data)
 import Data.IxSet.Typed
 import Data.SafeCopy
@@ -28,6 +29,7 @@ data AtticSettings = AtticSettings
   -- ^ Access token for `atticServerUrl`
   }
   deriving stock (Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 -- TODO: type-check field names during compile-time
 instance FromForm AtticSettings where
@@ -44,7 +46,7 @@ data CachixSettings = CachixSettings
   -- ^ Auth token for the cachix cache
   }
   deriving stock (Show, Generic)
-  deriving anyclass (FromForm)
+  deriving anyclass (FromForm, ToJSON, FromJSON)
 
 newtype RepoName = RepoName {unRepoName :: Text}
   deriving stock (Generic, Data)
@@ -55,6 +57,10 @@ newtype RepoName = RepoName {unRepoName :: Text}
     , ToText
     , ToHttpApiData
     , FromHttpApiData
+    , ToJSON
+    , FromJSON
+    , ToJSONKey
+    , FromJSONKey
     )
   deriving anyclass (FromForm)
 
