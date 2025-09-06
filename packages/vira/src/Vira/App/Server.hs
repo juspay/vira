@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 module Vira.App.Server (
   runServer,
 ) where
@@ -30,7 +32,7 @@ runServer globalSettings webSettings = do
   log Debug $ "Global settings: " <> show globalSettings
   log Debug $ "Web settings: " <> show webSettings
   app <- buildApplication
-  liftIO $ startWarpServer (warpSettings webSettings) (stateDir globalSettings) (tlsConfig webSettings) app
+  liftIO $ startWarpServer (warpSettings webSettings) globalSettings.stateDir webSettings.tlsConfig app
   where
     buildApplication = do
       appState <- Reader.ask @AppState
@@ -38,9 +40,9 @@ runServer globalSettings webSettings = do
       middleware <- staticMiddleware
       pure $ middleware servantApp
 
-    buildUrl ws = protocol <> "://" <> host ws <> ":" <> show (port ws)
+    buildUrl ws = protocol <> "://" <> ws.host <> ":" <> show ws.port
       where
-        protocol = case tlsConfig ws of
+        protocol = case ws.tlsConfig of
           TLSDisabled -> "http"
           _ -> "https"
 
@@ -51,8 +53,8 @@ runServer globalSettings webSettings = do
 
     warpSettings ws =
       Warp.defaultSettings
-        & Warp.setHost (fromString $ toString $ host ws)
-        & Warp.setPort (port ws)
+        & Warp.setHost (fromString $ toString ws.host)
+        & Warp.setPort ws.port
 
 -- Like Paths_vira.getDataDir but GHC multi-home friendly
 getDataDirMultiHome :: (IOE :> es, FileSystem :> es, Log Message :> es) => Eff es FilePath
