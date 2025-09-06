@@ -4,6 +4,11 @@ with lib;
 
 let
   cfg = config.services.vira;
+
+  # Generate initial state JSON from configuration
+  initialStateJson = pkgs.writeText "vira-initial-state.json" (builtins.toJSON cfg.initialState);
+
+  hasInitialState = cfg.initialState.repositories != [ ] || cfg.initialState.cachixSettings != null || cfg.initialState.atticSettings != null;
 in
 {
   options.services.vira = {
@@ -69,6 +74,58 @@ in
       description = "Base URL path for the HTTP server";
     };
 
+    initialState = mkOption {
+      description = "Initial state configuration for Vira";
+      default = { };
+      type = types.submodule {
+        options = {
+          repositories = mkOption {
+            description = "List of repositories to import";
+            default = [ ];
+            type = types.listOf (types.submodule {
+              options = {
+                name = mkOption {
+                  type = types.str;
+                  description = "Repository name";
+                };
+                cloneUrl = mkOption {
+                  type = types.str;
+                  description = "Git clone URL for the repository";
+                };
+              };
+            });
+          };
+
+          cachixSettings = mkOption {
+            description = "Cachix configuration";
+            default = null;
+            type = types.nullOr (types.submodule {
+              options = {
+                cachixName = mkOption {
+                  type = types.str;
+                  description = "Cachix cache name";
+                };
+                authToken = mkOption {
+                  type = types.str;
+                  description = "Cachix authentication token";
+                };
+              };
+            });
+          };
+
+          atticSettings = mkOption {
+            description = "Attic configuration";
+            default = null;
+            type = types.nullOr (types.submodule {
+              options = {
+                # Add attic-specific options here when needed
+              };
+            });
+          };
+        };
+      };
+    };
+
   };
 
   config = mkIf cfg.enable {
@@ -121,7 +178,8 @@ in
               (toString cfg.port)
               "--base-path"
               cfg.basePath
-            ] ++ optionals (!cfg.https) [ "--no-https" ];
+            ] ++ optionals (!cfg.https) [ "--no-https" ]
+            ++ optionals hasInitialState [ "--import" initialStateJson ];
           in
           "${cfg.package}/bin/vira ${concatStringsSep " " globalArgs} web ${concatStringsSep " " webArgs}";
       };
