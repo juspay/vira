@@ -6,6 +6,8 @@ import Colog (Severity (..))
 import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
+import Effectful.Git (BranchName)
+import Effectful.Git qualified as Git
 import Effectful.Process (CreateProcess (cwd), env, proc)
 import Effectful.Reader.Dynamic (asks)
 import GHC.IO.Exception (ExitCode (..))
@@ -23,8 +25,6 @@ import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Attic
 import Vira.Lib.Cachix
-import Vira.Lib.Git (BranchName)
-import Vira.Lib.Git qualified as Git
 import Vira.Lib.Logging
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.Page.JobLog qualified as JobLog
@@ -93,7 +93,11 @@ viewJob job = do
       div_ [class_ "flex items-center justify-between"] $ do
         div_ [class_ "flex items-center space-x-4"] $ do
           span_ "Commit:"
-          viewCommit job.jobCommit
+          -- Lookup full commit and show commit info, fallback to just commit ID
+          maybeCommit <- lift $ App.query $ St.GetCommitByIdA job.jobCommit
+          case maybeCommit of
+            Just commit -> W.viraCommitInfo_ commit
+            Nothing -> viewCommit job.jobCommit
         div_ [class_ "flex items-center space-x-4"] $ do
           viewJobStatus job.jobStatus
           when jobActive $ do
@@ -120,7 +124,11 @@ viewJobHeader job = do
         div_ [class_ "flex-shrink-0"] $ do
           span_ [class_ "inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-800"] $ do
             "Job #" <> toHtml (show @Text job.jobId)
-        viewCommit job.jobCommit
+        -- Lookup full commit and show commit info, fallback to just commit ID
+        maybeCommit <- lift $ App.query $ St.GetCommitByIdA job.jobCommit
+        case maybeCommit of
+          Just commit -> W.viraCommitInfo_ commit
+          Nothing -> viewCommit job.jobCommit
       viewJobStatus job.jobStatus
 
 viewCommit :: (Monad m) => Git.CommitID -> HtmlT m ()
@@ -138,7 +146,7 @@ triggerNewBuild :: (HasCallStack) => RepoName -> BranchName -> Eff App.AppServan
 triggerNewBuild repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
-  log Info $ "Building commit " <> show (repoName, branch.headCommit)
+  log Info $ "Building commit " <> show (repoName, branch.headCommit.commitId)
   mCachix <- App.query St.GetCachixSettingsA
   mAttic <- App.query St.GetAtticSettingsA
   asks App.supervisor >>= \supervisor -> do
@@ -166,7 +174,7 @@ getStages repo branch mCachix mAttic = do
     stageCreateProjectDir =
       proc "mkdir" ["project"]
     stagesClone =
-      Git.cloneAtCommit repo.cloneUrl branch.headCommit
+      Git.cloneAtCommit repo.cloneUrl branch.headCommit.commitId
         & \p -> p {cwd = Just "project"}
     stageBuild =
       Omnix.omnixCiProcess

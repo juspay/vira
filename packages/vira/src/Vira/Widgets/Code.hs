@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 {- |
 Vira Design System - Code Display Components
 
@@ -23,8 +25,12 @@ Always prefer these components over raw HTML to maintain design consistency.
 -}
 module Vira.Widgets.Code (
   viraCodeInline_,
+  viraCommitInfo_,
 ) where
 
+import Data.Text qualified as T
+import Data.Time (defaultTimeLocale, formatTime)
+import Effectful.Git qualified as Git
 import Lucid
 
 {- |
@@ -61,3 +67,44 @@ Integrates seamlessly with surrounding text flow.
 viraCodeInline_ :: (Monad m) => Text -> HtmlT m ()
 viraCodeInline_ code = do
   code_ [class_ "px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded font-mono"] $ toHtml code
+
+{- |
+Commit information display component showing hash, message, author, and date.
+
+Displays git commit information in a consistent format across the application.
+Shows the first 8 characters of the commit hash, commit message (if present),
+author with email (if present), and formatted commit date.
+
+= Usage Examples
+
+@
+-- In branch listing
+div_ $ do
+  W.viraCommitInfo_ branch.headCommit
+
+-- In job details
+div_ $ do
+  "Build commit: "
+  W.viraCommitInfo_ job.commit
+@
+
+= Design Guidelines
+
+Uses inline code styling for commit hash to maintain visual consistency.
+Commit message uses subtle gray text with truncation for long messages.
+Date uses smaller text size for secondary information hierarchy.
+-}
+viraCommitInfo_ :: (Monad m) => Git.Commit -> HtmlT m ()
+viraCommitInfo_ commit = do
+  div_ [class_ "flex items-center space-x-2"] $ do
+    viraCodeInline_ (T.take 8 $ toText $ Git.unCommitID commit.commitId)
+    unless (T.null commit.commitMessage) $ do
+      span_ [class_ "text-sm text-gray-600 truncate"] $ toHtml commit.commitMessage
+    unless (T.null commit.commitAuthor) $ do
+      span_ [class_ "text-xs text-gray-500"] $ do
+        "by " <> toHtml commit.commitAuthor
+        unless (T.null commit.commitAuthorEmail) $ do
+          " <" <> toHtml commit.commitAuthorEmail <> ">"
+    div_ [class_ "text-xs text-gray-400"] $
+      toHtml $
+        formatTime defaultTimeLocale "%b %d, %Y" commit.commitDate

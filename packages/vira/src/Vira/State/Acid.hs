@@ -15,8 +15,8 @@ import Data.IxSet.Typed qualified as Ix
 import Data.List (maximum)
 import Data.Map.Strict qualified as Map
 import Data.SafeCopy (base, deriveSafeCopy)
+import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit)
 import System.FilePath ((</>))
-import Vira.Lib.Git (BranchName, CommitID)
 import Vira.State.Type
 import Vira.State.Type qualified as T
 
@@ -31,6 +31,7 @@ Data in this state is indexed by `IxSet` to allow for efficient querying.
 data ViraState = ViraState
   { repos :: IxRepo
   , branches :: IxBranch
+  , commits :: IxCommit
   , jobs :: IxJob
   , cachix :: Maybe CachixSettings
   -- ^ Global Cachix settings, i.e for all the `repos`
@@ -105,11 +106,13 @@ getRepoByNameA name = do
   ViraState {repos} <- ask
   pure $ Ix.getOne $ repos @= name
 
--- | Get all branches of a repository
+-- | Get all branches of a repository, sorted by latest commit date
 getBranchesByRepoA :: RepoName -> Query ViraState [Branch]
 getBranchesByRepoA name = do
   ViraState {branches} <- ask
-  pure $ Ix.toList $ branches @= name
+  let branchList = Ix.toList $ branches @= name
+  -- Sort by commit date in descending order (latest first)
+  pure $ sortOn (Down . (\branch -> branch.headCommit.commitDate)) branchList
 
 -- | Get a repo's branch by name
 getBranchByNameA :: RepoName -> BranchName -> Query ViraState (Maybe Branch)
@@ -126,7 +129,7 @@ setRepoA repo = do
       }
 
 -- | Set a repository's branches
-setRepoBranchesA :: RepoName -> Map BranchName CommitID -> Update ViraState ()
+setRepoBranchesA :: RepoName -> Map BranchName Commit -> Update ViraState ()
 setRepoBranchesA repo branches = do
   modify $ \s ->
     let
@@ -134,7 +137,22 @@ setRepoBranchesA repo branches = do
      in
       s
         { branches = updateIxMulti repo (Ix.fromList repoBranches) s.branches
+        , commits = s.commits <> Ix.fromList (Map.elems branches)
         }
+
+-- | Get a commit by its ID
+getCommitByIdA :: CommitID -> Query ViraState (Maybe Commit)
+getCommitByIdA commitId = do
+  ViraState {commits} <- ask
+  pure $ Ix.getOne $ commits @= commitId
+
+-- | Store a commit in the index
+storeCommitA :: Commit -> Update ViraState ()
+storeCommitA commit = do
+  modify $ \s ->
+    s
+      { commits = Ix.updateIx commit.commitId commit s.commits
+      }
 
 -- | Get all jobs of a repo's branch in descending order
 getJobsByBranchA :: RepoName -> BranchName -> Query ViraState [Job]
@@ -160,10 +178,11 @@ getJobA jobId = do
   pure $ Ix.getOne $ jobs @= jobId
 
 -- | Create a new job returning it.
-addNewJobA :: RepoName -> BranchName -> CommitID -> FilePath -> Update ViraState Job
-addNewJobA jobRepo jobBranch jobCommit baseWorkDir = do
+addNewJobA :: RepoName -> BranchName -> Commit -> FilePath -> Update ViraState Job
+addNewJobA jobRepo jobBranch commit baseWorkDir = do
   jobs <- Ix.toList <$> gets jobs
   let
+    jobCommit = commit.commitId
     jobId =
       let ids = T.jobId <$> jobs
        in if Prelude.null ids then JobId 1 else JobId 1 + maximum ids
@@ -173,6 +192,7 @@ addNewJobA jobRepo jobBranch jobCommit baseWorkDir = do
   modify $ \s ->
     s
       { jobs = Ix.insert job s.jobs
+      , commits = Ix.updateIx commit.commitId commit s.commits
       }
   pure job
 
@@ -226,6 +246,8 @@ $( makeAcidic
     , 'getBranchByNameA
     , 'setRepoA
     , 'setRepoBranchesA
+    , 'getCommitByIdA
+    , 'storeCommitA
     , 'getJobsByBranchA
     , 'getJobsByRepoA
     , 'getRunningJobs

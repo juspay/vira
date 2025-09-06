@@ -15,13 +15,13 @@ description: Simplified TLS setup and certificate generation for Warp servers
 dependencies:
   - directory
   - filepath
+  - include-env
   - optparse-applicative
   - process
   - text
   - wai
   - warp
   - warp-tls
-  - which
 
 library:
   source-dirs: src
