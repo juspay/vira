@@ -8,10 +8,9 @@ module Vira.State.JSON (
   getExportData,
 ) where
 
+import Data.Acid (AcidState, query)
 import Data.Aeson (FromJSON (..), ToJSON (..))
-import Effectful (Eff)
-import Vira.App qualified as App
-import Vira.State.Acid (GetAllReposA (GetAllReposA), GetAtticSettingsA (GetAtticSettingsA), GetCachixSettingsA (GetCachixSettingsA))
+import Vira.State.Acid (GetAllReposA (GetAllReposA), GetAtticSettingsA (GetAtticSettingsA), GetCachixSettingsA (GetCachixSettingsA), ViraState)
 import Vira.State.Type (AtticSettings, CachixSettings, Repo (..), RepoName)
 
 -- | Subset of ViraState that can be exported/imported
@@ -37,11 +36,11 @@ data ExportRepo = ExportRepo
   deriving anyclass (ToJSON, FromJSON)
 
 -- | Get export data by querying acid state
-getExportData :: Eff App.AppStack ViraExportData
-getExportData = do
-  repos <- App.query GetAllReposA
-  cachix <- App.query GetCachixSettingsA
-  attic <- App.query GetAtticSettingsA
+getExportData :: AcidState ViraState -> IO ViraExportData
+getExportData acid = do
+  repos <- query acid GetAllReposA
+  cachix <- query acid GetCachixSettingsA
+  attic <- query acid GetAtticSettingsA
   pure $
     ViraExportData
       { repositories = map (\r -> ExportRepo r.name r.cloneUrl) repos

@@ -45,13 +45,8 @@ runVira = do
     runExport :: GlobalSettings -> IO ()
     runExport globalSettings = do
       bracket (openViraState (stateDir globalSettings)) closeViraState $ \acid -> do
-        supervisor <- Supervisor.newSupervisor (stateDir globalSettings)
-        stateUpdateBuffer <- atomically newBroadcastTChan
-        let appState = App.AppState {App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer}
-            exportAction = do
-              exportData <- getExportData
-              liftIO $ LBS.putStr $ encode exportData
-        App.runApp appState exportAction
+        exportData <- getExportData acid
+        LBS.putStr $ encode exportData
 
     runImport :: GlobalSettings -> IO ()
     runImport _globalSettings = do
