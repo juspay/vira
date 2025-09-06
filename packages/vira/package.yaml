@@ -26,6 +26,7 @@ ghc-options:
   - -fplugin=Effectful.Plugin
 
 dependencies:
+  - filepattern
   - acid-state
   - aeson
   - async

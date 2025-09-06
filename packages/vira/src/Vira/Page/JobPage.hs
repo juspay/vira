@@ -6,7 +6,6 @@ import Colog (Severity (..))
 import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
-import Effectful.Process (CreateProcess (cwd), env, proc)
 import Effectful.Reader.Dynamic (asks)
 import GHC.IO.Exception (ExitCode (..))
 import Htmx.Lucid.Core (hxSwapS_)
@@ -21,16 +20,14 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Lib.Attic
-import Vira.Lib.Cachix
 import Vira.Lib.Git (BranchName)
 import Vira.Lib.Git qualified as Git
 import Vira.Lib.Logging
-import Vira.Lib.Omnix qualified as Omnix
 import Vira.Page.JobLog qualified as JobLog
+import Vira.Repo.Core (stagesForRepoBranch)
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type (AtticSettings (..), CachixSettings (..), JobId, RepoName, jobWorkingDir)
+import Vira.State.Type (JobId, RepoName, jobWorkingDir)
 import Vira.Supervisor.Task qualified as Supervisor
 import Vira.Supervisor.Type (TaskException (KilledByUser), TaskSupervisor (baseWorkDir))
 import Vira.Widgets.Button qualified as W
@@ -139,12 +136,10 @@ triggerNewBuild repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
-  mCachix <- App.query St.GetCachixSettingsA
-  mAttic <- App.query St.GetAtticSettingsA
+  stages <- stagesForRepoBranch repo branch
   asks App.supervisor >>= \supervisor -> do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
     log Info $ "Added job " <> show job
-    let stages = getStages repo branch mCachix mAttic
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \result -> do
       let status = case result of
             Right ExitSuccess -> St.JobFinished St.JobSuccess
@@ -153,36 +148,3 @@ triggerNewBuild repoName branchName = do
       App.update $ St.JobUpdateStatusA job.jobId status
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId
-
--- | Get all build stages
-getStages :: St.Repo -> St.Branch -> Maybe CachixSettings -> Maybe AtticSettings -> NonEmpty CreateProcess
-getStages repo branch mCachix mAttic = do
-  stageCreateProjectDir
-    :| one stagesClone
-    <> maybe [] (one . stageAtticLogin) mAttic
-    <> [stageBuild]
-    <> (maybe mempty (one . stageCachixPush) mCachix <> maybe mempty (one . stageAtticPush) mAttic)
-  where
-    stageCreateProjectDir =
-      proc "mkdir" ["project"]
-    stagesClone =
-      Git.cloneAtCommit repo.cloneUrl branch.headCommit
-        & \p -> p {cwd = Just "project"}
-    stageBuild =
-      Omnix.omnixCiProcess
-        { cwd = Just "project"
-        }
-    -- Run the stage before any other attic processes
-    stageAtticLogin attic =
-      (atticLoginProcess attic.atticServer attic.atticToken)
-        { cwd = Just "project"
-        }
-    stageCachixPush cachix =
-      (cachixPushProcess cachix.cachixName "result")
-        { env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]
-        , cwd = Just "project"
-        }
-    stageAtticPush attic =
-      (atticPushProcess attic.atticServer attic.atticCacheName "result")
-        { cwd = Just "project"
-        }
