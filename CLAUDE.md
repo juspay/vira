@@ -14,6 +14,7 @@ See README.md for general project information.
 - Fix all GHC warnings
 - Use `relude` over Prelude
 - Use `staticWhich` for runtime dependencies (see `Vira.Lib.Git`)
+- Use OverloadedRecordDot syntax for field access (e.g., `record.field`)
 
 ### Project Structure
 

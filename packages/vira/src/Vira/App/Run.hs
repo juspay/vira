@@ -4,6 +4,8 @@ module Vira.App.Run (
 
 import Control.Concurrent.STM (newBroadcastTChan)
 import Control.Exception (bracket)
+import Data.Aeson (encode)
+import Data.ByteString.Lazy qualified as LBS
 import Main.Utf8 qualified as Utf8
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
@@ -11,6 +13,7 @@ import Vira.App.CLI qualified as CLI
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Server qualified as Server
 import Vira.State.Core (closeViraState, openViraState)
+import Vira.State.JSON (getExportData)
 import Vira.Supervisor.Core qualified as Supervisor
 import Prelude hiding (Reader, ask, runReader)
 
@@ -41,10 +44,16 @@ runVira = do
 
     runExport :: GlobalSettings -> IO ()
     runExport globalSettings = do
-      putTextLn "TODO: Implement export functionality"
-      exitFailure
+      bracket (openViraState (stateDir globalSettings)) closeViraState $ \acid -> do
+        supervisor <- Supervisor.newSupervisor (stateDir globalSettings)
+        stateUpdateBuffer <- atomically newBroadcastTChan
+        let appState = App.AppState {App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer}
+            exportAction = do
+              exportData <- getExportData
+              liftIO $ LBS.putStr $ encode exportData
+        App.runApp appState exportAction
 
     runImport :: GlobalSettings -> IO ()
-    runImport globalSettings = do
+    runImport _globalSettings = do
       putTextLn "TODO: Implement import functionality"
       exitFailure
