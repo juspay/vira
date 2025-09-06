@@ -35,6 +35,17 @@ runVira = do
     runWebServer :: GlobalSettings -> WebSettings -> IO ()
     runWebServer globalSettings webSettings = do
       bracket (openViraState (stateDir globalSettings)) closeViraState $ \acid -> do
+        -- Import data if specified
+        whenJust (importFile webSettings) $ \filePath -> do
+          jsonData <- readFileLBS filePath
+          result <- importViraState acid jsonData
+          case result of
+            Left err -> do
+              putTextLn $ "Import failed: " <> toText err
+              exitFailure
+            Right () -> do
+              putTextLn $ "Successfully imported data from " <> toText filePath
+
         supervisor <- Supervisor.newSupervisor (stateDir globalSettings)
         -- Initialize broadcast channel for state update tracking
         stateUpdateBuffer <- atomically newBroadcastTChan

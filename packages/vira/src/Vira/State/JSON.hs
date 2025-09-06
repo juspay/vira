@@ -12,7 +12,7 @@ module Vira.State.JSON (
 import Data.Acid (AcidState, query, update)
 import Data.Aeson (FromJSON (..), ToJSON (..), decode)
 import Data.ByteString.Lazy qualified as LBS
-import Vira.State.Acid (GetAllReposA (GetAllReposA), GetAtticSettingsA (GetAtticSettingsA), GetCachixSettingsA (GetCachixSettingsA), SetAllReposA (SetAllReposA), SetAtticSettingsA (SetAtticSettingsA), SetCachixSettingsA (SetCachixSettingsA), ViraState)
+import Vira.State.Acid (AddNewRepoA (AddNewRepoA), GetAllReposA (GetAllReposA), GetAtticSettingsA (GetAtticSettingsA), GetCachixSettingsA (GetCachixSettingsA), GetRepoByNameA (GetRepoByNameA), SetAtticSettingsA (SetAtticSettingsA), SetCachixSettingsA (SetCachixSettingsA), ViraState)
 import Vira.State.Type (AtticSettings, CachixSettings, Repo (..), RepoName, RepoSettings (..))
 
 -- | Subset of ViraState that can be exported/imported
@@ -56,10 +56,46 @@ importViraState acid jsonData =
   case decode jsonData :: Maybe ViraExportData of
     Nothing -> pure $ Left "Invalid JSON format"
     Just (ViraExportData repos cachix attic) -> do
-      -- Convert ExportRepo back to Repo with default settings
-      let convertedRepos = map (\(ExportRepo name url) -> Repo name url (RepoSettings Nothing)) repos
-      -- Update acid state
-      update acid (SetAllReposA convertedRepos)
-      update acid (SetCachixSettingsA cachix)
-      update acid (SetAtticSettingsA attic)
+      -- Process repositories individually
+      result <- importRepositories acid repos
+      case result of
+        Left err -> pure $ Left err
+        Right () -> do
+          -- Update settings only if repository import succeeded
+          update acid (SetCachixSettingsA cachix)
+          update acid (SetAtticSettingsA attic)
+          pure $ Right ()
+
+-- | Import repositories, checking for conflicts
+importRepositories :: AcidState ViraState -> [ExportRepo] -> IO (Either String ())
+importRepositories acid repos = do
+  results <- mapM (importSingleRepo acid) repos
+  case lefts results of
+    [] -> pure $ Right ()
+    errs -> pure $ Left $ toString ("Repository import failed:\n" <> unlines (map toText errs))
+
+-- | Import a single repository, checking for conflicts
+importSingleRepo :: AcidState ViraState -> ExportRepo -> IO (Either String ())
+importSingleRepo acid (ExportRepo name url) = do
+  existingRepo <- query acid (GetRepoByNameA name)
+  case existingRepo of
+    Nothing -> do
+      -- Repository doesn't exist, add it
+      let newRepo = Repo name url (RepoSettings Nothing)
+      update acid (AddNewRepoA newRepo)
       pure $ Right ()
+    Just (Repo _ existingUrl _) -> do
+      -- Repository exists, check if URL matches
+      if existingUrl == url
+        then pure $ Right () -- Same URL, no conflict
+        else
+          pure $
+            Left $
+              "Repository '"
+                <> show name
+                <> "' already exists with different URL:\n"
+                <> "  Existing: "
+                <> show existingUrl
+                <> "\n"
+                <> "  Import:   "
+                <> show url

@@ -1,0 +1,25 @@
+{
+  "atticSettings": null,
+  "cachixSettings": {
+    "authToken": "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U",
+    "cachixName": "scratch-vira-dev"
+  },
+  "repositories": [
+    {
+      "cloneUrl": "https://github.com/juspay/nixos-unified-template.git",
+      "name": "nixos-unified-template"
+    },
+    {
+      "cloneUrl": "https://github.com/juspay/omnix.git",
+      "name": "omnix"
+    },
+    {
+      "cloneUrl": "https://github.com/juspay/superposition.git",
+      "name": "superposition"
+    },
+    {
+      "cloneUrl": "https://github.com/juspay/vira.git",
+      "name": "vira"
+    }
+  ]
+}

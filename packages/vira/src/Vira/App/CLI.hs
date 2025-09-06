@@ -42,6 +42,8 @@ data WebSettings = WebSettings
   -- ^ Base URL path for the http server
   , tlsConfig :: TLSConfig
   -- ^ TLS configuration for HTTPS support
+  , importFile :: Maybe FilePath
+  -- ^ Optional JSON file to import on startup
   }
   deriving stock (Show)
 
@@ -115,6 +117,13 @@ webSettingsParser hostName = do
           <> showDefault
       )
   tlsConfig <- tlsConfigParser
+  importFile <-
+    optional $
+      strOption
+        ( long "import"
+            <> metavar "FILE"
+            <> help "Import JSON file on startup"
+        )
   pure WebSettings {..}
 
 -- | Parser for commands
