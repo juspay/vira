@@ -27,6 +27,7 @@
     # Runtime dependencies
     htmx-extensions.url = "github:juspay/htmx-extensions/sse-unload"; # https://github.com/bigskysoftware/htmx-extensions/pull/147
     htmx-extensions.flake = false;
+    omnix.url = "github:juspay/omnix/pull/484/head";
   };
 
   outputs = inputs:
