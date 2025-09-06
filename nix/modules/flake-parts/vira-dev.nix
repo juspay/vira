@@ -15,7 +15,7 @@
                 cd ./packages/vira
                 # Vira now auto-generates TLS certificates as needed
                 ghcid -T Main.main -c '${root}/cabal-repl vira:exe:vira' \
-                    --setup ":set args --host ${host} --base-path ''${BASE_PATH:-/} --state-dir ../../state"
+                    --setup ":set args --state-dir ../../state web --host ${host} --base-path ''${BASE_PATH:-/}"
               '';
             depends_on.tailwind.condition = "process_started";
             # Without `SIGINT (2)` Vira doesn't close gracefully

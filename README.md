@@ -34,6 +34,7 @@ TBD
 just run
 
 # Or, if you need to start from empty database (useful if you have changed the acid-state types)
+# NOTE: This won't delete TLS certs.
 just resetdb run
 ```
 
@@ -56,7 +57,7 @@ Vira provides a NixOS module for easy deployment. See the [NixOS configuration e
 ## Beta Testing
 
 ```
-nix run github:juspay/vira --accept-flake-config -- --port 5005
+nix --accept-flake-config run github:juspay/vira -- web --port 5005
 ```
 
 You can now add your repositories in the web app.

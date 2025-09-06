@@ -10,6 +10,7 @@ import Servant.API.EventStream (recommendedEventSourceHeaders)
 import Servant.Server.Generic (AsServer)
 import System.FilePath ((</>))
 import Vira.App qualified as App
+import Vira.App.CLI (WebSettings)
 import Vira.App.Lucid (AppHtml)
 import Vira.App.Servant (mapSourceT)
 import Vira.App.Stack (runApp)
@@ -27,10 +28,10 @@ data Routes mode = Routes
   }
   deriving stock (Generic)
 
-handlers :: App.AppState -> JobId -> Routes AsServer
-handlers cfg jobId = do
+handlers :: App.AppState -> WebSettings -> JobId -> Routes AsServer
+handlers cfg webSettings jobId = do
   Routes
-    { _rawLog = App.runAppInServant cfg $ rawLogHandler jobId
+    { _rawLog = App.runAppInServant cfg webSettings $ rawLogHandler jobId
     , _streamLog = pure $ recommendedEventSourceHeaders $ mapSourceT (runApp cfg) $ Log.streamRouteHandler jobId
     }
 
