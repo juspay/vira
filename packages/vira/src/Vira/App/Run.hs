@@ -13,7 +13,7 @@ import Vira.App.CLI qualified as CLI
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Server qualified as Server
 import Vira.State.Core (closeViraState, openViraState)
-import Vira.State.JSON (getExportData)
+import Vira.State.JSON (getExportData, importViraState)
 import Vira.Supervisor.Core qualified as Supervisor
 import Prelude hiding (Reader, ask, runReader)
 
@@ -49,6 +49,12 @@ runVira = do
         LBS.putStr $ encode exportData
 
     runImport :: GlobalSettings -> IO ()
-    runImport _globalSettings = do
-      putTextLn "TODO: Implement import functionality"
-      exitFailure
+    runImport globalSettings = do
+      jsonData <- LBS.getContents
+      bracket (openViraState (stateDir globalSettings)) closeViraState $ \acid -> do
+        importViraState acid jsonData >>= \case
+          Left err -> do
+            putTextLn $ "Import failed: " <> toText err
+            exitFailure
+          Right () -> do
+            putTextLn "Import completed successfully"

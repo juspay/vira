@@ -6,12 +6,14 @@ module Vira.State.JSON (
   ViraExportData (..),
   ExportRepo (..),
   getExportData,
+  importViraState,
 ) where
 
-import Data.Acid (AcidState, query)
-import Data.Aeson (FromJSON (..), ToJSON (..))
-import Vira.State.Acid (GetAllReposA (GetAllReposA), GetAtticSettingsA (GetAtticSettingsA), GetCachixSettingsA (GetCachixSettingsA), ViraState)
-import Vira.State.Type (AtticSettings, CachixSettings, Repo (..), RepoName)
+import Data.Acid (AcidState, query, update)
+import Data.Aeson (FromJSON (..), ToJSON (..), decode)
+import Data.ByteString.Lazy qualified as LBS
+import Vira.State.Acid (GetAllReposA (GetAllReposA), GetAtticSettingsA (GetAtticSettingsA), GetCachixSettingsA (GetCachixSettingsA), SetAllReposA (SetAllReposA), SetAtticSettingsA (SetAtticSettingsA), SetCachixSettingsA (SetCachixSettingsA), ViraState)
+import Vira.State.Type (AtticSettings, CachixSettings, Repo (..), RepoName, RepoSettings (..))
 
 -- | Subset of ViraState that can be exported/imported
 data ViraExportData = ViraExportData
@@ -47,3 +49,17 @@ getExportData acid = do
       , cachixSettings = cachix
       , atticSettings = attic
       }
+
+-- | Import Vira state from JSON data
+importViraState :: AcidState ViraState -> LBS.ByteString -> IO (Either String ())
+importViraState acid jsonData =
+  case decode jsonData :: Maybe ViraExportData of
+    Nothing -> pure $ Left "Invalid JSON format"
+    Just (ViraExportData repos cachix attic) -> do
+      -- Convert ExportRepo back to Repo with default settings
+      let convertedRepos = map (\(ExportRepo name url) -> Repo name url (RepoSettings Nothing)) repos
+      -- Update acid state
+      update acid (SetAllReposA convertedRepos)
+      update acid (SetCachixSettingsA cachix)
+      update acid (SetAtticSettingsA attic)
+      pure $ Right ()
