@@ -34,17 +34,12 @@ runVira = do
 
     runWebServer :: GlobalSettings -> WebSettings -> IO ()
     runWebServer globalSettings webSettings = do
-      bracket (openViraState (stateDir globalSettings)) closeViraState $ \acid -> do
+      withViraState globalSettings $ \acid -> do
         -- Import data if specified
         whenJust (importFile webSettings) $ \filePath -> do
           jsonData <- readFileLBS filePath
           result <- importViraState acid jsonData
-          case result of
-            Left err -> do
-              putTextLn $ "Import failed: " <> toText err
-              exitFailure
-            Right () -> do
-              putTextLn $ "Successfully imported data from " <> toText filePath
+          handleImportResult result $ "Successfully imported data from " <> toText filePath
 
         supervisor <- Supervisor.newSupervisor (stateDir globalSettings)
         -- Initialize broadcast channel for state update tracking
@@ -55,17 +50,24 @@ runVira = do
 
     runExport :: GlobalSettings -> IO ()
     runExport globalSettings = do
-      bracket (openViraState (stateDir globalSettings)) closeViraState $ \acid -> do
+      withViraState globalSettings $ \acid -> do
         exportData <- getExportData acid
         LBS.putStr $ encode exportData
 
     runImport :: GlobalSettings -> IO ()
     runImport globalSettings = do
       jsonData <- LBS.getContents
-      bracket (openViraState (stateDir globalSettings)) closeViraState $ \acid -> do
-        importViraState acid jsonData >>= \case
-          Left err -> do
-            putTextLn $ "Import failed: " <> toText err
-            exitFailure
-          Right () -> do
-            putTextLn "Import completed successfully"
+      withViraState globalSettings $ \acid -> do
+        result <- importViraState acid jsonData
+        handleImportResult result "Import completed successfully"
+
+    handleImportResult :: Either String () -> Text -> IO ()
+    handleImportResult result successMsg = case result of
+      Left err -> do
+        putTextLn $ "Import failed: " <> toText err
+        exitFailure
+      Right () -> do
+        putTextLn successMsg
+
+    withViraState globalSettings action = do
+      bracket (openViraState (stateDir globalSettings)) closeViraState action
