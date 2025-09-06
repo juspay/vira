@@ -35,5 +35,4 @@ It is imperative to call this before shutting down the application, else the sta
 -}
 closeViraState :: AcidState ViraState -> IO ()
 closeViraState st = do
-  putStrLn "Closing ViraState"
   closeAcidState st
