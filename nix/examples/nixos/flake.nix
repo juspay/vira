@@ -31,20 +31,11 @@
 
               # Initial state configuration with repositories and settings
               initialState = {
-                repositories = [
-                  {
-                    name = "emanote";
-                    cloneUrl = "https://github.com/srid/emanote.git";
-                  }
-                  {
-                    name = "omnix";
-                    cloneUrl = "https://github.com/juspay/omnix.git";
-                  }
-                  {
-                    name = "vira";
-                    cloneUrl = "https://github.com/juspay/vira.git";
-                  }
-                ];
+                repositories = {
+                  emanote = "https://github.com/srid/emanote.git";
+                  omnix = "https://github.com/juspay/omnix.git";
+                  vira = "https://github.com/juspay/vira.git";
+                };
 
                 cachixSettings = {
                   cachixName = "my-cache";
@@ -83,12 +74,9 @@
 
               # Test initial state
               initialState = {
-                repositories = [
-                  {
-                    name = "test-repo";
-                    cloneUrl = "https://github.com/srid/haskell-template.git";
-                  }
-                ];
+                repositories = {
+                  test-repo = "https://github.com/srid/haskell-template.git";
+                };
               };
             };
 

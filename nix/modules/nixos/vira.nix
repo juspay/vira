@@ -8,7 +8,7 @@ let
   # Generate initial state JSON from configuration
   initialStateJson = pkgs.writeText "vira-initial-state.json" (builtins.toJSON cfg.initialState);
 
-  hasInitialState = cfg.initialState.repositories != [ ] || cfg.initialState.cachixSettings != null || cfg.initialState.atticSettings != null;
+  hasInitialState = cfg.initialState.repositories != { } || cfg.initialState.cachixSettings != null || cfg.initialState.atticSettings != null;
 in
 {
   options.services.vira = {
@@ -80,20 +80,9 @@ in
       type = types.submodule {
         options = {
           repositories = mkOption {
-            description = "List of repositories to import";
-            default = [ ];
-            type = types.listOf (types.submodule {
-              options = {
-                name = mkOption {
-                  type = types.str;
-                  description = "Repository name";
-                };
-                cloneUrl = mkOption {
-                  type = types.str;
-                  description = "Git clone URL for the repository";
-                };
-              };
-            });
+            description = "Map of repository names to clone URLs";
+            default = { };
+            type = types.attrsOf types.str;
           };
 
           cachixSettings = mkOption {

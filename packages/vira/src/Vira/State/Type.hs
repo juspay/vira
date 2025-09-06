@@ -4,7 +4,7 @@
 
 module Vira.State.Type where
 
-import Data.Aeson (FromJSON, ToJSON)
+import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import Data.Data (Data)
 import Data.IxSet.Typed
 import Data.SafeCopy
@@ -59,6 +59,8 @@ newtype RepoName = RepoName {unRepoName :: Text}
     , FromHttpApiData
     , ToJSON
     , FromJSON
+    , ToJSONKey
+    , FromJSONKey
     )
   deriving anyclass (FromForm)
 
