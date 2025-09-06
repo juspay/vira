@@ -17,6 +17,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App (AppHtml)
 import Vira.App qualified as App
+import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Git qualified as Git
 import Vira.Page.JobPage qualified as JobPage
@@ -40,12 +41,12 @@ data Routes mode = Routes
 crumbs :: [LinkTo.LinkTo]
 crumbs = [LinkTo.RepoListing]
 
-handlers :: App.AppState -> RepoName -> Routes AsServer
-handlers cfg name = do
+handlers :: App.AppState -> WebSettings -> RepoName -> Routes AsServer
+handlers cfg webSettings name = do
   Routes
-    { _view = App.runAppInServant cfg . App.runAppHtml $ viewHandler name
-    , _update = App.runAppInServant cfg $ updateHandler name
-    , _delete = App.runAppInServant cfg $ deleteHandler name
+    { _view = App.runAppInServant cfg webSettings . App.runAppHtml $ viewHandler name
+    , _update = App.runAppInServant cfg webSettings $ updateHandler name
+    , _delete = App.runAppInServant cfg webSettings $ deleteHandler name
     }
 
 viewHandler :: RepoName -> AppHtml ()

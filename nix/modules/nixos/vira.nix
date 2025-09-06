@@ -110,18 +110,20 @@ in
 
         ExecStart =
           let
-            args = [
+            globalArgs = [
+              "--state-dir"
+              cfg.stateDir
+            ];
+            webArgs = [
               "--host"
               cfg.hostname
               "--port"
               (toString cfg.port)
-              "--state-dir"
-              cfg.stateDir
               "--base-path"
               cfg.basePath
             ] ++ optionals (!cfg.https) [ "--no-https" ];
           in
-          "${cfg.package}/bin/vira ${concatStringsSep " " args}";
+          "${cfg.package}/bin/vira ${concatStringsSep " " globalArgs} web ${concatStringsSep " " webArgs}";
       };
     };
 

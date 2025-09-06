@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedRecordDot #-}
-
 module Vira.App.Server (
   runServer,
 ) where
@@ -19,26 +17,30 @@ import Network.Wai.Middleware.Static (
  )
 import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
-import Vira.App (AppStack, CLISettings (..))
+import Vira.App (AppStack)
+import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
+import Vira.App.Stack (AppState)
 import Vira.Lib.Logging
 import Vira.Page.IndexPage qualified as IndexPage
 
--- | Run the Vira server with the given CLI settings
-runServer :: (HasCallStack) => CLISettings -> Eff AppStack ()
-runServer cliSettings = do
-  log Info $ "Launching at " <> buildUrl cliSettings
-  log Debug $ "CLI settings: " <> show cliSettings
+-- | Run the Vira server with the given settings
+runServer :: (HasCallStack) => GlobalSettings -> WebSettings -> Eff AppStack ()
+runServer globalSettings webSettings = do
+  log Info $ "Launching at " <> buildUrl webSettings
+  log Debug $ "Global settings: " <> show globalSettings
+  log Debug $ "Web settings: " <> show webSettings
   app <- buildApplication
-  liftIO $ startWarpServer warpSettings cliSettings.stateDir cliSettings.tlsConfig app
+  liftIO $ startWarpServer (warpSettings webSettings) (stateDir globalSettings) (tlsConfig webSettings) app
   where
     buildApplication = do
-      servantApp <- genericServe . IndexPage.handlers <$> Reader.ask
+      appState <- Reader.ask @AppState
+      let servantApp = genericServe $ IndexPage.handlers appState webSettings
       middleware <- staticMiddleware
       pure $ middleware servantApp
 
-    buildUrl settings = protocol <> "://" <> settings.host <> ":" <> show settings.port
+    buildUrl ws = protocol <> "://" <> host ws <> ":" <> show (port ws)
       where
-        protocol = case settings.tlsConfig of
+        protocol = case tlsConfig ws of
           TLSDisabled -> "http"
           _ -> "https"
 
@@ -47,10 +49,10 @@ runServer cliSettings = do
       log Debug $ "Static dir = " <> toText staticDir
       pure $ staticPolicy $ noDots >-> addBase staticDir
 
-    warpSettings =
+    warpSettings ws =
       Warp.defaultSettings
-        & Warp.setHost (fromString $ toString cliSettings.host)
-        & Warp.setPort cliSettings.port
+        & Warp.setHost (fromString $ toString $ host ws)
+        & Warp.setPort (port ws)
 
 -- Like Paths_vira.getDataDir but GHC multi-home friendly
 getDataDirMultiHome :: (IOE :> es, FileSystem :> es, Log Message :> es) => Eff es FilePath
