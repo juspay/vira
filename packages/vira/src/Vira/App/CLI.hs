@@ -46,8 +46,10 @@ data WebSettings = WebSettings
   deriving stock (Show)
 
 -- | Available commands
-newtype Command
+data Command
   = WebCommand WebSettings
+  | ExportCommand
+  | ImportCommand
   deriving stock (Show)
 
 -- | Complete CLI configuration
@@ -120,6 +122,8 @@ commandParser :: HostName -> Parser Command
 commandParser hostName =
   hsubparser
     ( OA.command "web" (info (WebCommand <$> webSettingsParser hostName) (progDesc "Start the web server"))
+        <> OA.command "export" (info (pure ExportCommand) (progDesc "Export Vira state to JSON"))
+        <> OA.command "import" (info (pure ImportCommand) (progDesc "Import Vira state from JSON"))
     )
 
 -- | Parser for CLISettings

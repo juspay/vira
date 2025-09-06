@@ -26,6 +26,8 @@ runVira = do
     runAppWith CLISettings {globalSettings, command} = do
       case command of
         WebCommand webSettings -> runWebServer globalSettings webSettings
+        ExportCommand -> runExport globalSettings
+        ImportCommand -> runImport globalSettings
 
     runWebServer :: GlobalSettings -> WebSettings -> IO ()
     runWebServer globalSettings webSettings = do
@@ -36,3 +38,13 @@ runVira = do
         let appState = App.AppState {App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer}
             appServer = Server.runServer globalSettings webSettings
         App.runApp appState appServer
+
+    runExport :: GlobalSettings -> IO ()
+    runExport globalSettings = do
+      putTextLn "TODO: Implement export functionality"
+      exitFailure
+
+    runImport :: GlobalSettings -> IO ()
+    runImport globalSettings = do
+      putTextLn "TODO: Implement import functionality"
+      exitFailure
