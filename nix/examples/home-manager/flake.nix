@@ -51,8 +51,6 @@
               };
             };
 
-            # Allow unfree packages for testing
-            nixpkgs.config.allowUnfree = true;
           }
         ];
       };

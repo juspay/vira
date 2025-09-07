@@ -61,6 +61,7 @@
               export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
             '';
             # Make nix and uname available to omnix.
+            # TODO: Remove this if/when move away from omnix.
             postInstall = (oldAttrs.postInstall or "") + ''
               wrapProgram $out/bin/vira \
                 --prefix PATH : ${pkgs.lib.makeBinPath [ self'.packages.nix pkgs.coreutils ]}
