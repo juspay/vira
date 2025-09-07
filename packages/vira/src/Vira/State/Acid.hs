@@ -132,10 +132,11 @@ setRepoBranchesA repo branches = do
   modify $ \s ->
     let
       repoBranches = Map.toList branches <&> \(branchName, commit) -> Branch repo branchName commit.commitId
+      commits = Map.elems branches
      in
       s
         { branches = updateIxMulti repo (Ix.fromList repoBranches) s.branches
-        , commits = s.commits <> Ix.fromList (Map.elems branches)
+        , commits = s.commits ||| Ix.fromList commits
         }
 
 -- | Get a commit by its ID
