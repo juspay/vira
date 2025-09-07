@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Vira.Page.JobPage where
 
@@ -14,6 +15,7 @@ import GHC.IO.Exception (ExitCode (..))
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
+import IncludeEnv.TH (includeEnv)
 import Lucid
 import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
@@ -40,6 +42,12 @@ import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Status qualified as W
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask, asks)
+
+{- | Path to the `mkdir` executable
+
+This must be set via the VIRA_MKDIR_BIN environment variable at compile time.
+-}
+$(includeEnv "VIRA_MKDIR_BIN" "mkdir")
 
 data Routes mode = Routes
   { -- Trigger a new build
@@ -164,7 +172,7 @@ getStages repo branch mCachix mAttic = do
     <> (maybe mempty (one . stageCachixPush) mCachix <> maybe mempty (one . stageAtticPush) mAttic)
   where
     stageCreateProjectDir =
-      proc "mkdir" ["project"]
+      proc mkdir ["project"]
     stagesClone =
       Git.cloneAtCommit repo.cloneUrl branch.headCommit
         & \p -> p {cwd = Just "project"}

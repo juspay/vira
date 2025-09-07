@@ -44,6 +44,7 @@
             pkgs.attic-client
             pkgs.omnix
             pkgs.openssl # For automatic TLS certificate generation
+            pkgs.coreutils # For mkdir
           ];
           stan = true;
           custom = drv: drv.overrideAttrs (oldAttrs: {
@@ -56,6 +57,7 @@
               export VIRA_CACHIX_BIN="${pkgs.lib.getExe' pkgs.cachix "cachix"}"
               export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
               export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
+              export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
             '';
           });
         };
@@ -102,6 +104,7 @@
           export VIRA_CACHIX_BIN="${pkgs.lib.getExe' pkgs.cachix "cachix"}"
           export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
           export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
+          export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
         '';
       };
 
