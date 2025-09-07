@@ -38,9 +38,6 @@ in
         # Security settings for user service
         NoNewPrivileges = true;
         PrivateTmp = true;
-        ProtectHome = "read-only";
-        ProtectSystem = "strict";
-        ReadWritePaths = [ cfg.stateDir ];
 
         # Environment
         Environment = [
