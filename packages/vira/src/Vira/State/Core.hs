@@ -21,7 +21,7 @@ import Vira.State.Type
 -- | Open vira database
 openViraState :: FilePath -> IO (AcidState ViraState)
 openViraState stateDir = do
-  let initialState = ViraState mempty mempty mempty Nothing Nothing
+  let initialState = ViraState mempty mempty mempty mempty Nothing Nothing
   -- Manually construct the path that openLocalState would use: stateDir </> show (typeOf initialState)
   -- This is just for backwards compat.
   let acidStateDir = stateDir </> show (typeOf initialState)

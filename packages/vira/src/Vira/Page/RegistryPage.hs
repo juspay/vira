@@ -5,6 +5,7 @@ module Vira.Page.RegistryPage where
 
 import Colog (Severity (..))
 import Effectful (Eff)
+import Effectful.Git (BranchName)
 import GHC.Records (HasField)
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Htmx.Lucid.Core (hxSwapS_)
@@ -18,7 +19,6 @@ import Servant.Server.Generic (AsServer)
 import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Lib.Git (BranchName)
 import Vira.Lib.Logging
 import Vira.Page.BranchPage qualified as BranchPage
 import Vira.Page.RepoPage qualified as RepoPage

@@ -1,0 +1,144 @@
+cabal-version: 2.2
+
+-- This file has been generated from package.yaml by hpack version 0.37.0.
+--
+-- see: https://github.com/sol/hpack
+
+name:           git-effectful
+version:        0.1.0.0
+synopsis:       Git operations using effectful
+description:    A standalone library for git operations using the effectful library
+category:       Git
+author:         Sridhar Ratnakumar
+maintainer:     srid@srid.ca
+copyright:      2025 Juspay
+license:        AGPL-3.0-or-later
+build-type:     Simple
+
+library
+  exposed-modules:
+      Effectful.Git
+  other-modules:
+      Paths_git_effectful
+  autogen-modules:
+      Paths_git_effectful
+  hs-source-dirs:
+      src
+  default-extensions:
+      DataKinds
+      DeriveDataTypeable
+      DeriveGeneric
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      ExplicitForAll
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoStarIsType
+      NumericUnderscores
+      OverloadedStrings
+      ScopedTypeVariables
+      StrictData
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      TypeSynonymInstances
+      ViewPatterns
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin
+  build-depends:
+      aeson
+    , base ==4.*
+    , co-log
+    , co-log-effectful
+    , containers
+    , effectful
+    , effectful-core
+    , effectful-plugin
+    , http-api-data
+    , include-env
+    , ixset-typed
+    , megaparsec
+    , process
+    , relude >=1.0
+    , safecopy
+    , servant-server
+    , temporary
+    , text
+    , time
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2021
+
+test-suite git-effectful-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Effectful.GitSpec
+      Paths_git_effectful
+  autogen-modules:
+      Paths_git_effectful
+  hs-source-dirs:
+      test
+  default-extensions:
+      DataKinds
+      DeriveDataTypeable
+      DeriveGeneric
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      ExplicitForAll
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoStarIsType
+      NumericUnderscores
+      OverloadedStrings
+      ScopedTypeVariables
+      StrictData
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      TypeSynonymInstances
+      ViewPatterns
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin
+  build-depends:
+      aeson
+    , base ==4.*
+    , co-log
+    , co-log-effectful
+    , containers
+    , effectful
+    , effectful-core
+    , effectful-plugin
+    , git-effectful
+    , hspec
+    , hspec-discover
+    , http-api-data
+    , include-env
+    , ixset-typed
+    , megaparsec
+    , process
+    , relude >=1.0
+    , safecopy
+    , servant-server
+    , temporary
+    , text
+    , time
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2021

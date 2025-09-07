@@ -6,6 +6,8 @@ import Colog (Severity (..))
 import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
+import Effectful.Git (BranchName)
+import Effectful.Git qualified as Git
 import Effectful.Process (CreateProcess (cwd), env, proc)
 import Effectful.Reader.Dynamic (asks)
 import GHC.IO.Exception (ExitCode (..))
@@ -23,8 +25,6 @@ import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Attic
 import Vira.Lib.Cachix
-import Vira.Lib.Git (BranchName)
-import Vira.Lib.Git qualified as Git
 import Vira.Lib.Logging
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.Page.JobLog qualified as JobLog
@@ -93,7 +93,7 @@ viewJob job = do
       div_ [class_ "flex items-center justify-between"] $ do
         div_ [class_ "flex items-center space-x-4"] $ do
           span_ "Commit:"
-          viewCommit job.jobCommit
+          W.viraCommitInfo_ job.jobCommit
         div_ [class_ "flex items-center space-x-4"] $ do
           viewJobStatus job.jobStatus
           when jobActive $ do
@@ -120,7 +120,7 @@ viewJobHeader job = do
         div_ [class_ "flex-shrink-0"] $ do
           span_ [class_ "inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-800"] $ do
             "Job #" <> toHtml (show @Text job.jobId)
-        viewCommit job.jobCommit
+        W.viraCommitInfo_ job.jobCommit
       viewJobStatus job.jobStatus
 
 viewCommit :: (Monad m) => Git.CommitID -> HtmlT m ()
