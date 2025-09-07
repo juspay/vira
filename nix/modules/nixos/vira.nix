@@ -4,6 +4,7 @@ with lib;
 
 let
   cfg = config.services.vira;
+  commonOptions = import ../common/vira-options.nix { inherit lib; };
 
   # Generate initial state JSON from configuration
   initialStateJson = pkgs.writeText "vira-initial-state.json" (builtins.toJSON cfg.initialState);
@@ -11,33 +12,8 @@ let
   hasInitialState = cfg.initialState.repositories != { } || cfg.initialState.cachixSettings != null || cfg.initialState.atticSettings != null;
 in
 {
-  options.services.vira = {
-    enable = mkEnableOption "Vira web application";
-
-    package = mkOption {
-      type = types.package;
-      description = "The Vira package to use";
-    };
-
-    hostname = mkOption {
-      type = types.str;
-      default = "localhost";
-      description = "Hostname to bind Vira to";
-    };
-
-    port = mkOption {
-      type = types.port;
-      default = 5005;
-      description = "Port to bind Vira to";
-    };
-
-    https = mkOption {
-      type = types.bool;
-      default = true;
-      description = "Enable HTTPS";
-    };
-
-
+  options.services.vira = commonOptions // {
+    # NixOS-specific options
     user = mkOption {
       type = types.str;
       default = "vira";
@@ -56,65 +32,12 @@ in
       description = "Whether to open the firewall for the Vira port";
     };
 
-    extraPackages = mkOption {
-      type = types.listOf types.package;
-      default = [ ];
-      description = "Extra packages to add to the Vira service PATH";
-    };
-
+    # Override default stateDir for NixOS
     stateDir = mkOption {
       type = types.str;
       default = "/var/lib/vira/state";
       description = "Directory to store Vira state data";
     };
-
-    basePath = mkOption {
-      type = types.str;
-      default = "/";
-      description = "Base URL path for the HTTP server";
-    };
-
-    initialState = mkOption {
-      description = "Initial state configuration for Vira";
-      default = { };
-      type = types.submodule {
-        options = {
-          repositories = mkOption {
-            description = "Map of repository names to clone URLs";
-            default = { };
-            type = types.attrsOf types.str;
-          };
-
-          cachixSettings = mkOption {
-            description = "Cachix configuration";
-            default = null;
-            type = types.nullOr (types.submodule {
-              options = {
-                cachixName = mkOption {
-                  type = types.str;
-                  description = "Cachix cache name";
-                };
-                authToken = mkOption {
-                  type = types.str;
-                  description = "Cachix authentication token";
-                };
-              };
-            });
-          };
-
-          atticSettings = mkOption {
-            description = "Attic configuration";
-            default = null;
-            type = types.nullOr (types.submodule {
-              options = {
-                # Add attic-specific options here when needed
-              };
-            });
-          };
-        };
-      };
-    };
-
   };
 
   config = mkIf cfg.enable {

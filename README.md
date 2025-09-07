@@ -54,6 +54,54 @@ For detailed information about TLS configuration, certificate generation, troubl
 
 Vira provides a NixOS module for easy deployment. See the [NixOS configuration example](nix/examples/nixos/flake.nix) for usage.
 
+## Home Manager Module
+
+Vira also provides a Home Manager module for running Vira as a user service on both NixOS and non-NixOS systems.
+
+### Usage
+
+Add Vira to your Home Manager configuration:
+
+```nix
+{
+  inputs = {
+    home-manager.url = "github:nix-community/home-manager";
+    vira.url = "github:juspay/vira";
+  };
+
+  outputs = { home-manager, vira, ... }: {
+    homeConfigurations.myuser = home-manager.lib.homeManagerConfiguration {
+      # ... your configuration
+      modules = [
+        vira.homeManagerModules.vira
+        {
+          services.vira = {
+            enable = true;
+            hostname = "0.0.0.0";
+            port = 8080;
+            https = false;
+            package = vira.packages.${system}.default;
+
+            # Optional: Configure repositories and settings
+            initialState = {
+              repositories = {
+                my-project = "https://github.com/user/my-project.git";
+              };
+            };
+          };
+        }
+      ];
+    };
+  };
+}
+```
+
+### Cross-Platform Support
+
+The Home Manager module supports both Linux (via systemd user services) and macOS (via launchd agents), making it perfect for running Vira on non-NixOS systems.
+
+See the [Home Manager configuration example](nix/examples/home-manager/flake.nix) for a complete setup.
+
 ## Beta Testing
 
 ```
