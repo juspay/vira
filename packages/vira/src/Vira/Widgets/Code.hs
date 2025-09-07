@@ -32,6 +32,8 @@ import Data.Text qualified as T
 import Data.Time (defaultTimeLocale, formatTime)
 import Effectful.Git qualified as Git
 import Lucid
+import Vira.App qualified
+import Vira.State.Acid qualified
 
 {- |
 Inline code component for small code snippets within text.
@@ -85,7 +87,7 @@ div_ $ do
 -- In job details
 div_ $ do
   "Build commit: "
-  W.viraCommitInfo_ job.commit
+  W.viraCommitInfo_ job.jobCommit
 @
 
 = Design Guidelines
@@ -94,17 +96,22 @@ Uses inline code styling for commit hash to maintain visual consistency.
 Commit message uses subtle gray text with truncation for long messages.
 Date uses smaller text size for secondary information hierarchy.
 -}
-viraCommitInfo_ :: (Monad m) => Git.Commit -> HtmlT m ()
-viraCommitInfo_ commit = do
+viraCommitInfo_ :: Git.CommitID -> Vira.App.AppHtml ()
+viraCommitInfo_ commitId = do
+  maybeCommit <- lift $ Vira.App.query $ Vira.State.Acid.GetCommitByIdA commitId
   div_ [class_ "flex items-center space-x-2"] $ do
-    viraCodeInline_ (T.take 8 $ toText $ Git.unCommitID commit.commitId)
-    unless (T.null commit.commitMessage) $ do
-      span_ [class_ "text-sm text-gray-600 truncate"] $ toHtml commit.commitMessage
-    unless (T.null commit.commitAuthor) $ do
-      span_ [class_ "text-xs text-gray-500"] $ do
-        "by " <> toHtml commit.commitAuthor
-        unless (T.null commit.commitAuthorEmail) $ do
-          " <" <> toHtml commit.commitAuthorEmail <> ">"
-    div_ [class_ "text-xs text-gray-400"] $
-      toHtml $
-        formatTime defaultTimeLocale "%b %d, %Y" commit.commitDate
+    viraCodeInline_ (T.take 8 $ toText $ Git.unCommitID commitId)
+    case maybeCommit of
+      Just commit -> do
+        unless (T.null commit.commitMessage) $ do
+          span_ [class_ "text-sm text-gray-600 truncate"] $ toHtml commit.commitMessage
+        unless (T.null commit.commitAuthor) $ do
+          span_ [class_ "text-xs text-gray-500"] $ do
+            "by " <> toHtml commit.commitAuthor
+            unless (T.null commit.commitAuthorEmail) $ do
+              " <" <> toHtml commit.commitAuthorEmail <> ">"
+        div_ [class_ "text-xs text-gray-400"] $
+          toHtml $
+            formatTime defaultTimeLocale "%b %d, %Y" commit.commitDate
+      Nothing -> do
+        span_ [class_ "text-xs text-red-600"] "Commit not found"

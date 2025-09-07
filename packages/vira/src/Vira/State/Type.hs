@@ -8,7 +8,7 @@ import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import Data.Data (Data)
 import Data.IxSet.Typed
 import Data.SafeCopy
-import Effectful.Git (BranchName, Commit (..), CommitID)
+import Effectful.Git (BranchName, CommitID)
 import Servant.API (FromHttpApiData, ToHttpApiData)
 import Vira.Lib.Attic
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
@@ -94,7 +94,7 @@ data Branch = Branch
   -- ^ The name of the repository this branch belongs to
   , branchName :: BranchName
   -- ^ The name of the branch
-  , headCommit :: Commit
+  , headCommit :: CommitID
   -- ^ The commit at the head of the branch
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
@@ -107,7 +107,7 @@ instance Indexable BranchIxs Branch where
     ixList
       (ixFun $ \Branch {repoName} -> [repoName])
       (ixFun $ \Branch {branchName} -> [branchName])
-      (ixFun $ \Branch {headCommit} -> [headCommit.commitId])
+      (ixFun $ \Branch {headCommit} -> [headCommit])
 
 newtype JobId = JobId {unJobId :: Int}
   deriving stock (Generic, Data)

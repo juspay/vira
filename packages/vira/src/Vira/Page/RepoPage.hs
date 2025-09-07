@@ -216,6 +216,6 @@ getBranchEffectiveStatus :: St.Branch -> Maybe St.Job -> BranchEffectiveStatus
 getBranchEffectiveStatus branch = \case
   Nothing -> NeverBuilt
   Just job ->
-    if branch.headCommit.commitId == job.jobCommit
+    if branch.headCommit == job.jobCommit
       then JobStatus job.jobStatus
       else OutOfDate

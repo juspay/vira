@@ -93,11 +93,7 @@ viewJob job = do
       div_ [class_ "flex items-center justify-between"] $ do
         div_ [class_ "flex items-center space-x-4"] $ do
           span_ "Commit:"
-          -- Lookup full commit and show commit info, fallback to just commit ID
-          maybeCommit <- lift $ App.query $ St.GetCommitByIdA job.jobCommit
-          case maybeCommit of
-            Just commit -> W.viraCommitInfo_ commit
-            Nothing -> viewCommit job.jobCommit
+          W.viraCommitInfo_ job.jobCommit
         div_ [class_ "flex items-center space-x-4"] $ do
           viewJobStatus job.jobStatus
           when jobActive $ do
@@ -124,11 +120,7 @@ viewJobHeader job = do
         div_ [class_ "flex-shrink-0"] $ do
           span_ [class_ "inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-800"] $ do
             "Job #" <> toHtml (show @Text job.jobId)
-        -- Lookup full commit and show commit info, fallback to just commit ID
-        maybeCommit <- lift $ App.query $ St.GetCommitByIdA job.jobCommit
-        case maybeCommit of
-          Just commit -> W.viraCommitInfo_ commit
-          Nothing -> viewCommit job.jobCommit
+        W.viraCommitInfo_ job.jobCommit
       viewJobStatus job.jobStatus
 
 viewCommit :: (Monad m) => Git.CommitID -> HtmlT m ()
@@ -146,7 +138,7 @@ triggerNewBuild :: (HasCallStack) => RepoName -> BranchName -> Eff App.AppServan
 triggerNewBuild repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
-  log Info $ "Building commit " <> show (repoName, branch.headCommit.commitId)
+  log Info $ "Building commit " <> show (repoName, branch.headCommit)
   mCachix <- App.query St.GetCachixSettingsA
   mAttic <- App.query St.GetAtticSettingsA
   asks App.supervisor >>= \supervisor -> do
@@ -174,7 +166,7 @@ getStages repo branch mCachix mAttic = do
     stageCreateProjectDir =
       proc "mkdir" ["project"]
     stagesClone =
-      Git.cloneAtCommit repo.cloneUrl branch.headCommit.commitId
+      Git.cloneAtCommit repo.cloneUrl branch.headCommit
         & \p -> p {cwd = Just "project"}
     stageBuild =
       Omnix.omnixCiProcess

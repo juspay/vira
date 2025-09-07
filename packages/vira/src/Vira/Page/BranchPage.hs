@@ -15,7 +15,6 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Page.JobPage qualified as JobPage
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -105,11 +104,7 @@ viewCommitTimeline branch jobs = do
           div_ [class_ "w-5 h-5 flex items-center justify-center text-gray-500"] $ toHtmlRaw Icon.git_commit
           div_ [class_ "flex-1 min-w-0"] $ do
             div_ [class_ "flex items-center space-x-3"] $ do
-              -- Lookup full commit and show commit info, fallback to just commit ID
-              maybeCommit <- lift $ App.query $ St.GetCommitByIdA job.jobCommit
-              case maybeCommit of
-                Just commit -> W.viraCommitInfo_ commit
-                Nothing -> JobPage.viewCommit job.jobCommit
+              W.viraCommitInfo_ job.jobCommit
               span_ [class_ "text-sm font-medium text-gray-600"] $ "#" <> toHtml (show @Text job.jobId)
           div_ [class_ "ml-auto"] $ do
             Status.viraStatusBadge_ job.jobStatus

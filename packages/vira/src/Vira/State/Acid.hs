@@ -106,13 +106,11 @@ getRepoByNameA name = do
   ViraState {repos} <- ask
   pure $ Ix.getOne $ repos @= name
 
--- | Get all branches of a repository, sorted by latest commit date
+-- | Get all branches of a repository
 getBranchesByRepoA :: RepoName -> Query ViraState [Branch]
 getBranchesByRepoA name = do
   ViraState {branches} <- ask
-  let branchList = Ix.toList $ branches @= name
-  -- Sort by commit date in descending order (latest first)
-  pure $ sortOn (Down . (\branch -> branch.headCommit.commitDate)) branchList
+  pure $ Ix.toList $ branches @= name
 
 -- | Get a repo's branch by name
 getBranchByNameA :: RepoName -> BranchName -> Query ViraState (Maybe Branch)
@@ -133,7 +131,7 @@ setRepoBranchesA :: RepoName -> Map BranchName Commit -> Update ViraState ()
 setRepoBranchesA repo branches = do
   modify $ \s ->
     let
-      repoBranches = Map.toList branches <&> uncurry (Branch repo)
+      repoBranches = Map.toList branches <&> \(branchName, commit) -> Branch repo branchName commit.commitId
      in
       s
         { branches = updateIxMulti repo (Ix.fromList repoBranches) s.branches
@@ -178,11 +176,10 @@ getJobA jobId = do
   pure $ Ix.getOne $ jobs @= jobId
 
 -- | Create a new job returning it.
-addNewJobA :: RepoName -> BranchName -> Commit -> FilePath -> Update ViraState Job
-addNewJobA jobRepo jobBranch commit baseWorkDir = do
+addNewJobA :: RepoName -> BranchName -> CommitID -> FilePath -> Update ViraState Job
+addNewJobA jobRepo jobBranch jobCommit baseWorkDir = do
   jobs <- Ix.toList <$> gets jobs
   let
-    jobCommit = commit.commitId
     jobId =
       let ids = T.jobId <$> jobs
        in if Prelude.null ids then JobId 1 else JobId 1 + maximum ids
@@ -192,7 +189,6 @@ addNewJobA jobRepo jobBranch commit baseWorkDir = do
   modify $ \s ->
     s
       { jobs = Ix.insert job s.jobs
-      , commits = Ix.updateIx commit.commitId commit s.commits
       }
   pure job
 
