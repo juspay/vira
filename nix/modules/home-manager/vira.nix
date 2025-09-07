@@ -4,40 +4,24 @@ with lib;
 
 let
   cfg = config.services.vira;
-  commonOptions = import ../common/vira-options.nix { inherit lib; };
-
-  # Generate initial state JSON from configuration
-  initialStateJson = pkgs.writeText "vira-initial-state.json" (builtins.toJSON cfg.initialState);
-
-  hasInitialState = cfg.initialState.repositories != { } || cfg.initialState.cachixSettings != null || cfg.initialState.atticSettings != null;
-
-  # Service command
-  serviceCommand =
-    let
-      globalArgs = [
-        "--state-dir"
-        cfg.stateDir
-      ];
-      webArgs = [
-        "--host"
-        cfg.hostname
-        "--port"
-        (toString cfg.port)
-        "--base-path"
-        cfg.basePath
-      ] ++ optionals (!cfg.https) [ "--no-https" ]
-      ++ optionals hasInitialState [ "--import" initialStateJson ];
-    in
-    "${cfg.package}/bin/vira ${concatStringsSep " " globalArgs} web ${concatStringsSep " " webArgs}";
 in
 {
-  options.services.vira = commonOptions // {
-    # Home-manager specific: override default stateDir
-    stateDir = mkOption {
-      type = types.str;
-      default = "${config.home.homeDirectory}/.local/share/vira/state";
-      description = "Directory to store Vira state data";
+  options.services.vira = mkOption {
+    type = types.submoduleWith {
+      specialArgs = { inherit pkgs; };
+      modules = [
+        ../common/vira-options.nix
+        {
+          # Home-manager specific: override default stateDir
+          options.stateDir = mkOption {
+            type = types.str;
+            default = "${config.home.homeDirectory}/.local/share/vira/state";
+            description = "Directory to store Vira state data";
+          };
+        }
+      ];
     };
+    default = { };
   };
 
   config = mkIf cfg.enable {
@@ -54,7 +38,7 @@ in
 
       Service = {
         Type = "exec";
-        ExecStart = serviceCommand;
+        ExecStart = cfg.outputs.serviceCommand;
         Restart = "on-failure";
         RestartSec = "5s";
 
@@ -81,7 +65,7 @@ in
       enable = true;
       config = {
         Label = "org.vira.service";
-        ProgramArguments = [ "${pkgs.bash}/bin/bash" "-c" serviceCommand ];
+        ProgramArguments = [ "${pkgs.bash}/bin/bash" "-c" cfg.outputs.serviceCommand ];
         RunAtLoad = true;
         KeepAlive = {
           SuccessfulExit = false;
