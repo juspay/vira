@@ -6,6 +6,10 @@ ci:
       dir: nix/examples/nixos
       overrideInputs:
         vira: .
+    examples-home-manager:
+      dir: nix/examples/home-manager
+      overrideInputs:
+        vira: .
 
 develop:
   default:
