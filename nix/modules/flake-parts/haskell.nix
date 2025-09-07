@@ -60,10 +60,10 @@
               export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
               export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
             '';
-            # Make nix available to omnix.
+            # Make nix and uname available to omnix.
             postInstall = (oldAttrs.postInstall or "") + ''
               wrapProgram $out/bin/vira \
-                --prefix PATH : ${pkgs.lib.makeBinPath [ self'.packages.nix ]}
+                --prefix PATH : ${pkgs.lib.makeBinPath [ self'.packages.nix pkgs.coreutils ]}
             '';
           });
         };
