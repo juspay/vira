@@ -10,13 +10,6 @@
         config.pre-commit.devShell # See ./nix/modules/formatter.nix
         config.devShells.jsAssets # See ./nix/modules/flake-parts/assets.nix
       ];
-      shellHook = ''
-        export VIRA_GIT_BIN="${pkgs.lib.getExe' pkgs.git "git"}"
-        export VIRA_ATTIC_BIN="${pkgs.lib.getExe' pkgs.attic-client "attic"}"
-        export VIRA_CACHIX_BIN="${pkgs.lib.getExe' pkgs.cachix "cachix"}"
-        export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
-        export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
-      '';
       packages = with pkgs; [
         just
         nixd

@@ -168,5 +168,3 @@ $(deriveSafeCopy 0 'base ''RepoSettings)
 $(deriveSafeCopy 0 'base ''Repo)
 $(deriveSafeCopy 0 'base ''CachixSettings)
 $(deriveSafeCopy 0 'base ''AtticSettings)
-
--- Note: Commit SafeCopy is derived in Vira.Lib.Git
