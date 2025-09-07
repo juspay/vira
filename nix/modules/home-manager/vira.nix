@@ -13,11 +13,7 @@ in
         ../common/vira-options.nix
         {
           # Home-manager specific: override default stateDir
-          options.stateDir = mkOption {
-            type = types.str;
-            default = "${config.home.homeDirectory}/.local/share/vira/state";
-            description = "Directory to store Vira state data";
-          };
+          config.stateDir = mkDefault "${config.home.homeDirectory}/.local/share/vira/state";
         }
       ];
     };
