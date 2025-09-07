@@ -67,6 +67,16 @@
               uid = 1000;
             };
 
+            # Enable user services
+            systemd.services."user@1000" = {
+              overrideStrategy = "asDropin";
+            };
+
+            # Ensure runtime directory exists
+            systemd.tmpfiles.rules = [
+              "d /run/user/1000 0755 testuser testuser -"
+            ];
+
             home-manager = {
               useGlobalPkgs = true;
               useUserPackages = true;
@@ -107,15 +117,21 @@
             machine.start()
             machine.wait_for_unit("multi-user.target")
             
-            # Switch to the test user and start the home-manager service
-            machine.succeed("su - testuser -c 'systemctl --user daemon-reload'")
-            machine.succeed("su - testuser -c 'systemctl --user start vira.service'")
+            # Enable lingering for testuser to allow user services to run
+            machine.succeed("loginctl enable-linger testuser")
+            
+            # Start a proper user session 
+            machine.succeed("machinectl shell testuser@ /bin/true")
+            
+            # Use systemctl --user directly with proper environment
+            machine.succeed("sudo -u testuser XDG_RUNTIME_DIR=/run/user/1000 systemctl --user daemon-reload")
+            machine.succeed("sudo -u testuser XDG_RUNTIME_DIR=/run/user/1000 systemctl --user start vira.service")
             
             # Wait for the service to start
             time.sleep(10)
             
             # Check if the service is running
-            machine.succeed("su - testuser -c 'systemctl --user is-active vira.service'")
+            machine.succeed("sudo -u testuser XDG_RUNTIME_DIR=/run/user/1000 systemctl --user is-active vira.service")
             
             # Check if the service is listening on port 8080
             machine.wait_for_open_port(8080)
