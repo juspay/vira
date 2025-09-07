@@ -7,6 +7,7 @@ module Vira.Page.RepoPage (
 
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
+import Effectful.Git qualified as Git
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
@@ -19,12 +20,11 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Lib.Git qualified as Git
-import Vira.Page.JobPage qualified as JobPage
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
 import Vira.Widgets.Button qualified as W
+import Vira.Widgets.Code qualified as W
 import Vira.Widgets.Form qualified as W
 import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Status qualified as Status
@@ -59,7 +59,7 @@ viewHandler name = do
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  allBranches <- liftIO $ Git.remoteBranches repo.cloneUrl
+  allBranches <- Git.remoteBranches repo.cloneUrl
   App.update $ St.SetRepoBranchesA repo.name allBranches
   pure $ addHeader True "Ok"
 
@@ -181,7 +181,7 @@ viewBranchListing repo branches = do
               span_ [class_ "text-sm text-gray-600"] "Latest commit:"
               div_ [class_ "flex items-center space-x-2"] $ do
                 div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-500"] $ toHtmlRaw Icon.git_commit
-                JobPage.viewCommit branch.headCommit
+                W.viraCommitInfo_ branch.headCommit
 
             -- Build info (job ID and count if available)
             case maybeLatestJob of

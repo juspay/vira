@@ -15,8 +15,8 @@ import Data.IxSet.Typed qualified as Ix
 import Data.List (maximum)
 import Data.Map.Strict qualified as Map
 import Data.SafeCopy (base, deriveSafeCopy)
+import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit)
 import System.FilePath ((</>))
-import Vira.Lib.Git (BranchName, CommitID)
 import Vira.State.Type
 import Vira.State.Type qualified as T
 
@@ -31,6 +31,7 @@ Data in this state is indexed by `IxSet` to allow for efficient querying.
 data ViraState = ViraState
   { repos :: IxRepo
   , branches :: IxBranch
+  , commits :: IxCommit
   , jobs :: IxJob
   , cachix :: Maybe CachixSettings
   -- ^ Global Cachix settings, i.e for all the `repos`
@@ -126,15 +127,31 @@ setRepoA repo = do
       }
 
 -- | Set a repository's branches
-setRepoBranchesA :: RepoName -> Map BranchName CommitID -> Update ViraState ()
+setRepoBranchesA :: RepoName -> Map BranchName Commit -> Update ViraState ()
 setRepoBranchesA repo branches = do
   modify $ \s ->
     let
-      repoBranches = Map.toList branches <&> uncurry (Branch repo)
+      repoBranches = Map.toList branches <&> \(branchName, commit) -> Branch repo branchName commit.commitId
+      commits = Map.elems branches
      in
       s
         { branches = updateIxMulti repo (Ix.fromList repoBranches) s.branches
+        , commits = s.commits ||| Ix.fromList commits
         }
+
+-- | Get a commit by its ID
+getCommitByIdA :: CommitID -> Query ViraState (Maybe Commit)
+getCommitByIdA commitId = do
+  ViraState {commits} <- ask
+  pure $ Ix.getOne $ commits @= commitId
+
+-- | Store a commit in the index
+storeCommitA :: Commit -> Update ViraState ()
+storeCommitA commit = do
+  modify $ \s ->
+    s
+      { commits = Ix.updateIx commit.commitId commit s.commits
+      }
 
 -- | Get all jobs of a repo's branch in descending order
 getJobsByBranchA :: RepoName -> BranchName -> Query ViraState [Job]
@@ -226,6 +243,8 @@ $( makeAcidic
     , 'getBranchByNameA
     , 'setRepoA
     , 'setRepoBranchesA
+    , 'getCommitByIdA
+    , 'storeCommitA
     , 'getJobsByBranchA
     , 'getJobsByRepoA
     , 'getRunningJobs
