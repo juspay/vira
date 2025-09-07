@@ -21,9 +21,6 @@ in
   };
 
   config = mkIf cfg.enable {
-    # Ensure state directory exists
-    home.file."${cfg.stateDir}/.keep".text = "";
-
     # Linux systemd user service
     systemd.user.services.vira = mkIf pkgs.stdenv.isLinux {
       Unit = {
@@ -34,6 +31,7 @@ in
 
       Service = {
         Type = "exec";
+        ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p $(${pkgs.coreutils}/bin/dirname ${cfg.stateDir})";
         ExecStart = cfg.outputs.serviceCommand;
         Restart = "on-failure";
         RestartSec = "5s";
@@ -61,7 +59,11 @@ in
       enable = true;
       config = {
         Label = "org.vira.service";
-        ProgramArguments = [ "${pkgs.bash}/bin/bash" "-c" cfg.outputs.serviceCommand ];
+        ProgramArguments = [
+          "${pkgs.bash}/bin/bash"
+          "-c"
+          "${pkgs.coreutils}/bin/mkdir -p $(${pkgs.coreutils}/bin/dirname ${cfg.stateDir}) && ${cfg.outputs.serviceCommand}"
+        ];
         RunAtLoad = true;
         KeepAlive = {
           SuccessfulExit = false;
