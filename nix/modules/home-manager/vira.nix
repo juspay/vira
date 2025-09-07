@@ -31,7 +31,6 @@ in
 
       Service = {
         Type = "exec";
-        ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p $(${pkgs.coreutils}/bin/dirname ${cfg.stateDir})";
         ExecStart = cfg.outputs.serviceCommand;
         Restart = "on-failure";
         RestartSec = "5s";
