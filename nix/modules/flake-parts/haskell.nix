@@ -44,6 +44,8 @@
             pkgs.attic-client
             pkgs.omnix
             pkgs.openssl # For automatic TLS certificate generation
+            pkgs.coreutils # For mkdir
+            pkgs.makeWrapper # For wrapProgram
           ];
           stan = true;
           custom = drv: drv.overrideAttrs (oldAttrs: {
@@ -56,6 +58,13 @@
               export VIRA_CACHIX_BIN="${pkgs.lib.getExe' pkgs.cachix "cachix"}"
               export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
               export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
+              export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
+            '';
+            # Make nix and uname available to omnix.
+            # TODO: Remove this if/when move away from omnix.
+            postInstall = (oldAttrs.postInstall or "") + ''
+              wrapProgram $out/bin/vira \
+                --prefix PATH : ${pkgs.lib.makeBinPath [ self'.packages.nix pkgs.coreutils ]}
             '';
           });
         };
@@ -102,6 +111,7 @@
           export VIRA_CACHIX_BIN="${pkgs.lib.getExe' pkgs.cachix "cachix"}"
           export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
           export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
+          export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
         '';
       };
 
@@ -115,7 +125,7 @@
       default = config.haskellProjects.default.outputs.packages.vira.package;
 
       # The Nix version used by Vira (thus omnix)
-      # Nix 2.18 -> 2.22 are apprently buggy, 
+      # Nix 2.18 -> 2.22 are apprently buggy,
       # https://discourse.nixos.org/t/handling-git-submodules-in-flakes-from-nix-2-18-to-2-22-nar-hash-mismatch-issues/45118/5
       # So we use the latest.
       nix = pkgs.nixVersions.latest;

@@ -4,117 +4,41 @@ with lib;
 
 let
   cfg = config.services.vira;
-
-  # Generate initial state JSON from configuration
-  initialStateJson = pkgs.writeText "vira-initial-state.json" (builtins.toJSON cfg.initialState);
-
-  hasInitialState = cfg.initialState.repositories != { } || cfg.initialState.cachixSettings != null || cfg.initialState.atticSettings != null;
 in
 {
-  options.services.vira = {
-    enable = mkEnableOption "Vira web application";
+  options.services.vira = mkOption {
+    type = types.submoduleWith {
+      specialArgs = { inherit pkgs; };
+      modules = [
+        ../common/vira-options.nix
+        {
+          options = {
+            # NixOS-specific options
+            user = mkOption {
+              type = types.str;
+              default = "vira";
+              description = "User to run Vira as";
+            };
 
-    package = mkOption {
-      type = types.package;
-      description = "The Vira package to use";
-    };
+            group = mkOption {
+              type = types.str;
+              default = "vira";
+              description = "Group to run Vira as";
+            };
 
-    hostname = mkOption {
-      type = types.str;
-      default = "localhost";
-      description = "Hostname to bind Vira to";
-    };
-
-    port = mkOption {
-      type = types.port;
-      default = 5005;
-      description = "Port to bind Vira to";
-    };
-
-    https = mkOption {
-      type = types.bool;
-      default = true;
-      description = "Enable HTTPS";
-    };
-
-
-    user = mkOption {
-      type = types.str;
-      default = "vira";
-      description = "User to run Vira as";
-    };
-
-    group = mkOption {
-      type = types.str;
-      default = "vira";
-      description = "Group to run Vira as";
-    };
-
-    openFirewall = mkOption {
-      type = types.bool;
-      default = false;
-      description = "Whether to open the firewall for the Vira port";
-    };
-
-    extraPackages = mkOption {
-      type = types.listOf types.package;
-      default = [ ];
-      description = "Extra packages to add to the Vira service PATH";
-    };
-
-    stateDir = mkOption {
-      type = types.str;
-      default = "/var/lib/vira/state";
-      description = "Directory to store Vira state data";
-    };
-
-    basePath = mkOption {
-      type = types.str;
-      default = "/";
-      description = "Base URL path for the HTTP server";
-    };
-
-    initialState = mkOption {
-      description = "Initial state configuration for Vira";
-      default = { };
-      type = types.submodule {
-        options = {
-          repositories = mkOption {
-            description = "Map of repository names to clone URLs";
-            default = { };
-            type = types.attrsOf types.str;
+            openFirewall = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Whether to open the firewall for the Vira port";
+            };
           };
 
-          cachixSettings = mkOption {
-            description = "Cachix configuration";
-            default = null;
-            type = types.nullOr (types.submodule {
-              options = {
-                cachixName = mkOption {
-                  type = types.str;
-                  description = "Cachix cache name";
-                };
-                authToken = mkOption {
-                  type = types.str;
-                  description = "Cachix authentication token";
-                };
-              };
-            });
-          };
-
-          atticSettings = mkOption {
-            description = "Attic configuration";
-            default = null;
-            type = types.nullOr (types.submodule {
-              options = {
-                # Add attic-specific options here when needed
-              };
-            });
-          };
-        };
-      };
+          # Override default stateDir for NixOS
+          config.stateDir = mkDefault "/var/lib/vira/state";
+        }
+      ];
     };
-
+    default = { };
   };
 
   config = mkIf cfg.enable {
@@ -154,23 +78,7 @@ in
         Restart = "on-failure";
         RestartSec = "5s";
 
-        ExecStart =
-          let
-            globalArgs = [
-              "--state-dir"
-              cfg.stateDir
-            ];
-            webArgs = [
-              "--host"
-              cfg.hostname
-              "--port"
-              (toString cfg.port)
-              "--base-path"
-              cfg.basePath
-            ] ++ optionals (!cfg.https) [ "--no-https" ]
-            ++ optionals hasInitialState [ "--import" initialStateJson ];
-          in
-          "${cfg.package}/bin/vira ${concatStringsSep " " globalArgs} web ${concatStringsSep " " webArgs}";
+        ExecStart = cfg.outputs.serviceCommand;
       };
     };
 

@@ -54,6 +54,14 @@ For detailed information about TLS configuration, certificate generation, troubl
 
 Vira provides a NixOS module for easy deployment. See the [NixOS configuration example](nix/examples/nixos/flake.nix) for usage.
 
+## Home Manager Module
+
+Vira provides a Home Manager module for running Vira as a user service. Supports Linux (systemd user services) and macOS (launchd agents).
+
+> **Warning**: The nix-darwin module is currently untested.
+
+See the [Home Manager configuration example](nix/examples/home-manager/flake.nix) for usage.
+
 ## Beta Testing
 
 ```
