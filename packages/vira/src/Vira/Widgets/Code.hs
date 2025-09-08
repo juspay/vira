@@ -26,10 +26,12 @@ Always prefer these components over raw HTML to maintain design consistency.
 module Vira.Widgets.Code (
   viraCodeInline_,
   viraCommitInfo_,
+  viraCommitInfoCompact_,
+  viraCommitHash_,
 ) where
 
 import Data.Text qualified as T
-import Data.Time (defaultTimeLocale, formatTime)
+import Data.Time (UTCTime, defaultTimeLocale, diffUTCTime, formatTime, getCurrentTime)
 import Effectful.Git qualified as Git
 import Lucid
 import Vira.App qualified
@@ -115,3 +117,61 @@ viraCommitInfo_ commitId = do
             formatTime defaultTimeLocale "%b %d, %Y" commit.commitDate
       Nothing -> do
         span_ [class_ "text-xs text-red-600"] "Commit not found"
+
+{- |
+Compact commit information component for space-constrained layouts.
+
+Shows only commit hash and message with relative timestamp.
+Perfect for list items where space is limited.
+-}
+viraCommitInfoCompact_ :: Git.CommitID -> Vira.App.AppHtml ()
+viraCommitInfoCompact_ commitId = do
+  maybeCommit <- lift $ Vira.App.query $ Vira.State.Acid.GetCommitByIdA commitId
+  now <- liftIO getCurrentTime
+  div_ [class_ "flex items-center space-x-2"] $ do
+    viraCommitHash_ commitId
+    case maybeCommit of
+      Just commit -> do
+        unless (T.null commit.commitMessage) $ do
+          span_ [class_ "text-sm text-gray-700 truncate max-w-xs"] $ toHtml commit.commitMessage
+        div_ [class_ "text-xs text-gray-500"] $
+          toHtml $
+            formatRelativeTime now commit.commitDate
+      Nothing -> do
+        span_ [class_ "text-xs text-red-600"] "Commit not found"
+
+-- Helper function to format relative time
+formatRelativeTime :: UTCTime -> UTCTime -> Text
+formatRelativeTime now commitTime =
+  let diffSeconds = round $ diffUTCTime now commitTime :: Integer
+      minutes = diffSeconds `div` 60
+      hours = minutes `div` 60
+      days = hours `div` 24
+   in if diffSeconds < 60
+        then "just now"
+        else
+          if minutes < 60
+            then toText (show @Text minutes) <> " minutes ago"
+            else
+              if hours < 24
+                then toText (show @Text hours) <> " hours ago"
+                else
+                  if days < 7
+                    then toText (show @Text days) <> " days ago"
+                    else toText $ formatTime defaultTimeLocale "%b %d, %Y" commitTime
+
+{- |
+Clickable commit hash component with copy functionality.
+
+Displays a commit hash that can be clicked to copy to clipboard.
+-}
+viraCommitHash_ :: Git.CommitID -> Vira.App.AppHtml ()
+viraCommitHash_ commitId = do
+  let shortHash = T.take 8 $ toText $ Git.unCommitID commitId
+      fullHash = toText $ Git.unCommitID commitId
+  button_
+    [ class_ "px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-mono transition-colors cursor-pointer border-none"
+    , title_ $ "Click to copy: " <> fullHash
+    , onclick_ $ "event.stopPropagation(); event.preventDefault(); navigator.clipboard.writeText('" <> fullHash <> "'); this.innerText = 'Copied!'; setTimeout(() => { this.innerText = '" <> shortHash <> "'; }, 1000); return false;"
+    ]
+    $ toHtml shortHash

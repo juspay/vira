@@ -100,11 +100,20 @@ viewCommitTimeline branch jobs = do
     forM_ jobs $ \job -> do
       jobUrl <- lift $ App.getLinkUrl $ LinkTo.Job job.jobId
       a_ [href_ jobUrl, class_ "block p-3 rounded-lg hover:bg-gray-50 border border-gray-200 transition-colors"] $ do
-        div_ [class_ "flex items-center space-x-4"] $ do
-          div_ [class_ "w-5 h-5 flex items-center justify-center text-gray-500"] $ toHtmlRaw Icon.git_commit
-          div_ [class_ "flex-1 min-w-0"] $ do
-            div_ [class_ "flex items-center space-x-3"] $ do
-              W.viraCommitInfo_ job.jobCommit
-              span_ [class_ "text-sm font-medium text-gray-600"] $ "#" <> toHtml (show @Text job.jobId)
-          div_ [class_ "ml-auto"] $ do
+        -- Single-line columnar layout for easy scanning
+        div_ [class_ "grid grid-cols-12 gap-4 items-center"] $ do
+          -- Column 1: Job ID (2 columns)
+          div_ [class_ "col-span-2 flex items-center space-x-2"] $ do
+            div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600"] $ toHtmlRaw Icon.git_commit
+            span_ [class_ "text-sm font-semibold text-gray-900"] $ "#" <> toHtml (show @Text job.jobId)
+
+          -- Column 2: Commit info (6 columns)
+          div_ [class_ "col-span-6 min-w-0"] $ do
+            W.viraCommitInfoCompact_ job.jobCommit
+
+          -- Column 3: Build duration and status (4 columns)
+          div_ [class_ "col-span-4 flex items-center justify-end space-x-2"] $ do
+            -- Build duration placeholder
+            span_ [class_ "text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded"] "?m ??s"
+            -- Status badge
             Status.viraStatusBadge_ job.jobStatus
