@@ -49,6 +49,8 @@ This must be set via the VIRA_MKDIR_BIN environment variable at compile time.
 -}
 $(includeEnv "VIRA_MKDIR_BIN" "mkdir")
 
+mkdir :: FilePath
+
 data Routes mode = Routes
   { -- Trigger a new build
     _build :: mode :- "new" :> Capture "repo" RepoName :> Capture "branch" BranchName :> Post '[HTML] (Headers '[HXRefresh] Text)
