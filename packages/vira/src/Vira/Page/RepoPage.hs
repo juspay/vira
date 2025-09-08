@@ -7,6 +7,7 @@ module Vira.Page.RepoPage (
 
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
+import Effectful.Git qualified as Git
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
@@ -17,13 +18,13 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App (AppHtml)
 import Vira.App qualified as App
+import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Lib.Git qualified as Git
-import Vira.Page.JobPage qualified as JobPage
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
 import Vira.Widgets.Button qualified as W
+import Vira.Widgets.Code qualified as W
 import Vira.Widgets.Form qualified as W
 import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Status qualified as Status
@@ -40,12 +41,12 @@ data Routes mode = Routes
 crumbs :: [LinkTo.LinkTo]
 crumbs = [LinkTo.RepoListing]
 
-handlers :: App.AppState -> RepoName -> Routes AsServer
-handlers cfg name = do
+handlers :: App.AppState -> WebSettings -> RepoName -> Routes AsServer
+handlers cfg webSettings name = do
   Routes
-    { _view = App.runAppInServant cfg . App.runAppHtml $ viewHandler name
-    , _update = App.runAppInServant cfg $ updateHandler name
-    , _delete = App.runAppInServant cfg $ deleteHandler name
+    { _view = App.runAppInServant cfg webSettings . App.runAppHtml $ viewHandler name
+    , _update = App.runAppInServant cfg webSettings $ updateHandler name
+    , _delete = App.runAppInServant cfg webSettings $ deleteHandler name
     }
 
 viewHandler :: RepoName -> AppHtml ()
@@ -58,7 +59,7 @@ viewHandler name = do
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  allBranches <- liftIO $ Git.remoteBranches repo.cloneUrl
+  allBranches <- Git.remoteBranches repo.cloneUrl
   App.update $ St.SetRepoBranchesA repo.name allBranches
   pure $ addHeader True "Ok"
 
@@ -161,47 +162,46 @@ viewBranchListing repo branches = do
   -- Sort branches: built/building first, never built last
   let sortedBranchStatuses = sortOn (\(_, maybeJob, _) -> Down $ isJust maybeJob) branchStatuses
 
-  div_ [class_ "space-y-4"] $ do
+  div_ [class_ "space-y-2"] $ do
     forM_ sortedBranchStatuses $ \(branch, maybeLatestJob, effectiveStatus) -> do
       branchUrl <- lift $ App.getLinkUrl $ LinkTo.RepoBranch repo.name branch.branchName
       let branchNameText = toText $ toString branch.branchName
-      a_ [href_ branchUrl, class_ "block p-6 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200 hover:border-gray-300", data_ "branch-item" branchNameText] $ do
-        div_ [class_ "flex items-start justify-between"] $ do
-          div_ [class_ "flex-1"] $ do
-            -- Branch name and icon
-            div_ [class_ "flex items-center mb-3"] $ do
-              div_ [class_ "w-5 h-5 mr-3 flex items-center justify-center text-gray-600"] $ toHtmlRaw Icon.git_branch
-              h3_ [class_ "text-xl font-semibold text-gray-900"] $
-                toHtml $
-                  toString branch.branchName
+      a_ [href_ branchUrl, class_ "block p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200 hover:border-gray-300", data_ "branch-item" branchNameText] $ do
+        -- Single-line columnar layout for easy scanning
+        div_ [class_ "grid grid-cols-12 gap-4 items-center"] $ do
+          -- Column 1: Branch name (4 columns)
+          div_ [class_ "col-span-4 flex items-center space-x-2 min-w-0"] $ do
+            div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600"] $ toHtmlRaw Icon.git_branch
+            h3_ [class_ "text-sm font-semibold text-gray-900 truncate"] $
+              toHtml $
+                toString branch.branchName
 
-            -- Latest commit info
-            div_ [class_ "flex items-center space-x-3 mb-2"] $ do
-              span_ [class_ "text-sm text-gray-600"] "Latest commit:"
-              div_ [class_ "flex items-center space-x-2"] $ do
-                div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-500"] $ toHtmlRaw Icon.git_commit
-                JobPage.viewCommit branch.headCommit
+          -- Column 2: Last update info (5 columns)
+          div_ [class_ "col-span-5 min-w-0"] $ do
+            W.viraCommitInfoCompact_ branch.headCommit
 
-            -- Build info (job ID and count if available)
+          -- Column 3: Build info and status (3 columns)
+          div_ [class_ "col-span-3 flex items-center justify-end space-x-2"] $ do
+            -- Build duration and metadata
             case maybeLatestJob of
               Just latestJob -> do
                 jobs <- lift $ App.query $ St.GetJobsByBranchA repo.name branch.branchName
-                div_ [class_ "flex items-center space-x-4 text-sm text-gray-600"] $ do
-                  span_ $ "Latest build: #" <> toHtml (show @Text latestJob.jobId)
-                  span_ $ toHtml (show @Text (length jobs)) <> " total builds"
+                div_ [class_ "flex items-center space-x-2 text-xs text-gray-500"] $ do
+                  span_ [class_ "bg-gray-100 px-2 py-1 rounded"] "?m ??s"
+                  span_ $ "#" <> toHtml (show @Text latestJob.jobId)
+                  span_ $ "(" <> toHtml (show @Text (length jobs)) <> ")"
               Nothing ->
-                div_ [class_ "text-sm text-gray-500"] "No builds yet"
+                span_ [class_ "text-xs text-gray-500"] "No builds"
 
-          -- Status badge (larger and more prominent)
-          div_ [class_ "flex-shrink-0 ml-6"] $ do
+            -- Status badge
             case effectiveStatus of
               NeverBuilt ->
-                span_ [class_ "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800"] "Never built"
+                span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700"] "Never built"
               JobStatus jobStatus ->
                 Status.viraStatusBadge_ jobStatus
               OutOfDate ->
-                span_ [class_ "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800"] $ do
-                  div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.clock
+                span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700"] $ do
+                  div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
                   "Out of date"
 
 -- Data type to represent the effective status of a branch

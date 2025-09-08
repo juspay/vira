@@ -34,6 +34,7 @@ TBD
 just run
 
 # Or, if you need to start from empty database (useful if you have changed the acid-state types)
+# NOTE: This won't delete TLS certs.
 just resetdb run
 ```
 
@@ -53,10 +54,18 @@ For detailed information about TLS configuration, certificate generation, troubl
 
 Vira provides a NixOS module for easy deployment. See the [NixOS configuration example](nix/examples/nixos/flake.nix) for usage.
 
+## Home Manager Module
+
+Vira provides a Home Manager module for running Vira as a user service. Supports Linux (systemd user services) and macOS (launchd agents).
+
+> **Warning**: The nix-darwin module is currently untested.
+
+See the [Home Manager configuration example](nix/examples/home-manager/flake.nix) for usage.
+
 ## Beta Testing
 
 ```
-nix run github:juspay/vira --accept-flake-config -- --port 5005
+nix --accept-flake-config run github:juspay/vira -- web --port 5005
 ```
 
 You can now add your repositories in the web app.

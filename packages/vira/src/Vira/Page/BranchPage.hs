@@ -2,8 +2,8 @@
 
 module Vira.Page.BranchPage where
 
-import Data.Text qualified as T
 import Effectful.Error.Static (throwError)
+import Effectful.Git (BranchName)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Swap (Swap (AfterEnd))
 import Lucid
@@ -13,13 +13,13 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App (AppHtml)
 import Vira.App qualified as App
+import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Lib.Git (BranchName)
-import Vira.Lib.Git qualified as Git
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
 import Vira.Widgets.Button qualified as W
+import Vira.Widgets.Code qualified as W
 import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Status qualified as Status
 import Web.TablerIcons.Outline qualified as Icon
@@ -30,10 +30,10 @@ newtype Routes mode = Routes
   }
   deriving stock (Generic)
 
-handlers :: App.AppState -> RepoName -> BranchName -> Routes AsServer
-handlers cfg repoName branchName = do
+handlers :: App.AppState -> WebSettings -> RepoName -> BranchName -> Routes AsServer
+handlers cfg webSettings repoName branchName = do
   Routes
-    { _view = App.runAppInServant cfg . App.runAppHtml $ viewHandler repoName branchName
+    { _view = App.runAppInServant cfg webSettings . App.runAppHtml $ viewHandler repoName branchName
     }
 
 viewHandler :: RepoName -> BranchName -> AppHtml ()
@@ -55,7 +55,7 @@ viewBranch repo branch jobs = do
           span_ [class_ "text-sm"] "Latest commit:"
           div_ [class_ "flex items-center space-x-2"] $ do
             div_ [class_ "w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.git_commit
-            viewCommitHash branch.headCommit
+            W.viraCommitInfo_ branch.headCommit
         div_ [class_ "flex items-center gap-2"] $ do
           buildLink <- lift $ App.getLink $ LinkTo.Build repo.name branch.branchName
           updateLink <- lift $ App.getLink $ LinkTo.RepoUpdate repo.name
@@ -83,14 +83,6 @@ viewBranch repo branch jobs = do
     div_ [class_ "bg-white rounded-xl border border-gray-200 p-4 lg:p-8"] $ do
       viewCommitTimeline branch jobs
 
--- Timeline commit hash display without background
-viewCommitHash :: (Monad m) => Git.CommitID -> HtmlT m ()
-viewCommitHash (Git.CommitID commit) = do
-  span_ [class_ "font-mono text-sm text-gray-500 font-medium"] $
-    toHtml $
-      T.take 8 $
-        toText commit
-
 -- Simple job list showing commit id, job id, and status
 viewCommitTimeline :: St.Branch -> [St.Job] -> App.AppHtml ()
 viewCommitTimeline branch jobs = do
@@ -101,16 +93,27 @@ viewCommitTimeline branch jobs = do
         div_ [class_ "w-5 h-5 mr-3 flex items-center justify-center text-gray-500"] $ toHtmlRaw Icon.git_commit
         div_ [class_ "flex-1"] $ do
           div_ [class_ "flex items-center space-x-4"] $ do
-            viewCommitHash branch.headCommit
+            W.viraCommitInfo_ branch.headCommit
             span_ [class_ "text-sm text-gray-500"] "No builds yet"
 
     -- Show all jobs for this branch
     forM_ jobs $ \job -> do
       jobUrl <- lift $ App.getLinkUrl $ LinkTo.Job job.jobId
       a_ [href_ jobUrl, class_ "block p-3 rounded-lg hover:bg-gray-50 border border-gray-200 transition-colors"] $ do
-        div_ [class_ "flex items-center space-x-4"] $ do
-          div_ [class_ "w-5 h-5 flex items-center justify-center text-gray-500"] $ toHtmlRaw Icon.git_commit
-          viewCommitHash job.jobCommit
-          span_ [class_ "text-sm font-medium text-gray-600"] $ "#" <> toHtml (show @Text job.jobId)
-          div_ [class_ "ml-auto"] $ do
+        -- Single-line columnar layout for easy scanning
+        div_ [class_ "grid grid-cols-12 gap-4 items-center"] $ do
+          -- Column 1: Job ID (2 columns)
+          div_ [class_ "col-span-2 flex items-center space-x-2"] $ do
+            div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600"] $ toHtmlRaw Icon.git_commit
+            span_ [class_ "text-sm font-semibold text-gray-900"] $ "#" <> toHtml (show @Text job.jobId)
+
+          -- Column 2: Commit info (6 columns)
+          div_ [class_ "col-span-6 min-w-0"] $ do
+            W.viraCommitInfoCompact_ job.jobCommit
+
+          -- Column 3: Build duration and status (4 columns)
+          div_ [class_ "col-span-4 flex items-center justify-end space-x-2"] $ do
+            -- Build duration placeholder
+            span_ [class_ "text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded"] "?m ??s"
+            -- Status badge
             Status.viraStatusBadge_ job.jobStatus

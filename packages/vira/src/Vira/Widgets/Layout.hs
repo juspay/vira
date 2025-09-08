@@ -40,10 +40,9 @@ import Effectful.Reader.Dynamic (asks)
 import Lucid
 import System.Info (arch, os)
 import Vira.App qualified as App
-import Vira.App.CLI (CLISettings (basePath), instanceName)
+import Vira.App.CLI (WebSettings (..))
 import Vira.App.LinkTo.Type (LinkTo (..), linkShortTitle)
 import Vira.App.Lucid (AppHtml)
-import Vira.App.Stack (AppState (cliSettings))
 import Vira.Stream.Refresh qualified as Refresh
 import Vira.Widgets.Status qualified as Status
 import Web.TablerIcons.Outline qualified as Icon
@@ -52,8 +51,8 @@ import Prelude hiding (asks)
 -- | Common HTML layout for all routes.
 layout :: [LinkTo] -> AppHtml () -> AppHtml ()
 layout crumbs content = do
-  siteTitle <- lift $ asks @AppState (("Vira (" <>) . (<> ")") . (.cliSettings.instanceName))
-  basePath <- lift $ asks @AppState (.cliSettings.basePath)
+  instanceName <- lift $ asks @WebSettings (.instanceName)
+  basePath <- lift $ asks @WebSettings (.basePath)
   doctype_
   html_ $ do
     head_ $ do
@@ -64,7 +63,7 @@ layout crumbs content = do
           Just link -> do
             toHtml $ linkShortTitle link
             " - "
-        toHtml siteTitle
+        toHtml $ "Vira (" <> instanceName <> ")"
       base_ [href_ basePath]
       -- Google Fonts - Inter for modern, clean typography
       link_ [rel_ "preconnect", href_ "https://fonts.googleapis.com"]
@@ -105,7 +104,7 @@ layout crumbs content = do
     -- Footer with memory usage information
     footer :: [LinkTo] -> AppHtml ()
     footer _crumbs = do
-      instanceNameValue <- lift $ asks @AppState (.cliSettings.instanceName)
+      instanceNameValue <- lift $ asks @WebSettings (.instanceName)
       let platformStr = os <> "/" <> arch
       div_ [class_ "bg-gray-100 border-t border-gray-200 mt-auto"] $ do
         div_ [class_ "container mx-auto px-4 py-3 lg:px-8"] $ do
@@ -136,7 +135,7 @@ breadcrumbs rs' = do
     ol_ [class_ "flex flex-1 items-center space-x-2 text-base list-none"] $ do
       -- Logo as first element
       li_ [class_ "flex items-center"] $ do
-        basePath <- lift $ asks @AppState (.cliSettings.basePath)
+        basePath <- lift $ asks @WebSettings (.basePath)
         a_ [href_ basePath, class_ "font-semibold text-white px-2 py-1 rounded-lg bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-smooth"] logo
       -- Render breadcrumb links
       renderCrumbs rs'

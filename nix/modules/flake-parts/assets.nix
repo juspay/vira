@@ -22,27 +22,14 @@
       '';
     in
     {
-      haskellProjects.default = {
-        # Add it to Haskell Nix package
-        settings = {
-          vira = {
-            custom = d: d.overrideAttrs (oa: {
-              postUnpack = (oa.postUnpack or "") + ''
-                ln -s ${jsAssets}/js $sourceRoot/static/js
-              '';
-            });
-          };
-        };
-
-        # Add it to devShell (./packages/vira/static/js)
-        devShell = {
-          mkShellArgs.shellHook = ''
-            # Set up JavaScript assets from Nix store using the same derivation as build
-            export VIRA_STATIC_DIR=./packages/vira/static
-            rm -f $VIRA_STATIC_DIR/js
-            ln -sf ${jsAssets}/js $VIRA_STATIC_DIR/js
-          '';
-        };
+      packages.jsAssets = jsAssets;
+      devShells.jsAssets = pkgs.mkShell {
+        shellHook = ''
+          # Set up JavaScript assets from Nix store using the same derivation as build
+          export VIRA_STATIC_DIR=./packages/vira/static
+          rm -f $VIRA_STATIC_DIR/js
+          ln -sf ${jsAssets}/js $VIRA_STATIC_DIR/js
+        '';
       };
     };
 }

@@ -6,69 +6,39 @@ let
   cfg = config.services.vira;
 in
 {
-  options.services.vira = {
-    enable = mkEnableOption "Vira web application";
+  options.services.vira = mkOption {
+    type = types.submoduleWith {
+      specialArgs = { inherit pkgs; };
+      modules = [
+        ../common/vira-options.nix
+        {
+          options = {
+            # NixOS-specific options
+            user = mkOption {
+              type = types.str;
+              default = "vira";
+              description = "User to run Vira as";
+            };
 
-    package = mkOption {
-      type = types.package;
-      description = "The Vira package to use";
+            group = mkOption {
+              type = types.str;
+              default = "vira";
+              description = "Group to run Vira as";
+            };
+
+            openFirewall = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Whether to open the firewall for the Vira port";
+            };
+          };
+
+          # Override default stateDir for NixOS
+          config.stateDir = mkDefault "/var/lib/vira/state";
+        }
+      ];
     };
-
-    hostname = mkOption {
-      type = types.str;
-      default = "localhost";
-      description = "Hostname to bind Vira to";
-    };
-
-    port = mkOption {
-      type = types.port;
-      default = 5005;
-      description = "Port to bind Vira to";
-    };
-
-    https = mkOption {
-      type = types.bool;
-      default = true;
-      description = "Enable HTTPS";
-    };
-
-
-    user = mkOption {
-      type = types.str;
-      default = "vira";
-      description = "User to run Vira as";
-    };
-
-    group = mkOption {
-      type = types.str;
-      default = "vira";
-      description = "Group to run Vira as";
-    };
-
-    openFirewall = mkOption {
-      type = types.bool;
-      default = false;
-      description = "Whether to open the firewall for the Vira port";
-    };
-
-    extraPackages = mkOption {
-      type = types.listOf types.package;
-      default = [ ];
-      description = "Extra packages to add to the Vira service PATH";
-    };
-
-    stateDir = mkOption {
-      type = types.str;
-      default = "/var/lib/vira/state";
-      description = "Directory to store Vira state data";
-    };
-
-    basePath = mkOption {
-      type = types.str;
-      default = "/";
-      description = "Base URL path for the HTTP server";
-    };
-
+    default = { };
   };
 
   config = mkIf cfg.enable {
@@ -108,20 +78,7 @@ in
         Restart = "on-failure";
         RestartSec = "5s";
 
-        ExecStart =
-          let
-            args = [
-              "--host"
-              cfg.hostname
-              "--port"
-              (toString cfg.port)
-              "--state-dir"
-              cfg.stateDir
-              "--base-path"
-              cfg.basePath
-            ] ++ optionals (!cfg.https) [ "--no-https" ];
-          in
-          "${cfg.package}/bin/vira ${concatStringsSep " " args}";
+        ExecStart = cfg.outputs.serviceCommand;
       };
     };
 

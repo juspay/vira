@@ -14,7 +14,7 @@ import Effectful.Process (Process, runProcess)
 import Effectful.Reader.Dynamic (Reader, runReader)
 import Servant (Handler (Handler), ServerError)
 import Servant.Links (Link)
-import Vira.App.CLI (CLISettings)
+import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.Lib.Logging (runLogActionStdout)
 import Vira.State.Core (ViraState)
@@ -30,7 +30,7 @@ type AppStack =
    , IOE
    ]
 
-type AppServantStack = (Error ServerError : AppStack)
+type AppServantStack = (Error ServerError : Reader WebSettings : AppStack)
 
 -- | Run the application stack in IO monad
 runApp :: AppState -> Eff AppStack a -> IO a
@@ -44,15 +44,13 @@ runApp cfg =
     . runReader cfg
 
 -- | Like `runApp`, but for Servant 'Handler'.
-runAppInServant :: AppState -> Eff AppServantStack a -> Handler a
-runAppInServant cfg =
-  Handler . ExceptT . runApp cfg . runErrorNoCallStack
+runAppInServant :: AppState -> WebSettings -> Eff AppServantStack a -> Handler a
+runAppInServant cfg webSettings =
+  Handler . ExceptT . runApp cfg . runReader webSettings . runErrorNoCallStack
 
 -- | Application-wide state available in Effectful stack
 data AppState = AppState
-  { -- CLI args passed by the user
-    cliSettings :: CLISettings
-  , -- The state of the app
+  { -- The state of the app
     acid :: AcidState ViraState
   , -- Process supervisor state
     supervisor :: TaskSupervisor

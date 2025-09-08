@@ -4,12 +4,13 @@
 
 module Vira.State.Type where
 
+import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import Data.Data (Data)
 import Data.IxSet.Typed
 import Data.SafeCopy
+import Effectful.Git (BranchName, CommitID)
 import Servant.API (FromHttpApiData, ToHttpApiData)
 import Vira.Lib.Attic
-import Vira.Lib.Git (BranchName, CommitID)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
 
 newtype RepoSettings = RepoSettings
@@ -28,6 +29,7 @@ data AtticSettings = AtticSettings
   -- ^ Access token for `atticServerUrl`
   }
   deriving stock (Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 -- TODO: type-check field names during compile-time
 instance FromForm AtticSettings where
@@ -44,7 +46,7 @@ data CachixSettings = CachixSettings
   -- ^ Auth token for the cachix cache
   }
   deriving stock (Show, Generic)
-  deriving anyclass (FromForm)
+  deriving anyclass (FromForm, ToJSON, FromJSON)
 
 newtype RepoName = RepoName {unRepoName :: Text}
   deriving stock (Generic, Data)
@@ -55,6 +57,10 @@ newtype RepoName = RepoName {unRepoName :: Text}
     , ToText
     , ToHttpApiData
     , FromHttpApiData
+    , ToJSON
+    , FromJSON
+    , ToJSONKey
+    , FromJSONKey
     )
   deriving anyclass (FromForm)
 
@@ -93,7 +99,7 @@ data Branch = Branch
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
-type BranchIxs = '[RepoName, BranchName]
+type BranchIxs = '[RepoName, BranchName, CommitID]
 type IxBranch = IxSet BranchIxs Branch
 
 instance Indexable BranchIxs Branch where
@@ -101,6 +107,7 @@ instance Indexable BranchIxs Branch where
     ixList
       (ixFun $ \Branch {repoName} -> [repoName])
       (ixFun $ \Branch {branchName} -> [branchName])
+      (ixFun $ \Branch {headCommit} -> [headCommit])
 
 newtype JobId = JobId {unJobId :: Int}
   deriving stock (Generic, Data)

@@ -28,6 +28,20 @@
               openFirewall = true;
               stateDir = "/var/lib/vira/example-state";
               package = vira.packages.${system}.default;
+
+              # Initial state configuration with repositories and settings
+              initialState = {
+                repositories = {
+                  emanote = "https://github.com/srid/emanote.git";
+                  omnix = "https://github.com/juspay/omnix.git";
+                  vira = "https://github.com/juspay/vira.git";
+                };
+
+                cachixSettings = {
+                  cachixName = "my-cache";
+                  authToken = "your-cachix-token-here";
+                };
+              };
             };
 
             # Minimal system configuration
@@ -57,6 +71,13 @@
               openFirewall = true;
               stateDir = "/var/lib/vira/example-state";
               package = vira.packages.${system}.default;
+
+              # Test initial state
+              initialState = {
+                repositories = {
+                  test-repo = "https://github.com/srid/haskell-template.git";
+                };
+              };
             };
 
             # Minimal VM configuration
@@ -83,6 +104,17 @@
             
             # Check service status
             machine.succeed("systemctl is-active vira.service")
+            
+            # Test that initial state was imported correctly
+            # Check the repository list page for our imported repository
+            result = machine.succeed("curl -s http://localhost:8080/r")
+            print(f"Repository page content: {result}")
+            
+            # Check if our test repository is listed
+            if "test-repo" in result:
+                print("✅ Initial state was imported correctly")
+            else:
+                print("❌ Initial state import may have failed")
             
             print("✅ Vira service is running and responding to HTTP requests")
           '';

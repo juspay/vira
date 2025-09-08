@@ -22,6 +22,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App (AppHtml)
 import Vira.App qualified as App
+import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Attic (AtticServer (..))
 import Vira.Lib.Logging
@@ -46,14 +47,14 @@ data Routes mode = Routes
   }
   deriving stock (Generic)
 
-handlers :: App.AppState -> Routes AsServer
-handlers cfg =
+handlers :: App.AppState -> WebSettings -> Routes AsServer
+handlers cfg webSettings =
   Routes
-    { _view = App.runAppInServant cfg . App.runAppHtml $ viewHandler
-    , _updateCachix = App.runAppInServant cfg . updateCachixHandler
-    , _deleteCachix = App.runAppInServant cfg deleteCachixHandler
-    , _updateAttic = App.runAppInServant cfg . updateAtticHandler
-    , _deleteAttic = App.runAppInServant cfg deleteAtticHandler
+    { _view = App.runAppInServant cfg webSettings . App.runAppHtml $ viewHandler
+    , _updateCachix = App.runAppInServant cfg webSettings . updateCachixHandler
+    , _deleteCachix = App.runAppInServant cfg webSettings deleteCachixHandler
+    , _updateAttic = App.runAppInServant cfg webSettings . updateAtticHandler
+    , _deleteAttic = App.runAppInServant cfg webSettings deleteAtticHandler
     }
 
 viewHandler :: AppHtml ()

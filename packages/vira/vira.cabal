@@ -39,7 +39,6 @@ library
       Vira.App.Stack
       Vira.Lib.Attic
       Vira.Lib.Cachix
-      Vira.Lib.Git
       Vira.Lib.Logging
       Vira.Lib.Omnix
       Vira.Lib.Process
@@ -48,11 +47,13 @@ library
       Vira.Page.IndexPage
       Vira.Page.JobLog
       Vira.Page.JobPage
+      Vira.Page.NotFoundPage
       Vira.Page.RegistryPage
       Vira.Page.RepoPage
       Vira.Page.SettingsPage
       Vira.State.Acid
       Vira.State.Core
+      Vira.State.JSON
       Vira.State.Type
       Vira.Stream.Log
       Vira.Stream.Refresh
@@ -123,6 +124,7 @@ library
     , effectful-th
     , envparse
     , filepath
+    , git-effectful
     , gitlib
     , hostname
     , hspec
@@ -133,6 +135,8 @@ library
     , htmx-servant
     , http-api-data
     , http-media
+    , http-types
+    , include-env
     , ixset-typed
     , lucid2
     , mtl
@@ -158,7 +162,6 @@ library
     , wai-middleware-static
     , warp
     , warp-tls-simple
-    , which
     , with-utf8
   mixins:
       base hiding (Prelude)
@@ -225,6 +228,7 @@ executable vira
     , effectful-th
     , envparse
     , filepath
+    , git-effectful
     , gitlib
     , hostname
     , hspec
@@ -235,6 +239,8 @@ executable vira
     , htmx-servant
     , http-api-data
     , http-media
+    , http-types
+    , include-env
     , ixset-typed
     , lucid2
     , mtl
@@ -261,7 +267,6 @@ executable vira
     , wai-middleware-static
     , warp
     , warp-tls-simple
-    , which
     , with-utf8
   mixins:
       base hiding (Prelude)
@@ -273,7 +278,6 @@ test-suite vira-tests
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Vira.Lib.GitSpec
       Paths_vira
   autogen-modules:
       Paths_vira
@@ -330,6 +334,7 @@ test-suite vira-tests
     , effectful-th
     , envparse
     , filepath
+    , git-effectful
     , gitlib
     , hostname
     , hspec
@@ -340,6 +345,8 @@ test-suite vira-tests
     , htmx-servant
     , http-api-data
     , http-media
+    , http-types
+    , include-env
     , ixset-typed
     , lucid2
     , mtl
@@ -366,7 +373,6 @@ test-suite vira-tests
     , wai-middleware-static
     , warp
     , warp-tls-simple
-    , which
     , with-utf8
   mixins:
       base hiding (Prelude)
