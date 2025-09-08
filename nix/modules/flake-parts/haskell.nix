@@ -61,6 +61,7 @@
               export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
               export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
               export VIRA_GH_SIGNOFF_BIN="${pkgs.lib.getExe pkgs.gh-signoff}"
+              export VIRA_SYSTEM="${pkgs.stdenv.hostPlatform.system}"
             '';
             # Make nix and uname available to omnix.
             # TODO: Remove this if/when move away from omnix.
@@ -116,6 +117,7 @@
           export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
           export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
           export VIRA_GH_SIGNOFF_BIN="${pkgs.lib.getExe pkgs.gh-signoff}"
+          export VIRA_SYSTEM="${pkgs.stdenv.hostPlatform.system}"
         '';
       };
 

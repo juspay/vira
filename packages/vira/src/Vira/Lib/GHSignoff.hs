@@ -14,6 +14,14 @@ $(includeEnv "VIRA_GH_SIGNOFF_BIN" "ghSignoffBin")
 
 ghSignoffBin :: FilePath
 
--- | Create a process to run gh-signoff create
+{- | System platform string
+
+This must be set via the VIRA_SYSTEM environment variable at compile time.
+-}
+$(includeEnv "VIRA_SYSTEM" "viraSystem")
+
+viraSystem :: String
+
+-- | Create a process to run gh-signoff create with force flag and platform context
 ghSignoffProcess :: CreateProcess
-ghSignoffProcess = proc ghSignoffBin []
+ghSignoffProcess = proc ghSignoffBin ["create", "-f", viraSystem]
