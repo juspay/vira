@@ -47,6 +47,7 @@ library
       Vira.Page.IndexPage
       Vira.Page.JobLog
       Vira.Page.JobPage
+      Vira.Page.NotFoundPage
       Vira.Page.RegistryPage
       Vira.Page.RepoPage
       Vira.Page.SettingsPage
@@ -134,6 +135,7 @@ library
     , htmx-servant
     , http-api-data
     , http-media
+    , http-types
     , include-env
     , ixset-typed
     , lucid2
@@ -237,6 +239,7 @@ executable vira
     , htmx-servant
     , http-api-data
     , http-media
+    , http-types
     , include-env
     , ixset-typed
     , lucid2
@@ -342,6 +345,7 @@ test-suite vira-tests
     , htmx-servant
     , http-api-data
     , http-media
+    , http-types
     , include-env
     , ixset-typed
     , lucid2

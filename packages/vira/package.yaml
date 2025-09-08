@@ -59,6 +59,7 @@ dependencies:
   - htmx-lucid-contrib
   - htmx-servant
   - http-api-data
+  - http-types
   - ixset-typed
   - lucid2
   - mtl

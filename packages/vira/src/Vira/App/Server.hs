@@ -9,6 +9,8 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.FileSystem (FileSystem, doesDirectoryExist)
 import Effectful.Reader.Dynamic qualified as Reader
+import Network.HTTP.Types (status404)
+import Network.Wai (Middleware, responseLBS, responseStatus)
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Handler.WarpTLS.Simple (TLSConfig (..), startWarpServer)
 import Network.Wai.Middleware.Static (
@@ -24,6 +26,7 @@ import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
 import Vira.App.Stack (AppState)
 import Vira.Lib.Logging
 import Vira.Page.IndexPage qualified as IndexPage
+import Vira.Page.NotFoundPage qualified as NotFoundPage
 
 -- | Run the Vira server with the given settings
 runServer :: (HasCallStack) => GlobalSettings -> WebSettings -> Eff AppStack ()
@@ -37,19 +40,22 @@ runServer globalSettings webSettings = do
     buildApplication = do
       appState <- Reader.ask @AppState
       let servantApp = genericServe $ IndexPage.handlers appState webSettings
-      middleware <- staticMiddleware
-      pure $ middleware servantApp
+      staticDir <- getDataDirMultiHome
+      log Debug $ "Static dir = " <> toText staticDir
+      let middlewares =
+            [ -- Middleware to serve static files
+              staticPolicy $ noDots >-> addBase staticDir
+            , -- 404 handler
+              notFoundMiddleware appState webSettings
+            ]
+          app = foldl' (&) servantApp middlewares
+      pure app
 
     buildUrl ws = protocol <> "://" <> ws.host <> ":" <> show ws.port
       where
         protocol = case ws.tlsConfig of
           TLSDisabled -> "http"
           _ -> "https"
-
-    staticMiddleware = do
-      staticDir <- getDataDirMultiHome
-      log Debug $ "Static dir = " <> toText staticDir
-      pure $ staticPolicy $ noDots >-> addBase staticDir
 
     warpSettings ws =
       Warp.defaultSettings
@@ -76,3 +82,16 @@ getDataDirMultiHome = do
     inNixShell :: (IOE :> es) => Eff es Bool
     inNixShell = do
       isJust <$> lookupEnv "IN_NIX_SHELL"
+
+-- | WAI middleware to handle 404 errors with custom page
+notFoundMiddleware :: AppState -> WebSettings -> Middleware
+notFoundMiddleware appState webSettings app req respond = do
+  app req $ \res -> do
+    -- Check if the response is a 404
+    if responseStatus res == status404
+      then do
+        html404 <- NotFoundPage.complete404Page appState webSettings
+        respond $
+          responseLBS status404 [("Content-Type", "text/html; charset=utf-8")] $
+            encodeUtf8 html404
+      else respond res
