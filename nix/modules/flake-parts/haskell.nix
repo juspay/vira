@@ -4,7 +4,17 @@
     inputs.haskell-flake.flakeModule
   ];
   debug = true;
-  perSystem = { self', lib, config, pkgs, ... }: {
+
+  perSystem = { self', lib, config, pkgs, system, ... }: {
+    # Override pkgs.omnix to use the flake input
+    _module.args.pkgs = import inputs.nixpkgs {
+      inherit system;
+      overlays = [
+        (final: prev: {
+          omnix = inputs.omnix.packages.${system}.default;
+        })
+      ];
+    };
     # Our only Haskell project. You can have multiple projects, but this template
     # has only one.
     # See https://github.com/srid/haskell-flake/blob/master/example/flake.nix
