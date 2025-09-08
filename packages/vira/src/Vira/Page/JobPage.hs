@@ -4,7 +4,6 @@
 module Vira.Page.JobPage where
 
 import Colog (Severity (..))
-import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName)
@@ -132,10 +131,6 @@ viewJobHeader job = do
             "Job #" <> toHtml (show @Text job.jobId)
         W.viraCommitInfo_ job.jobCommit
       viewJobStatus job.jobStatus
-
-viewCommit :: (Monad m) => Git.CommitID -> HtmlT m ()
-viewCommit (Git.CommitID commit) = do
-  W.viraCodeInline_ (T.take 8 $ toText commit)
 
 viewJobStatus :: (Monad m) => St.JobStatus -> HtmlT m ()
 viewJobStatus status = do

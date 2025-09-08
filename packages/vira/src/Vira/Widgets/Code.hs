@@ -102,7 +102,7 @@ viraCommitInfo_ :: Git.CommitID -> Vira.App.AppHtml ()
 viraCommitInfo_ commitId = do
   maybeCommit <- lift $ Vira.App.query $ Vira.State.Acid.GetCommitByIdA commitId
   div_ [class_ "flex items-center space-x-2"] $ do
-    viraCodeInline_ (T.take 8 $ toText $ Git.unCommitID commitId)
+    viraCommitHash_ commitId
     case maybeCommit of
       Just commit -> do
         unless (T.null commit.commitMessage) $ do
