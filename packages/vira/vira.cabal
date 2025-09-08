@@ -39,6 +39,7 @@ library
       Vira.App.Stack
       Vira.Lib.Attic
       Vira.Lib.Cachix
+      Vira.Lib.GHSignoff
       Vira.Lib.Logging
       Vira.Lib.Omnix
       Vira.Lib.Process

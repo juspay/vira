@@ -26,6 +26,7 @@ import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Attic
 import Vira.Lib.Cachix
+import Vira.Lib.GHSignoff
 import Vira.Lib.Logging
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.Page.JobLog qualified as JobLog
@@ -167,6 +168,7 @@ getStages repo branch mCachix mAttic = do
     <> maybe [] (one . stageAtticLogin) mAttic
     <> [stageBuild]
     <> (maybe mempty (one . stageCachixPush) mCachix <> maybe mempty (one . stageAtticPush) mAttic)
+    <> [stageGHSignoff]
   where
     stageCreateProjectDir =
       proc mkdir ["project"]
@@ -189,5 +191,9 @@ getStages repo branch mCachix mAttic = do
         }
     stageAtticPush attic =
       (atticPushProcess attic.atticServer attic.atticCacheName "result")
+        { cwd = Just "project"
+        }
+    stageGHSignoff =
+      ghSignoffProcess
         { cwd = Just "project"
         }

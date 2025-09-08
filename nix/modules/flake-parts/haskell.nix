@@ -46,6 +46,7 @@
             pkgs.openssl # For automatic TLS certificate generation
             pkgs.coreutils # For mkdir
             pkgs.makeWrapper # For wrapProgram
+            pkgs.gh-signoff
           ];
           stan = true;
           custom = drv: drv.overrideAttrs (oldAttrs: {
@@ -59,6 +60,7 @@
               export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
               export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
               export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
+              export VIRA_GH_SIGNOFF_BIN="${pkgs.lib.getExe pkgs.gh-signoff}"
             '';
             # Make nix and uname available to omnix.
             # TODO: Remove this if/when move away from omnix.
@@ -104,6 +106,7 @@
         tools = _: {
           stan = pkgs.haskellPackages.stan;
           vira-dev = config.process-compose."vira-dev".outputs.package;
+          gh-signoff = pkgs.gh-signoff;
         };
         mkShellArgs.shellHook = ''
           export VIRA_GIT_BIN="${pkgs.lib.getExe' pkgs.git "git"}"
@@ -112,6 +115,7 @@
           export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
           export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
           export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
+          export VIRA_GH_SIGNOFF_BIN="${pkgs.lib.getExe pkgs.gh-signoff}"
         '';
       };
 
