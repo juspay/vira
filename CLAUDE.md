@@ -21,7 +21,7 @@ See README.md for general project information.
 - `Vira.Lib.*` - Future 3rd party libraries (no external Vira types)
 - Follow Volatility-Based Decomposition
 - Sync code changes with DESIGN.md
-- Regenerate cabal: `pre-commit run -a`
+- We use hpack, so to add deps, modify `package.yam` and regenerate `.cabal` files using `just hpack`.
 
 ## Development
 
