@@ -23,5 +23,5 @@ $(includeEnv "VIRA_SYSTEM" "viraSystem")
 viraSystem :: String
 
 -- | Create a process to run gh-signoff create with force flag and platform context
-ghSignoffProcess :: CreateProcess
-ghSignoffProcess = proc ghSignoffBin ["create", "-f", viraSystem]
+ghSignoffProcess :: String -> String -> CreateProcess
+ghSignoffProcess name k = proc ghSignoffBin ["create", "-f", name <> "/" <> viraSystem <> "/" <> k]

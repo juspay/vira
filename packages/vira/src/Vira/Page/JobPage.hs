@@ -194,6 +194,6 @@ getStages repo branch mCachix mAttic = do
         { cwd = Just "project"
         }
     stageGHSignoff =
-      ghSignoffProcess
+      (ghSignoffProcess "vira" "ci")
         { cwd = Just "project"
         }
