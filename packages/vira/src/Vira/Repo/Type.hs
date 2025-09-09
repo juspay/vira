@@ -2,7 +2,6 @@ module Vira.Repo.Type where
 
 import Data.Default (Default (def))
 import System.FilePattern (FilePattern)
-import Vira.State.Type (AtticSettings, CachixSettings)
 
 newtype RepoSettings = RepoSettings
   { stages :: [(StageSettings, Stage)]
@@ -22,10 +21,8 @@ instance Default StageSettings where
   def = StageSettings {if_ = []}
 
 -- | User-configurable stage in a `Task`
-data Stage
+newtype Stage
   = Build OmCiConfig
-  | AtticPush AtticSettings
-  | CachixPush CachixSettings
   deriving stock (Show)
 
 -- | Settings for the build `Stage`

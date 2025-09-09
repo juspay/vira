@@ -41,12 +41,27 @@ getStages repo branch mCachix mAttic =
       (Git.cloneAtCommit repo.cloneUrl branch.headCommit)
         { cwd = Just projectDir
         }
-    repoSettings = defaultRepoSettings repo.name mCachix mAttic
+    repoSettings = defaultRepoSettings repo.name
     branchStages = stagesForBranch branch.branchName repoSettings
+    atticPush attic =
+      [ (atticLoginProcess attic.atticServer attic.atticToken)
+          { cwd = Just projectDir
+          }
+      , (atticPushProcess attic.atticServer attic.atticCacheName "result")
+          { cwd = Just projectDir
+          }
+      ]
+    cachixPush cachix =
+      [ (cachixPushProcess cachix.cachixName "result")
+          { env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]
+          , cwd = Just projectDir
+          }
+      ]
    in
     createProjectDir
       :| one clone
       <> concatMap stageProcesses branchStages
+      <> (maybe mempty cachixPush mCachix <> maybe mempty atticPush mAttic)
 
 -- Process stages to get the final ordered `[Stage]`
 stagesForBranch :: BranchName -> RepoSettings -> [Stage]
@@ -64,20 +79,6 @@ stageProcesses = \case
       (Omnix.omnixCiProcess (map toString settings.extraArgs))
         { cwd = Just projectDir
         }
-  AtticPush attic ->
-    [ (atticLoginProcess attic.atticServer attic.atticToken)
-        { cwd = Just projectDir
-        }
-    , (atticPushProcess attic.atticServer attic.atticCacheName "result")
-        { cwd = Just projectDir
-        }
-    ]
-  CachixPush cachix ->
-    one $
-      (cachixPushProcess cachix.cachixName "result")
-        { env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]
-        , cwd = Just projectDir
-        }
 
 match :: BranchName -> Condition -> Bool
 match branchName (BranchMatches p) =
@@ -91,35 +92,26 @@ withSettings settings stage = (settings, stage)
 stageOrder :: Stage -> Int
 stageOrder = \case
   Build _ -> 1
-  AtticPush _ -> 2
-  CachixPush _ -> 3
 
 -- TODO: Get the settings from the downstream repo
-defaultRepoSettings :: RepoName -> Maybe CachixSettings -> Maybe AtticSettings -> RepoSettings
-defaultRepoSettings repoName mCachix mAttic =
+defaultRepoSettings :: RepoName -> RepoSettings
+defaultRepoSettings repoName =
   if repoName == "euler-lsp"
     then
-      eulerLspSettings mCachix mAttic
+      eulerLspSettings
     else
-      RepoSettings $
-        catMaybes
-          [ Just $ Build def & withSettings def
-          , mCachix <&> (CachixPush >>> withSettings def)
-          , mAttic <&> (AtticPush >>> withSettings def)
-          ]
+      RepoSettings def
 
 -- HACK: Hardcoding settings for a single repo (euler-lsp)
 -- Until we have https://github.com/juspay/vira/issues/59
-eulerLspSettings :: Maybe CachixSettings -> Maybe AtticSettings -> RepoSettings
-eulerLspSettings mCachix mAttic =
+eulerLspSettings :: RepoSettings
+eulerLspSettings =
   -- euler-lsp passes extra CLI arguments to the build command on `release-*` branches
   RepoSettings $
     catMaybes
       [ Just $ Build omCiDisableLocal & withSettings releaseBranchOnly
       , -- Default Build step
         Just $ Build def & withSettings def
-      , mCachix <&> (CachixPush >>> withSettings def)
-      , mAttic <&> (AtticPush >>> withSettings def)
       ]
   where
     releaseBranchOnly =
