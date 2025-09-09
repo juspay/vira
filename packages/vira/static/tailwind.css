@@ -605,6 +605,10 @@
     border-top-style: var(--tw-border-style);
     border-top-width: 0px;
   }
+  .border-b {
+    border-bottom-style: var(--tw-border-style);
+    border-bottom-width: 1px;
+  }
   .border-b-0 {
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: 0px;
@@ -615,6 +619,9 @@
   }
   .border-blue-200 {
     border-color: var(--color-blue-200);
+  }
+  .border-gray-100 {
+    border-color: var(--color-gray-100);
   }
   .border-gray-200 {
     border-color: var(--color-gray-200);

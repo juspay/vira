@@ -31,12 +31,12 @@ module Vira.Widgets.Status (
   viraJobDuration_,
 ) where
 
-import Data.Time (NominalDiffTime, diffUTCTime)
-import Data.Time.Clock (nominalDiffTimeToSeconds)
+import Data.Time (diffUTCTime)
 import Lucid
 import Vira.App.AcidState qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Lucid (AppHtml, getLinkUrl)
+import Vira.Lib.TimeExtra (formatDuration)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -139,15 +139,3 @@ viraJobDuration_ job = do
         toHtml $
           formatDuration duration
     Nothing -> mempty -- Don't display anything for non-finished jobs
-  where
-    -- \| Format duration for display (e.g., "2m 34s", "1h 15m 30s")
-    formatDuration :: NominalDiffTime -> Text
-    formatDuration diffTime =
-      let totalSeconds = floor $ nominalDiffTimeToSeconds diffTime :: Int
-          hours = totalSeconds `div` 3600
-          minutes = (totalSeconds `mod` 3600) `div` 60
-          seconds = totalSeconds `mod` 60
-       in case (hours, minutes, seconds) of
-            (0, 0, s) -> show s <> "s"
-            (0, m, s) -> show m <> "m " <> show s <> "s"
-            (h, m, s) -> show h <> "h " <> show m <> "m " <> show s <> "s"

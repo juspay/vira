@@ -4,7 +4,7 @@
 module Vira.Page.JobPage where
 
 import Colog (Severity (..))
-import Data.Time (getCurrentTime)
+import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName)
@@ -29,6 +29,7 @@ import Vira.Lib.Attic
 import Vira.Lib.Cachix
 import Vira.Lib.Logging
 import Vira.Lib.Omnix qualified as Omnix
+import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
@@ -40,6 +41,7 @@ import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Code qualified as W
 import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Status qualified as W
+import Vira.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask, asks)
 
@@ -94,6 +96,43 @@ killHandler jobId = do
   Supervisor.killTask supervisor jobId
   pure $ addHeader True "Killed"
 
+{- |
+Job details component showing timing information.
+
+Displays start time, end time (if finished), duration, and current status
+in a clean card layout with tooltips for additional information.
+-}
+viewJobDetails :: St.Job -> App.AppHtml ()
+viewJobDetails job = do
+  W.viraCard_ [class_ "p-6"] $ do
+    h3_ [class_ "text-lg font-semibold mb-4"] "Job Details"
+    div_ [class_ "space-y-3"] $ do
+      -- Start time
+      div_ [class_ "flex items-center justify-between py-2 border-b border-gray-100"] $ do
+        span_ [class_ "text-sm font-medium text-gray-600"] "Started"
+        Time.viraUTCTime_ job.jobCreatedTime
+
+      -- End time / Status
+      case St.jobFinishedDuration job of
+        Just endTime -> do
+          div_ [class_ "flex items-center justify-between py-2 border-b border-gray-100"] $ do
+            span_ [class_ "text-sm font-medium text-gray-600"] "Finished"
+            Time.viraUTCTime_ endTime
+          -- Duration
+          div_ [class_ "flex items-center justify-between py-2"] $ do
+            span_ [class_ "text-sm font-medium text-gray-600"] "Duration"
+            let duration = diffUTCTime endTime job.jobCreatedTime
+            span_
+              [ class_ "text-sm text-gray-900 cursor-help"
+              , title_ "Total time from job creation to completion"
+              ]
+              $ toHtml
+              $ formatDuration duration
+        Nothing ->
+          div_ [class_ "flex items-center justify-between py-2"] $ do
+            span_ [class_ "text-sm font-medium text-gray-600"] "Status"
+            span_ [class_ "text-sm text-gray-500"] "In progress"
+
 viewJob :: St.Job -> App.AppHtml ()
 viewJob job = do
   let jobActive = St.jobIsActive job
@@ -116,6 +155,9 @@ viewJob job = do
               $ do
                 W.viraButtonIcon_ $ toHtmlRaw Icon.ban
                 "Kill Job"
+
+    -- Job details
+    viewJobDetails job
 
     -- Job logs
     W.viraCard_ [class_ "p-6"] $ do
