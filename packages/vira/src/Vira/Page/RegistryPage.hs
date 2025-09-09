@@ -5,6 +5,7 @@ module Vira.Page.RegistryPage where
 
 import Colog (Severity (..))
 import Effectful (Eff)
+import Effectful.Git (BranchName)
 import GHC.Records (HasField)
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Htmx.Lucid.Core (hxSwapS_)
@@ -19,6 +20,7 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Logging
+import Vira.Page.BranchPage qualified as BranchPage
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..), RepoName (..))
@@ -36,16 +38,18 @@ type FormResp = Headers '[HXRedirect] (Html ())
 data Routes mode = Routes
   { _listing :: mode :- Get '[HTML] (Html ())
   , _repo :: mode :- Capture "name" RepoName :> NamedRoutes RepoPage.Routes
+  , _branch :: mode :- Capture "repo" RepoName :> "branches" :> Capture "name" BranchName :> NamedRoutes BranchPage.Routes
   , _addRepo :: mode :- "add" :> FormReq Repo :> Post '[HTML] FormResp
   }
   deriving stock (Generic)
 
-handlers :: App.AppState -> Routes AsServer
-handlers cfg = do
+handlers :: App.AppState -> App.WebSettings -> Routes AsServer
+handlers cfg webSettings = do
   Routes
-    { _listing = App.runAppInServant cfg $ App.runAppHtml handleListing
-    , _repo = RepoPage.handlers cfg
-    , _addRepo = App.runAppInServant cfg . handleAddRepo
+    { _listing = App.runAppInServant cfg webSettings $ App.runAppHtml handleListing
+    , _repo = RepoPage.handlers cfg webSettings
+    , _branch = BranchPage.handlers cfg webSettings
+    , _addRepo = App.runAppInServant cfg webSettings . handleAddRepo
     }
 
 handleListing :: AppHtml ()
@@ -117,6 +121,7 @@ newRepoForm = do
         ( withFieldName @Repo @"name" $ \name ->
             W.viraInput_
               [ type_ "text"
+              , id_ name
               , name_ name
               , placeholder_ "my-awesome-project"
               , required_ ""
@@ -129,6 +134,7 @@ newRepoForm = do
         ( withFieldName @Repo @"cloneUrl" $ \name ->
             W.viraInput_
               [ type_ "url"
+              , id_ name
               , name_ name
               , placeholder_ "https://github.com/user/repo.git"
               , required_ ""

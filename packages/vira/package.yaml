@@ -49,15 +49,18 @@ dependencies:
   - effectful-th
   - envparse
   - filepath
+  - git-effectful
   - gitlib
   - hostname
   - hspec
   - hspec-discover
   - htmx
+  - include-env
   - htmx-lucid
   - htmx-lucid-contrib
   - htmx-servant
   - http-api-data
+  - http-types
   - ixset-typed
   - lucid2
   - mtl
@@ -82,8 +85,6 @@ dependencies:
   - wai-middleware-static
   - warp
   - warp-tls-simple
-  - cereal
-  - which
   - with-utf8
   - binary
 

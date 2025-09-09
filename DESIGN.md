@@ -11,16 +11,19 @@ Clean, minimal CI/CD application design system emphasizing clarity and functiona
 ## Color Palette
 
 ### Primary Colors
+
 - **Indigo**: `indigo-600` (primary actions), `indigo-700` (hover states)
 - **Background**: `gray-50` (page), `white` (cards), `gray-200` (dividers)
 
-### Semantic Colors  
+### Semantic Colors
+
 - **Success**: `green-600` (success actions)
 - **Destructive**: `red-600` (delete/dangerous actions)
 - **Warning**: `yellow-500` (cautionary states)
 - **Secondary**: `gray-100` (secondary actions)
 
 ### Neutrals
+
 - **Text**: `gray-900` (primary), `gray-600` (secondary), `gray-500` (muted)
 - **Borders**: `gray-200` (default), `gray-300` (interactive)
 - **Backgrounds**: `gray-50` (sections), `gray-100` (subtle contrast)
@@ -36,6 +39,7 @@ Clean, minimal CI/CD application design system emphasizing clarity and functiona
 **All components are defined in `src/Vira/Widgets/*.hs` with full documentation and usage examples.**
 
 ### Core Components
+
 - **Buttons**: `viraButton_`, `viraButtonIcon_` (see `Button.hs`)
 - **Cards**: `viraCard_` (flat), `viraCardElevated_` (with shadow) (see `Card.hs`)
 - **Layout**: `viraSection_`, `viraPageHeader_`, `viraDivider_` (see `Layout.hs`)
@@ -44,6 +48,7 @@ Clean, minimal CI/CD application design system emphasizing clarity and functiona
 - **Alerts**: `viraAlert_` (see `Alert.hs`)
 
 ### Usage
+
 ```haskell
 import Vira.Widgets qualified as W
 
@@ -74,17 +79,20 @@ W.viraButton_ W.ButtonPrimary [] $ do
 ## Accessibility Guidelines
 
 ### Color Contrast
+
 - **Primary text**: `text-gray-900` (high contrast)
-- **Secondary text**: `text-gray-600` (medium contrast) 
+- **Secondary text**: `text-gray-600` (medium contrast)
 - **Muted text**: `text-gray-500` (minimum contrast)
 - **Avoid**: `text-gray-400` (insufficient contrast)
 
 ### Interactive Elements
+
 - **Focus states**: Clear ring indicators for keyboard navigation
 - **Button text**: High contrast white on colored backgrounds
 - **Icon colors**: Use `text-gray-500` minimum for functional icons
 
 ### Small Text Guidelines
+
 - **Extra small text** (`text-xs`): Use `text-gray-600` minimum
 - **Regular text**: Can use `text-gray-500` for secondary information
 - **Interactive labels**: Always use `text-gray-600` or darker

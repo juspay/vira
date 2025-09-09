@@ -3,9 +3,9 @@
 module Vira.Page.JobPage where
 
 import Colog (Severity (..))
-import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
+import Effectful.Git (BranchName)
 import Effectful.Reader.Dynamic (asks)
 import GHC.IO.Exception (ExitCode (..))
 import Htmx.Lucid.Core (hxSwapS_)
@@ -18,9 +18,8 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App (AppHtml)
 import Vira.App qualified as App
+import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Lib.Git (BranchName)
-import Vira.Lib.Git qualified as Git
 import Vira.Lib.Logging
 import Vira.Page.JobLog qualified as JobLog
 import Vira.Repo.Core (stagesForRepoBranch)
@@ -49,13 +48,13 @@ data Routes mode = Routes
   }
   deriving stock (Generic)
 
-handlers :: App.AppState -> Routes AsServer
-handlers cfg = do
+handlers :: App.AppState -> WebSettings -> Routes AsServer
+handlers cfg webSettings = do
   Routes
-    { _build = \x -> App.runAppInServant cfg . buildHandler x
-    , _view = App.runAppInServant cfg . App.runAppHtml . viewHandler
-    , _log = JobLog.handlers cfg
-    , _kill = App.runAppInServant cfg . killHandler
+    { _build = \x -> App.runAppInServant cfg webSettings . buildHandler x
+    , _view = App.runAppInServant cfg webSettings . App.runAppHtml . viewHandler
+    , _log = JobLog.handlers cfg webSettings
+    , _kill = App.runAppInServant cfg webSettings . killHandler
     }
 
 buildHandler :: RepoName -> BranchName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
@@ -89,7 +88,7 @@ viewJob job = do
       div_ [class_ "flex items-center justify-between"] $ do
         div_ [class_ "flex items-center space-x-4"] $ do
           span_ "Commit:"
-          viewCommit job.jobCommit
+          W.viraCommitInfo_ job.jobCommit
         div_ [class_ "flex items-center space-x-4"] $ do
           viewJobStatus job.jobStatus
           when jobActive $ do
@@ -116,12 +115,8 @@ viewJobHeader job = do
         div_ [class_ "flex-shrink-0"] $ do
           span_ [class_ "inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-800"] $ do
             "Job #" <> toHtml (show @Text job.jobId)
-        viewCommit job.jobCommit
+        W.viraCommitInfo_ job.jobCommit
       viewJobStatus job.jobStatus
-
-viewCommit :: (Monad m) => Git.CommitID -> HtmlT m ()
-viewCommit (Git.CommitID commit) = do
-  W.viraCodeInline_ (T.take 8 $ toText commit)
 
 viewJobStatus :: (Monad m) => St.JobStatus -> HtmlT m ()
 viewJobStatus status = do

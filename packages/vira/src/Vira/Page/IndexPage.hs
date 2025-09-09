@@ -30,17 +30,17 @@ data Routes mode = Routes
   deriving stock (Generic)
 
 -- | Top-level handlers
-handlers :: App.AppState -> Routes AsServer
-handlers cfg =
+handlers :: App.AppState -> App.WebSettings -> Routes AsServer
+handlers cfg webSettings =
   Routes
     { _home =
-        App.runAppInServant cfg $
+        App.runAppInServant cfg webSettings $
           runAppHtml $
             W.layout mempty $
               heroWelcome menu
-    , _repos = RegistryPage.handlers cfg
-    , _jobs = JobPage.handlers cfg
-    , _settings = SettingsPage.handlers cfg
+    , _repos = RegistryPage.handlers cfg webSettings
+    , _jobs = JobPage.handlers cfg webSettings
+    , _settings = SettingsPage.handlers cfg webSettings
     , _refresh =
         pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp cfg) Refresh.streamRouteHandler
     }

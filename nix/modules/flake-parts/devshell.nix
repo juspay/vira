@@ -8,6 +8,7 @@
       inputsFrom = [
         config.haskellProjects.default.outputs.devShell # See ./nix/modules/haskell.nix
         config.pre-commit.devShell # See ./nix/modules/formatter.nix
+        config.devShells.jsAssets # See ./nix/modules/flake-parts/assets.nix
       ];
       packages = with pkgs; [
         just

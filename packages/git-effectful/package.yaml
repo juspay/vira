@@ -1,0 +1,47 @@
+defaults:
+  - local: ../../hpack-common.yaml
+  - local: ../../hpack-relude.yaml
+
+name: git-effectful
+version: 0.1.0.0
+license: AGPL-3.0-or-later
+copyright: 2025 Juspay
+maintainer: srid@srid.ca
+author: Sridhar Ratnakumar
+category: Git
+synopsis: Git operations using effectful
+description: A standalone library for git operations using the effectful library
+
+ghc-options:
+  - -fplugin=Effectful.Plugin
+
+dependencies:
+  - aeson
+  - co-log
+  - co-log-effectful
+  - containers
+  - effectful
+  - effectful-core
+  - effectful-plugin
+  - http-api-data
+  - include-env
+  - ixset-typed
+  - megaparsec
+  - process
+  - safecopy
+  - servant-server
+  - temporary
+  - text
+  - time
+
+library:
+  source-dirs: src
+
+tests:
+  git-effectful-test:
+    main: Spec.hs
+    source-dirs: test
+    dependencies:
+      - git-effectful
+      - hspec
+      - hspec-discover

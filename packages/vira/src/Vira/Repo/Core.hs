@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | Module for working with settings controlled by downstream repository
 module Vira.Repo.Core (
@@ -7,13 +8,14 @@ module Vira.Repo.Core (
 
 import Data.Default (Default (def))
 import Effectful (Eff)
+import Effectful.Git (BranchName)
+import Effectful.Git qualified as Git
 import Effectful.Process (CreateProcess (..), proc)
+import IncludeEnv.TH (includeEnv)
 import System.FilePattern ((?==))
 import Vira.App qualified as App
 import Vira.Lib.Attic (atticLoginProcess, atticPushProcess)
 import Vira.Lib.Cachix (cachixPushProcess)
-import Vira.Lib.Git (BranchName)
-import Vira.Lib.Git qualified as Git
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.Repo.Type
 import Vira.State.Acid qualified as St
@@ -23,6 +25,14 @@ import Vira.State.Type qualified as St
 -- | Project directory name used for CI operations
 projectDir :: FilePath
 projectDir = "project"
+
+{- | Path to the `mkdir` executable
+
+This must be set via the VIRA_MKDIR_BIN environment variable at compile time.
+-}
+$(includeEnv "VIRA_MKDIR_BIN" "mkdir")
+
+mkdir :: FilePath
 
 -- | Return CI stages for the given repo's branch.
 stagesForRepoBranch :: St.Repo -> St.Branch -> Eff App.AppServantStack (NonEmpty CreateProcess)
@@ -35,7 +45,7 @@ stagesForRepoBranch repo branch = do
 getStages :: St.Repo -> St.Branch -> Maybe CachixSettings -> Maybe AtticSettings -> NonEmpty CreateProcess
 getStages repo branch mCachix mAttic =
   let
-    createProjectDir = proc "mkdir" [projectDir] -- mandatory first step
+    createProjectDir = proc mkdir [projectDir] -- mandatory first step
     clone =
       -- mandatory second step
       (Git.cloneAtCommit repo.cloneUrl branch.headCommit)

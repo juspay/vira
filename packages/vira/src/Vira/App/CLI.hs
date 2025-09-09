@@ -4,8 +4,11 @@
 module Vira.App.CLI (
   -- * Types
   CLISettings (..),
+  GlobalSettings (..),
+  WebSettings (..),
+  Command (..),
 
-  -- * Function
+  -- * Functions
   parseCLI,
 ) where
 
@@ -13,32 +16,74 @@ import Data.Version (showVersion)
 import Network.HostName (HostName, getHostName)
 import Network.Wai.Handler.Warp (Port)
 import Network.Wai.Handler.WarpTLS.Simple (TLSConfig, tlsConfigParser)
-import Options.Applicative
+import Options.Applicative hiding (command)
+import Options.Applicative qualified as OA
 import Paths_vira qualified
 import Prelude hiding (Reader, reader, runReader)
 
--- | CLI Settings
-data CLISettings = CLISettings
+-- | Global CLI Settings
+data GlobalSettings = GlobalSettings
   { logLevel :: String
   -- ^ Minimum logging level
-  , port :: Port
+  , stateDir :: FilePath
+  -- ^ Directory where Vira stores its state
+  }
+  deriving stock (Show)
+
+-- | Web server settings
+data WebSettings = WebSettings
+  { port :: Port
   -- ^ The port to bind the HTTP server to
   , host :: Text
   -- ^ The host to bind the HTTP server to
-  , stateDir :: FilePath
-  -- ^ Directory where Vira stores its state
   , instanceName :: Text
   -- ^ Name of the instance; uses hostname if unspecified
   , basePath :: Text
   -- ^ Base URL path for the http server
   , tlsConfig :: TLSConfig
   -- ^ TLS configuration for HTTPS support
+  , importFile :: Maybe FilePath
+  -- ^ Optional JSON file to import on startup
   }
   deriving stock (Show)
 
--- | Parser for CLISettings
-cliSettingsParser :: HostName -> Parser CLISettings
-cliSettingsParser hostName = do
+-- | Available commands
+data Command
+  = WebCommand WebSettings
+  | ExportCommand
+  | ImportCommand
+  deriving stock (Show)
+
+-- | Complete CLI configuration
+data CLISettings = CLISettings
+  { globalSettings :: GlobalSettings
+  , command :: Command
+  }
+  deriving stock (Show)
+
+-- | Parser for global settings
+globalSettingsParser :: Parser GlobalSettings
+globalSettingsParser = do
+  stateDir <-
+    strOption
+      ( long "state-dir"
+          <> metavar "STATE_DIR"
+          <> help "Directory where Vira stores its state"
+          <> value "./state"
+          <> showDefault
+      )
+  logLevel <-
+    strOption
+      ( long "log-level"
+          <> metavar "LOG_LEVEL"
+          <> help "Log level"
+          <> value "Debug"
+      )
+  pure GlobalSettings {..}
+
+-- | Parser for web settings
+webSettingsParser :: HostName -> Parser WebSettings
+webSettingsParser hostName = do
   port <-
     option
       auto
@@ -54,21 +99,6 @@ cliSettingsParser hostName = do
           <> help "Host"
           <> value "0.0.0.0"
           <> showDefault
-      )
-  stateDir <-
-    strOption
-      ( long "state-dir"
-          <> metavar "STATE_DIR"
-          <> help "Directory where Vira stores its state"
-          <> value "./state"
-          <> showDefault
-      )
-  logLevel <-
-    strOption
-      ( long "log-level"
-          <> metavar "LOG_LEVEL"
-          <> help "Log level"
-          <> value "Debug"
       )
   instanceName <-
     strOption
@@ -87,6 +117,29 @@ cliSettingsParser hostName = do
           <> showDefault
       )
   tlsConfig <- tlsConfigParser
+  importFile <-
+    optional $
+      strOption
+        ( long "import"
+            <> metavar "FILE"
+            <> help "Import JSON file on startup"
+        )
+  pure WebSettings {..}
+
+-- | Parser for commands
+commandParser :: HostName -> Parser Command
+commandParser hostName =
+  hsubparser
+    ( OA.command "web" (info (WebCommand <$> webSettingsParser hostName) (progDesc "Start the web server"))
+        <> OA.command "export" (info (pure ExportCommand) (progDesc "Export Vira state to JSON"))
+        <> OA.command "import" (info (pure ImportCommand) (progDesc "Import Vira state from JSON"))
+    )
+
+-- | Parser for CLISettings
+cliSettingsParser :: HostName -> Parser CLISettings
+cliSettingsParser hostName = do
+  globalSettings <- globalSettingsParser
+  command <- commandParser hostName
   pure CLISettings {..}
 
 -- | Full parser with info

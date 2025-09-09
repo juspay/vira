@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 {- |
 Vira Design System - Code Display Components
 
@@ -7,7 +9,6 @@ All components follow the Vira Design System guidelines defined in DESIGN.md.
 = Component Categories
 
 == Code Display Components
-- 'viraCodeBlock_' - Code display with proper formatting for multi-line snippets
 - 'viraCodeInline_' - Inline code elements for text integration
 
 = Usage Guidelines
@@ -23,43 +24,18 @@ Always prefer these components over raw HTML to maintain design consistency.
 - Accessibility: Proper text selection and copying
 -}
 module Vira.Widgets.Code (
-  viraCodeBlock_,
   viraCodeInline_,
+  viraCommitInfo_,
+  viraCommitInfoCompact_,
+  viraCommitHash_,
 ) where
 
+import Data.Text qualified as T
+import Data.Time (UTCTime, defaultTimeLocale, diffUTCTime, formatTime, getCurrentTime)
+import Effectful.Git qualified as Git
 import Lucid
-
-{- |
-Code block component for displaying larger code snippets.
-
-Formatted container for multi-line code with:
-- Monospace font family
-- Subtle background and borders
-- Horizontal scrolling for overflow
-- Proper text selection and copying
-
-= Usage Examples
-
-@
--- Git commit hash
-W.viraCodeBlock_ "a1b2c3d4e5f6g7h8i9j0"
-
--- Build command
-W.viraCodeBlock_ "nix build .#default"
-
--- Error message
-W.viraCodeBlock_ "Error: Package not found in registry"
-@
-
-= When to Use
-
-Use for longer code snippets, commit hashes, commands, or error messages.
-For inline code within text, use 'viraCodeInline_' instead.
--}
-viraCodeBlock_ :: (Monad m) => Text -> HtmlT m ()
-viraCodeBlock_ code = do
-  div_ [class_ "bg-gray-50 border border-gray-200 rounded-lg p-4 overflow-x-auto"] $ do
-    code_ [class_ "text-sm text-gray-800 font-mono break-all"] $ toHtml code
+import Vira.App qualified
+import Vira.State.Acid qualified
 
 {- |
 Inline code component for small code snippets within text.
@@ -89,9 +65,113 @@ span_ $ do
 
 = Design Guidelines
 
-Uses smaller, more subtle styling than 'viraCodeBlock_'.
+Uses smaller, more subtle styling than block code.
 Integrates seamlessly with surrounding text flow.
 -}
 viraCodeInline_ :: (Monad m) => Text -> HtmlT m ()
 viraCodeInline_ code = do
   code_ [class_ "px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded font-mono"] $ toHtml code
+
+{- |
+Commit information display component showing hash, message, author, and date.
+
+Displays git commit information in a consistent format across the application.
+Shows the first 8 characters of the commit hash, commit message (if present),
+author with email (if present), and formatted commit date.
+
+= Usage Examples
+
+@
+-- In branch listing
+div_ $ do
+  W.viraCommitInfo_ branch.headCommit
+
+-- In job details
+div_ $ do
+  "Build commit: "
+  W.viraCommitInfo_ job.jobCommit
+@
+
+= Design Guidelines
+
+Uses inline code styling for commit hash to maintain visual consistency.
+Commit message uses subtle gray text with truncation for long messages.
+Date uses smaller text size for secondary information hierarchy.
+-}
+viraCommitInfo_ :: Git.CommitID -> Vira.App.AppHtml ()
+viraCommitInfo_ commitId = do
+  maybeCommit <- lift $ Vira.App.query $ Vira.State.Acid.GetCommitByIdA commitId
+  div_ [class_ "flex items-center space-x-2"] $ do
+    viraCommitHash_ commitId
+    case maybeCommit of
+      Just commit -> do
+        unless (T.null commit.commitMessage) $ do
+          span_ [class_ "text-sm text-gray-600 truncate"] $ toHtml commit.commitMessage
+        unless (T.null commit.commitAuthor) $ do
+          span_ [class_ "text-xs text-gray-500"] $ do
+            "by " <> toHtml commit.commitAuthor
+            unless (T.null commit.commitAuthorEmail) $ do
+              " <" <> toHtml commit.commitAuthorEmail <> ">"
+        div_ [class_ "text-xs text-gray-400"] $
+          toHtml $
+            formatTime defaultTimeLocale "%b %d, %Y" commit.commitDate
+      Nothing -> do
+        span_ [class_ "text-xs text-red-600"] "Commit not found"
+
+{- |
+Compact commit information component for space-constrained layouts.
+
+Shows only commit hash and message with relative timestamp.
+Perfect for list items where space is limited.
+-}
+viraCommitInfoCompact_ :: Git.CommitID -> Vira.App.AppHtml ()
+viraCommitInfoCompact_ commitId = do
+  maybeCommit <- lift $ Vira.App.query $ Vira.State.Acid.GetCommitByIdA commitId
+  now <- liftIO getCurrentTime
+  div_ [class_ "flex items-center space-x-2"] $ do
+    viraCommitHash_ commitId
+    case maybeCommit of
+      Just commit -> do
+        unless (T.null commit.commitMessage) $ do
+          span_ [class_ "text-sm text-gray-700 truncate max-w-xs"] $ toHtml commit.commitMessage
+        div_ [class_ "text-xs text-gray-500"] $
+          toHtml $
+            formatRelativeTime now commit.commitDate
+      Nothing -> do
+        span_ [class_ "text-xs text-red-600"] "Commit not found"
+
+-- Helper function to format relative time
+formatRelativeTime :: UTCTime -> UTCTime -> Text
+formatRelativeTime now commitTime =
+  let diffSeconds = round $ diffUTCTime now commitTime :: Integer
+      minutes = diffSeconds `div` 60
+      hours = minutes `div` 60
+      days = hours `div` 24
+   in if diffSeconds < 60
+        then "just now"
+        else
+          if minutes < 60
+            then toText (show @Text minutes) <> " minutes ago"
+            else
+              if hours < 24
+                then toText (show @Text hours) <> " hours ago"
+                else
+                  if days < 7
+                    then toText (show @Text days) <> " days ago"
+                    else toText $ formatTime defaultTimeLocale "%b %d, %Y" commitTime
+
+{- |
+Clickable commit hash component with copy functionality.
+
+Displays a commit hash that can be clicked to copy to clipboard.
+-}
+viraCommitHash_ :: Git.CommitID -> Vira.App.AppHtml ()
+viraCommitHash_ commitId = do
+  let shortHash = T.take 8 $ toText $ Git.unCommitID commitId
+      fullHash = toText $ Git.unCommitID commitId
+  button_
+    [ class_ "px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-mono transition-colors cursor-pointer border-none"
+    , title_ $ "Click to copy: " <> fullHash
+    , onclick_ $ "event.stopPropagation(); event.preventDefault(); navigator.clipboard.writeText('" <> fullHash <> "'); this.innerText = 'Copied!'; setTimeout(() => { this.innerText = '" <> shortHash <> "'; }, 1000); return false;"
+    ]
+    $ toHtml shortHash

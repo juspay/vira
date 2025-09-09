@@ -44,8 +44,37 @@
             pkgs.attic-client
             pkgs.omnix
             pkgs.openssl # For automatic TLS certificate generation
+            pkgs.coreutils # For mkdir
+            pkgs.makeWrapper # For wrapProgram
           ];
           stan = true;
+          custom = drv: drv.overrideAttrs (oldAttrs: {
+            postUnpack = (oldAttrs.postUnpack or "") + ''
+              ln -s ${self'.packages.jsAssets}/js $sourceRoot/static/js
+            '';
+            preBuild = (oldAttrs.preBuild or "") + ''
+              export VIRA_GIT_BIN="${pkgs.lib.getExe' pkgs.git "git"}"
+              export VIRA_ATTIC_BIN="${pkgs.lib.getExe' pkgs.attic-client "attic"}"
+              export VIRA_CACHIX_BIN="${pkgs.lib.getExe' pkgs.cachix "cachix"}"
+              export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
+              export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
+              export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
+            '';
+            # Make nix and uname available to omnix.
+            # TODO: Remove this if/when move away from omnix.
+            postInstall = (oldAttrs.postInstall or "") + ''
+              wrapProgram $out/bin/vira \
+                --prefix PATH : ${pkgs.lib.makeBinPath [ self'.packages.nix pkgs.coreutils ]}
+            '';
+          });
+        };
+        git-effectful = {
+          check = false; # Running outside of Nix.
+          custom = drv: drv.overrideAttrs (oldAttrs: {
+            preBuild = (oldAttrs.preBuild or "") + ''
+              export VIRA_GIT_BIN="${lib.getExe' pkgs.git "git"}"
+            '';
+          });
         };
         tail = {
           extraBuildDepends = [
@@ -56,6 +85,11 @@
           extraBuildDepends = [
             pkgs.openssl # For automatic TLS certificate generation
           ];
+          custom = drv: drv.overrideAttrs (oldAttrs: {
+            preBuild = (oldAttrs.preBuild or "") + ''
+              export VIRA_OPENSSL_BIN="${lib.getExe' pkgs.openssl "openssl"}"
+            '';
+          });
         };
         safe-coloured-text-layout = {
           check = false;
@@ -71,6 +105,14 @@
           stan = pkgs.haskellPackages.stan;
           vira-dev = config.process-compose."vira-dev".outputs.package;
         };
+        mkShellArgs.shellHook = ''
+          export VIRA_GIT_BIN="${pkgs.lib.getExe' pkgs.git "git"}"
+          export VIRA_ATTIC_BIN="${pkgs.lib.getExe' pkgs.attic-client "attic"}"
+          export VIRA_CACHIX_BIN="${pkgs.lib.getExe' pkgs.cachix "cachix"}"
+          export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
+          export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
+          export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
+        '';
       };
 
       # What should haskell-flake add to flake outputs?
@@ -80,25 +122,10 @@
 
     # Explicitly define all outputs since autowiring is disabled
     packages = {
-      default = pkgs.symlinkJoin {
-        name = "vira";
-        paths = [ config.haskellProjects.default.outputs.packages.vira.package ];
-        buildInputs = [ pkgs.makeWrapper ];
-        postBuild = ''
-          wrapProgram $out/bin/vira \
-            --prefix PATH : ${lib.makeBinPath [
-              # Whilst git and nix are available at build time (for
-              # staticWhich) we still need them in PATH at runtime, so omnix
-              # can access nix which then, transitively knows where to find
-              # git.
-              pkgs.git
-              self'.packages.nix
-            ]}
-        '';
-      };
+      default = config.haskellProjects.default.outputs.packages.vira.package;
 
       # The Nix version used by Vira (thus omnix)
-      # Nix 2.18 -> 2.22 are apprently buggy, 
+      # Nix 2.18 -> 2.22 are apprently buggy,
       # https://discourse.nixos.org/t/handling-git-submodules-in-flakes-from-nix-2-18-to-2-22-nar-hash-mismatch-issues/45118/5
       # So we use the latest.
       nix = pkgs.nixVersions.latest;

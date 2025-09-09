@@ -28,8 +28,6 @@ module Vira.Widgets.Status (
   viewAllJobStatus,
   indicator,
   statusLabel,
-  statusDotClass,
-  statusTextClass,
 ) where
 
 import Lucid
@@ -85,40 +83,6 @@ statusLabel = \case
   St.JobFinished St.JobSuccess -> "Success"
   St.JobFinished St.JobFailure -> "Failed"
   St.JobKilled -> "Killed"
-
-{- |
-Get semantic color name for job status.
-
-Returns base color name (without intensity) for building Tailwind classes.
--}
-
-{- |
-Get Tailwind CSS classes for status dots.
-
-Uses explicit class names instead of dynamic concatenation to ensure
-Tailwind's CSS scanner can find and include these classes in the build.
--}
-statusDotClass :: St.JobStatus -> Text
-statusDotClass = \case
-  St.JobRunning -> " bg-blue-500 animate-pulse"
-  St.JobPending -> " bg-yellow-500"
-  St.JobFinished St.JobSuccess -> " bg-green-500"
-  St.JobFinished St.JobFailure -> " bg-red-500"
-  St.JobKilled -> " bg-red-500"
-
-{- |
-Get Tailwind CSS classes for status text.
-
-Uses explicit class names instead of dynamic concatenation to ensure
-Tailwind's CSS scanner can find and include these classes in the build.
--}
-statusTextClass :: St.JobStatus -> Text
-statusTextClass = \case
-  St.JobRunning -> " text-blue-600"
-  St.JobPending -> " text-yellow-600"
-  St.JobFinished St.JobSuccess -> " text-green-600"
-  St.JobFinished St.JobFailure -> " text-red-600"
-  St.JobKilled -> " text-red-600"
 
 viraStatusBadge_ :: (Monad m) => St.JobStatus -> HtmlT m ()
 viraStatusBadge_ jobStatus = do
