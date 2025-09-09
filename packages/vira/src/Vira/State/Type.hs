@@ -170,8 +170,8 @@ jobIsActive job = case jobStatus job of
   JobStale -> False
 
 -- | Get the end time for finished jobs only
-jobFinishedDuration :: Job -> Maybe UTCTime
-jobFinishedDuration job = case jobStatus job of
+jobEndTime :: Job -> Maybe UTCTime
+jobEndTime job = case jobStatus job of
   JobFinished _ endTime -> Just endTime
   _ -> Nothing
 

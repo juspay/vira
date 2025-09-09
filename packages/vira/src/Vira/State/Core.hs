@@ -7,7 +7,7 @@ module Vira.State.Core (
   JobStatus (..),
   JobResult (..),
   jobIsActive,
-  jobFinishedDuration,
+  jobEndTime,
 
   -- * App initialization
   openViraState,

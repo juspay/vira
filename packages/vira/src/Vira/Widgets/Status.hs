@@ -28,15 +28,12 @@ module Vira.Widgets.Status (
   viewAllJobStatus,
   indicator,
   statusLabel,
-  viraJobDuration_,
 ) where
 
-import Data.Time (diffUTCTime)
 import Lucid
 import Vira.App.AcidState qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Lucid (AppHtml, getLinkUrl)
-import Vira.Lib.TimeExtra (formatDuration)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -124,18 +121,3 @@ indicator active = do
           else (Icon.circle, "text-gray-500")
   div_ [class_ $ "w-4 h-4 flex items-center justify-center " <> classes] $
     toHtmlRaw iconSvg
-
-{- |
-Display job duration for finished jobs only.
-
-Shows actual duration for completed jobs, nothing for pending/running/stale jobs.
--}
-viraJobDuration_ :: (Monad m) => Job -> HtmlT m ()
-viraJobDuration_ job = do
-  case jobFinishedDuration job of
-    Just endTime -> do
-      let duration = diffUTCTime endTime (jobCreatedTime job)
-      span_ [class_ "text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded"] $
-        toHtml $
-          formatDuration duration
-    Nothing -> mempty -- Don't display anything for non-finished jobs

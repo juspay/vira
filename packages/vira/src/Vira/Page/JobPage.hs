@@ -126,7 +126,7 @@ viewJob job = do
           div_ [class_ "flex items-center space-x-2"] $ do
             span_ [class_ "font-medium"] "Started:"
             Time.viraUTCTime_ job.jobCreatedTime
-          case St.jobFinishedDuration job of
+          case St.jobEndTime job of
             Just endTime -> do
               div_ [class_ "flex items-center space-x-2"] $ do
                 span_ [class_ "font-medium"] "Finished:"

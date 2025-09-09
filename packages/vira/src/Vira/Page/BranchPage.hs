@@ -2,6 +2,7 @@
 
 module Vira.Page.BranchPage where
 
+import Data.Time (diffUTCTime)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName)
 import Htmx.Lucid.Core (hxSwapS_)
@@ -22,6 +23,7 @@ import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Code qualified as W
 import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Status qualified as Status
+import Vira.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask, asks)
 
@@ -114,6 +116,10 @@ viewCommitTimeline branch jobs = do
           -- Column 3: Build duration and status (4 columns)
           div_ [class_ "col-span-4 flex items-center justify-end space-x-2"] $ do
             -- Build duration
-            Status.viraJobDuration_ job
+            case St.jobEndTime job of
+              Just endTime -> do
+                let duration = diffUTCTime endTime job.jobCreatedTime
+                Time.viraDuration_ duration
+              Nothing -> mempty
             -- Status badge
             Status.viraStatusBadge_ job.jobStatus
