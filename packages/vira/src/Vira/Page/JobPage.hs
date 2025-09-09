@@ -143,7 +143,11 @@ viewJob job = do
             Nothing ->
               div_ [class_ "flex items-center space-x-2"] $ do
                 span_ [class_ "font-medium"] "Status:"
-                span_ [class_ "text-gray-500"] "In progress"
+                case job.jobStatus of
+                  St.JobStale -> span_ [class_ "text-gray-500"] "Stale"
+                  St.JobPending -> span_ [class_ "text-gray-500"] "In progress"
+                  St.JobRunning -> span_ [class_ "text-gray-500"] "In progress"
+                  St.JobFinished {} -> span_ [class_ "text-gray-500"] "In progress" -- Should not happen due to outer case
 
     -- Job logs
     W.viraCard_ [class_ "p-6"] $ do
