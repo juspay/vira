@@ -41,8 +41,6 @@ getStages repo branch mCachix mAttic =
       (Git.cloneAtCommit repo.cloneUrl branch.headCommit)
         { cwd = Just projectDir
         }
-    repoSettings = defaultRepoSettings repo.name
-    branchStages = stagesForBranch branch.branchName repoSettings
     atticPush attic =
       [ (atticLoginProcess attic.atticServer attic.atticToken)
           { cwd = Just projectDir
@@ -57,41 +55,28 @@ getStages repo branch mCachix mAttic =
           , cwd = Just projectDir
           }
       ]
+    repoSettings = defaultRepoSettings repo.name
+    buildStage = repoSettings.stages.build
+    buildSettings =
+      if all (match branch.branchName) buildStage.if_
+        then buildStage.settings
+        else def
    in
     createProjectDir
       :| one clone
-      <> concatMap stageProcesses branchStages
+      <> build buildSettings
       <> (maybe mempty cachixPush mCachix <> maybe mempty atticPush mAttic)
-
--- Process stages to get the final ordered `[Stage]`
-stagesForBranch :: BranchName -> RepoSettings -> [Stage]
-stagesForBranch branchName =
-  sortOn stageOrder
-    . ordNubOn stageOrder -- Remove duplicates
-    . map snd
-    . filter (all (match branchName) . if_ . fst)
-    . stages
-
-stageProcesses :: Stage -> [CreateProcess]
-stageProcesses = \case
-  Build settings ->
-    one $
-      (Omnix.omnixCiProcess (map toString settings.extraArgs))
-        { cwd = Just projectDir
-        }
+  where
+    build :: OmCiConfig -> [CreateProcess]
+    build omCiConfig =
+      [ (Omnix.omnixCiProcess (map toString omCiConfig.extraArgs))
+          { cwd = Just projectDir
+          }
+      ]
 
 match :: BranchName -> Condition -> Bool
 match branchName (BranchMatches p) =
   toString p ?== toString branchName.unBranchName
-
--- | Helper to create a stage with specific settings
-withSettings :: StageSettings -> Stage -> (StageSettings, Stage)
-withSettings settings stage = (settings, stage)
-
--- | Execution order of a `Stage`
-stageOrder :: Stage -> Int
-stageOrder = \case
-  Build _ -> 1
 
 -- TODO: Get the settings from the downstream repo
 defaultRepoSettings :: RepoName -> RepoSettings
@@ -108,14 +93,12 @@ eulerLspSettings :: RepoSettings
 eulerLspSettings =
   -- euler-lsp passes extra CLI arguments to the build command on `release-*` branches
   RepoSettings $
-    catMaybes
-      [ Just $ Build omCiDisableLocal & withSettings releaseBranchOnly
-      , -- Default Build step
-        Just $ Build def & withSettings def
-      ]
+    Stages
+      { build = StageSettings releaseBranchOnly omCiDisableLocal
+      }
   where
     releaseBranchOnly =
-      StageSettings [BranchMatches "release-*"]
+      [BranchMatches "release-*"]
     -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
     omCiDisableLocal =
       OmCiConfig ["--", "--override-input", "flake/local", "github:boolean-option/false"]

@@ -4,28 +4,33 @@ import Data.Default (Default (def))
 import System.FilePattern (FilePattern)
 
 newtype RepoSettings = RepoSettings
-  { stages :: [(StageSettings, Stage)]
-  -- ^ All stages in a `Task` with their run conditions
+  { stages :: Stages
   }
   deriving stock (Show)
 
--- | Settings for when to run a stage
-newtype StageSettings = StageSettings
+-- | Wraps the settings for a stage with its run conditions
+data StageSettings s = StageSettings
   { if_ :: [Condition]
   -- ^ Enabled only if all of these conditions are met
+  , settings :: s
   }
   deriving stock (Show)
 
 -- By default, there are no conditions. All stages run.
-instance Default StageSettings where
-  def = StageSettings {if_ = []}
+instance (Default s) => Default (StageSettings s) where
+  def = StageSettings {if_ = [], settings = def}
 
--- | User-configurable stage in a `Task`
-newtype Stage
-  = Build OmCiConfig
+-- | Configurable stages with their run conditions
+newtype Stages = Stages
+  { build :: StageSettings OmCiConfig
+  -- ^ Settings for the build stage with its run conditions
+  }
   deriving stock (Show)
 
--- | Settings for the build `Stage`
+instance Default Stages where
+  def = Stages def
+
+-- | Settings for the build stage
 newtype OmCiConfig = OmCiConfig
   { extraArgs :: [Text]
   -- ^ extra CLI arguments to the `om ci run` command
@@ -35,7 +40,7 @@ newtype OmCiConfig = OmCiConfig
 instance Default OmCiConfig where
   def = OmCiConfig {extraArgs = []}
 
--- | Condition for when to run a `Stage`
+-- | Condition for when to run a stage
 newtype Condition
   = -- | Whether the branch name of the current checkout matches the given pattern
     BranchMatches GlobPattern
