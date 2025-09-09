@@ -28,8 +28,11 @@ module Vira.Widgets.Status (
   viewAllJobStatus,
   indicator,
   statusLabel,
+  viraJobDuration_,
 ) where
 
+import Data.Time (NominalDiffTime, diffUTCTime)
+import Data.Time.Clock (nominalDiffTimeToSeconds)
 import Lucid
 import Vira.App.AcidState qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
@@ -80,9 +83,10 @@ statusLabel :: St.JobStatus -> Text
 statusLabel = \case
   St.JobRunning -> "Running"
   St.JobPending -> "Pending"
-  St.JobFinished St.JobSuccess -> "Success"
-  St.JobFinished St.JobFailure -> "Failed"
-  St.JobKilled -> "Killed"
+  St.JobFinished St.JobSuccess _ -> "Success"
+  St.JobFinished St.JobFailure _ -> "Failed"
+  St.JobFinished St.JobKilled _ -> "Killed"
+  St.JobStale -> "Stale"
 
 viraStatusBadge_ :: (Monad m) => St.JobStatus -> HtmlT m ()
 viraStatusBadge_ jobStatus = do
@@ -90,9 +94,10 @@ viraStatusBadge_ jobStatus = do
       (colorClass, iconSvg, iconClass) = case jobStatus of
         St.JobRunning -> ("bg-blue-100 text-blue-800 border-blue-200", Icon.loader_2, "animate-spin")
         St.JobPending -> ("bg-yellow-100 text-yellow-800 border-yellow-200", Icon.clock, "")
-        St.JobFinished St.JobSuccess -> ("bg-green-100 text-green-800 border-green-200", Icon.check, "")
-        St.JobFinished St.JobFailure -> ("bg-red-100 text-red-800 border-red-200", Icon.x, "")
-        St.JobKilled -> ("bg-red-200 text-red-900 border-red-300", Icon.ban, "")
+        St.JobFinished St.JobSuccess _ -> ("bg-green-100 text-green-800 border-green-200", Icon.check, "")
+        St.JobFinished St.JobFailure _ -> ("bg-red-100 text-red-800 border-red-200", Icon.x, "")
+        St.JobFinished St.JobKilled _ -> ("bg-red-200 text-red-900 border-red-300", Icon.ban, "")
+        St.JobStale -> ("bg-gray-200 text-gray-800 border-gray-300", Icon.clock_off, "")
   span_ [class_ $ "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium " <> colorClass] $ do
     div_ [class_ $ "w-4 h-4 mr-2 flex items-center justify-center " <> iconClass] $ toHtmlRaw iconSvg
     toHtml label
@@ -119,3 +124,30 @@ indicator active = do
           else (Icon.circle, "text-gray-500")
   div_ [class_ $ "w-4 h-4 flex items-center justify-center " <> classes] $
     toHtmlRaw iconSvg
+
+{- |
+Display job duration for finished jobs only.
+
+Shows actual duration for completed jobs, nothing for pending/running/stale jobs.
+-}
+viraJobDuration_ :: (Monad m) => Job -> HtmlT m ()
+viraJobDuration_ job = do
+  case jobFinishedDuration job of
+    Just endTime -> do
+      let duration = diffUTCTime endTime (jobCreatedTime job)
+      span_ [class_ "text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded"] $
+        toHtml $
+          formatDuration duration
+    Nothing -> mempty -- Don't display anything for non-finished jobs
+  where
+    -- \| Format duration for display (e.g., "2m 34s", "1h 15m 30s")
+    formatDuration :: NominalDiffTime -> Text
+    formatDuration diffTime =
+      let totalSeconds = floor $ nominalDiffTimeToSeconds diffTime :: Int
+          hours = totalSeconds `div` 3600
+          minutes = (totalSeconds `mod` 3600) `div` 60
+          seconds = totalSeconds `mod` 60
+       in case (hours, minutes, seconds) of
+            (0, 0, s) -> show s <> "s"
+            (0, m, s) -> show m <> "m " <> show s <> "s"
+            (h, m, s) -> show h <> "h " <> show m <> "m " <> show s <> "s"

@@ -187,7 +187,7 @@ viewBranchListing repo branches = do
               Just latestJob -> do
                 jobs <- lift $ App.query $ St.GetJobsByBranchA repo.name branch.branchName
                 div_ [class_ "flex items-center space-x-2 text-xs text-gray-500"] $ do
-                  span_ [class_ "bg-gray-100 px-2 py-1 rounded"] "?m ??s"
+                  Status.viraJobDuration_ latestJob
                   span_ $ "#" <> toHtml (show @Text latestJob.jobId)
                   span_ $ "(" <> toHtml (show @Text (length jobs)) <> ")"
               Nothing ->

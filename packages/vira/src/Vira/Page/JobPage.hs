@@ -4,6 +4,7 @@
 module Vira.Page.JobPage where
 
 import Colog (Severity (..))
+import Data.Time (getCurrentTime)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName)
@@ -95,7 +96,7 @@ killHandler jobId = do
 
 viewJob :: St.Job -> App.AppHtml ()
 viewJob job = do
-  let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
+  let jobActive = St.jobIsActive job
 
   W.viraSection_ [] $ do
     W.viraPageHeader_ ("Job #" <> (toText @String $ show job.jobId)) $ do
@@ -147,14 +148,16 @@ triggerNewBuild repoName branchName = do
   mCachix <- App.query St.GetCachixSettingsA
   mAttic <- App.query St.GetAtticSettingsA
   asks App.supervisor >>= \supervisor -> do
-    job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
+    creationTime <- liftIO getCurrentTime
+    job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir creationTime
     log Info $ "Added job " <> show job
     let stages = getStages repo branch mCachix mAttic
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \result -> do
+      endTime <- liftIO getCurrentTime
       let status = case result of
-            Right ExitSuccess -> St.JobFinished St.JobSuccess
-            Right (ExitFailure _code) -> St.JobFinished St.JobFailure
-            Left KilledByUser -> St.JobKilled
+            Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
+            Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
+            Left KilledByUser -> St.JobFinished St.JobKilled endTime
       App.update $ St.JobUpdateStatusA job.jobId status
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId

@@ -113,7 +113,7 @@ viewCommitTimeline branch jobs = do
 
           -- Column 3: Build duration and status (4 columns)
           div_ [class_ "col-span-4 flex items-center justify-end space-x-2"] $ do
-            -- Build duration placeholder
-            span_ [class_ "text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded"] "?m ??s"
+            -- Build duration
+            Status.viraJobDuration_ job
             -- Status badge
             Status.viraStatusBadge_ job.jobStatus
