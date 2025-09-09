@@ -31,10 +31,11 @@ module Vira.Widgets.Code (
 ) where
 
 import Data.Text qualified as T
-import Data.Time (UTCTime, defaultTimeLocale, diffUTCTime, formatTime, getCurrentTime)
+import Data.Time (defaultTimeLocale, formatTime, getCurrentTime)
 import Effectful.Git qualified as Git
 import Lucid
 import Vira.App qualified
+import Vira.Lib.TimeExtra (formatRelativeTime)
 import Vira.State.Acid qualified
 
 {- |
@@ -139,26 +140,6 @@ viraCommitInfoCompact_ commitId = do
             formatRelativeTime now commit.commitDate
       Nothing -> do
         span_ [class_ "text-xs text-red-600"] "Commit not found"
-
--- Helper function to format relative time
-formatRelativeTime :: UTCTime -> UTCTime -> Text
-formatRelativeTime now commitTime =
-  let diffSeconds = round $ diffUTCTime now commitTime :: Integer
-      minutes = diffSeconds `div` 60
-      hours = minutes `div` 60
-      days = hours `div` 24
-   in if diffSeconds < 60
-        then "just now"
-        else
-          if minutes < 60
-            then toText (show @Text minutes) <> " minutes ago"
-            else
-              if hours < 24
-                then toText (show @Text hours) <> " hours ago"
-                else
-                  if days < 7
-                    then toText (show @Text days) <> " days ago"
-                    else toText $ formatTime defaultTimeLocale "%b %d, %Y" commitTime
 
 {- |
 Clickable commit hash component with copy functionality.

@@ -5,6 +5,7 @@ module Vira.Page.RepoPage (
   handlers,
 ) where
 
+import Data.Time (diffUTCTime)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Git qualified as Git
@@ -28,6 +29,7 @@ import Vira.Widgets.Code qualified as W
 import Vira.Widgets.Form qualified as W
 import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Status qualified as Status
+import Vira.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask, asks)
 
@@ -187,7 +189,11 @@ viewBranchListing repo branches = do
               Just latestJob -> do
                 jobs <- lift $ App.query $ St.GetJobsByBranchA repo.name branch.branchName
                 div_ [class_ "flex items-center space-x-2 text-xs text-gray-500"] $ do
-                  span_ [class_ "bg-gray-100 px-2 py-1 rounded"] "?m ??s"
+                  case St.jobEndTime latestJob of
+                    Just endTime -> do
+                      let duration = diffUTCTime endTime latestJob.jobCreatedTime
+                      Time.viraDuration_ duration
+                    Nothing -> mempty
                   span_ $ "#" <> toHtml (show @Text latestJob.jobId)
                   span_ $ "(" <> toHtml (show @Text (length jobs)) <> ")"
               Nothing ->
