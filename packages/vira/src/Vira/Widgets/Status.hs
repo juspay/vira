@@ -80,9 +80,10 @@ statusLabel :: St.JobStatus -> Text
 statusLabel = \case
   St.JobRunning -> "Running"
   St.JobPending -> "Pending"
-  St.JobFinished St.JobSuccess -> "Success"
-  St.JobFinished St.JobFailure -> "Failed"
-  St.JobKilled -> "Killed"
+  St.JobFinished St.JobSuccess _ -> "Success"
+  St.JobFinished St.JobFailure _ -> "Failed"
+  St.JobFinished St.JobKilled _ -> "Killed"
+  St.JobStale -> "Stale"
 
 viraStatusBadge_ :: (Monad m) => St.JobStatus -> HtmlT m ()
 viraStatusBadge_ jobStatus = do
@@ -90,9 +91,10 @@ viraStatusBadge_ jobStatus = do
       (colorClass, iconSvg, iconClass) = case jobStatus of
         St.JobRunning -> ("bg-blue-100 text-blue-800 border-blue-200", Icon.loader_2, "animate-spin")
         St.JobPending -> ("bg-yellow-100 text-yellow-800 border-yellow-200", Icon.clock, "")
-        St.JobFinished St.JobSuccess -> ("bg-green-100 text-green-800 border-green-200", Icon.check, "")
-        St.JobFinished St.JobFailure -> ("bg-red-100 text-red-800 border-red-200", Icon.x, "")
-        St.JobKilled -> ("bg-red-200 text-red-900 border-red-300", Icon.ban, "")
+        St.JobFinished St.JobSuccess _ -> ("bg-green-100 text-green-800 border-green-200", Icon.check, "")
+        St.JobFinished St.JobFailure _ -> ("bg-red-100 text-red-800 border-red-200", Icon.x, "")
+        St.JobFinished St.JobKilled _ -> ("bg-red-200 text-red-900 border-red-300", Icon.ban, "")
+        St.JobStale -> ("bg-gray-200 text-gray-800 border-gray-300", Icon.clock_off, "")
   span_ [class_ $ "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium " <> colorClass] $ do
     div_ [class_ $ "w-4 h-4 mr-2 flex items-center justify-center " <> iconClass] $ toHtmlRaw iconSvg
     toHtml label

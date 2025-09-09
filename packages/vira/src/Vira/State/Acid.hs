@@ -15,6 +15,7 @@ import Data.IxSet.Typed qualified as Ix
 import Data.List (maximum)
 import Data.Map.Strict qualified as Map
 import Data.SafeCopy (base, deriveSafeCopy)
+import Data.Time (UTCTime)
 import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit)
 import System.FilePath ((</>))
 import Vira.State.Type
@@ -169,7 +170,8 @@ getJobsByRepoA repo = do
 getRunningJobs :: Query ViraState [Job]
 getRunningJobs = do
   ViraState {jobs} <- ask
-  pure $ Ix.toList $ jobs @+ [JobPending, JobRunning]
+  let allJobs = Ix.toList jobs
+  pure $ filter jobIsActive allJobs
 
 getJobA :: JobId -> Query ViraState (Maybe Job)
 getJobA jobId = do
@@ -177,8 +179,8 @@ getJobA jobId = do
   pure $ Ix.getOne $ jobs @= jobId
 
 -- | Create a new job returning it.
-addNewJobA :: RepoName -> BranchName -> CommitID -> FilePath -> Update ViraState Job
-addNewJobA jobRepo jobBranch jobCommit baseWorkDir = do
+addNewJobA :: RepoName -> BranchName -> CommitID -> FilePath -> UTCTime -> Update ViraState Job
+addNewJobA jobRepo jobBranch jobCommit baseWorkDir jobCreatedTime = do
   jobs <- Ix.toList <$> gets jobs
   let
     jobId =
@@ -205,12 +207,8 @@ markUnfinishedJobsAsStaleA :: Update ViraState ()
 markUnfinishedJobsAsStaleA = do
   jobs <- Ix.toList <$> gets jobs
   forM_ jobs $ \job -> do
-    case job.jobStatus of
-      JobPending -> do
-        jobUpdateStatusA job.jobId JobKilled
-      JobRunning -> do
-        jobUpdateStatusA job.jobId JobKilled
-      _ -> pass
+    when (jobIsActive job) $ do
+      jobUpdateStatusA job.jobId JobStale
 
 -- | Like `Ix.updateIx`, but works for multiple items.
 updateIxMulti ::

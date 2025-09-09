@@ -8,6 +8,7 @@ import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import Data.Data (Data)
 import Data.IxSet.Typed
 import Data.SafeCopy
+import Data.Time (UTCTime)
 import Effectful.Git (BranchName, CommitID)
 import Servant.API (FromHttpApiData, ToHttpApiData)
 import Vira.Lib.Attic
@@ -133,6 +134,8 @@ data Job = Job
   -- ^ The working directory of the job
   , jobStatus :: JobStatus
   -- ^ The status of the job
+  , jobCreatedTime :: UTCTime
+  -- ^ When the job was created
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
@@ -151,12 +154,26 @@ instance Indexable JobIxs Job where
 data JobStatus
   = JobPending
   | JobRunning
-  | JobFinished JobResult
-  | JobKilled
+  | JobFinished JobResult UTCTime
+  | JobStale
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
-data JobResult = JobSuccess | JobFailure
+data JobResult = JobSuccess | JobFailure | JobKilled
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
+
+-- | Check if a job is currently active (pending or running)
+jobIsActive :: Job -> Bool
+jobIsActive job = case jobStatus job of
+  JobPending -> True
+  JobRunning -> True
+  JobFinished _ _ -> False
+  JobStale -> False
+
+-- | Get the end time for finished jobs only
+jobEndTime :: Job -> Maybe UTCTime
+jobEndTime job = case jobStatus job of
+  JobFinished _ endTime -> Just endTime
+  _ -> Nothing
 
 $(deriveSafeCopy 0 'base ''JobResult)
 $(deriveSafeCopy 0 'base ''JobStatus)

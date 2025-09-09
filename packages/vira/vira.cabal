@@ -43,6 +43,7 @@ library
       Vira.Lib.Omnix
       Vira.Lib.Process
       Vira.Lib.STM
+      Vira.Lib.TimeExtra
       Vira.Page.BranchPage
       Vira.Page.IndexPage
       Vira.Page.JobLog
@@ -67,6 +68,7 @@ library
       Vira.Widgets.Form
       Vira.Widgets.Layout
       Vira.Widgets.Status
+      Vira.Widgets.Time
   other-modules:
       Paths_vira
   autogen-modules:

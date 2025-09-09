@@ -4,6 +4,7 @@
 module Vira.Page.JobPage where
 
 import Colog (Severity (..))
+import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName)
@@ -28,6 +29,7 @@ import Vira.Lib.Attic
 import Vira.Lib.Cachix
 import Vira.Lib.Logging
 import Vira.Lib.Omnix qualified as Omnix
+import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
@@ -39,6 +41,7 @@ import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Code qualified as W
 import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Status qualified as W
+import Vira.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask, asks)
 
@@ -95,26 +98,56 @@ killHandler jobId = do
 
 viewJob :: St.Job -> App.AppHtml ()
 viewJob job = do
-  let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
+  let jobActive = St.jobIsActive job
 
   W.viraSection_ [] $ do
     W.viraPageHeader_ ("Job #" <> (toText @String $ show job.jobId)) $ do
-      div_ [class_ "flex items-center justify-between"] $ do
-        div_ [class_ "flex items-center space-x-4"] $ do
-          span_ "Commit:"
-          W.viraCommitInfo_ job.jobCommit
-        div_ [class_ "flex items-center space-x-4"] $ do
-          viewJobStatus job.jobStatus
-          when jobActive $ do
-            killLink <- lift $ App.getLink $ LinkTo.Kill job.jobId
-            W.viraButton_
-              W.ButtonDestructive
-              [ hxPostSafe_ killLink
-              , hxSwapS_ AfterEnd
-              ]
-              $ do
-                W.viraButtonIcon_ $ toHtmlRaw Icon.ban
-                "Kill Job"
+      div_ [class_ "space-y-4"] $ do
+        -- Top row: commit info and actions
+        div_ [class_ "flex items-center justify-between"] $ do
+          div_ [class_ "flex items-center space-x-4"] $ do
+            span_ "Commit:"
+            W.viraCommitInfo_ job.jobCommit
+          div_ [class_ "flex items-center space-x-4"] $ do
+            viewJobStatus job.jobStatus
+            when jobActive $ do
+              killLink <- lift $ App.getLink $ LinkTo.Kill job.jobId
+              W.viraButton_
+                W.ButtonDestructive
+                [ hxPostSafe_ killLink
+                , hxSwapS_ AfterEnd
+                ]
+                $ do
+                  W.viraButtonIcon_ $ toHtmlRaw Icon.ban
+                  "Kill Job"
+
+        -- Bottom row: timing information
+        div_ [class_ "flex items-center space-x-6 text-sm text-gray-600 border-t pt-3"] $ do
+          div_ [class_ "flex items-center space-x-2"] $ do
+            span_ [class_ "font-medium"] "Started:"
+            Time.viraUTCTime_ job.jobCreatedTime
+          case St.jobEndTime job of
+            Just endTime -> do
+              div_ [class_ "flex items-center space-x-2"] $ do
+                span_ [class_ "font-medium"] "Finished:"
+                Time.viraUTCTime_ endTime
+              div_ [class_ "flex items-center space-x-2"] $ do
+                span_ [class_ "font-medium"] "Duration:"
+                let duration = diffUTCTime endTime job.jobCreatedTime
+                span_
+                  [ class_ "cursor-help"
+                  , title_ "Total time from job creation to completion"
+                  ]
+                  $ toHtml
+                  $ formatDuration duration
+            Nothing ->
+              div_ [class_ "flex items-center space-x-2"] $ do
+                span_ [class_ "font-medium"] "Status:"
+                case job.jobStatus of
+                  St.JobStale -> span_ [class_ "text-gray-500"] "Stale"
+                  St.JobPending -> span_ [class_ "text-gray-500"] "In progress"
+                  St.JobRunning -> span_ [class_ "text-gray-500"] "In progress"
+                  St.JobFinished {} -> span_ [class_ "text-gray-500"] "In progress" -- Should not happen due to outer case
 
     -- Job logs
     W.viraCard_ [class_ "p-6"] $ do
@@ -147,14 +180,16 @@ triggerNewBuild repoName branchName = do
   mCachix <- App.query St.GetCachixSettingsA
   mAttic <- App.query St.GetAtticSettingsA
   asks App.supervisor >>= \supervisor -> do
-    job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir
+    creationTime <- liftIO getCurrentTime
+    job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir creationTime
     log Info $ "Added job " <> show job
     let stages = getStages repo branch mCachix mAttic
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \result -> do
+      endTime <- liftIO getCurrentTime
       let status = case result of
-            Right ExitSuccess -> St.JobFinished St.JobSuccess
-            Right (ExitFailure _code) -> St.JobFinished St.JobFailure
-            Left KilledByUser -> St.JobKilled
+            Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
+            Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
+            Left KilledByUser -> St.JobFinished St.JobKilled endTime
       App.update $ St.JobUpdateStatusA job.jobId status
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId

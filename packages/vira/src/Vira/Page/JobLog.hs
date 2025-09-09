@@ -44,7 +44,7 @@ rawLogHandler jobId = do
 
 view :: Job -> AppHtml ()
 view job = do
-  let jobActive = job.jobStatus == St.JobRunning || job.jobStatus == St.JobPending
+  let jobActive = St.jobIsActive job
   if jobActive
     then Log.viewStream job
     else viewStaticLog job
