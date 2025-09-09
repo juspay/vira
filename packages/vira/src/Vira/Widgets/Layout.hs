@@ -38,11 +38,12 @@ module Vira.Widgets.Layout (
 
 import Effectful.Reader.Dynamic (asks)
 import Lucid
-import System.Info (arch, os)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings (..))
+import Vira.App.InstanceInfo (InstanceInfo (..), platform)
 import Vira.App.LinkTo.Type (LinkTo (..), linkShortTitle)
 import Vira.App.Lucid (AppHtml)
+import Vira.App.Stack (AppState)
 import Vira.Stream.Refresh qualified as Refresh
 import Vira.Widgets.Status qualified as Status
 import Web.TablerIcons.Outline qualified as Icon
@@ -51,7 +52,7 @@ import Prelude hiding (asks)
 -- | Common HTML layout for all routes.
 layout :: [LinkTo] -> AppHtml () -> AppHtml ()
 layout crumbs content = do
-  instanceName <- lift $ asks @WebSettings (.instanceName)
+  instanceInfo <- lift $ asks @AppState (.instanceInfo)
   basePath <- lift $ asks @WebSettings (.basePath)
   doctype_
   html_ $ do
@@ -63,7 +64,7 @@ layout crumbs content = do
           Just link -> do
             toHtml $ linkShortTitle link
             " - "
-        toHtml $ "Vira (" <> instanceName <> ")"
+        toHtml $ "Vira (" <> instanceInfo.hostname <> ")"
       base_ [href_ basePath]
       -- Google Fonts - Inter for modern, clean typography
       link_ [rel_ "preconnect", href_ "https://fonts.googleapis.com"]
@@ -104,15 +105,14 @@ layout crumbs content = do
     -- Footer with memory usage information
     footer :: [LinkTo] -> AppHtml ()
     footer _crumbs = do
-      instanceNameValue <- lift $ asks @WebSettings (.instanceName)
-      let platformStr = os <> "/" <> arch
+      instanceInfo <- lift $ asks @AppState (.instanceInfo)
       div_ [class_ "bg-gray-100 border-t border-gray-200 mt-auto"] $ do
         div_ [class_ "container mx-auto px-4 py-3 lg:px-8"] $ do
           div_ [class_ "flex justify-between items-center text-sm text-gray-600"] $ do
             div_ [class_ "flex items-center space-x-4"] $ do
-              span_ [title_ "Instance", class_ "cursor-help"] $ toHtml instanceNameValue
+              span_ [title_ "Hostname", class_ "cursor-help"] $ toHtml instanceInfo.hostname
               span_ [class_ "text-gray-400"] "•"
-              span_ [title_ "Platform", class_ "cursor-help"] $ toHtml platformStr
+              span_ [title_ "Platform", class_ "cursor-help"] $ toHtml (platform instanceInfo)
             div_ [class_ "text-xs text-gray-500"] $ do
               a_ [href_ "https://github.com/juspay/vira", target_ "_blank", class_ "hover:text-gray-700 transition-colors"] "Vira"
 

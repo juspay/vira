@@ -15,6 +15,7 @@ import Effectful.Reader.Dynamic (Reader, runReader)
 import Servant (Handler (Handler), ServerError)
 import Servant.Links (Link)
 import Vira.App.CLI (WebSettings)
+import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.Lib.Logging (runLogActionStdout)
 import Vira.State.Core (ViraState)
@@ -50,7 +51,9 @@ runAppInServant cfg webSettings =
 
 -- | Application-wide state available in Effectful stack
 data AppState = AppState
-  { -- The state of the app
+  { -- Instance information (hostname, platform)
+    instanceInfo :: InstanceInfo
+  , -- The state of the app
     acid :: AcidState ViraState
   , -- Process supervisor state
     supervisor :: TaskSupervisor

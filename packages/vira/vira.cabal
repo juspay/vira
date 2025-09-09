@@ -30,6 +30,7 @@ library
       Vira.App
       Vira.App.AcidState
       Vira.App.CLI
+      Vira.App.InstanceInfo
       Vira.App.LinkTo.Resolve
       Vira.App.LinkTo.Type
       Vira.App.Lucid

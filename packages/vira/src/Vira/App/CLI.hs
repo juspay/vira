@@ -13,7 +13,6 @@ module Vira.App.CLI (
 ) where
 
 import Data.Version (showVersion)
-import Network.HostName (HostName, getHostName)
 import Network.Wai.Handler.Warp (Port)
 import Network.Wai.Handler.WarpTLS.Simple (TLSConfig, tlsConfigParser)
 import Options.Applicative hiding (command)
@@ -36,8 +35,6 @@ data WebSettings = WebSettings
   -- ^ The port to bind the HTTP server to
   , host :: Text
   -- ^ The host to bind the HTTP server to
-  , instanceName :: Text
-  -- ^ Name of the instance; uses hostname if unspecified
   , basePath :: Text
   -- ^ Base URL path for the http server
   , tlsConfig :: TLSConfig
@@ -82,8 +79,8 @@ globalSettingsParser = do
   pure GlobalSettings {..}
 
 -- | Parser for web settings
-webSettingsParser :: HostName -> Parser WebSettings
-webSettingsParser hostName = do
+webSettingsParser :: Parser WebSettings
+webSettingsParser = do
   port <-
     option
       auto
@@ -98,14 +95,6 @@ webSettingsParser hostName = do
           <> metavar "HOST"
           <> help "Host"
           <> value "0.0.0.0"
-          <> showDefault
-      )
-  instanceName <-
-    strOption
-      ( long "instance-name"
-          <> metavar "INSTANCE_NAME"
-          <> help "Name of the instance"
-          <> value (toText hostName)
           <> showDefault
       )
   basePath <-
@@ -127,26 +116,26 @@ webSettingsParser hostName = do
   pure WebSettings {..}
 
 -- | Parser for commands
-commandParser :: HostName -> Parser Command
-commandParser hostName =
+commandParser :: Parser Command
+commandParser =
   hsubparser
-    ( OA.command "web" (info (WebCommand <$> webSettingsParser hostName) (progDesc "Start the web server"))
+    ( OA.command "web" (info (WebCommand <$> webSettingsParser) (progDesc "Start the web server"))
         <> OA.command "export" (info (pure ExportCommand) (progDesc "Export Vira state to JSON"))
         <> OA.command "import" (info (pure ImportCommand) (progDesc "Import Vira state from JSON"))
     )
 
 -- | Parser for CLISettings
-cliSettingsParser :: HostName -> Parser CLISettings
-cliSettingsParser hostName = do
+cliSettingsParser :: Parser CLISettings
+cliSettingsParser = do
   globalSettings <- globalSettingsParser
-  command <- commandParser hostName
+  command <- commandParser
   pure CLISettings {..}
 
 -- | Full parser with info
-parseCLISettings :: HostName -> ParserInfo CLISettings
-parseCLISettings hostName =
+parseCLISettings :: ParserInfo CLISettings
+parseCLISettings =
   info
-    (versionOption <*> cliSettingsParser hostName <**> helper)
+    (versionOption <*> cliSettingsParser <**> helper)
     ( fullDesc
         <> progDesc "Vira"
         <> header "vira - Nix CI for teams"
@@ -158,6 +147,4 @@ parseCLISettings hostName =
         (long "version" <> help "Show version")
 
 parseCLI :: IO CLISettings
-parseCLI = do
-  hostName <- liftIO getHostName
-  execParser $ parseCLISettings hostName
+parseCLI = execParser parseCLISettings
