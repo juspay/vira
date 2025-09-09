@@ -96,68 +96,54 @@ killHandler jobId = do
   Supervisor.killTask supervisor jobId
   pure $ addHeader True "Killed"
 
-{- |
-Job details component showing timing information.
-
-Displays start time, end time (if finished), duration, and current status
-in a clean card layout with tooltips for additional information.
--}
-viewJobDetails :: St.Job -> App.AppHtml ()
-viewJobDetails job = do
-  W.viraCard_ [class_ "p-6"] $ do
-    h3_ [class_ "text-lg font-semibold mb-4"] "Job Details"
-    div_ [class_ "space-y-3"] $ do
-      -- Start time
-      div_ [class_ "flex items-center justify-between py-2 border-b border-gray-100"] $ do
-        span_ [class_ "text-sm font-medium text-gray-600"] "Started"
-        Time.viraUTCTime_ job.jobCreatedTime
-
-      -- End time / Status
-      case St.jobFinishedDuration job of
-        Just endTime -> do
-          div_ [class_ "flex items-center justify-between py-2 border-b border-gray-100"] $ do
-            span_ [class_ "text-sm font-medium text-gray-600"] "Finished"
-            Time.viraUTCTime_ endTime
-          -- Duration
-          div_ [class_ "flex items-center justify-between py-2"] $ do
-            span_ [class_ "text-sm font-medium text-gray-600"] "Duration"
-            let duration = diffUTCTime endTime job.jobCreatedTime
-            span_
-              [ class_ "text-sm text-gray-900 cursor-help"
-              , title_ "Total time from job creation to completion"
-              ]
-              $ toHtml
-              $ formatDuration duration
-        Nothing ->
-          div_ [class_ "flex items-center justify-between py-2"] $ do
-            span_ [class_ "text-sm font-medium text-gray-600"] "Status"
-            span_ [class_ "text-sm text-gray-500"] "In progress"
-
 viewJob :: St.Job -> App.AppHtml ()
 viewJob job = do
   let jobActive = St.jobIsActive job
 
   W.viraSection_ [] $ do
     W.viraPageHeader_ ("Job #" <> (toText @String $ show job.jobId)) $ do
-      div_ [class_ "flex items-center justify-between"] $ do
-        div_ [class_ "flex items-center space-x-4"] $ do
-          span_ "Commit:"
-          W.viraCommitInfo_ job.jobCommit
-        div_ [class_ "flex items-center space-x-4"] $ do
-          viewJobStatus job.jobStatus
-          when jobActive $ do
-            killLink <- lift $ App.getLink $ LinkTo.Kill job.jobId
-            W.viraButton_
-              W.ButtonDestructive
-              [ hxPostSafe_ killLink
-              , hxSwapS_ AfterEnd
-              ]
-              $ do
-                W.viraButtonIcon_ $ toHtmlRaw Icon.ban
-                "Kill Job"
+      div_ [class_ "space-y-4"] $ do
+        -- Top row: commit info and actions
+        div_ [class_ "flex items-center justify-between"] $ do
+          div_ [class_ "flex items-center space-x-4"] $ do
+            span_ "Commit:"
+            W.viraCommitInfo_ job.jobCommit
+          div_ [class_ "flex items-center space-x-4"] $ do
+            viewJobStatus job.jobStatus
+            when jobActive $ do
+              killLink <- lift $ App.getLink $ LinkTo.Kill job.jobId
+              W.viraButton_
+                W.ButtonDestructive
+                [ hxPostSafe_ killLink
+                , hxSwapS_ AfterEnd
+                ]
+                $ do
+                  W.viraButtonIcon_ $ toHtmlRaw Icon.ban
+                  "Kill Job"
 
-    -- Job details
-    viewJobDetails job
+        -- Bottom row: timing information
+        div_ [class_ "flex items-center space-x-6 text-sm text-gray-600 border-t pt-3"] $ do
+          div_ [class_ "flex items-center space-x-2"] $ do
+            span_ [class_ "font-medium"] "Started:"
+            Time.viraUTCTime_ job.jobCreatedTime
+          case St.jobFinishedDuration job of
+            Just endTime -> do
+              div_ [class_ "flex items-center space-x-2"] $ do
+                span_ [class_ "font-medium"] "Finished:"
+                Time.viraUTCTime_ endTime
+              div_ [class_ "flex items-center space-x-2"] $ do
+                span_ [class_ "font-medium"] "Duration:"
+                let duration = diffUTCTime endTime job.jobCreatedTime
+                span_
+                  [ class_ "cursor-help"
+                  , title_ "Total time from job creation to completion"
+                  ]
+                  $ toHtml
+                  $ formatDuration duration
+            Nothing ->
+              div_ [class_ "flex items-center space-x-2"] $ do
+                span_ [class_ "font-medium"] "Status:"
+                span_ [class_ "text-gray-500"] "In progress"
 
     -- Job logs
     W.viraCard_ [class_ "p-6"] $ do
