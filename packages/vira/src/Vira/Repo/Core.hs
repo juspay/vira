@@ -58,7 +58,7 @@ getStages repo branch mCachix mAttic =
     repoSettings = defaultRepoSettings repo.name
     buildStage = repoSettings.stages.build
     buildSettings =
-      if all (match branch.branchName) buildStage.if_
+      if match branch.branchName buildStage.if_
         then buildStage.settings
         else def
    in
@@ -77,6 +77,7 @@ getStages repo branch mCachix mAttic =
 match :: BranchName -> Condition -> Bool
 match branchName (BranchMatches p) =
   toString p ?== toString branchName.unBranchName
+match _ Always = True
 
 -- TODO: Get the settings from the downstream repo
 defaultRepoSettings :: RepoName -> RepoSettings
@@ -98,7 +99,7 @@ eulerLspSettings =
       }
   where
     releaseBranchOnly =
-      [BranchMatches "release-*"]
+      BranchMatches "release-*"
     -- "flake/local" is a workaround until https://github.com/juspay/omnix/issues/452 is resolved
     omCiDisableLocal =
       OmCiConfig ["--", "--override-input", "flake/local", "github:boolean-option/false"]

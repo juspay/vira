@@ -10,15 +10,15 @@ newtype RepoSettings = RepoSettings
 
 -- | Wraps the settings for a stage with its run conditions
 data StageSettings s = StageSettings
-  { if_ :: [Condition]
-  -- ^ Enabled only if all of these conditions are met
+  { if_ :: Condition
+  -- ^ Enabled only if this condition is met
   , settings :: s
   }
   deriving stock (Show)
 
 -- By default, there are no conditions. All stages run.
 instance (Default s) => Default (StageSettings s) where
-  def = StageSettings {if_ = [], settings = def}
+  def = StageSettings {if_ = Always, settings = def}
 
 -- | Configurable stages with their run conditions
 newtype Stages = Stages
@@ -41,9 +41,10 @@ instance Default OmCiConfig where
   def = OmCiConfig {extraArgs = []}
 
 -- | Condition for when to run a stage
-newtype Condition
+data Condition
   = -- | Whether the branch name of the current checkout matches the given pattern
     BranchMatches GlobPattern
+  | Always
   deriving stock (Show)
 
 -- | Glob pattern for arbitrary strings; `FilePattern` is syntactically equivalent, so we use it.
