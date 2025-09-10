@@ -40,7 +40,7 @@ import Effectful.Reader.Dynamic (asks)
 import Lucid
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings (..))
-import Vira.App.InstanceInfo (InstanceInfo (..), platform)
+import Vira.App.InstanceInfo (InstanceInfo (..), instanceEmoji, platform)
 import Vira.App.LinkTo.Type (LinkTo (..), linkShortTitle)
 import Vira.App.Lucid (AppHtml)
 import Vira.App.Stack (AppState)
@@ -48,6 +48,10 @@ import Vira.Stream.Refresh qualified as Refresh
 import Vira.Widgets.Status qualified as Status
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (asks)
+
+-- | Generate page title with emoji and hostname suffix
+pageTitle :: InstanceInfo -> Text -> Text
+pageTitle instanceInfo title = instanceEmoji instanceInfo <> " " <> title <> " - Vira[" <> instanceInfo.hostname <> "]"
 
 -- | Common HTML layout for all routes.
 layout :: [LinkTo] -> AppHtml () -> AppHtml ()
@@ -59,12 +63,8 @@ layout crumbs content = do
     head_ $ do
       mobileFriendly
       title_ $ do
-        case viaNonEmpty last crumbs of
-          Nothing -> mempty
-          Just link -> do
-            toHtml $ linkShortTitle link
-            " - "
-        toHtml $ "Vira (" <> instanceInfo.hostname <> ")"
+        let baseTitle = maybe "Vira" linkShortTitle (viaNonEmpty last crumbs)
+        toHtml $ pageTitle instanceInfo baseTitle
       base_ [href_ basePath]
       -- Google Fonts - Inter for modern, clean typography
       link_ [rel_ "preconnect", href_ "https://fonts.googleapis.com"]

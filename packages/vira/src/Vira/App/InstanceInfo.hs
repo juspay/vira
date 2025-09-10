@@ -5,6 +5,7 @@ module Vira.App.InstanceInfo (
   InstanceInfo (..),
   getInstanceInfo,
   platform,
+  instanceEmoji,
 ) where
 
 import Network.HostName (getHostName)
@@ -35,3 +36,10 @@ getInstanceInfo = do
 -- | Compute the platform string from InstanceInfo
 platform :: InstanceInfo -> Text
 platform instanceInfo = instanceInfo.os <> "/" <> instanceInfo.arch
+
+-- | Get an emoji representing the operating system
+instanceEmoji :: InstanceInfo -> Text
+instanceEmoji instanceInfo = case instanceInfo.os of
+  "linux" -> "🐧"
+  "darwin" -> "🍎"
+  _ -> "❓"
