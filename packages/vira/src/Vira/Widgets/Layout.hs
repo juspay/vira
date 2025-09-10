@@ -64,7 +64,7 @@ appLogoUrl = do
   instanceInfo <- lift $ asks @AppState (.instanceInfo)
   case instanceInfo.os of
     "linux" -> pure "vira-logo-penguin.svg"
-    "macos" -> pure "vira-logo-apple.svg"
+    "darwin" -> pure "vira-logo-apple.svg"
     _ -> pure "vira-logo.svg"
 
 -- | Common HTML layout for all routes.
