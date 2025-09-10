@@ -30,6 +30,7 @@ The layout function provides the foundation for all application pages.
 -}
 module Vira.Widgets.Layout (
   layout,
+  appLogoUrl,
   viraPageHeader_,
   viraPageHeaderWithIcon_,
   viraSection_,
@@ -53,10 +54,20 @@ import Prelude hiding (asks)
 pageTitle :: InstanceInfo -> Text -> Text
 pageTitle instanceInfo title = title <> " - Vira[" <> instanceInfo.hostname <> "]"
 
+-- | Dynamic favicon based on platform
+appLogoUrl :: AppHtml Text
+appLogoUrl = do
+  instanceInfo <- lift $ asks @AppState (.instanceInfo)
+  case instanceInfo.os of
+    "linux" -> pure "vira-logo-penguin.svg"
+    "macos" -> pure "vira-logo-apple.svg"
+    _ -> pure "vira-logo.svg"
+
 -- | Common HTML layout for all routes.
 layout :: [LinkTo] -> AppHtml () -> AppHtml ()
 layout crumbs content = do
   instanceInfo <- lift $ asks @AppState (.instanceInfo)
+  logoUrl <- appLogoUrl
   basePath <- lift $ asks @WebSettings (.basePath)
   doctype_
   html_ $ do
@@ -70,12 +81,7 @@ layout crumbs content = do
       link_ [rel_ "preconnect", href_ "https://fonts.googleapis.com"]
       link_ [rel_ "preconnect", href_ "https://fonts.gstatic.com", crossorigin_ ""]
       link_ [href_ "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap", rel_ "stylesheet"]
-      -- dynamic favicon based on platform
-      let faviconFile = case instanceInfo.os of
-            "linux" -> "vira-logo-penguin.svg"
-            "darwin" -> "vira-logo-apple.svg"
-            _ -> "vira-logo.svg"
-      link_ [rel_ "icon", type_ "image/svg+xml", href_ faviconFile]
+      link_ [rel_ "icon", type_ "image/svg+xml", href_ logoUrl]
       htmx
       link_ [rel_ "stylesheet", type_ "text/css", href_ "tailwind.css"]
       -- Custom styles for the new design
@@ -134,13 +140,14 @@ linkToIcon = \case
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
 breadcrumbs :: [LinkTo] -> AppHtml ()
 breadcrumbs rs' = do
-  let logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
+  logoUrl <- appLogoUrl
+  let logo = img_ [src_ logoUrl, alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
   nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between px-4 py-2 bg-indigo-600 rounded-t-xl"] $ do
     ol_ [class_ "flex flex-1 items-center space-x-2 text-base list-none"] $ do
       -- Logo as first element
       li_ [class_ "flex items-center"] $ do
         basePath <- lift $ asks @WebSettings (.basePath)
-        a_ [href_ basePath, class_ "font-semibold text-white px-2 py-1 rounded-lg bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-smooth"] logo
+        a_ [href_ basePath, class_ "font-semibold text-white px-2 py-1 rounded-lg hover:bg-white/30 transition-smooth"] logo
       -- Render breadcrumb links
       renderCrumbs rs'
     Status.viewAllJobStatus
