@@ -40,7 +40,7 @@ import Effectful.Reader.Dynamic (asks)
 import Lucid
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings (..))
-import Vira.App.InstanceInfo (InstanceInfo (..), instanceEmoji, platform)
+import Vira.App.InstanceInfo (InstanceInfo (..), platform)
 import Vira.App.LinkTo.Type (LinkTo (..), linkShortTitle)
 import Vira.App.Lucid (AppHtml)
 import Vira.App.Stack (AppState)
@@ -51,7 +51,7 @@ import Prelude hiding (asks)
 
 -- | Generate page title with emoji and hostname suffix
 pageTitle :: InstanceInfo -> Text -> Text
-pageTitle instanceInfo title = instanceEmoji instanceInfo <> " " <> title <> " - Vira[" <> instanceInfo.hostname <> "]"
+pageTitle instanceInfo title = title <> " - Vira[" <> instanceInfo.hostname <> "]"
 
 -- | Common HTML layout for all routes.
 layout :: [LinkTo] -> AppHtml () -> AppHtml ()
@@ -70,8 +70,12 @@ layout crumbs content = do
       link_ [rel_ "preconnect", href_ "https://fonts.googleapis.com"]
       link_ [rel_ "preconnect", href_ "https://fonts.gstatic.com", crossorigin_ ""]
       link_ [href_ "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap", rel_ "stylesheet"]
-      -- favicon
-      link_ [rel_ "icon", type_ "image/jpg", href_ "vira-logo.jpg"]
+      -- dynamic favicon based on platform
+      let faviconFile = case instanceInfo.os of
+            "linux" -> "vira-logo-penguin.svg"
+            "darwin" -> "vira-logo-apple.svg"
+            _ -> "vira-logo.svg"
+      link_ [rel_ "icon", type_ "image/svg+xml", href_ faviconFile]
       htmx
       link_ [rel_ "stylesheet", type_ "text/css", href_ "tailwind.css"]
       -- Custom styles for the new design

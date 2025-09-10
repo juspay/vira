@@ -4,7 +4,7 @@ _/வீரா/_
 
 No-frills CI for teams using Nix.
 
-<img src="packages/vira/static/vira-logo.jpg" style="height: 64px;" />
+<img src="packages/vira/static/vira-logo.svg" style="height: 64px;" />
 
 ## Status
 
