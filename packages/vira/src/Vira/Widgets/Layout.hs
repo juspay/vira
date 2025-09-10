@@ -42,7 +42,7 @@ import Lucid
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings (..))
 import Vira.App.InstanceInfo (InstanceInfo (..), platform)
-import Vira.App.LinkTo.Type (LinkTo (..), linkShortTitle)
+import Vira.App.LinkTo.Type (LinkTo (..), linkShortTitle, linkTitle)
 import Vira.App.Lucid (AppHtml)
 import Vira.App.Stack (AppState)
 import Vira.Stream.Refresh qualified as Refresh
@@ -51,8 +51,12 @@ import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (asks)
 
 -- | Generate page title with emoji and hostname suffix
-pageTitle :: InstanceInfo -> Text -> Text
-pageTitle instanceInfo title = title <> " - Vira[" <> instanceInfo.hostname <> "]"
+pageTitle :: InstanceInfo -> Maybe Text -> Text
+pageTitle instanceInfo = \case
+  Nothing -> siteTitle
+  Just title -> title <> " - " <> siteTitle
+  where
+    siteTitle = "Vira[" <> instanceInfo.hostname <> "]"
 
 -- | Dynamic favicon based on platform
 appLogoUrl :: AppHtml Text
@@ -74,7 +78,7 @@ layout crumbs content = do
     head_ $ do
       mobileFriendly
       title_ $ do
-        let baseTitle = maybe "Vira" linkShortTitle (viaNonEmpty last crumbs)
+        let baseTitle = linkTitle <$> viaNonEmpty last crumbs
         toHtml $ pageTitle instanceInfo baseTitle
       base_ [href_ basePath]
       -- Google Fonts - Inter for modern, clean typography

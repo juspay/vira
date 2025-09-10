@@ -32,12 +32,12 @@ linkShortTitle :: LinkTo -> Text
 linkShortTitle = \case
   Home -> "Vira"
   RepoListing -> "Repositories"
-  Repo name -> toText . toString $ name
+  Repo name -> toStringText name
   RepoUpdate _ -> "Update" -- unused
   RepoDelete _ -> "Delete Repository"
   RepoAdd -> "Add Repository"
   Build _ _ -> "Build" -- unused
-  RepoBranch _ branchName -> toText . toString $ branchName
+  RepoBranch _ branchName -> toStringText branchName
   Job jobId -> "Job " <> show jobId
   JobLog jobId -> "Job Log " <> show jobId
   JobLogStream jobId -> "Job Log Stream " <> show jobId
@@ -48,3 +48,11 @@ linkShortTitle = \case
   SettingsUpdateAttic -> "Attic Settings" -- unused
   SettingsDeleteAttic -> "Delete Attic Settings" -- unused
   Refresh -> "Refresh"
+
+linkTitle :: LinkTo -> Text
+linkTitle = \case
+  RepoBranch r b -> toStringText r <> " → " <> toStringText b
+  x -> linkShortTitle x
+
+toStringText :: (ToString a) => a -> Text
+toStringText = toText . toString
