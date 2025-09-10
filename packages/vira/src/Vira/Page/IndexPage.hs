@@ -35,9 +35,10 @@ handlers cfg webSettings =
   Routes
     { _home =
         App.runAppInServant cfg webSettings $
-          runAppHtml $
+          runAppHtml $ do
+            logoUrl <- W.appLogoUrl
             W.layout mempty $
-              heroWelcome menu
+              heroWelcome logoUrl menu
     , _repos = RegistryPage.handlers cfg webSettings
     , _jobs = JobPage.handlers cfg webSettings
     , _settings = SettingsPage.handlers cfg webSettings
@@ -52,12 +53,13 @@ handlers cfg webSettings =
       , ("Settings", linkText $ fieldLink _settings // SettingsPage._view)
       ]
 
-heroWelcome :: (Monad m) => [(HtmlT m (), Text)] -> HtmlT m ()
-heroWelcome menu = do
+heroWelcome :: (Monad m) => Text -> [(HtmlT m (), Text)] -> HtmlT m ()
+heroWelcome logoUrl menu = do
   div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-12 mb-8 text-center"] $ do
     h1_ [class_ "text-5xl font-bold text-indigo-900 tracking-tight mb-4"] $ do
       "Welcome to "
       a_ [href_ "http://github.com/juspay/vira", class_ "underline hover:no-underline", target_ "_blank"] "Vira"
+    img_ [src_ logoUrl, class_ "mx-auto w-48 h-48 mb-4"]
     p_ [class_ "text-xl text-indigo-700 mb-8"] $ do
       "No-frills CI/CD for teams using "
       a_ [href_ "https://nixos.asia/en/nix-first", class_ "underline hover:no-underline", target_ "blank"] "Nix"

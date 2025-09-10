@@ -30,6 +30,7 @@ The layout function provides the foundation for all application pages.
 -}
 module Vira.Widgets.Layout (
   layout,
+  appLogoUrl,
   viraPageHeader_,
   viraPageHeaderWithIcon_,
   viraSection_,
@@ -38,39 +39,53 @@ module Vira.Widgets.Layout (
 
 import Effectful.Reader.Dynamic (asks)
 import Lucid
-import System.Info (arch, os)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings (..))
-import Vira.App.LinkTo.Type (LinkTo (..), linkShortTitle)
+import Vira.App.InstanceInfo (InstanceInfo (..), platform)
+import Vira.App.LinkTo.Type (LinkTo (..), linkShortTitle, linkTitle)
 import Vira.App.Lucid (AppHtml)
+import Vira.App.Stack (AppState)
 import Vira.Stream.Refresh qualified as Refresh
 import Vira.Widgets.Status qualified as Status
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (asks)
 
+-- | Generate page title with emoji and hostname suffix
+pageTitle :: InstanceInfo -> Maybe Text -> Text
+pageTitle instanceInfo = \case
+  Nothing -> siteTitle
+  Just title -> title <> " - " <> siteTitle
+  where
+    siteTitle = "Vira[" <> instanceInfo.hostname <> "]"
+
+-- | Dynamic favicon based on platform
+appLogoUrl :: AppHtml Text
+appLogoUrl = do
+  instanceInfo <- lift $ asks @AppState (.instanceInfo)
+  case instanceInfo.os of
+    "linux" -> pure "vira-logo-penguin.svg"
+    "macos" -> pure "vira-logo-apple.svg"
+    _ -> pure "vira-logo.svg"
+
 -- | Common HTML layout for all routes.
 layout :: [LinkTo] -> AppHtml () -> AppHtml ()
 layout crumbs content = do
-  instanceName <- lift $ asks @WebSettings (.instanceName)
+  instanceInfo <- lift $ asks @AppState (.instanceInfo)
+  logoUrl <- appLogoUrl
   basePath <- lift $ asks @WebSettings (.basePath)
   doctype_
   html_ $ do
     head_ $ do
       mobileFriendly
       title_ $ do
-        case viaNonEmpty last crumbs of
-          Nothing -> mempty
-          Just link -> do
-            toHtml $ linkShortTitle link
-            " - "
-        toHtml $ "Vira (" <> instanceName <> ")"
+        let baseTitle = linkTitle <$> viaNonEmpty last crumbs
+        toHtml $ pageTitle instanceInfo baseTitle
       base_ [href_ basePath]
       -- Google Fonts - Inter for modern, clean typography
       link_ [rel_ "preconnect", href_ "https://fonts.googleapis.com"]
       link_ [rel_ "preconnect", href_ "https://fonts.gstatic.com", crossorigin_ ""]
       link_ [href_ "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap", rel_ "stylesheet"]
-      -- favicon
-      link_ [rel_ "icon", type_ "image/jpg", href_ "vira-logo.jpg"]
+      link_ [rel_ "icon", type_ "image/svg+xml", href_ logoUrl]
       htmx
       link_ [rel_ "stylesheet", type_ "text/css", href_ "tailwind.css"]
       -- Custom styles for the new design
@@ -104,15 +119,14 @@ layout crumbs content = do
     -- Footer with memory usage information
     footer :: [LinkTo] -> AppHtml ()
     footer _crumbs = do
-      instanceNameValue <- lift $ asks @WebSettings (.instanceName)
-      let platformStr = os <> "/" <> arch
+      instanceInfo <- lift $ asks @AppState (.instanceInfo)
       div_ [class_ "bg-gray-100 border-t border-gray-200 mt-auto"] $ do
         div_ [class_ "container mx-auto px-4 py-3 lg:px-8"] $ do
           div_ [class_ "flex justify-between items-center text-sm text-gray-600"] $ do
             div_ [class_ "flex items-center space-x-4"] $ do
-              span_ [title_ "Instance", class_ "cursor-help"] $ toHtml instanceNameValue
+              span_ [title_ "Hostname", class_ "cursor-help"] $ toHtml instanceInfo.hostname
               span_ [class_ "text-gray-400"] "•"
-              span_ [title_ "Platform", class_ "cursor-help"] $ toHtml platformStr
+              span_ [title_ "Platform", class_ "cursor-help"] $ toHtml (platform instanceInfo)
             div_ [class_ "text-xs text-gray-500"] $ do
               a_ [href_ "https://github.com/juspay/vira", target_ "_blank", class_ "hover:text-gray-700 transition-colors"] "Vira"
 
@@ -130,13 +144,14 @@ linkToIcon = \case
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
 breadcrumbs :: [LinkTo] -> AppHtml ()
 breadcrumbs rs' = do
-  let logo = img_ [src_ "vira-logo.jpg", alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
+  logoUrl <- appLogoUrl
+  let logo = img_ [src_ logoUrl, alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
   nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between px-4 py-2 bg-indigo-600 rounded-t-xl"] $ do
     ol_ [class_ "flex flex-1 items-center space-x-2 text-base list-none"] $ do
       -- Logo as first element
       li_ [class_ "flex items-center"] $ do
         basePath <- lift $ asks @WebSettings (.basePath)
-        a_ [href_ basePath, class_ "font-semibold text-white px-2 py-1 rounded-lg bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-smooth"] logo
+        a_ [href_ basePath, class_ "font-semibold text-white px-2 py-1 rounded-lg hover:bg-white/30 transition-smooth"] logo
       -- Render breadcrumb links
       renderCrumbs rs'
     Status.viewAllJobStatus

@@ -22,7 +22,9 @@ data-files:
     js/htmx.min.js
     js/hyperscript.min.js
     tailwind.css
-    vira-logo.jpg
+    vira-logo.svg
+    vira-logo-apple.svg
+    vira-logo-penguin.svg
 data-dir:       static
 
 library
@@ -30,6 +32,7 @@ library
       Vira.App
       Vira.App.AcidState
       Vira.App.CLI
+      Vira.App.InstanceInfo
       Vira.App.LinkTo.Resolve
       Vira.App.LinkTo.Type
       Vira.App.Lucid
