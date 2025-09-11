@@ -21,6 +21,7 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.Lib.Logging
 import Vira.Lib.TimeExtra (formatDuration)
@@ -169,7 +170,14 @@ triggerNewBuild repoName branchName = do
     creationTime <- liftIO getCurrentTime
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir creationTime
     log Info $ "Added job " <> show job
-    let stages = Pipeline.getStages repo branch mCachix mAttic
+    let env =
+          ViraEnvironment
+            { repo = repo
+            , branch = branch
+            , cachixSettings = mCachix
+            , atticSettings = mAttic
+            }
+        stages = Pipeline.getStages env
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \result -> do
       endTime <- liftIO getCurrentTime
       let status = case result of

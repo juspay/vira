@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Vira.CI.Pipeline where
+module Vira.CI.Pipeline (getStages) where
 
 import Effectful.Git qualified as Git
 import Effectful.Process (CreateProcess (cwd), env, proc)
 import System.GHSignoff
 import System.Which (staticWhich)
+import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.Lib.Attic
 import Vira.Lib.Cachix
 import Vira.Lib.Omnix qualified as Omnix
@@ -21,19 +22,19 @@ mkdir :: FilePath
 mkdir = $(staticWhich "mkdir")
 
 -- | Get all build stages for a CI pipeline
-getStages :: St.Repo -> St.Branch -> Maybe CachixSettings -> Maybe AtticSettings -> NonEmpty CreateProcess
-getStages repo branch mCachix mAttic = do
+getStages :: ViraEnvironment -> NonEmpty CreateProcess
+getStages env = do
   stageCreateProjectDir
     :| one stagesClone
-    <> maybe [] (one . stageAtticLogin) mAttic
+    <> maybe [] (one . stageAtticLogin) env.atticSettings
     <> [stageBuild]
-    <> (maybe mempty (one . stageCachixPush) mCachix <> maybe mempty (one . stageAtticPush) mAttic)
+    <> (maybe mempty (one . stageCachixPush) env.cachixSettings <> maybe mempty (one . stageAtticPush) env.atticSettings)
     <> [stageGHSignoff]
   where
     stageCreateProjectDir =
       proc mkdir ["project"]
     stagesClone =
-      Git.cloneAtCommit repo.cloneUrl branch.headCommit
+      Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit
         & \p -> p {cwd = Just "project"}
     stageBuild =
       Omnix.omnixCiProcess
