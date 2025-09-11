@@ -27,6 +27,7 @@ library
   default-extensions:
       StrictData
       NumericUnderscores
+      ViewPatterns
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin
   build-depends:
       aeson
@@ -67,6 +68,7 @@ test-suite git-effectful-test
   default-extensions:
       StrictData
       NumericUnderscores
+      ViewPatterns
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin
   build-depends:
       aeson

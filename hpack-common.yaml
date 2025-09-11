@@ -16,6 +16,7 @@ default-extensions:
   # Extensions not included in GHC2024 that we need:
   - StrictData
   - NumericUnderscores
+  - ViewPatterns
 
 dependencies:
   - name: base

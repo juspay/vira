@@ -29,6 +29,7 @@ library
   default-extensions:
       StrictData
       NumericUnderscores
+      ViewPatterns
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
       async
@@ -61,6 +62,7 @@ test-suite tail-test
   default-extensions:
       StrictData
       NumericUnderscores
+      ViewPatterns
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
       async
