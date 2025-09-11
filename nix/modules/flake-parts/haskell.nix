@@ -5,10 +5,7 @@
   ];
   debug = true;
   perSystem = { self', lib, config, pkgs, ... }: {
-    # Our only Haskell project. You can have multiple projects, but this template
-    # has only one.
-    # See https://github.com/srid/haskell-flake/blob/master/example/flake.nix
-    haskellProjects.default = {
+    haskellProjects.default = { config, ... }: {
       # To avoid unnecessary rebuilds, we filter projectRoot:
       # https://community.flake.parts/haskell-flake/local#rebuild
       projectRoot = lib.fileset.toSource {
@@ -36,48 +33,29 @@
       # Add your package overrides here
       settings = {
         vira = {
-          check = false; # Running outside of Nix.
-          generateOptparseApplicativeCompletions = [ "vira" ];
-          extraBuildDepends = [
-            pkgs.git
-            pkgs.cachix
-            pkgs.attic-client
-            pkgs.omnix
-            pkgs.openssl # For automatic TLS certificate generation
-            pkgs.coreutils # For mkdir
-            pkgs.makeWrapper # For wrapProgram
-            pkgs.gh-signoff
+          imports = [
+            config.settings.git-effectful
+            config.settings.tail
+            config.settings.warp-tls-simple
           ];
+          generateOptparseApplicativeCompletions = [ "vira" ];
           stan = true;
+          extraBuildDepends = [
+            pkgs.attic-client # For attic
+            pkgs.cachix # For cachix
+            self'.packages.omnix # For omnix/om
+            pkgs.coreutils # For mkdir
+          ];
           custom = drv: drv.overrideAttrs (oldAttrs: {
             postUnpack = (oldAttrs.postUnpack or "") + ''
               ln -s ${self'.packages.jsAssets}/js $sourceRoot/static/js
             '';
-            preBuild = (oldAttrs.preBuild or "") + ''
-              export VIRA_GIT_BIN="${pkgs.lib.getExe' pkgs.git "git"}"
-              export VIRA_ATTIC_BIN="${pkgs.lib.getExe' pkgs.attic-client "attic"}"
-              export VIRA_CACHIX_BIN="${pkgs.lib.getExe' pkgs.cachix "cachix"}"
-              export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
-              export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
-              export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
-              export VIRA_GH_SIGNOFF_BIN="${pkgs.lib.getExe pkgs.gh-signoff}"
-              export VIRA_SYSTEM="${pkgs.stdenv.hostPlatform.system}"
-            '';
-            # Make nix and uname available to omnix.
-            # TODO: Remove this if/when move away from omnix.
-            postInstall = (oldAttrs.postInstall or "") + ''
-              wrapProgram $out/bin/vira \
-                --prefix PATH : ${pkgs.lib.makeBinPath [ self'.packages.nix pkgs.coreutils ]}
-            '';
           });
         };
         git-effectful = {
-          check = false; # Running outside of Nix.
-          custom = drv: drv.overrideAttrs (oldAttrs: {
-            preBuild = (oldAttrs.preBuild or "") + ''
-              export VIRA_GIT_BIN="${lib.getExe' pkgs.git "git"}"
-            '';
-          });
+          extraBuildDepends = [
+            pkgs.git # For git
+          ];
         };
         tail = {
           extraBuildDepends = [
@@ -86,13 +64,8 @@
         };
         warp-tls-simple = {
           extraBuildDepends = [
-            pkgs.openssl # For automatic TLS certificate generation
+            pkgs.openssl # For openssl
           ];
-          custom = drv: drv.overrideAttrs (oldAttrs: {
-            preBuild = (oldAttrs.preBuild or "") + ''
-              export VIRA_OPENSSL_BIN="${lib.getExe' pkgs.openssl "openssl"}"
-            '';
-          });
         };
         safe-coloured-text-layout = {
           check = false;
@@ -106,23 +79,11 @@
         hlsCheck.enable = false;
         tools = _: {
           stan = pkgs.haskellPackages.stan;
-          vira-dev = config.process-compose."vira-dev".outputs.package;
-          gh-signoff = pkgs.gh-signoff;
         };
-        mkShellArgs.shellHook = ''
-          export VIRA_GIT_BIN="${pkgs.lib.getExe' pkgs.git "git"}"
-          export VIRA_ATTIC_BIN="${pkgs.lib.getExe' pkgs.attic-client "attic"}"
-          export VIRA_CACHIX_BIN="${pkgs.lib.getExe' pkgs.cachix "cachix"}"
-          export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
-          export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
-          export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
-          export VIRA_GH_SIGNOFF_BIN="${pkgs.lib.getExe pkgs.gh-signoff}"
-          export VIRA_SYSTEM="${pkgs.stdenv.hostPlatform.system}"
-        '';
       };
 
       # What should haskell-flake add to flake outputs?
-      autoWire = [ ]; # Disable all autowiring
+      autoWire = [ "checks" ];
     };
 
 
@@ -135,8 +96,16 @@
       # https://discourse.nixos.org/t/handling-git-submodules-in-flakes-from-nix-2-18-to-2-22-nar-hash-mismatch-issues/45118/5
       # So we use the latest.
       nix = pkgs.nixVersions.latest;
-    };
 
-    checks = config.haskellProjects.default.outputs.checks;
+      # Make nix & uname available to omnix via $PATH
+      # TODO: Upstream this?
+      omnix = pkgs.omnix.overrideAttrs (oa: {
+        nativeBuildInputs = (oa.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
+        postInstall = (oa.postInstall or "") + ''
+          wrapProgram $out/bin/om \
+            --prefix PATH : ${lib.makeBinPath [ self'.packages.nix pkgs.coreutils ]}
+        '';
+      });
+    };
   };
 }

@@ -13,16 +13,17 @@
       packages = with pkgs; [
         just
         nixd
-        ghciwatch
         yq
+
         # vira extraBuildDepends from haskell.nix
+        # TODO: Can we find a way DRY this up?
         git
         cachix
         attic-client
-        coreutils # For `tail`
-        omnix
-        openssl # For TLS certificate generation
+        coreutils
+        openssl
         self'.packages.nix
+        self'.packages.omnix
       ];
     };
   };
