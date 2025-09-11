@@ -1,6 +1,6 @@
 ## Unreleased
 
-- **Breaking**: `tailFile` and `tailRun` now take the tail binary path as first argument instead of using compile-time environment variable
+- Use `staticWhich` (from _which_ package) to reference path to `tail` at build time.
 
 ## 0.1.0.0
 

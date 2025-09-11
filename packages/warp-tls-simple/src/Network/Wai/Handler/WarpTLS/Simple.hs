@@ -14,7 +14,6 @@ module Network.Wai.Handler.WarpTLS.Simple (
   tlsConfigParser,
 ) where
 
-import IncludeEnv.TH (includeEnv)
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Handler.WarpTLS qualified as WarpTLS
@@ -23,15 +22,15 @@ import Options.Applicative
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath ((</>))
 import System.Process (callProcess)
+import System.Which (staticWhich)
 import Text.Show (Show (..))
 
 {- | Path to the `openssl` executable
 
-This must be set via the VIRA_OPENSSL_BIN environment variable at compile time.
+This should be available in the PATH, thanks to Nix and `which` library.
 -}
-$(includeEnv "VIRA_OPENSSL_BIN" "opensslBin")
-
 opensslBin :: FilePath
+opensslBin = $(staticWhich "openssl")
 
 -- | TLS configuration with HTTPS enabled by default
 data TLSConfig

@@ -61,7 +61,6 @@ library
     , effectful-core
     , effectful-plugin
     , http-api-data
-    , include-env
     , ixset-typed
     , megaparsec
     , process
@@ -71,6 +70,7 @@ library
     , temporary
     , text
     , time
+    , which
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
@@ -127,7 +127,6 @@ test-suite git-effectful-test
     , hspec
     , hspec-discover
     , http-api-data
-    , include-env
     , ixset-typed
     , megaparsec
     , process
@@ -137,6 +136,7 @@ test-suite git-effectful-test
     , temporary
     , text
     , time
+    , which
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)

@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Vira.Supervisor.Task (
   startTask,
@@ -17,7 +16,6 @@ import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.FileSystem.IO (hClose, openFile)
 import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
-import IncludeEnv.TH (includeEnv)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Tail qualified as Tail
@@ -26,13 +24,6 @@ import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type
 import Prelude hiding (readMVar)
 
-{- | Path to the `tail` executable
-
-This must be set via the VIRA_TAIL_BIN environment variable at compile time.
--}
-$(includeEnv "VIRA_TAIL_BIN" "tailBin")
-
-tailBin :: FilePath
 logSupervisorState :: (HasCallStack, Concurrent :> es, Log Message :> es) => TaskSupervisor -> Eff es ()
 logSupervisorState supervisor = do
   tasks <- readMVar (tasks supervisor)
@@ -80,7 +71,7 @@ startTask supervisor taskId pwd procs h = do
       else do
         createDirectoryIfMissing True pwd
         logToWorkspaceOutput taskId pwd msg
-        tailHandle <- liftIO $ Tail.tailFile tailBin 1000 (outputLogFile pwd)
+        tailHandle <- liftIO $ Tail.tailFile 1000 (outputLogFile pwd)
         let wrappedHandler result = do
               -- Stop the tail when task finishes for any reason
               liftIO $ Tail.tailStop tailHandle

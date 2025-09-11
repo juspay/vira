@@ -15,12 +15,12 @@ import GHC.IO.Exception (ExitCode (..))
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
-import IncludeEnv.TH (includeEnv)
 import Lucid
 import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
+import System.Which (staticWhich)
 import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
@@ -47,11 +47,10 @@ import Prelude hiding (ask, asks)
 
 {- | Path to the `mkdir` executable
 
-This must be set via the VIRA_MKDIR_BIN environment variable at compile time.
+This should be available in the PATH, thanks to Nix and `which` library.
 -}
-$(includeEnv "VIRA_MKDIR_BIN" "mkdir")
-
 mkdir :: FilePath
+mkdir = $(staticWhich "mkdir")
 
 data Routes mode = Routes
   { -- Trigger a new build

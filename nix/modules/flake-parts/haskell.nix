@@ -40,13 +40,12 @@
           ];
           generateOptparseApplicativeCompletions = [ "vira" ];
           stan = true;
-          drvAttrs = {
-            VIRA_ATTIC_BIN = pkgs.lib.getExe pkgs.attic-client;
-            VIRA_CACHIX_BIN = pkgs.lib.getExe pkgs.cachix;
-            VIRA_OMNIX_BIN = pkgs.lib.getExe self'.packages.omnix;
-            VIRA_MKDIR_BIN = pkgs.lib.getExe' pkgs.coreutils "mkdir";
-            VIRA_TAIL_BIN = pkgs.lib.getExe' pkgs.coreutils "tail";
-          };
+          extraBuildDepends = [
+            pkgs.attic-client # For attic
+            pkgs.cachix # For cachix
+            self'.packages.omnix # For omnix/om
+            pkgs.coreutils # For mkdir
+          ];
           custom = drv: drv.overrideAttrs (oldAttrs: {
             postUnpack = (oldAttrs.postUnpack or "") + ''
               ln -s ${self'.packages.jsAssets}/js $sourceRoot/static/js
@@ -54,9 +53,9 @@
           });
         };
         git-effectful = {
-          drvAttrs = {
-            VIRA_GIT_BIN = lib.getExe' pkgs.git "git";
-          };
+          extraBuildDepends = [
+            pkgs.git # For git
+          ];
         };
         tail = {
           extraBuildDepends = [
@@ -64,9 +63,9 @@
           ];
         };
         warp-tls-simple = {
-          drvAttrs = {
-            VIRA_OPENSSL_BIN = lib.getExe' pkgs.openssl "openssl";
-          };
+          extraBuildDepends = [
+            pkgs.openssl # For openssl
+          ];
         };
         safe-coloured-text-layout = {
           check = false;

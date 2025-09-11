@@ -23,11 +23,11 @@ drainAll q = do
 spec :: Spec
 spec = describe "System.Tail" $ do
   it "hello" $ do
-    t <- Tail.tailFile "tail" 100 "/dev/null"
+    t <- Tail.tailFile 100 "/dev/null"
     Tail.tailStop t
   it "streams a static file" $ do
     thisFile <- findThisFile
-    t <- Tail.tailFile "tail" 100 thisFile
+    t <- Tail.tailFile 100 thisFile
     q <- Tail.tailSubscribe t
     threadDelay 1_000_000 >> Tail.tailStop t
     ls <- drainAll q
@@ -40,7 +40,7 @@ spec = describe "System.Tail" $ do
     withSystemTempFile "tail-spec" $ \tempFile h -> do
       hClose h
       void $ system $ "echo 'Hello' >> " <> tempFile
-      t <- Tail.tailFile "tail" 100 tempFile
+      t <- Tail.tailFile 100 tempFile
       q <- Tail.tailSubscribe t
       void $ forkIO $ do
         void $ system $ "echo 'World' >> " <> tempFile
@@ -52,7 +52,7 @@ spec = describe "System.Tail" $ do
     withSystemTempFile "ring-buffer-spec" $ \tempFile h -> do
       hClose h
       void $ system $ "echo 'Line1' >> " <> tempFile
-      t <- Tail.tailFile "tail" 100 tempFile
+      t <- Tail.tailFile 100 tempFile
       q <- Tail.tailSubscribe t
       void $ system $ "echo 'Line2' >> " <> tempFile -- Write *after* subscribing
       threadDelay 1_000_000 >> Tail.tailStop t
