@@ -27,31 +27,8 @@ library
   hs-source-dirs:
       src
   default-extensions:
-      DataKinds
-      DeriveDataTypeable
-      DeriveGeneric
-      DeriveTraversable
-      DerivingStrategies
-      DerivingVia
-      ExplicitForAll
-      FlexibleContexts
-      FlexibleInstances
-      GeneralizedNewtypeDeriving
-      ImportQualifiedPost
-      LambdaCase
-      MultiParamTypeClasses
-      MultiWayIf
-      NamedFieldPuns
-      NoStarIsType
-      NumericUnderscores
-      OverloadedStrings
-      ScopedTypeVariables
       StrictData
-      TypeApplications
-      TypeFamilies
-      TypeOperators
-      TypeSynonymInstances
-      ViewPatterns
+      NumericUnderscores
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
       async
@@ -68,7 +45,7 @@ library
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
     , relude 
-  default-language: GHC2021
+  default-language: GHC2024
 
 test-suite tail-test
   type: exitcode-stdio-1.0
@@ -82,31 +59,8 @@ test-suite tail-test
   hs-source-dirs:
       test
   default-extensions:
-      DataKinds
-      DeriveDataTypeable
-      DeriveGeneric
-      DeriveTraversable
-      DerivingStrategies
-      DerivingVia
-      ExplicitForAll
-      FlexibleContexts
-      FlexibleInstances
-      GeneralizedNewtypeDeriving
-      ImportQualifiedPost
-      LambdaCase
-      MultiParamTypeClasses
-      MultiWayIf
-      NamedFieldPuns
-      NoStarIsType
-      NumericUnderscores
-      OverloadedStrings
-      ScopedTypeVariables
       StrictData
-      TypeApplications
-      TypeFamilies
-      TypeOperators
-      TypeSynonymInstances
-      ViewPatterns
+      NumericUnderscores
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
       async
@@ -127,4 +81,4 @@ test-suite tail-test
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
     , relude 
-  default-language: GHC2021
+  default-language: GHC2024

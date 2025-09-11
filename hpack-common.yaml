@@ -1,4 +1,4 @@
-language: GHC2021
+language: GHC2024
 
 ghc-options:
   # Fucking Hackage enforces not having this for libraries, smh.
@@ -13,31 +13,9 @@ ghc-options:
   - -fprint-explicit-kinds
 
 default-extensions:
-  - DataKinds
-  - DeriveDataTypeable
-  - DeriveGeneric
-  - DeriveTraversable
-  - DerivingStrategies
-  - DerivingVia
-  - ExplicitForAll
-  - FlexibleContexts
-  - FlexibleInstances
-  - GeneralizedNewtypeDeriving
-  - ImportQualifiedPost
-  - LambdaCase
-  - MultiParamTypeClasses
-  - MultiWayIf
-  - NamedFieldPuns
-  - NoStarIsType
-  - NumericUnderscores
-  - OverloadedStrings
-  - ScopedTypeVariables
+  # Extensions not included in GHC2024 that we need:
   - StrictData
-  - TypeApplications
-  - TypeFamilies
-  - TypeOperators
-  - TypeSynonymInstances
-  - ViewPatterns
+  - NumericUnderscores
 
 dependencies:
   - name: base

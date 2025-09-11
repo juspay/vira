@@ -79,31 +79,8 @@ library
   hs-source-dirs:
       src
   default-extensions:
-      DataKinds
-      DeriveDataTypeable
-      DeriveGeneric
-      DeriveTraversable
-      DerivingStrategies
-      DerivingVia
-      ExplicitForAll
-      FlexibleContexts
-      FlexibleInstances
-      GeneralizedNewtypeDeriving
-      ImportQualifiedPost
-      LambdaCase
-      MultiParamTypeClasses
-      MultiWayIf
-      NamedFieldPuns
-      NoStarIsType
-      NumericUnderscores
-      OverloadedStrings
-      ScopedTypeVariables
       StrictData
-      TypeApplications
-      TypeFamilies
-      TypeOperators
-      TypeSynonymInstances
-      ViewPatterns
+      NumericUnderscores
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin
   build-depends:
       QuickCheck
@@ -171,7 +148,7 @@ library
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
     , relude 
-  default-language: GHC2021
+  default-language: GHC2024
 
 executable vira
   main-is: Main.hs
@@ -182,31 +159,8 @@ executable vira
   hs-source-dirs:
       app
   default-extensions:
-      DataKinds
-      DeriveDataTypeable
-      DeriveGeneric
-      DeriveTraversable
-      DerivingStrategies
-      DerivingVia
-      ExplicitForAll
-      FlexibleContexts
-      FlexibleInstances
-      GeneralizedNewtypeDeriving
-      ImportQualifiedPost
-      LambdaCase
-      MultiParamTypeClasses
-      MultiWayIf
-      NamedFieldPuns
-      NoStarIsType
-      NumericUnderscores
-      OverloadedStrings
-      ScopedTypeVariables
       StrictData
-      TypeApplications
-      TypeFamilies
-      TypeOperators
-      TypeSynonymInstances
-      ViewPatterns
+      NumericUnderscores
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QuickCheck
@@ -275,7 +229,7 @@ executable vira
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
     , relude 
-  default-language: GHC2021
+  default-language: GHC2024
 
 test-suite vira-tests
   type: exitcode-stdio-1.0
@@ -287,31 +241,8 @@ test-suite vira-tests
   hs-source-dirs:
       test
   default-extensions:
-      DataKinds
-      DeriveDataTypeable
-      DeriveGeneric
-      DeriveTraversable
-      DerivingStrategies
-      DerivingVia
-      ExplicitForAll
-      FlexibleContexts
-      FlexibleInstances
-      GeneralizedNewtypeDeriving
-      ImportQualifiedPost
-      LambdaCase
-      MultiParamTypeClasses
-      MultiWayIf
-      NamedFieldPuns
-      NoStarIsType
-      NumericUnderscores
-      OverloadedStrings
-      ScopedTypeVariables
       StrictData
-      TypeApplications
-      TypeFamilies
-      TypeOperators
-      TypeSynonymInstances
-      ViewPatterns
+      NumericUnderscores
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin
   build-depends:
       QuickCheck
@@ -380,4 +311,4 @@ test-suite vira-tests
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
     , relude 
-  default-language: GHC2021
+  default-language: GHC2024
