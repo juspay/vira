@@ -4,12 +4,10 @@
 
 module Vira.CI.Pipeline (getStages, customizeExample) where
 
-import Effectful.Git qualified as Git
-import Effectful.Process (CreateProcess (cwd), env, proc)
+import Effectful.Process (CreateProcess, env, proc)
 import Optics.Core
 import Optics.TH
 import System.GHSignoff
-import System.Which (staticWhich)
 import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.Lib.Attic
 import Vira.Lib.Cachix
@@ -18,9 +16,7 @@ import Vira.State.Core qualified as St
 import Vira.State.Type (AtticSettings (..), CachixSettings (..))
 
 data ViraPipeline = ViraPipeline
-  { createWorkspace :: ()
-  , cloneRepo :: ()
-  , build :: BuildStage
+  { build :: BuildStage
   , attic :: AtticStage
   , cachix :: CachixStage
   , signoff :: SignoffStage
@@ -56,9 +52,7 @@ makeLenses ''SignoffStage
 defaultPipeline :: ViraEnvironment -> ViraPipeline
 defaultPipeline env =
   ViraPipeline
-    { createWorkspace = ()
-    , cloneRepo = ()
-    , build = BuildStage {buildEnable = True, overrideInputs = []}
+    { build = BuildStage {buildEnable = True, overrideInputs = []}
     , attic = AtticStage {atticEnable = isJust env.atticSettings}
     , cachix = CachixStage {cachixEnable = isJust env.cachixSettings}
     , signoff = SignoffStage {signoffEnable = True}
@@ -67,46 +61,41 @@ defaultPipeline env =
 -- | Convert pipeline configuration to CreateProcess list
 pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> NonEmpty CreateProcess
 pipelineToProcesses env pipeline =
-  case concat
-    [ createWorkspaceProcs pipeline.createWorkspace
-    , cloneRepoProcs env pipeline.cloneRepo
-    , buildProcs env pipeline.build
-    , atticProcs env pipeline.attic
-    , cachixProcs env pipeline.cachix
-    , signoffProcs env pipeline.signoff
-    ] of
-    [] -> proc mkdir ["project"] :| []
+  case pipelineToProcesses' env pipeline of
+    [] -> proc "echo" ["No pipeline stages enabled"] :| []
     (x : xs) -> x :| xs
+
+pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> [CreateProcess]
+pipelineToProcesses' env pipeline =
+  concat
+    [ buildProcs pipeline.build
+    , atticProcs pipeline.attic
+    , cachixProcs pipeline.cachix
+    , signoffProcs pipeline.signoff
+    ]
   where
-    createWorkspaceProcs () = [proc mkdir ["project"]]
+    -- TODO: Implement overrideInputs
+    buildProcs BuildStage {buildEnable, overrideInputs = _} =
+      [Omnix.omnixCiProcess | buildEnable]
 
-    cloneRepoProcs env' () =
-      [Git.cloneAtCommit env'.repo.cloneUrl env'.branch.headCommit & \p -> p {cwd = Just "project"}]
-
-    buildProcs _env' BuildStage {buildEnable, overrideInputs = _} =
-      [Omnix.omnixCiProcess {cwd = Just "project"} | buildEnable]
-
-    atticProcs env' AtticStage {atticEnable} =
+    atticProcs AtticStage {atticEnable} =
       if atticEnable
-        then flip concatMap env'.atticSettings $ \attic ->
-          [ atticLoginProcess attic.atticServer attic.atticToken & \p -> p {cwd = Just "project"}
-          , atticPushProcess attic.atticServer attic.atticCacheName "result" & \p -> p {cwd = Just "project"}
+        then flip concatMap env.atticSettings $ \attic ->
+          [ atticLoginProcess attic.atticServer attic.atticToken
+          , atticPushProcess attic.atticServer attic.atticCacheName "result"
           ]
         else []
 
-    cachixProcs env' CachixStage {cachixEnable} =
+    cachixProcs CachixStage {cachixEnable} =
       if cachixEnable
-        then flip concatMap env'.cachixSettings $ \cachix ->
+        then flip concatMap env.cachixSettings $ \cachix ->
           [ cachixPushProcess cachix.cachixName "result" & \p ->
-              p
-                { cwd = Just "project"
-                , env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]
-                }
+              p {env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]}
           ]
         else []
 
-    signoffProcs _env' SignoffStage {signoffEnable} =
-      [(ghSignoffProcess "vira" "ci") {cwd = Just "project"} | signoffEnable]
+    signoffProcs SignoffStage {signoffEnable} =
+      [ghSignoffProcess "vira" "ci" | signoffEnable]
 
 -- | Example pipeline customization based on environment (e.g., enable signoff on non-main branches)
 {- FOURMOLU_DISABLE -}
@@ -124,10 +113,3 @@ customizeExample env pipeline =
 -- | Get all build stages for a CI pipeline
 getStages :: ViraEnvironment -> NonEmpty CreateProcess
 getStages env = pipelineToProcesses env (customizeExample env $ defaultPipeline env)
-
-{- | Path to the `mkdir` executable
-
-This should be available in the PATH, thanks to Nix and `which` library.
--}
-mkdir :: FilePath
-mkdir = $(staticWhich "mkdir")

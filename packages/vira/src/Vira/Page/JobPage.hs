@@ -22,7 +22,6 @@ import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.CI.Environment (ViraEnvironment (..))
-import Vira.CI.Pipeline qualified as Pipeline
 import Vira.Lib.Logging
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Page.JobLog qualified as JobLog
@@ -177,8 +176,7 @@ triggerNewBuild repoName branchName = do
             , cachixSettings = mCachix
             , atticSettings = mAttic
             }
-        stages = Pipeline.getStages env
-    Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \result -> do
+    Supervisor.startTaskWithClone supervisor job.jobId job.jobWorkingDir repo branch env $ \result -> do
       endTime <- liftIO getCurrentTime
       let status = case result of
             Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
