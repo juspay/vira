@@ -58,8 +58,8 @@ data Tail = Tail
 The tail process starts immediately and begins reading from the file.
 New subscribers will receive a ring buffer containing the last @bufferSize@ lines.
 -}
-tailFile :: (HasCallStack) => Int -> FilePath -> IO Tail
-tailFile bufferSize filePath = do
+tailFile :: (HasCallStack) => FilePath -> Int -> FilePath -> IO Tail
+tailFile tailBin bufferSize filePath = do
   unlessM (doesFileExist filePath) $ error $ "File does not exist: " <> toText filePath
   queues <- newTVarIO mempty
   stop <- newEmptyTMVarIO
@@ -67,7 +67,7 @@ tailFile bufferSize filePath = do
   ringBuffer <- atomically $ CB.new bufferSize
   let t = Tail {..}
   -- Start the tail process immediately
-  void $ async $ tailRun t
+  void $ async $ tailRun tailBin t
   pure t
 
 {- | Signal the tail process to stop reading the file.
@@ -78,10 +78,10 @@ tailStop :: Tail -> IO ()
 tailStop t = do
   atomically $ putTMVar t.stop ()
 
-tailRun :: Tail -> IO ()
-tailRun t = do
+tailRun :: FilePath -> Tail -> IO ()
+tailRun tailBin t = do
   -- Start the tail -F process (show entire file from beginning)
-  let createProc = (proc "tail" ["-F", "-n", "+1", t.filePath]) {std_out = CreatePipe}
+  let createProc = (proc tailBin ["-F", "-n", "+1", t.filePath]) {std_out = CreatePipe}
   (_, Just hout, _, ph) <- createProcess createProc
 
   -- Start async reader that reads from tail process and distributes to queues
