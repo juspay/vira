@@ -27,6 +27,7 @@ library
   hs-source-dirs:
       src
   default-extensions:
+      TypeFamilies
       OverloadedStrings
       StrictData
       NumericUnderscores
@@ -61,6 +62,7 @@ test-suite tail-test
   hs-source-dirs:
       test
   default-extensions:
+      TypeFamilies
       OverloadedStrings
       StrictData
       NumericUnderscores
