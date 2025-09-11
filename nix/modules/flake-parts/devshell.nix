@@ -1,7 +1,7 @@
 {
-  perSystem = { self', config, pkgs, lib, ... }: {
+  perSystem = { self', config, pkgs, ... }: {
     # Default shell.
-    devShells.default = pkgs.mkShell ({
+    devShells.default = pkgs.mkShell {
       name = "vira-devshell";
       meta.description = "Haskell development environment";
       # See https://community.flake.parts/haskell-flake/devshell#composing-devshells
@@ -24,8 +24,6 @@
         openssl # For TLS certificate generation
         self'.packages.nix
       ];
-    } // lib.filterAttrs
-      (name: _: lib.hasPrefix "VIRA_" name)
-      config.haskellProjects.default.outputs.packages.vira.package);
+    };
   };
 }
