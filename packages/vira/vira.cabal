@@ -148,6 +148,7 @@ library
     , lucid2
     , mtl
     , optics-core
+    , optics-th
     , optparse-applicative
     , process
     , profunctors
@@ -253,6 +254,7 @@ executable vira
     , lucid2
     , mtl
     , optics-core
+    , optics-th
     , optparse-applicative
     , process
     , profunctors
@@ -360,6 +362,7 @@ test-suite vira-tests
     , lucid2
     , mtl
     , optics-core
+    , optics-th
     , optparse-applicative
     , process
     , profunctors
