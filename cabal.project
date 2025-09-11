@@ -4,6 +4,7 @@ packages:
   packages/warp-tls-simple
   packages/htmx-lucid-contrib
   packages/git-effectful
+  packages/gh-signoff
 
 multi-repl: true
 tests: True

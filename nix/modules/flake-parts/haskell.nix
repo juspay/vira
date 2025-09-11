@@ -37,6 +37,7 @@
             config.settings.git-effectful
             config.settings.tail
             config.settings.warp-tls-simple
+            config.settings.gh-signoff
           ];
           generateOptparseApplicativeCompletions = [ "vira" ];
           stan = true;
@@ -65,6 +66,11 @@
         warp-tls-simple = {
           extraBuildDepends = [
             pkgs.openssl # For openssl
+          ];
+        };
+        gh-signoff = {
+          extraBuildDepends = [
+            pkgs.gh-signoff # For gh-signoff
           ];
         };
         safe-coloured-text-layout = {

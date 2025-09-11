@@ -1,0 +1,29 @@
+defaults:
+  - local: ../../hpack-common.yaml
+  - local: ../../hpack-relude.yaml
+
+name: gh-signoff
+version: 0.1.0.0
+license: AGPL-3.0-or-later
+copyright: 2025 Juspay
+maintainer: srid@srid.ca
+author: Sridhar Ratnakumar
+category: System
+synopsis: Haskell bindings for gh-signoff
+description: A standalone library for gh-signoff operations
+
+dependencies:
+  - process
+  - which
+
+library:
+  source-dirs: src
+
+tests:
+  gh-signoff-test:
+    main: Spec.hs
+    source-dirs: test
+    dependencies:
+      - gh-signoff
+      - hspec
+      - hspec-discover

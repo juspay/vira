@@ -20,6 +20,7 @@ import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
+import System.GHSignoff
 import System.Which (staticWhich)
 import Vira.App (AppHtml)
 import Vira.App qualified as App
@@ -27,7 +28,6 @@ import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Attic
 import Vira.Lib.Cachix
-import Vira.Lib.GHSignoff
 import Vira.Lib.Logging
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.Lib.TimeExtra (formatDuration)
