@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Vira.Page.JobPage where
 
@@ -8,8 +7,6 @@ import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName)
-import Effectful.Git qualified as Git
-import Effectful.Process (CreateProcess (cwd), env, proc)
 import Effectful.Reader.Dynamic (asks)
 import GHC.IO.Exception (ExitCode (..))
 import Htmx.Lucid.Core (hxSwapS_)
@@ -20,21 +17,17 @@ import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
-import System.GHSignoff
-import System.Which (staticWhich)
 import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Lib.Attic
-import Vira.Lib.Cachix
+import Vira.CI.Pipeline qualified as Pipeline
 import Vira.Lib.Logging
-import Vira.Lib.Omnix qualified as Omnix
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type (AtticSettings (..), CachixSettings (..), JobId, RepoName, jobWorkingDir)
+import Vira.State.Type (JobId, RepoName, jobWorkingDir)
 import Vira.Supervisor.Task qualified as Supervisor
 import Vira.Supervisor.Type (TaskException (KilledByUser), TaskSupervisor (baseWorkDir))
 import Vira.Widgets.Button qualified as W
@@ -45,13 +38,6 @@ import Vira.Widgets.Status qualified as W
 import Vira.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask, asks)
-
-{- | Path to the `mkdir` executable
-
-This should be available in the PATH, thanks to Nix and `which` library.
--}
-mkdir :: FilePath
-mkdir = $(staticWhich "mkdir")
 
 data Routes mode = Routes
   { -- Trigger a new build
@@ -183,7 +169,7 @@ triggerNewBuild repoName branchName = do
     creationTime <- liftIO getCurrentTime
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir creationTime
     log Info $ "Added job " <> show job
-    let stages = getStages repo branch mCachix mAttic
+    let stages = Pipeline.getStages repo branch mCachix mAttic
     Supervisor.startTask supervisor job.jobId job.jobWorkingDir stages $ \result -> do
       endTime <- liftIO getCurrentTime
       let status = case result of
@@ -193,41 +179,3 @@ triggerNewBuild repoName branchName = do
       App.update $ St.JobUpdateStatusA job.jobId status
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId
-
--- | Get all build stages
-getStages :: St.Repo -> St.Branch -> Maybe CachixSettings -> Maybe AtticSettings -> NonEmpty CreateProcess
-getStages repo branch mCachix mAttic = do
-  stageCreateProjectDir
-    :| one stagesClone
-    <> maybe [] (one . stageAtticLogin) mAttic
-    <> [stageBuild]
-    <> (maybe mempty (one . stageCachixPush) mCachix <> maybe mempty (one . stageAtticPush) mAttic)
-    <> [stageGHSignoff]
-  where
-    stageCreateProjectDir =
-      proc mkdir ["project"]
-    stagesClone =
-      Git.cloneAtCommit repo.cloneUrl branch.headCommit
-        & \p -> p {cwd = Just "project"}
-    stageBuild =
-      Omnix.omnixCiProcess
-        { cwd = Just "project"
-        }
-    -- Run the stage before any other attic processes
-    stageAtticLogin attic =
-      (atticLoginProcess attic.atticServer attic.atticToken)
-        { cwd = Just "project"
-        }
-    stageCachixPush cachix =
-      (cachixPushProcess cachix.cachixName "result")
-        { env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]
-        , cwd = Just "project"
-        }
-    stageAtticPush attic =
-      (atticPushProcess attic.atticServer attic.atticCacheName "result")
-        { cwd = Just "project"
-        }
-    stageGHSignoff =
-      (ghSignoffProcess "vira" "ci")
-        { cwd = Just "project"
-        }

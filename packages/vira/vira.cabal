@@ -40,6 +40,7 @@ library
       Vira.App.Servant
       Vira.App.Server
       Vira.App.Stack
+      Vira.CI.Pipeline
       Vira.Lib.Attic
       Vira.Lib.Cachix
       Vira.Lib.Logging
