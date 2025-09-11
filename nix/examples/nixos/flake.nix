@@ -56,7 +56,7 @@
 
       checks.${system} = {
         vira-vm-test = pkgs.testers.runNixOSTest {
-          name = "vira-service";
+          name = "vira-srv";
 
           nodes.machine = { ... }: {
             imports = [
@@ -89,33 +89,33 @@
 
             machine.start()
             machine.wait_for_unit("multi-user.target")
-            
+
             # Wait for Vira service to start
             machine.wait_for_unit("vira.service")
-            
+
             # Wait a bit for the service to fully initialize
             time.sleep(5)
-            
+
             # Check if the service is listening on port 8080
             machine.wait_for_open_port(8080)
-            
+
             # Test HTTP response
             machine.succeed("curl -f http://localhost:8080")
-            
+
             # Check service status
             machine.succeed("systemctl is-active vira.service")
-            
+
             # Test that initial state was imported correctly
             # Check the repository list page for our imported repository
             result = machine.succeed("curl -s http://localhost:8080/r")
             print(f"Repository page content: {result}")
-            
+
             # Check if our test repository is listed
             if "test-repo" in result:
                 print("✅ Initial state was imported correctly")
             else:
                 print("❌ Initial state import may have failed")
-            
+
             print("✅ Vira service is running and responding to HTTP requests")
           '';
         };
