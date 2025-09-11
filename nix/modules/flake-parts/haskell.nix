@@ -106,12 +106,7 @@
           vira-dev = config.process-compose."vira-dev".outputs.package;
         };
         mkShellArgs.shellHook = ''
-          export VIRA_GIT_BIN="${pkgs.lib.getExe' pkgs.git "git"}"
-          export VIRA_ATTIC_BIN="${pkgs.lib.getExe' pkgs.attic-client "attic"}"
-          export VIRA_CACHIX_BIN="${pkgs.lib.getExe' pkgs.cachix "cachix"}"
-          export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
-          export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
-          export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
+          source ${config.packages.vira-env}/bin/vira-env
         '';
       };
 
@@ -129,6 +124,19 @@
       # https://discourse.nixos.org/t/handling-git-submodules-in-flakes-from-nix-2-18-to-2-22-nar-hash-mismatch-issues/45118/5
       # So we use the latest.
       nix = pkgs.nixVersions.latest;
+
+      # Shared VIRA environment variables setup
+      vira-env = pkgs.writeShellApplication {
+        name = "vira-env";
+        text = ''
+          export VIRA_GIT_BIN="${pkgs.lib.getExe' pkgs.git "git"}"
+          export VIRA_ATTIC_BIN="${pkgs.lib.getExe' pkgs.attic-client "attic"}"
+          export VIRA_CACHIX_BIN="${pkgs.lib.getExe' pkgs.cachix "cachix"}"
+          export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
+          export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
+          export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
+        '';
+      };
     };
 
     checks = config.haskellProjects.default.outputs.checks;

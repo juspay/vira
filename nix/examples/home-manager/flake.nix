@@ -57,7 +57,7 @@
 
       checks.${system} = {
         vira-home-manager-test = pkgs.testers.runNixOSTest {
-          name = "vira-home-manager-service";
+          name = "vira-srv";
 
           nodes.machine = { ... }: {
             imports = [ home-manager.nixosModules.home-manager ];
@@ -116,39 +116,39 @@
 
             machine.start()
             machine.wait_for_unit("multi-user.target")
-            
+
             # Enable lingering for testuser to allow user services to run
             machine.succeed("loginctl enable-linger testuser")
-            
-            # Start a proper user session 
+
+            # Start a proper user session
             machine.succeed("machinectl shell testuser@ /bin/true")
-            
+
             # Use systemctl --user directly with proper environment
             machine.succeed("sudo -u testuser XDG_RUNTIME_DIR=/run/user/1000 systemctl --user daemon-reload")
             machine.succeed("sudo -u testuser XDG_RUNTIME_DIR=/run/user/1000 systemctl --user start vira.service")
-            
+
             # Wait for the service to start
             time.sleep(10)
-            
+
             # Check if the service is running
             machine.succeed("sudo -u testuser XDG_RUNTIME_DIR=/run/user/1000 systemctl --user is-active vira.service")
-            
+
             # Check if the service is listening on port 8080
             machine.wait_for_open_port(8080)
-            
+
             # Test HTTP response
             machine.succeed("curl -f http://localhost:8080")
-            
+
             # Test that initial state was imported correctly
             result = machine.succeed("curl -s http://localhost:8080/r")
             print(f"Repository page content: {result}")
-            
+
             # Check if our test repository is listed
             if "test-repo" in result:
                 print("✅ Initial state was imported correctly")
             else:
                 print("❌ Initial state import may have failed")
-            
+
             print("✅ Vira home-manager service is running and responding to HTTP requests")
           '';
         };
