@@ -16,13 +16,8 @@
       # Set up SSL certificates for network access
       export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
 
-      # Set up VIRA environment variables like in devShell
-      export VIRA_GIT_BIN="${pkgs.lib.getExe' pkgs.git "git"}"
-      export VIRA_ATTIC_BIN="${pkgs.lib.getExe' pkgs.attic-client "attic"}"
-      export VIRA_CACHIX_BIN="${pkgs.lib.getExe' pkgs.cachix "cachix"}"
-      export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
-      export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
-      export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
+      # Set up VIRA environment variables using shared script
+      source ${config.packages.vira-env}/bin/vira-env
 
       cp -r $src source
       cd source
