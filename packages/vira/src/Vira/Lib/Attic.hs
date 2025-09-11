@@ -6,9 +6,9 @@ module Vira.Lib.Attic where
 
 import Data.Aeson (FromJSON, ToJSON)
 import Data.SafeCopy
-import IncludeEnv.TH (includeEnv)
 import Servant.API (FromHttpApiData, ToHttpApiData)
 import System.Process (CreateProcess, proc)
+import System.Which (staticWhich)
 import Web.FormUrlEncoded (FromForm)
 
 -- | Reference to a self-hosted attic server
@@ -50,11 +50,10 @@ $(deriveSafeCopy 0 'base ''AtticToken)
 
 {- | Path to the `attic` executable
 
-This must be set via the VIRA_ATTIC_BIN environment variable at compile time.
+This should be available in the PATH, thanks to Nix and `which` library.
 -}
-$(includeEnv "VIRA_ATTIC_BIN" "atticBin")
-
 atticBin :: FilePath
+atticBin = $(staticWhich "attic")
 
 {- | Push the given path to the attic server cache
 

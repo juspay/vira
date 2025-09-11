@@ -20,20 +20,19 @@ import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog qualified as Log
-import IncludeEnv.TH (includeEnv)
 import Servant (FromHttpApiData, ToHttpApiData)
 import System.IO.Temp (withSystemTempDirectory)
 import System.Process
+import System.Which (staticWhich)
 import Text.Megaparsec (Parsec, anySingle, manyTill, parse, takeRest)
 import Text.Megaparsec.Char (tab)
 
 {- | Path to the `git` executable
 
-This must be set via the VIRA_GIT_BIN environment variable at compile time.
+This should be available in the PATH, thanks to Nix and `which` library.
 -}
-$(includeEnv "VIRA_GIT_BIN" "git")
-
 git :: FilePath
+git = $(staticWhich "git")
 
 -- A git commit object.
 data Commit = Commit

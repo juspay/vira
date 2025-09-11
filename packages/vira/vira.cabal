@@ -141,7 +141,6 @@ library
     , http-api-data
     , http-media
     , http-types
-    , include-env
     , ixset-typed
     , lucid2
     , mtl
@@ -167,6 +166,7 @@ library
     , wai-middleware-static
     , warp
     , warp-tls-simple
+    , which
     , with-utf8
   mixins:
       base hiding (Prelude)
@@ -245,7 +245,6 @@ executable vira
     , http-api-data
     , http-media
     , http-types
-    , include-env
     , ixset-typed
     , lucid2
     , mtl
@@ -272,6 +271,7 @@ executable vira
     , wai-middleware-static
     , warp
     , warp-tls-simple
+    , which
     , with-utf8
   mixins:
       base hiding (Prelude)
@@ -351,7 +351,6 @@ test-suite vira-tests
     , http-api-data
     , http-media
     , http-types
-    , include-env
     , ixset-typed
     , lucid2
     , mtl
@@ -378,6 +377,7 @@ test-suite vira-tests
     , wai-middleware-static
     , warp
     , warp-tls-simple
+    , which
     , with-utf8
   mixins:
       base hiding (Prelude)

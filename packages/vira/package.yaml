@@ -56,7 +56,7 @@ dependencies:
   - hspec
   - hspec-discover
   - htmx
-  - include-env
+  - which
   - htmx-lucid
   - htmx-lucid-contrib
   - htmx-servant

@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 {- |
 File tailing library with multi-subscriber support.
@@ -37,6 +38,7 @@ import Control.Concurrent.STM.CircularBuffer qualified as CB
 import System.Directory (doesFileExist)
 import System.IO (hGetLine)
 import System.Process (CreateProcess (..), ProcessHandle, StdStream (..), createProcess, proc, terminateProcess, waitForProcess)
+import System.Which (staticWhich)
 
 -- | Represent `tail -f`'ing a file in Haskell
 data Tail = Tail
@@ -58,6 +60,14 @@ data Tail = Tail
 The tail process starts immediately and begins reading from the file.
 New subscribers will receive a ring buffer containing the last @bufferSize@ lines.
 -}
+
+{- | Path to the `tail` executable
+
+This should be available in the PATH, thanks to Nix and `which` library.
+-}
+tailBin :: FilePath
+tailBin = $(staticWhich "tail")
+
 tailFile :: (HasCallStack) => Int -> FilePath -> IO Tail
 tailFile bufferSize filePath = do
   unlessM (doesFileExist filePath) $ error $ "File does not exist: " <> toText filePath
@@ -81,7 +91,7 @@ tailStop t = do
 tailRun :: Tail -> IO ()
 tailRun t = do
   -- Start the tail -F process (show entire file from beginning)
-  let createProc = (proc "tail" ["-F", "-n", "+1", t.filePath]) {std_out = CreatePipe}
+  let createProc = (proc tailBin ["-F", "-n", "+1", t.filePath]) {std_out = CreatePipe}
   (_, Just hout, _, ph) <- createProcess createProc
 
   -- Start async reader that reads from tail process and distributes to queues
