@@ -79,6 +79,7 @@ library
   hs-source-dirs:
       src
   default-extensions:
+      OverloadedStrings
       StrictData
       NumericUnderscores
       ViewPatterns
@@ -160,6 +161,7 @@ executable vira
   hs-source-dirs:
       app
   default-extensions:
+      OverloadedStrings
       StrictData
       NumericUnderscores
       ViewPatterns
@@ -243,6 +245,7 @@ test-suite vira-tests
   hs-source-dirs:
       test
   default-extensions:
+      OverloadedStrings
       StrictData
       NumericUnderscores
       ViewPatterns

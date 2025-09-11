@@ -14,6 +14,7 @@ ghc-options:
 
 default-extensions:
   # Extensions not included in GHC2024 that we need:
+  - OverloadedStrings
   - StrictData
   - NumericUnderscores
   - ViewPatterns

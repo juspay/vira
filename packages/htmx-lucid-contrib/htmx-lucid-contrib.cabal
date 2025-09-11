@@ -25,6 +25,7 @@ library
   hs-source-dirs:
       src
   default-extensions:
+      OverloadedStrings
       StrictData
       NumericUnderscores
       ViewPatterns

@@ -25,6 +25,7 @@ library
   hs-source-dirs:
       src
   default-extensions:
+      OverloadedStrings
       StrictData
       NumericUnderscores
       ViewPatterns
@@ -66,6 +67,7 @@ test-suite git-effectful-test
   hs-source-dirs:
       test
   default-extensions:
+      OverloadedStrings
       StrictData
       NumericUnderscores
       ViewPatterns
