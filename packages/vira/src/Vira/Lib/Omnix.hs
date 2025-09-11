@@ -3,15 +3,15 @@
 -- | Working with Omnix
 module Vira.Lib.Omnix where
 
-import IncludeEnv.TH (includeEnv)
 import System.Process (CreateProcess, proc)
+import System.Which (staticWhich)
 
 {- | Path to the `omnix` executable
 
-This must be set via the VIRA_OMNIX_BIN environment variable at compile time.
+This should be available in the PATH, thanks to Nix and `which` library.
 -}
-$(includeEnv "VIRA_OMNIX_BIN" "omnixBin")
-
 omnixBin :: FilePath
+omnixBin = $(staticWhich "om")
+
 omnixCiProcess :: CreateProcess
 omnixCiProcess = proc omnixBin ["ci", "run", "-d"]

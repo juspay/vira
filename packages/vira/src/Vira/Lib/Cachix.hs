@@ -3,15 +3,15 @@
 -- | Working with cachix
 module Vira.Lib.Cachix where
 
-import IncludeEnv.TH (includeEnv)
 import System.Process (CreateProcess, proc)
+import System.Which (staticWhich)
 
 {- | Path to the `cachix` executable
 
-This must be set via the VIRA_CACHIX_BIN environment variable at compile time.
+This should be available in the PATH, thanks to Nix and `which` library.
 -}
-$(includeEnv "VIRA_CACHIX_BIN" "cachixBin")
-
 cachixBin :: FilePath
+cachixBin = $(staticWhich "cachix")
+
 cachixPushProcess :: Text -> FilePath -> CreateProcess
 cachixPushProcess cache path = proc cachixBin ["push", "-v", toString cache, path]

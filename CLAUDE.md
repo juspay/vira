@@ -13,7 +13,7 @@ See README.md for general project information.
 - Use `LambdaCase` and `where` for local functions
 - Fix all GHC warnings
 - Use `relude` over Prelude
-- Use `includeEnv` to reference runtime binaries
+- Use `staticWhich` for runtime dependencies (see `Vira.Lib.*`)
 - Use OverloadedRecordDot syntax for field access (e.g., `record.field`)
 
 ### Project Structure

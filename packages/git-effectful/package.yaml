@@ -24,7 +24,7 @@ dependencies:
   - effectful-core
   - effectful-plugin
   - http-api-data
-  - include-env
+  - which
   - ixset-typed
   - megaparsec
   - process

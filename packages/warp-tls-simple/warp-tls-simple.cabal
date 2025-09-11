@@ -35,7 +35,6 @@ library
       base ==4.*
     , directory
     , filepath
-    , include-env
     , optparse-applicative
     , process
     , relude >=1.0
@@ -43,6 +42,7 @@ library
     , wai
     , warp
     , warp-tls
+    , which
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
