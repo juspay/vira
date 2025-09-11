@@ -1,6 +1,6 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.37.0.
+-- This file has been generated from package.yaml by hpack version 0.38.2.
 --
 -- see: https://github.com/sol/hpack
 
@@ -130,7 +130,6 @@ library
     , envparse
     , filepath
     , git-effectful
-    , gitlib
     , hostname
     , hspec
     , hspec-discover
@@ -234,7 +233,6 @@ executable vira
     , envparse
     , filepath
     , git-effectful
-    , gitlib
     , hostname
     , hspec
     , hspec-discover
@@ -340,7 +338,6 @@ test-suite vira-tests
     , envparse
     , filepath
     , git-effectful
-    , gitlib
     , hostname
     , hspec
     , hspec-discover
