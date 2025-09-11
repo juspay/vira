@@ -3,11 +3,7 @@
   imports = [
     inputs.haskell-flake.flakeModule
   ];
-  debug = true;
   perSystem = { self', lib, config, pkgs, ... }: {
-    # Our only Haskell project. You can have multiple projects, but this template
-    # has only one.
-    # See https://github.com/srid/haskell-flake/blob/master/example/flake.nix
     haskellProjects.default = {
       # To avoid unnecessary rebuilds, we filter projectRoot:
       # https://community.flake.parts/haskell-flake/local#rebuild
@@ -36,7 +32,6 @@
       # Add your package overrides here
       settings = {
         vira = {
-          check = false; # Running outside of Nix.
           generateOptparseApplicativeCompletions = [ "vira" ];
           extraBuildDepends = [
             pkgs.git
@@ -53,12 +48,7 @@
               ln -s ${self'.packages.jsAssets}/js $sourceRoot/static/js
             '';
             preBuild = (oldAttrs.preBuild or "") + ''
-              export VIRA_GIT_BIN="${pkgs.lib.getExe' pkgs.git "git"}"
-              export VIRA_ATTIC_BIN="${pkgs.lib.getExe' pkgs.attic-client "attic"}"
-              export VIRA_CACHIX_BIN="${pkgs.lib.getExe' pkgs.cachix "cachix"}"
-              export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
-              export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
-              export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
+              source ${lib.getExe config.packages.vira-env}
             '';
             # Make nix and uname available to omnix.
             # TODO: Remove this if/when move away from omnix.
@@ -69,7 +59,6 @@
           });
         };
         git-effectful = {
-          check = false; # Running outside of Nix.
           custom = drv: drv.overrideAttrs (oldAttrs: {
             preBuild = (oldAttrs.preBuild or "") + ''
               export VIRA_GIT_BIN="${lib.getExe' pkgs.git "git"}"
@@ -106,7 +95,7 @@
           vira-dev = config.process-compose."vira-dev".outputs.package;
         };
         mkShellArgs.shellHook = ''
-          source ${config.packages.vira-env}/bin/vira-env
+          source ${lib.getExe config.packages.vira-env}
         '';
       };
 
@@ -129,10 +118,10 @@
       vira-env = pkgs.writeShellApplication {
         name = "vira-env";
         text = ''
-          export VIRA_GIT_BIN="${pkgs.lib.getExe' pkgs.git "git"}"
-          export VIRA_ATTIC_BIN="${pkgs.lib.getExe' pkgs.attic-client "attic"}"
-          export VIRA_CACHIX_BIN="${pkgs.lib.getExe' pkgs.cachix "cachix"}"
-          export VIRA_OMNIX_BIN="${pkgs.lib.getExe' pkgs.omnix "om"}"
+          export VIRA_GIT_BIN="${pkgs.lib.getExe pkgs.git}"
+          export VIRA_ATTIC_BIN="${pkgs.lib.getExe pkgs.attic-client}"
+          export VIRA_CACHIX_BIN="${pkgs.lib.getExe pkgs.cachix}"
+          export VIRA_OMNIX_BIN="${pkgs.lib.getExe pkgs.omnix}"
           export VIRA_OPENSSL_BIN="${pkgs.lib.getExe' pkgs.openssl "openssl"}"
           export VIRA_MKDIR_BIN="${pkgs.lib.getExe' pkgs.coreutils "mkdir"}"
         '';

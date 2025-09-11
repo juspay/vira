@@ -1,9 +1,14 @@
 { ... }:
 
 {
-  perSystem = { pkgs, config, ... }: {
-    # Run `cabal test all` as part of building this derivation.
-    # Since some tests require network access (git-effectful), we set __noChroot.
+  perSystem = { pkgs, lib, config, ... }: {
+    # These tests require network access,
+    # so run them in __noChroot (see below).
+    haskellProjects.default.settings = {
+      vira.check = false;
+      git-effectful.check = false;
+    };
+
     checks.tests = pkgs.runCommandNoCC "cabal-tests"
       {
         __noChroot = true;
@@ -12,12 +17,12 @@
         buildInputs = config.devShells.default.buildInputs;
       } ''
       export HOME=$TMPDIR
-      
+
       # Set up SSL certificates for network access
       export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
 
       # Set up VIRA environment variables using shared script
-      source ${config.packages.vira-env}/bin/vira-env
+      source ${lib.getExe config.packages.vira-env}
 
       cp -r $src source
       cd source
