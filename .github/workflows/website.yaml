@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  build-website:
     runs-on: x86_64-linux
     steps:
       - uses: actions/checkout@v4
@@ -26,12 +26,12 @@ jobs:
           cd ./docs && nix build -o ../_site
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
-  deploy:
+  deploy-website:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
+    needs: build-website
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

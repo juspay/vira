@@ -7,7 +7,7 @@ page:
     <snippet var="js.highlightjs" />
 
 template:
-  theme: orange
+  theme: cyan
 
   # You can add your own variables here, like editBaseUrl.
   # See after-note.tpl to see where editBaseUrl gets used.
@@ -21,6 +21,7 @@ template:
 
   sidebar:
     collapsed: false
-
+  uptree:
+    enable: true
   # If you are hosting on GitLab Pages, you may want to remove this.
   urlStrategy: pretty

@@ -6,9 +6,16 @@ No-frills CI for teams using Nix.
 
 <img src="https://raw.githubusercontent.com/juspay/vira/refs/heads/main/packages/vira/static/vira-logo.svg" style="height: 64px;" />
 
-## Status
+## Usage
 
-The project is currently in beta stage. Contact [@srid](https://github.com/srid) for details.
+> [!WARNING]
+> The project is currently in beta stage. Contact [@srid](https://github.com/srid) for details. See <https://vira.nixos.asia/> for full documentation.
+
+```sh
+nix --accept-flake-config run github:juspay/vira -- web --port 5005
+```
+
+You can now add your repositories in the web app.
 
 ## Development
 
@@ -20,15 +27,3 @@ just run
 # NOTE: This won't delete TLS certs.
 just resetdb run
 ```
-
-## Beta Testing
-
-```sh
-nix --accept-flake-config run github:juspay/vira -- web --port 5005
-```
-
-You can now add your repositories in the web app.
-
-## Documentation
-
-See [docs/](./docs/) for full documentation.
