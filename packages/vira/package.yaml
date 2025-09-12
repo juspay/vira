@@ -50,6 +50,7 @@ dependencies:
   - effectful-th
   - envparse
   - filepath
+  - gh-signoff
   - git-effectful
   - gitlib
   - hostname
@@ -66,6 +67,7 @@ dependencies:
   - lucid2
   - mtl
   - optics-core
+  - optics-th
   - optparse-applicative
   - process
   - profunctors

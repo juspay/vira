@@ -1,8 +1,10 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Vira.Supervisor.Task (
   startTask,
+  startTaskWithClone,
   killTask,
 ) where
 
@@ -15,14 +17,26 @@ import Effectful.Concurrent.MVar (modifyMVar, modifyMVar_, readMVar)
 import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.FileSystem.IO (hClose, openFile)
-import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
+import Effectful.Git qualified as Git
+import Effectful.Process (CreateProcess (cmdspec, create_group, cwd), Pid, Process, createProcess, getPid, interruptProcessGroupOf, proc, waitForProcess)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Tail qualified as Tail
+import System.Which (staticWhich)
+import Vira.CI.Environment (ViraEnvironment)
+import Vira.CI.Pipeline qualified as Pipeline
 import Vira.Lib.Logging (log, tagCurrentThread)
 import Vira.Lib.Process qualified as Process
+import Vira.State.Core qualified as St
 import Vira.Supervisor.Type
 import Prelude hiding (readMVar)
+
+{- | Path to the `mkdir` executable
+
+This should be available in the PATH, thanks to Nix and `which` library.
+-}
+mkdir :: FilePath
+mkdir = $(staticWhich "mkdir")
 
 logSupervisorState :: (HasCallStack, Concurrent :> es, Log Message :> es) => TaskSupervisor -> Eff es ()
 logSupervisorState supervisor = do
@@ -84,6 +98,41 @@ startTask supervisor taskId pwd procs h = do
         let task = Task {workDir = pwd, asyncHandle, tailHandle}
         pure (Map.insert taskId task tasks, ())
 
+-- | Start a new task with workspace creation and git clone, then run pipeline processes
+startTaskWithClone ::
+  ( Concurrent :> es
+  , Process :> es
+  , Log Message :> es
+  , FileSystem :> es
+  , IOE :> es
+  , HasCallStack
+  ) =>
+  TaskSupervisor ->
+  TaskId ->
+  -- The working directory of the job (will be created)
+  FilePath ->
+  -- Repository and branch information for cloning
+  St.Repo ->
+  St.Branch ->
+  -- Environment for pipeline configuration
+  ViraEnvironment ->
+  -- Handler to call after the task finishes
+  ( -- Exit code
+    Either TaskException ExitCode ->
+    Eff es ()
+  ) ->
+  Eff es ()
+startTaskWithClone supervisor taskId pwd repo branch env h = do
+  let projectDir = pwd </> "project"
+      inProjectDir p = p {cwd = Just projectDir}
+      setupProcs =
+        proc mkdir ["project"]
+          :| [ Git.cloneAtCommit repo.cloneUrl branch.headCommit & inProjectDir
+             ]
+      pipelineProcs = Pipeline.getStages env <&> inProjectDir
+      allProcs = setupProcs <> pipelineProcs
+  startTask supervisor taskId pwd allProcs h
+
 startTask' ::
   forall es.
   (Concurrent :> es, Process :> es, Log Message :> es, IOE :> es, FileSystem :> es) =>
@@ -103,8 +152,8 @@ startTask' taskId pwd h = runProcs . toList
       log Info $ "All procs for task " <> show taskId <> " finished successfully"
       h $ Right ExitSuccess
       pure $ Right ExitSuccess
-    runProcs (proc : rest) =
-      runProc proc >>= \case
+    runProcs (process : rest) =
+      runProc process >>= \case
         (pid, Right ExitSuccess) -> do
           log Debug $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") successfully finished."
           runProcs rest
@@ -118,18 +167,18 @@ startTask' taskId pwd h = runProcs . toList
           pure $ Left e
 
     runProc :: CreateProcess -> Eff es (Maybe Pid, Either TaskException ExitCode)
-    runProc proc = do
+    runProc process = do
       tagCurrentThread "🪜 "
-      log Debug $ "Starting task: " <> show (cmdspec proc)
-      logToWorkspaceOutput taskId pwd $ "Starting task: " <> show (cmdspec proc)
+      log Debug $ "Starting task: " <> show (cmdspec process)
+      logToWorkspaceOutput taskId pwd $ "Starting task: " <> show (cmdspec process)
       withFileHandle (outputLogFile pwd) AppendMode $ \outputHandle -> do
         let processSettings =
               Process.alwaysUnderPath pwd
                 >>> Process.redirectOutputTo outputHandle
                 >>> (\cp -> cp {create_group = True}) -- For `interruptProcessGroupOf`, when the process is `KilledByUser`
-        (_, _, _, ph) <- createProcess $ proc & processSettings
+        (_, _, _, ph) <- createProcess $ process & processSettings
         pid <- getPid ph
-        log Info $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec proc)
+        log Info $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec process)
 
         result <-
           -- `mask` cleanup from asynchronous interruptions
@@ -143,7 +192,7 @@ startTask' taskId pwd h = runProcs . toList
                     log Error $ "Failed to terminate process " <> show pid <> " for task " <> show taskId <> ": " <> show e
                   _ <- waitForProcess ph -- Reap to prevent zombies
                   pure $ Left KilledByUser
-        log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec proc)
+        log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec process)
         logToWorkspaceOutput taskId pwd $
           "A task (pid=" <> show pid <> ") finished with " <> either (("exception: " <>) . toText . displayException) (("exitcode: " <>) . show) result
         log Debug "Workspace log done"

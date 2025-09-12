@@ -40,6 +40,8 @@ library
       Vira.App.Servant
       Vira.App.Server
       Vira.App.Stack
+      Vira.CI.Environment
+      Vira.CI.Pipeline
       Vira.Lib.Attic
       Vira.Lib.Cachix
       Vira.Lib.Logging
@@ -129,6 +131,7 @@ library
     , effectful-th
     , envparse
     , filepath
+    , gh-signoff
     , git-effectful
     , gitlib
     , hostname
@@ -145,6 +148,7 @@ library
     , lucid2
     , mtl
     , optics-core
+    , optics-th
     , optparse-applicative
     , process
     , profunctors
@@ -233,6 +237,7 @@ executable vira
     , effectful-th
     , envparse
     , filepath
+    , gh-signoff
     , git-effectful
     , gitlib
     , hostname
@@ -249,6 +254,7 @@ executable vira
     , lucid2
     , mtl
     , optics-core
+    , optics-th
     , optparse-applicative
     , process
     , profunctors
@@ -339,6 +345,7 @@ test-suite vira-tests
     , effectful-th
     , envparse
     , filepath
+    , gh-signoff
     , git-effectful
     , gitlib
     , hostname
@@ -355,6 +362,7 @@ test-suite vira-tests
     , lucid2
     , mtl
     , optics-core
+    , optics-th
     , optparse-applicative
     , process
     , profunctors
