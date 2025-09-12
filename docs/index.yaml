@@ -3,6 +3,8 @@
 
 page:
   siteTitle: Vira
+  headHtml: |
+    <snippet var="js.highlightjs" />
 
 template:
   theme: orange
