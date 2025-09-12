@@ -61,7 +61,7 @@ defaultPipeline env =
     { build = BuildStage {buildEnable = True, overrideInputs = []}
     , attic = AtticStage {atticEnable = isJust env.atticSettings}
     , cachix = CachixStage {cachixEnable = isJust env.cachixSettings}
-    , signoff = SignoffStage {signoffEnable = True}
+    , signoff = SignoffStage {signoffEnable = False}
     }
 
 -- | Convert pipeline configuration to CreateProcess list
@@ -128,6 +128,11 @@ hardcodePerRepoConfig :: ViraEnvironment -> ViraPipeline -> ViraPipeline
 hardcodePerRepoConfig env pipeline =
   case toString env.repo.name of
     "euler-lsp" -> eulerLspConfiguration env pipeline
+    "vira" ->
+      pipeline
+        & #signoff
+        % #signoffEnable
+        .~ True
     -- Just to test
     "emanote" ->
       pipeline
