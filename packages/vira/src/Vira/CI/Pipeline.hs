@@ -1,52 +1,28 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE TemplateHaskell #-}
 
-module Vira.CI.Pipeline (getStages, customizeExample) where
+module Vira.CI.Pipeline (
+  getStages,
+  customizeExample,
+) where
 
+import Data.Map.Strict qualified as Map
 import Effectful.Process (CreateProcess, env, proc)
 import Optics.Core
-import Optics.TH
 import System.GHSignoff
 import Vira.CI.Environment (ViraEnvironment (..))
+import Vira.CI.Hardcoded (eulerLspConfiguration, viraConfiguration)
+import Vira.CI.Types (
+  AtticStage (..),
+  BuildStage (..),
+  CachixStage (..),
+  SignoffStage (..),
+  ViraPipeline (..),
+ )
 import Vira.Lib.Attic
 import Vira.Lib.Cachix
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.State.Type
-
--- TODO: These types needs to be finalized before we allow per-repo configuration.
-data ViraPipeline = ViraPipeline
-  { build :: BuildStage
-  , attic :: AtticStage
-  , cachix :: CachixStage
-  , signoff :: SignoffStage
-  }
-  deriving stock (Generic)
-
-data BuildStage = BuildStage
-  { buildEnable :: Bool
-  , overrideInputs :: [(Text, Text)]
-  }
-  deriving stock (Generic)
-
-newtype AtticStage = AtticStage
-  { atticEnable :: Bool
-  }
-  deriving stock (Generic)
-
-newtype CachixStage = CachixStage
-  { cachixEnable :: Bool
-  }
-  deriving stock (Generic)
-
-newtype SignoffStage = SignoffStage
-  { signoffEnable :: Bool
-  }
-  deriving stock (Generic)
-
-makeLenses ''ViraPipeline
-makeLenses ''BuildStage
-makeLenses ''SignoffStage
 
 -- | Get all build stages for a CI pipeline
 getStages :: ViraEnvironment -> NonEmpty CreateProcess
@@ -59,10 +35,10 @@ getStages env =
 defaultPipeline :: ViraEnvironment -> ViraPipeline
 defaultPipeline env =
   ViraPipeline
-    { build = BuildStage {buildEnable = True, overrideInputs = mempty}
-    , attic = AtticStage {atticEnable = isJust env.atticSettings}
-    , cachix = CachixStage {cachixEnable = isJust env.cachixSettings}
-    , signoff = SignoffStage {signoffEnable = False}
+    { build = Just $ BuildStage {overrideInputs = Nothing}
+    , attic = if isJust env.atticSettings then Just AtticStage else Nothing
+    , cachix = if isJust env.cachixSettings then Just CachixStage else Nothing
+    , signoff = Nothing
     }
 
 -- | Convert pipeline configuration to CreateProcess list
@@ -75,38 +51,34 @@ pipelineToProcesses env pipeline =
 pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> [CreateProcess]
 pipelineToProcesses' env pipeline =
   concat
-    [ buildProcs pipeline.build
-    , atticProcs pipeline.attic
-    , cachixProcs pipeline.cachix
-    , signoffProcs pipeline.signoff
+    [ maybe [] buildProcs pipeline.build
+    , maybe [] atticProcs pipeline.attic
+    , maybe [] cachixProcs pipeline.cachix
+    , maybe [] signoffProcs pipeline.signoff
     ]
   where
-    buildProcs BuildStage {buildEnable, overrideInputs} =
-      [Omnix.omnixCiProcess (overrideInputsToArgs overrideInputs) | buildEnable]
+    buildProcs BuildStage {overrideInputs} =
+      [Omnix.omnixCiProcess (overrideInputsToArgs (maybeToMonoid overrideInputs))]
 
-    atticProcs AtticStage {atticEnable} =
-      if atticEnable
-        then flip concatMap env.atticSettings $ \attic ->
-          [ atticLoginProcess attic.atticServer attic.atticToken
-          , atticPushProcess attic.atticServer attic.atticCacheName "result"
-          ]
-        else []
+    atticProcs AtticStage =
+      flip concatMap env.atticSettings $ \attic ->
+        [ atticLoginProcess attic.atticServer attic.atticToken
+        , atticPushProcess attic.atticServer attic.atticCacheName "result"
+        ]
 
-    cachixProcs CachixStage {cachixEnable} =
-      if cachixEnable
-        then flip concatMap env.cachixSettings $ \cachix ->
-          [ cachixPushProcess cachix.cachixName "result" & \p ->
-              p {env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]}
-          ]
-        else []
+    cachixProcs CachixStage =
+      flip concatMap env.cachixSettings $ \cachix ->
+        [ cachixPushProcess cachix.cachixName "result" & \p ->
+            p {env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]}
+        ]
 
-    signoffProcs SignoffStage {signoffEnable} =
-      [ghSignoffProcess "vira" "ci" | signoffEnable]
+    signoffProcs SignoffStage =
+      [ghSignoffProcess "vira" "ci"]
 
 -- | Convert override inputs to command line arguments
-overrideInputsToArgs :: [(Text, Text)] -> [String]
+overrideInputsToArgs :: Map Text Text -> [String]
 overrideInputsToArgs =
-  concatMap (\(key, value) -> ["--override-input", toString key, toString value])
+  concatMap (\(key, value) -> ["--override-input", toString key, toString value]) . Map.toList
 
 -- | Example transformation; for vira.yml or vira.hs in future.
 {- FOURMOLU_DISABLE -}
@@ -115,12 +87,12 @@ customizeExample env pipeline =
   let isMain = env.branch.branchName == "main"
       isStaging = env.branch.branchName == "staging"
       isRelease = env.branch.branchName == "release"
-      overrideInputs = [("local", "github:boolean-option/false") | isStaging || isRelease]
-      atticEnable = isMain || isRelease
+      overrideInputs = Map.fromList [("local", "github:boolean-option/false") | isStaging || isRelease]
+      shouldEnableAttic = isMain || isRelease
   in pipeline
-     & #signoff % #signoffEnable .~ not isMain
-     & #build % #overrideInputs .~ overrideInputs
-     & #attic % #atticEnable .~ atticEnable
+     & #signoff .~ (if not isMain then Just SignoffStage else Nothing)
+     & #build % _Just % #overrideInputs ?~ overrideInputs
+     & #attic .~ (if shouldEnableAttic then Just AtticStage else Nothing)
 {- FOURMOLU_ENABLE -}
 
 -- HACK: Hardcoding until we have per-repo configuration
@@ -128,21 +100,6 @@ customizeExample env pipeline =
 hardcodePerRepoConfig :: ViraEnvironment -> ViraPipeline -> ViraPipeline
 hardcodePerRepoConfig env pipeline =
   case toString env.repo.name of
-    "euler-lsp" ->
-      eulerLspConfiguration env pipeline
-    "vira" ->
-      pipeline
-        & #signoff
-        % #signoffEnable
-        .~ True
+    "euler-lsp" -> eulerLspConfiguration env pipeline
+    "vira" -> viraConfiguration env pipeline
     _ -> pipeline
-
-eulerLspConfiguration :: ViraEnvironment -> ViraPipeline -> ViraPipeline
-eulerLspConfiguration env pipeline =
-  let
-    isReleaseBranch = toString env.branch.branchName `isPrefixOf` "release-"
-   in
-    pipeline
-      & #build
-      % #overrideInputs
-      .~ [("flake/local", "github:boolean-option/false") | isReleaseBranch]

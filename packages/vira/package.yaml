@@ -90,6 +90,9 @@ dependencies:
   - warp-tls-simple
   - with-utf8
   - binary
+  - yaml
+  - filepattern
+  - raw-strings-qq
 
 library:
   source-dirs: src

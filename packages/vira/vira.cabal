@@ -40,8 +40,11 @@ library
       Vira.App.Servant
       Vira.App.Server
       Vira.App.Stack
+      Vira.CI.Configuration
       Vira.CI.Environment
+      Vira.CI.Hardcoded
       Vira.CI.Pipeline
+      Vira.CI.Types
       Vira.Lib.Attic
       Vira.Lib.Cachix
       Vira.Lib.Logging
@@ -131,6 +134,7 @@ library
     , effectful-th
     , envparse
     , filepath
+    , filepattern
     , gh-signoff
     , git-effectful
     , gitlib
@@ -152,6 +156,7 @@ library
     , optparse-applicative
     , process
     , profunctors
+    , raw-strings-qq
     , relude >=1.0
     , safecopy
     , servant
@@ -172,6 +177,7 @@ library
     , warp-tls-simple
     , which
     , with-utf8
+    , yaml
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
@@ -237,6 +243,7 @@ executable vira
     , effectful-th
     , envparse
     , filepath
+    , filepattern
     , gh-signoff
     , git-effectful
     , gitlib
@@ -258,6 +265,7 @@ executable vira
     , optparse-applicative
     , process
     , profunctors
+    , raw-strings-qq
     , relude >=1.0
     , safecopy
     , servant
@@ -279,6 +287,7 @@ executable vira
     , warp-tls-simple
     , which
     , with-utf8
+    , yaml
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
@@ -289,6 +298,7 @@ test-suite vira-tests
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Vira.CI.ConfigurationSpec
       Paths_vira
   autogen-modules:
       Paths_vira
@@ -345,6 +355,7 @@ test-suite vira-tests
     , effectful-th
     , envparse
     , filepath
+    , filepattern
     , gh-signoff
     , git-effectful
     , gitlib
@@ -366,6 +377,7 @@ test-suite vira-tests
     , optparse-applicative
     , process
     , profunctors
+    , raw-strings-qq
     , relude >=1.0
     , safecopy
     , servant
@@ -387,6 +399,7 @@ test-suite vira-tests
     , warp-tls-simple
     , which
     , with-utf8
+    , yaml
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
