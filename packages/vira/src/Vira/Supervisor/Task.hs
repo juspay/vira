@@ -124,14 +124,14 @@ startTaskWithClone ::
   Eff es ()
 startTaskWithClone supervisor taskId pwd repo branch env h = do
   let projectDir = pwd </> "project"
+      inProjectDir p = p {cwd = Just projectDir}
       setupProcs =
-        [ proc mkdir ["project"] & \p -> p {cwd = Just pwd}
-        , Git.cloneAtCommit repo.cloneUrl branch.headCommit & \p -> p {cwd = Just projectDir}
-        ]
-      pipelineProcs = Pipeline.getStages env
-      pipelineProcsWithCwd = map (\p -> p {cwd = Just projectDir}) (toList pipelineProcs)
-      allProcs = setupProcs <> pipelineProcsWithCwd
-  startTask supervisor taskId pwd (fromList allProcs) h
+        proc mkdir ["project"]
+          :| [ Git.cloneAtCommit repo.cloneUrl branch.headCommit & inProjectDir
+             ]
+      pipelineProcs = Pipeline.getStages env <&> inProjectDir
+      allProcs = setupProcs <> pipelineProcs
+  startTask supervisor taskId pwd allProcs h
 
 startTask' ::
   forall es.

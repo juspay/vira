@@ -48,6 +48,10 @@ makeLenses ''ViraPipeline
 makeLenses ''BuildStage
 makeLenses ''SignoffStage
 
+-- | Get all build stages for a CI pipeline
+getStages :: ViraEnvironment -> NonEmpty CreateProcess
+getStages env = pipelineToProcesses env (defaultPipeline env)
+
 -- | Create a default pipeline configuration
 defaultPipeline :: ViraEnvironment -> ViraPipeline
 defaultPipeline env =
@@ -97,19 +101,17 @@ pipelineToProcesses' env pipeline =
     signoffProcs SignoffStage {signoffEnable} =
       [ghSignoffProcess "vira" "ci" | signoffEnable]
 
--- | Example pipeline customization based on environment (e.g., enable signoff on non-main branches)
+-- | Example transformation; for vira.yml or vira.hs in future.
 {- FOURMOLU_DISABLE -}
 customizeExample :: ViraEnvironment -> ViraPipeline -> ViraPipeline
 customizeExample env pipeline =
-  let isNonMain = env.branch.branchName /= "main"
+  let isMain = env.branch.branchName == "main"
       isStaging = env.branch.branchName == "staging"
       isRelease = env.branch.branchName == "release"
       overrideInputs = [("local", "github:boolean-option/false") | isStaging || isRelease]
+      atticEnable = isMain || isRelease
   in pipeline
-     & #signoff % #signoffEnable .~ isNonMain
+     & #signoff % #signoffEnable .~ not isMain
      & #build % #overrideInputs .~ overrideInputs
+     & #attic % #atticEnable .~ atticEnable
 {- FOURMOLU_ENABLE -}
-
--- | Get all build stages for a CI pipeline
-getStages :: ViraEnvironment -> NonEmpty CreateProcess
-getStages env = pipelineToProcesses env (customizeExample env $ defaultPipeline env)
