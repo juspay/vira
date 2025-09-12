@@ -21,7 +21,7 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.CI.Environment (ViraEnvironment (..))
+import Vira.CI.Environment (environmentFor)
 import Vira.Lib.Logging
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Page.JobLog qualified as JobLog
@@ -163,20 +163,12 @@ triggerNewBuild repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
-  mCachix <- App.query St.GetCachixSettingsA
-  mAttic <- App.query St.GetAtticSettingsA
+  viraEnv <- environmentFor repo branch
   asks App.supervisor >>= \supervisor -> do
     creationTime <- liftIO getCurrentTime
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir creationTime
     log Info $ "Added job " <> show job
-    let env =
-          ViraEnvironment
-            { repo = repo
-            , branch = branch
-            , cachixSettings = mCachix
-            , atticSettings = mAttic
-            }
-    Supervisor.startTaskWithClone supervisor job.jobId job.jobWorkingDir repo branch env $ \result -> do
+    Supervisor.startTaskWithClone supervisor job.jobId job.jobWorkingDir repo branch viraEnv $ \result -> do
       endTime <- liftIO getCurrentTime
       let status = case result of
             Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
