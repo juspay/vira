@@ -8,6 +8,8 @@ ci:
         # https://github.com/juspay/omnix/issues/486
         flake-check:
           enable: false
+    docs:
+      dir: docs
     examples-nixos:
       dir: nix/examples/nixos
       overrideInputs:
