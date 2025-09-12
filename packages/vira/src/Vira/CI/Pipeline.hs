@@ -14,6 +14,7 @@ import Vira.Lib.Cachix
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.State.Type
 
+-- TODO: These types needs to be finalized before we allow per-repo configuration.
 data ViraPipeline = ViraPipeline
   { build :: BuildStage
   , attic :: AtticStage
@@ -58,7 +59,7 @@ getStages env =
 defaultPipeline :: ViraEnvironment -> ViraPipeline
 defaultPipeline env =
   ViraPipeline
-    { build = BuildStage {buildEnable = True, overrideInputs = []}
+    { build = BuildStage {buildEnable = True, overrideInputs = mempty}
     , attic = AtticStage {atticEnable = isJust env.atticSettings}
     , cachix = CachixStage {cachixEnable = isJust env.cachixSettings}
     , signoff = SignoffStage {signoffEnable = False}
@@ -81,7 +82,7 @@ pipelineToProcesses' env pipeline =
     ]
   where
     buildProcs BuildStage {buildEnable, overrideInputs} =
-      [Omnix.omnixCiProcessWithArgs (overrideInputsToArgs overrideInputs) | buildEnable]
+      [Omnix.omnixCiProcess (overrideInputsToArgs overrideInputs) | buildEnable]
 
     atticProcs AtticStage {atticEnable} =
       if atticEnable
@@ -127,18 +128,13 @@ customizeExample env pipeline =
 hardcodePerRepoConfig :: ViraEnvironment -> ViraPipeline -> ViraPipeline
 hardcodePerRepoConfig env pipeline =
   case toString env.repo.name of
-    "euler-lsp" -> eulerLspConfiguration env pipeline
+    "euler-lsp" ->
+      eulerLspConfiguration env pipeline
     "vira" ->
       pipeline
         & #signoff
         % #signoffEnable
         .~ True
-    -- Just to test
-    "emanote" ->
-      pipeline
-        & #build
-        % #overrideInputs
-        .~ [("flake/haskell-flake", "github:srid/haskell-flake")]
     _ -> pipeline
 
 eulerLspConfiguration :: ViraEnvironment -> ViraPipeline -> ViraPipeline
