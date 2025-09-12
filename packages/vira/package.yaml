@@ -52,7 +52,6 @@ dependencies:
   - filepath
   - gh-signoff
   - git-effectful
-  - gitlib
   - hostname
   - hspec
   - hspec-discover
