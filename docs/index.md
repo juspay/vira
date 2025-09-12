@@ -5,7 +5,7 @@ No-frills CI for teams using Nix.
 <img src="https://raw.githubusercontent.com/juspay/vira/refs/heads/main/packages/vira/static/vira-logo.svg" style="height: 128px;" />
 
 > [!warning]
-> Vira is in active development. View the [GitHub repo](http://github.com/juspay/vira) for development progress.
+> Vira is in active development. View the [GitHub repo](https://github.com/juspay/vira) for development progress.
 
 ## Getting Started
 
