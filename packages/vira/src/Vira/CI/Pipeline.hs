@@ -12,8 +12,7 @@ import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.Lib.Attic
 import Vira.Lib.Cachix
 import Vira.Lib.Omnix qualified as Omnix
-import Vira.State.Core qualified as St
-import Vira.State.Type (AtticSettings (..), CachixSettings (..))
+import Vira.State.Type
 
 data ViraPipeline = ViraPipeline
   { build :: BuildStage
@@ -50,7 +49,10 @@ makeLenses ''SignoffStage
 
 -- | Get all build stages for a CI pipeline
 getStages :: ViraEnvironment -> NonEmpty CreateProcess
-getStages env = pipelineToProcesses env (defaultPipeline env)
+getStages env =
+  defaultPipeline env
+    & hardcodePerRepoConfig env
+    & pipelineToProcesses env
 
 -- | Create a default pipeline configuration
 defaultPipeline :: ViraEnvironment -> ViraPipeline
@@ -78,9 +80,8 @@ pipelineToProcesses' env pipeline =
     , signoffProcs pipeline.signoff
     ]
   where
-    -- TODO: Implement overrideInputs
-    buildProcs BuildStage {buildEnable, overrideInputs = _} =
-      [Omnix.omnixCiProcess | buildEnable]
+    buildProcs BuildStage {buildEnable, overrideInputs} =
+      [Omnix.omnixCiProcessWithArgs (overrideInputsToArgs overrideInputs) | buildEnable]
 
     atticProcs AtticStage {atticEnable} =
       if atticEnable
@@ -101,6 +102,11 @@ pipelineToProcesses' env pipeline =
     signoffProcs SignoffStage {signoffEnable} =
       [ghSignoffProcess "vira" "ci" | signoffEnable]
 
+-- | Convert override inputs to command line arguments
+overrideInputsToArgs :: [(Text, Text)] -> [String]
+overrideInputsToArgs =
+  concatMap (\(key, value) -> ["--override-input", toString key, toString value])
+
 -- | Example transformation; for vira.yml or vira.hs in future.
 {- FOURMOLU_DISABLE -}
 customizeExample :: ViraEnvironment -> ViraPipeline -> ViraPipeline
@@ -115,3 +121,27 @@ customizeExample env pipeline =
      & #build % #overrideInputs .~ overrideInputs
      & #attic % #atticEnable .~ atticEnable
 {- FOURMOLU_ENABLE -}
+
+-- HACK: Hardcoding until we have per-repo configuration
+-- Until we have https://github.com/juspay/vira/issues/59
+hardcodePerRepoConfig :: ViraEnvironment -> ViraPipeline -> ViraPipeline
+hardcodePerRepoConfig env pipeline =
+  case toString env.repo.name of
+    "euler-lsp" -> eulerLspConfiguration env pipeline
+    -- Just to test
+    "emanote" ->
+      pipeline
+        & #build
+        % #overrideInputs
+        .~ [("flake/haskell-flake", "github:srid/haskell-flake")]
+    _ -> pipeline
+
+eulerLspConfiguration :: ViraEnvironment -> ViraPipeline -> ViraPipeline
+eulerLspConfiguration env pipeline =
+  let
+    isReleaseBranch = toString env.branch.branchName `isPrefixOf` "release-"
+   in
+    pipeline
+      & #build
+      % #overrideInputs
+      .~ [("flake/local", "github:boolean-option/false") | isReleaseBranch]
