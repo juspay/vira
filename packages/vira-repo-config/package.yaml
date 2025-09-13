@@ -1,0 +1,37 @@
+defaults:
+  - local: ../../hpack-common.yaml
+  - local: ../../hpack-relude.yaml
+
+name: vira-repo-config
+version: 0.1.0.0
+license: AGPL-3.0-or-later
+copyright: 2024 Juspay
+maintainer: srid@srid.ca
+author: Sridhar Ratnakumar
+category: Development
+homepage: https://github.com/juspay/vira
+synopsis: Dynamic Haskell configuration for Vira CI pipelines
+description: Allows repositories to define custom CI pipeline configurations using Haskell files interpreted at runtime
+
+dependencies:
+  - aeson
+  - attic-hs
+  - bytestring
+  - directory
+  - filepath
+  - hint
+  - text
+  - vira-types
+
+library:
+  source-dirs: src
+
+tests:
+  vira-repo-config-tests:
+    main: Spec.hs
+    source-dirs: test
+    dependencies:
+      - vira-repo-config
+      - git-effectful
+      - hspec
+      - hspec-discover

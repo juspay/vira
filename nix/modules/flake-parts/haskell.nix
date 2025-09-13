@@ -40,6 +40,7 @@
             config.settings.gh-signoff
             config.settings.attic-hs
             config.settings.vira-types
+            config.settings.vira-repo-config
           ];
           generateOptparseApplicativeCompletions = [ "vira" ];
           stan = true;
@@ -82,6 +83,9 @@
         };
         vira-types = {
           # Core types package - no special build dependencies needed
+        };
+        vira-repo-config = {
+          # Repo configuration package with hint interpreter
         };
         safe-coloured-text-layout = {
           check = false;

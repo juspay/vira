@@ -1,6 +1,7 @@
 packages:
   packages/vira
   packages/vira-types
+  packages/vira-repo-config
   packages/attic-hs
   packages/tail
   packages/warp-tls-simple
