@@ -1,0 +1,27 @@
+defaults:
+  - local: ../../hpack-common.yaml
+  - local: ../../hpack-relude.yaml
+
+name: attic-hs
+version: 0.1.0.0
+license: AGPL-3.0-or-later
+copyright: 2024 Juspay
+maintainer: srid@srid.ca
+author: Sridhar Ratnakumar
+category: System
+homepage: https://github.com/juspay/vira
+synopsis: Haskell bindings for attic cache
+description: Haskell types and functions for working with attic cache servers
+
+dependencies:
+  - aeson
+  - http-api-data
+  - process
+  - safecopy
+  - servant
+  - template-haskell
+  - text
+  - which
+
+library:
+  source-dirs: src

@@ -38,6 +38,8 @@
             config.settings.tail
             config.settings.warp-tls-simple
             config.settings.gh-signoff
+            config.settings.attic-hs
+            config.settings.vira-types
           ];
           generateOptparseApplicativeCompletions = [ "vira" ];
           stan = true;
@@ -72,6 +74,14 @@
           extraBuildDepends = [
             pkgs.gh-signoff # For gh-signoff
           ];
+        };
+        attic-hs = {
+          extraBuildDepends = [
+            pkgs.attic-client # For attic
+          ];
+        };
+        vira-types = {
+          # Core types package - no special build dependencies needed
         };
         safe-coloured-text-layout = {
           check = false;

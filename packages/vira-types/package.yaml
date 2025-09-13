@@ -1,0 +1,37 @@
+defaults:
+  - local: ../../hpack-common.yaml
+  - local: ../../hpack-relude.yaml
+
+name: vira-types
+version: 0.1.0.0
+license: AGPL-3.0-or-later
+copyright: 2024 Juspay
+maintainer: srid@srid.ca
+author: Sridhar Ratnakumar
+category: Web
+homepage: https://github.com/juspay/vira
+synopsis: Vira shared types
+description: Core types and data structures for vira
+
+dependencies:
+  - aeson
+  - attic-hs
+  - base16-bytestring
+  - bytestring
+  - containers
+  - data-default
+  - deriving-aeson
+  - effectful
+  - effectful-core
+  - git-effectful
+  - http-api-data
+  - ixset-typed
+  - optics-core
+  - optics-th
+  - safecopy
+  - servant
+  - text
+  - time
+
+library:
+  source-dirs: src

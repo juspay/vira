@@ -1,52 +1,17 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Vira.CI.Pipeline (getStages, customizeExample) where
 
+import Attic
 import Effectful.Process (CreateProcess, env, proc)
 import Optics.Core
-import Optics.TH
 import System.GHSignoff
 import Vira.CI.Environment (ViraEnvironment (..))
-import Vira.Lib.Attic
+import Vira.CI.Pipeline.Type
 import Vira.Lib.Cachix
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.State.Type
-
--- TODO: These types needs to be finalized before we allow per-repo configuration.
-data ViraPipeline = ViraPipeline
-  { build :: BuildStage
-  , attic :: AtticStage
-  , cachix :: CachixStage
-  , signoff :: SignoffStage
-  }
-  deriving stock (Generic)
-
-data BuildStage = BuildStage
-  { buildEnable :: Bool
-  , overrideInputs :: [(Text, Text)]
-  }
-  deriving stock (Generic)
-
-newtype AtticStage = AtticStage
-  { atticEnable :: Bool
-  }
-  deriving stock (Generic)
-
-newtype CachixStage = CachixStage
-  { cachixEnable :: Bool
-  }
-  deriving stock (Generic)
-
-newtype SignoffStage = SignoffStage
-  { signoffEnable :: Bool
-  }
-  deriving stock (Generic)
-
-makeLenses ''ViraPipeline
-makeLenses ''BuildStage
-makeLenses ''SignoffStage
 
 -- | Get all build stages for a CI pipeline
 getStages :: ViraEnvironment -> NonEmpty CreateProcess

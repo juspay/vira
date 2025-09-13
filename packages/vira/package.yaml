@@ -31,6 +31,7 @@ dependencies:
   - acid-state
   - aeson
   - async
+  - attic-hs
   - base16-bytestring
   - bytestring
   - cereal
@@ -83,6 +84,7 @@ dependencies:
   - tail
   - text
   - time
+  - vira-types
   - wai
   - wai-extra
   - wai-middleware-static

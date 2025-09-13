@@ -4,4 +4,4 @@
 # https://x.com/sridca/status/1901283945779544362
 
 exec cabal repl "$@" \
-    vira tail warp-tls-simple htmx-lucid-contrib git-effectful gh-signoff
+    vira vira-types attic-hs tail warp-tls-simple htmx-lucid-contrib git-effectful gh-signoff
