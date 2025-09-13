@@ -18,6 +18,7 @@ See README.md for general project information.
 ## Git
 
 - DO NOT AUTOCOMMIT
+- You must `git add` newly added files, otherwise `nix` won't recognize them.
 
 ## Design System
 
