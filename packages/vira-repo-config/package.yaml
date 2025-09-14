@@ -22,9 +22,12 @@ dependencies:
   - hint
   - text
   - vira-types
+  - include-env
 
 library:
   source-dirs: src
+  default-extensions:
+    - TemplateHaskell
 
 tests:
   vira-repo-config-tests:

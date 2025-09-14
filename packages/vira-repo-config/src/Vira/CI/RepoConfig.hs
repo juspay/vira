@@ -2,14 +2,14 @@
 
 module Vira.CI.RepoConfig (
   applyConfig,
+  applyConfigFromFile,
   ConfigError (..),
 ) where
 
-import Data.Text qualified as T
 import Language.Haskell.Interpreter qualified as Hint
 import System.Directory (doesFileExist)
-import System.FilePath ((</>))
 import Vira.CI.Environment.Type (ViraEnvironment)
+import Vira.CI.Nix
 import Vira.CI.Pipeline.Type (ViraPipeline)
 
 -- | Errors that can occur during configuration application
@@ -30,7 +30,7 @@ applyConfig ::
   ViraPipeline ->
   IO (Either ConfigError ViraPipeline)
 applyConfig configContent env pipeline = do
-  result <- Hint.runInterpreter $ do
+  result <- runInterpreterWithNixPackageDb $ do
     -- Set up the interpreter context
     Hint.set [Hint.languageExtensions Hint.:= [Hint.OverloadedStrings]]
 
@@ -43,8 +43,8 @@ applyConfig configContent env pipeline = do
       , "Optics.Core"
       ]
 
-    -- Load the configuration code
-    Hint.runStmt (toString configContent)
+    -- Load the configuration code as a let binding
+    Hint.runStmt ("let " <> toString configContent)
 
     -- Look for the configureVira function
     configFn <- Hint.interpret "configureVira" (Hint.as :: ViraEnvironment -> ViraPipeline -> ViraPipeline)

@@ -7,7 +7,7 @@ import Test.Hspec
 import Vira.CI.Environment.Type (ViraEnvironment (..))
 import Vira.CI.Pipeline.Type (AtticStage (..), BuildStage (..), CachixStage (..), SignoffStage (..), ViraPipeline (..))
 import Vira.CI.RepoConfig
-import Vira.State.Type (AtticSettings (..), Branch (..), CachixSettings (..), Repo (..), RepoName (..), RepoSettings (..))
+import Vira.State.Type (Branch (..), CachixSettings (..), Repo (..), RepoName (..), RepoSettings (..))
 
 -- Test data
 testRepo :: Repo
@@ -44,15 +44,14 @@ defaultPipeline =
     , signoff = SignoffStage {signoffEnable = False}
     }
 
-validConfigContent :: Text
-validConfigContent = "configureVira env pipeline = pipeline { attic = (attic pipeline) { atticEnable = True } }"
-
 spec :: Spec
 spec = describe "Vira.CI.RepoConfig" $ do
-  describe "applyConfig" $ do
-    it "applies valid config to main branch correctly" $ do
-      result <- applyConfig validConfigContent testEnvMain defaultPipeline
+  describe "applyConfigFromFile" $ do
+    it "applies valid config correctly" $ do
+      let configCode = "configureVira env pipeline = pipeline { attic = (attic pipeline) { atticEnable = True }, signoff = (signoff pipeline) { signoffEnable = True } }"
+      result <- applyConfig configCode testEnvMain defaultPipeline
       case result of
-        Left err -> expectationFailure $ "Expected success but got error: " <> show err
         Right pipeline -> do
           atticEnable (attic pipeline) `shouldBe` True
+          signoffEnable (signoff pipeline) `shouldBe` True
+        Left err -> expectationFailure $ "Config application failed: " <> show err

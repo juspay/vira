@@ -86,6 +86,9 @@
         };
         vira-repo-config = {
           # Repo configuration package with hint interpreter
+          extraBuildDepends = [
+            # Include env package for compile-time environment variable embedding
+          ];
         };
         safe-coloured-text-layout = {
           check = false;

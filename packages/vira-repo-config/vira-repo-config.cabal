@@ -18,6 +18,7 @@ build-type:     Simple
 
 library
   exposed-modules:
+      Vira.CI.Nix
       Vira.CI.RepoConfig
   other-modules:
       Paths_vira_repo_config
@@ -51,6 +52,7 @@ library
       TypeOperators
       TypeSynonymInstances
       ViewPatterns
+      TemplateHaskell
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
       aeson
@@ -60,6 +62,7 @@ library
     , directory
     , filepath
     , hint
+    , include-env
     , relude >=1.0
     , text
     , vira-types
@@ -117,6 +120,7 @@ test-suite vira-repo-config-tests
     , hint
     , hspec
     , hspec-discover
+    , include-env
     , relude >=1.0
     , text
     , vira-repo-config
