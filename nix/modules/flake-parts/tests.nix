@@ -33,7 +33,7 @@
         git-effectful.check = false;
       };
 
-      checks.tests = flakeCheckInDevShell config.devShells.default "cabal-test" (name: _: lib.hasPrefix "VIRA_" name) ''
+      checks.tests = flakeCheckInDevShell config.devShells.default "cabal-test" (name: _: lib.hasPrefix "VIRA_" name || lib.hasPrefix "HINT_" name) ''
         cabal test all --test-show-details=direct
 
         # Capture test logs in output
