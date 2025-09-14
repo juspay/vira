@@ -3,7 +3,6 @@
 module Vira.CI.RepoConfig (
   applyConfig,
   applyConfigFromFile,
-  ConfigError (..),
 ) where
 
 import Language.Haskell.Interpreter qualified as Hint
@@ -11,14 +10,6 @@ import System.Directory (doesFileExist)
 import Vira.CI.Environment.Type (ViraEnvironment)
 import Vira.CI.Nix
 import Vira.CI.Pipeline.Type (ViraPipeline)
-
--- | Errors that can occur during configuration application
-data ConfigError
-  = ConfigFileNotFound FilePath
-  | ConfigSyntaxError String
-  | ConfigRuntimeError String
-  | ConfigMissingFunction String
-  deriving (Show, Eq)
 
 -- | Apply a Haskell configuration file to modify a pipeline
 applyConfig ::
@@ -28,7 +19,7 @@ applyConfig ::
   ViraEnvironment ->
   -- | Default pipeline configuration
   ViraPipeline ->
-  IO (Either ConfigError ViraPipeline)
+  IO (Either String ViraPipeline)
 applyConfig configContent env pipeline = do
   result <- runInterpreterWithNixPackageDb $ do
     -- Set up the interpreter context
@@ -53,16 +44,8 @@ applyConfig configContent env pipeline = do
     return $ configFn env pipeline
 
   case result of
-    Left err -> return $ Left (interpretError err)
+    Left err -> return $ Left (show err)
     Right modifiedPipeline -> return $ Right modifiedPipeline
-
--- | Convert Hint errors to our ConfigError type
-interpretError :: Hint.InterpreterError -> ConfigError
-interpretError err = case err of
-  Hint.UnknownError msg -> ConfigRuntimeError msg
-  Hint.WontCompile errs -> ConfigSyntaxError (toString $ unlines $ map (toText . Hint.errMsg) errs)
-  Hint.NotAllowed msg -> ConfigRuntimeError msg
-  Hint.GhcException msg -> ConfigRuntimeError msg
 
 -- | Apply configuration from a file path
 applyConfigFromFile ::
@@ -72,11 +55,11 @@ applyConfigFromFile ::
   ViraEnvironment ->
   -- | Default pipeline configuration
   ViraPipeline ->
-  IO (Either ConfigError ViraPipeline)
+  IO (Either String ViraPipeline)
 applyConfigFromFile configPath env pipeline = do
   exists <- doesFileExist configPath
   if not exists
-    then return $ Left (ConfigFileNotFound configPath)
+    then return $ Left ("Config file not found: " <> configPath)
     else do
-      content <- readFileText configPath
-      applyConfig content env pipeline
+      content <- readFileBS configPath
+      applyConfig (decodeUtf8 content) env pipeline

@@ -54,4 +54,4 @@ spec = describe "Vira.CI.RepoConfig" $ do
         Right pipeline -> do
           atticEnable (attic pipeline) `shouldBe` True
           signoffEnable (signoff pipeline) `shouldBe` True
-        Left err -> expectationFailure $ "Config application failed: " <> show err
+        Left err -> expectationFailure $ "Config application failed: " <> err
