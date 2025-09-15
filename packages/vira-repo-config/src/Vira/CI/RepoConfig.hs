@@ -23,7 +23,7 @@ applyConfig ::
 applyConfig configContent env pipeline = do
   result <- runInterpreterWithNixPackageDb $ do
     -- Set up the interpreter context
-    Hint.set [Hint.languageExtensions Hint.:= [Hint.OverloadedStrings]]
+    Hint.set [Hint.languageExtensions Hint.:= [Hint.OverloadedStrings, Hint.UnknownExtension "OverloadedRecordDot", Hint.UnknownExtension "OverloadedLabels"]]
 
     -- Import necessary modules
     Hint.setImports
@@ -31,14 +31,13 @@ applyConfig configContent env pipeline = do
       , "Data.Text"
       , "Vira.CI.Environment.Type"
       , "Vira.CI.Pipeline.Type"
+      , "Vira.State.Type"
+      , "Effectful.Git"
       , "Optics.Core"
       ]
 
-    -- Load the configuration code as a let binding
-    Hint.runStmt ("let " <> toString configContent)
-
-    -- Look for the configureVira function
-    configFn <- Hint.interpret "configureVira" (Hint.as :: ViraEnvironment -> ViraPipeline -> ViraPipeline)
+    -- Interpret the configuration code directly as a function
+    configFn <- Hint.interpret (toString configContent) (Hint.as :: ViraEnvironment -> ViraPipeline -> ViraPipeline)
 
     -- Apply the configuration function
     return $ configFn env pipeline

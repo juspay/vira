@@ -15,6 +15,8 @@ maintainer:     srid@srid.ca
 copyright:      2024 Juspay
 license:        AGPL-3.0-or-later
 build-type:     Simple
+data-files:
+    test/sample-configs/simple-example.hs
 
 library
   exposed-modules:

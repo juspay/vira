@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE TemplateHaskell #-}
 
+-- | Convenience for hint+Nix. See https://github.com/srid/hint-demo
 module Vira.CI.Nix where
 
 import IncludeEnv.TH
 import Language.Haskell.Interpreter
 import Language.Haskell.Interpreter.Unsafe
 
--- Embed environment variables at compile time (required)
 $(includeEnv "HINT_GHC_LIB_DIR" "ghcLibDir")
 ghcLibDir :: String
 

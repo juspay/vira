@@ -1,8 +1,10 @@
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Vira.CI.RepoConfigSpec (spec) where
 
 import Effectful.Git (BranchName (..), CommitID (..))
+import Paths_vira_repo_config (getDataFileName)
 import Test.Hspec
 import Vira.CI.Environment.Type (ViraEnvironment (..))
 import Vira.CI.Pipeline.Type (AtticStage (..), BuildStage (..), CachixStage (..), SignoffStage (..), ViraPipeline (..))
@@ -48,10 +50,12 @@ spec :: Spec
 spec = describe "Vira.CI.RepoConfig" $ do
   describe "applyConfigFromFile" $ do
     it "applies valid config correctly" $ do
-      let configCode = "configureVira env pipeline = pipeline { attic = (attic pipeline) { atticEnable = True }, signoff = (signoff pipeline) { signoffEnable = True } }"
+      configPath <- getDataFileName "test/sample-configs/simple-example.hs"
+      configCode <- decodeUtf8 <$> readFileBS configPath
       result <- applyConfig configCode testEnvMain defaultPipeline
       case result of
         Right pipeline -> do
-          atticEnable (attic pipeline) `shouldBe` True
-          signoffEnable (signoff pipeline) `shouldBe` True
+          pipeline.attic.atticEnable `shouldBe` True
+          pipeline.signoff.signoffEnable `shouldBe` False
+          pipeline.build.overrideInputs `shouldBe` []
         Left err -> expectationFailure $ "Config application failed: " <> err
