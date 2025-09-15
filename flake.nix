@@ -20,6 +20,7 @@
     tabler-icons-hs.url = "github:juspay/tabler-icons-hs";
     tabler-icons-hs.flake = false;
     co-log-effectful.url = "github:eldritch-cookie/co-log-effectful";
+    co-log-effectful.flake = false;
     # https://github.com/bflyblue/servant-event-stream/pull/13
     servant-event-stream.url = "github:bflyblue/servant-event-stream";
     servant-event-stream.flake = false;
