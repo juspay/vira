@@ -18,22 +18,3 @@ ci:
       dir: nix/examples/home-manager
       overrideInputs:
         vira: .
-
-develop:
-  default:
-    readme: |
-      🍾 Welcome to the **vira** project
-
-      To run vira,
-
-      ```sh
-      just run
-      # If you want to reset the database before running, run instead:
-      just resetdb run
-      ```
-
-      Then open <https://localhost:5005>
-
-      (Now, as you edit the Haskell sources, the above will reload!)
-
-      🍎🍎 Run 'just' to see more commands. See <https://nixos.asia/en/vscode> for IDE setup.
