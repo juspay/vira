@@ -4,7 +4,7 @@ import Control.Concurrent (forkIO, threadDelay)
 import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import GHC.IO.Handle (hClose)
-import System.Directory (doesFileExist)
+import Paths_tail (getDataFileName)
 import System.IO.Temp (withSystemTempFile)
 import System.Process (system)
 import System.Tail qualified as Tail
@@ -26,15 +26,15 @@ spec = describe "System.Tail" $ do
     t <- Tail.tailFile 100 "/dev/null"
     Tail.tailStop t
   it "streams a static file" $ do
-    thisFile <- findThisFile
-    t <- Tail.tailFile 100 thisFile
+    testFile <- getDataFileName "test-fixture.txt"
+    t <- Tail.tailFile 100 testFile
     q <- Tail.tailSubscribe t
     threadDelay 1_000_000 >> Tail.tailStop t
     ls <- drainAll q
-    viaNonEmpty head ls `shouldBe` Just "module System.TailSpec where"
+    viaNonEmpty head ls `shouldBe` Just "Line 1: This is a test fixture file"
     -- Find the last line from the lines we got
     let lastLine = viaNonEmpty last ls
-    lastLine `shouldBe` Just "-- End of file."
+    lastLine `shouldBe` Just "Line 5: End of test fixture"
   it "streams a log file being appended to by another process" $ do
     -- Create a file under a temp directory. Then spawn an external process that writes to it lines over time.
     withSystemTempFile "tail-spec" $ \tempFile h -> do
@@ -58,18 +58,5 @@ spec = describe "System.Tail" $ do
       threadDelay 1_000_000 >> Tail.tailStop t
       ls <- drainAll q
       ls `shouldBe` ["Line1", "Line2"]
-
--- | Find this test file by trying common paths
-findThisFile :: IO FilePath
-findThisFile = do
-  let paths =
-        [ "test/System/TailSpec.hs" -- cabal test / nix build
-        , "packages/tail/test/System/TailSpec.hs" -- ghcid from root
-        ]
-  let findFirst [] = error "TailSpec.hs not found"
-      findFirst (p : ps) = do
-        exists <- doesFileExist p
-        if exists then pure p else findFirst ps
-  findFirst paths
 
 -- End of file.
