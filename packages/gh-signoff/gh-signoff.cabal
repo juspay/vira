@@ -1,6 +1,6 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.37.0.
+-- This file has been generated from package.yaml by hpack version 0.38.2.
 --
 -- see: https://github.com/sol/hpack
 
@@ -25,30 +25,10 @@ library
   hs-source-dirs:
       src
   default-extensions:
-      DataKinds
-      DeriveDataTypeable
-      DeriveGeneric
-      DeriveTraversable
-      DerivingStrategies
-      DerivingVia
-      ExplicitForAll
-      FlexibleContexts
-      FlexibleInstances
-      GeneralizedNewtypeDeriving
-      ImportQualifiedPost
-      LambdaCase
-      MultiParamTypeClasses
-      MultiWayIf
-      NamedFieldPuns
-      NoStarIsType
-      NumericUnderscores
-      OverloadedStrings
-      ScopedTypeVariables
-      StrictData
-      TypeApplications
       TypeFamilies
-      TypeOperators
-      TypeSynonymInstances
+      OverloadedStrings
+      StrictData
+      NumericUnderscores
       ViewPatterns
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
@@ -60,7 +40,7 @@ library
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
     , relude 
-  default-language: GHC2021
+  default-language: GHC2024
 
 test-suite gh-signoff-test
   type: exitcode-stdio-1.0
@@ -73,30 +53,10 @@ test-suite gh-signoff-test
   hs-source-dirs:
       test
   default-extensions:
-      DataKinds
-      DeriveDataTypeable
-      DeriveGeneric
-      DeriveTraversable
-      DerivingStrategies
-      DerivingVia
-      ExplicitForAll
-      FlexibleContexts
-      FlexibleInstances
-      GeneralizedNewtypeDeriving
-      ImportQualifiedPost
-      LambdaCase
-      MultiParamTypeClasses
-      MultiWayIf
-      NamedFieldPuns
-      NoStarIsType
-      NumericUnderscores
-      OverloadedStrings
-      ScopedTypeVariables
-      StrictData
-      TypeApplications
       TypeFamilies
-      TypeOperators
-      TypeSynonymInstances
+      OverloadedStrings
+      StrictData
+      NumericUnderscores
       ViewPatterns
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
@@ -111,4 +71,4 @@ test-suite gh-signoff-test
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
     , relude 
-  default-language: GHC2021
+  default-language: GHC2024
