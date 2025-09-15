@@ -14,11 +14,11 @@
 
           ${script}
         '';
-      # Function to create a test check that runs a test executable directly
-      createTestCheck = name: packageWithExecutable:
+      # Instead of `cabal test` (in Nix devShell), run the test executable directly
+      createTestCheck = name: p:
         runCommandWithInternet name ''
           # Run the test executable directly
-          ${packageWithExecutable}/bin/${name} 2>&1 | tee $out
+          ${p}/bin/${name} 2>&1 | tee $out
         '';
     in
     {
@@ -30,11 +30,15 @@
         git-effectful.check = false;
       };
 
-      checks = {
-        vira-tests = createTestCheck "vira-tests" config.haskellProjects.default.outputs.packages.vira.package;
-        git-effectful-test = createTestCheck "git-effectful-test" config.haskellProjects.default.outputs.packages.git-effectful.package;
-        gh-signoff-test = createTestCheck "gh-signoff-test" config.haskellProjects.default.outputs.packages.gh-signoff.package;
-        tail-test = createTestCheck "tail-test" config.haskellProjects.default.outputs.packages.tail.package;
-      };
+      checks =
+        let
+          hsPkgs = config.haskellProjects.default.outputs.packages;
+        in
+        {
+          vira-tests = createTestCheck "vira-tests".hsPkgs.vira.package;
+          git-effectful-test = createTestCheck "git-effectful-test" hsPkgs.git-effectful.package;
+          gh-signoff-test = createTestCheck "gh-signoff-test" hsPkgs.gh-signoff.package;
+          tail-test = createTestCheck "tail-test" hsPkgs.tail.package;
+        };
     };
 }
