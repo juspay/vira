@@ -3,15 +3,14 @@
 {
   perSystem = { pkgs, lib, config, ... }:
     let
-      # Create a flake cheeck that runs the command in the given devShel
-      flakeCheckInDevShell = devShell: name: shellAttrFilter: text:
+      # Function to create a test check that runs a test executable directly
+      createTestCheck = name: packageWithExecutable:
         pkgs.runCommandNoCC name
-          ({
+          {
             __noChroot = true;
             src = root;
-            nativeBuildInputs = [ pkgs.cacert ] ++ devShell.nativeBuildInputs;
-            buildInputs = devShell.buildInputs;
-          } // lib.filterAttrs shellAttrFilter devShell) ''
+            nativeBuildInputs = [ pkgs.cacert ];
+          } ''
           export HOME=$TMPDIR
 
           # Set up SSL certificates for network access
@@ -21,7 +20,12 @@
           cd source
           chmod -R u+w .
 
-          ${text}
+          # Run the test executable directly
+          ${packageWithExecutable}/bin/${name}
+
+          # Capture test logs in output
+          mkdir -p $out
+          echo "Tests completed successfully" > $out/test-result.txt
         '';
     in
     {
@@ -33,12 +37,11 @@
         git-effectful.check = false;
       };
 
-      checks.tests = flakeCheckInDevShell config.devShells.default "cabal-test" (name: _: lib.hasPrefix "VIRA_" name) ''
-        cabal test all --test-show-details=direct
-
-        # Capture test logs in output
-        mkdir -p $out
-        find . -name "*.log" -path "*/test/*" -exec cp {} $out/ \;
-      '';
+      checks = {
+        vira-tests = createTestCheck "vira-tests" config.haskellProjects.default.outputs.packages.vira.package;
+        git-effectful-test = createTestCheck "git-effectful-test" config.haskellProjects.default.outputs.packages.git-effectful.package;
+        gh-signoff-test = createTestCheck "gh-signoff-test" config.haskellProjects.default.outputs.packages.gh-signoff.package;
+        tail-test = createTestCheck "tail-test" config.haskellProjects.default.outputs.packages.tail.package;
+      };
     };
 }

@@ -37,10 +37,14 @@ dependencies:
 library:
   source-dirs: src
 
-tests:
+executables:
   git-effectful-test:
     main: Spec.hs
     source-dirs: test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
       - git-effectful
       - hspec

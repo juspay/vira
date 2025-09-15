@@ -26,10 +26,14 @@ dependencies:
 library:
   source-dirs: src
 
-tests:
+executables:
   tail-test:
     main: Spec.hs
     source-dirs: test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
       - tail
       - hspec
