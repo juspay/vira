@@ -1,18 +1,22 @@
 {
   perSystem = { pkgs, config, ... }:
     let
-      # Function to create a test check that runs a test executable directly
-      createTestCheck = name: packageWithExecutable:
+      # Like runCommand, but with network access enabled
+      # Requires `sandbox = relaxed` in CI's nix.conf
+      runCommandWithInternet = name: script:
         pkgs.runCommandNoCC name
           {
             __noChroot = true; # Allow network access
             nativeBuildInputs = [ pkgs.cacert ];
           } ''
-          export HOME=$TMPDIR
-
           # Set up SSL certificates for network access
           export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
 
+          ${script}
+        '';
+      # Function to create a test check that runs a test executable directly
+      createTestCheck = name: packageWithExecutable:
+        runCommandWithInternet name ''
           # Run the test executable directly
           ${packageWithExecutable}/bin/${name} 2>&1 | tee $out
         '';
