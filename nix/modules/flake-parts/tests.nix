@@ -35,7 +35,7 @@
           hsPkgs = config.haskellProjects.default.outputs.packages;
         in
         {
-          vira-tests = createTestCheck "vira-tests".hsPkgs.vira.package;
+          vira-tests = createTestCheck "vira-tests" hsPkgs.vira.package;
           git-effectful-test = createTestCheck "git-effectful-test" hsPkgs.git-effectful.package;
           gh-signoff-test = createTestCheck "gh-signoff-test" hsPkgs.gh-signoff.package;
           tail-test = createTestCheck "tail-test" hsPkgs.tail.package;
