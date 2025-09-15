@@ -176,11 +176,11 @@
     },
     "haskell-flake_2": {
       "locked": {
-        "lastModified": 1756607542,
-        "narHash": "sha256-+99fEAk0HwjYgIW2tEOs7ayBDxnU9NAM5E29ZxgyX40=",
+        "lastModified": 1757958175,
+        "narHash": "sha256-5JZMbyhI5qUTYDTpbJ1Tb7mmIcjXKd2gSTs75dMOWMk=",
         "owner": "srid",
         "repo": "haskell-flake",
-        "rev": "73e3891fb135c679a1c30fae4b101e5b41b8ca61",
+        "rev": "6df12c6bbf5af89edea64184a62d08db9c92d43d",
         "type": "github"
       },
       "original": {
@@ -421,15 +421,16 @@
         "tabler-icons-hs": "tabler-icons-hs"
       },
       "locked": {
-        "lastModified": 1757964889,
-        "narHash": "sha256-eF/+mAjO4hOx6U2zBDPPsrcwPovSwZvHpgpNd7ijNA0=",
+        "lastModified": 1757972992,
+        "narHash": "sha256-R9P3AUbedQJ+bEMUADtM77bpsCZaqxxKRSNzFyi7vlw=",
         "owner": "juspay",
         "repo": "vira",
-        "rev": "edce07ced00a00c872f8115826b3bde6c53bac55",
+        "rev": "4ae08a70359eea109d83030df8df04f36e3d8610",
         "type": "github"
       },
       "original": {
         "owner": "juspay",
+        "ref": "hint-take-2",
         "repo": "vira",
         "type": "github"
       }

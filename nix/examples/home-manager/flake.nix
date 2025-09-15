@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
-    vira.url = "github:juspay/vira";
+    vira.url = "github:juspay/vira/hint-take-2";
   };
 
   outputs = { self, nixpkgs, home-manager, vira }:
