@@ -11,7 +11,7 @@
     nixos-unified.url = "github:srid/nixos-unified";
     haskell-flake.url = "github:srid/haskell-flake";
     fourmolu-nix.url = "github:jedimahdi/fourmolu-nix";
-    git-hooks.url = "github:bmrips/git-hooks.nix/typos-improvements"; # https://github.com/cachix/git-hooks.nix/pull/583
+    git-hooks.url = "github:bmrips/git-hooks.nix";
     git-hooks.flake = false;
     process-compose-flake.url = "github:Platonic-Systems/process-compose-flake";
 
