@@ -1,14 +1,11 @@
-{ root, ... }:
-
 {
-  perSystem = { pkgs, lib, config, ... }:
+  perSystem = { pkgs, config, ... }:
     let
       # Function to create a test check that runs a test executable directly
       createTestCheck = name: packageWithExecutable:
         pkgs.runCommandNoCC name
           {
-            __noChroot = true;
-            src = root;
+            __noChroot = true; # Allow network access
             nativeBuildInputs = [ pkgs.cacert ];
           } ''
           export HOME=$TMPDIR
@@ -16,16 +13,8 @@
           # Set up SSL certificates for network access
           export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
 
-          cp -r $src source
-          cd source
-          chmod -R u+w .
-
           # Run the test executable directly
-          ${packageWithExecutable}/bin/${name}
-
-          # Capture test logs in output
-          mkdir -p $out
-          echo "Tests completed successfully" > $out/test-result.txt
+          ${packageWithExecutable}/bin/${name} 2>&1 | tee $out
         '';
     in
     {

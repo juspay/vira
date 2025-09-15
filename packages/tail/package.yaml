@@ -26,6 +26,9 @@ dependencies:
 library:
   source-dirs: src
 
+data-files:
+  - test-fixture.txt
+
 executables:
   tail-test:
     main: Spec.hs
