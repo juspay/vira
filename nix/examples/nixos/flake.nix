@@ -3,7 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    vira.url = "github:juspay/vira/hint-take-2";
+    vira.url = "github:juspay/vira";
   };
 
   outputs = { self, nixpkgs, vira }:
