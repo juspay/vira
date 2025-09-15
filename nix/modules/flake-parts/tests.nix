@@ -39,6 +39,7 @@
           git-effectful-test = createTestCheck "git-effectful-test" hsPkgs.git-effectful.package;
           gh-signoff-test = createTestCheck "gh-signoff-test" hsPkgs.gh-signoff.package;
           tail-test = createTestCheck "tail-test" hsPkgs.tail.package;
+          vira-repo-config-test = createTestCheck "vira-repo-config-test" hsPkgs.vira-repo-config.package;
         };
     };
 }

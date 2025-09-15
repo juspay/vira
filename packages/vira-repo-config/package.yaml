@@ -34,8 +34,8 @@ library:
       ghc-options:
         - -dynamic
 
-tests:
-  vira-repo-config-tests:
+executables:
+  vira-repo-config-test:
     main: Spec.hs
     source-dirs: test
     dependencies:
@@ -43,6 +43,8 @@ tests:
       - git-effectful
       - hspec
       - hspec-discover
+    ghc-options:
+      - -threaded
     when:
       - condition: os(darwin)
         ghc-options:
