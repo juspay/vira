@@ -89,6 +89,8 @@
           extraBuildDepends = [
             # Include env package for compile-time environment variable embedding
           ];
+          sharedLibraries = true;
+          sharedExecutables = true;
         };
         safe-coloured-text-layout = {
           check = false;

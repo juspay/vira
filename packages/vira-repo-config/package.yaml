@@ -28,11 +28,6 @@ library:
   source-dirs: src
   default-extensions:
     - TemplateHaskell
-  # Workaround hint-related GHC crash on macOS: `Relocation target for PAGE21 out of range`
-  when:
-    - condition: os(darwin)
-      ghc-options:
-        - -dynamic
 
 executables:
   vira-repo-config-test:
@@ -43,9 +38,3 @@ executables:
       - git-effectful
       - hspec
       - hspec-discover
-    ghc-options:
-      - -threaded
-    when:
-      - condition: os(darwin)
-        ghc-options:
-          - -dynamic
