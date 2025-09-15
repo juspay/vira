@@ -85,10 +85,7 @@
           # Core types package - no special build dependencies needed
         };
         vira-repo-config = {
-          # Repo configuration package with hint interpreter
-          extraBuildDepends = [
-            # Include env package for compile-time environment variable embedding
-          ];
+          # To workaround GHC panic: `Relocation target for PAGE21 out of range.`
           sharedLibraries = true;
           sharedExecutables = true;
         };
