@@ -7,7 +7,7 @@ import Effectful.Git (BranchName (..), CommitID (..))
 import Paths_vira_repo_config (getDataFileName)
 import Test.Hspec
 import Vira.CI.Environment.Type (ViraEnvironment (..))
-import Vira.CI.Pipeline.Type (AtticStage (..), BuildStage (..), CachixStage (..), SignoffStage (..), ViraPipeline (..))
+import Vira.CI.Pipeline.Type (AtticStage (..), BuildStage (..), SignoffStage (..), ViraPipeline (..), defaultPipeline)
 import Vira.CI.RepoConfig
 import Vira.State.Type (Branch (..), CachixSettings (..), Repo (..), RepoName (..), RepoSettings (..))
 
@@ -20,30 +20,21 @@ testRepo =
     , settings = RepoSettings {dummy = Nothing}
     }
 
-testBranchMain :: Branch
-testBranchMain =
+testBranchStaging :: Branch
+testBranchStaging =
   Branch
     { repoName = RepoName "test-repo"
-    , branchName = BranchName "main"
+    , branchName = BranchName "staging"
     , headCommit = CommitID "abc123"
     }
 
-testEnvMain :: ViraEnvironment
-testEnvMain =
+testEnvStaging :: ViraEnvironment
+testEnvStaging =
   ViraEnvironment
     { repo = testRepo
-    , branch = testBranchMain
+    , branch = testBranchStaging
     , cachixSettings = Just $ CachixSettings "test-cache" "token123"
     , atticSettings = Nothing
-    }
-
-defaultPipeline :: ViraPipeline
-defaultPipeline =
-  ViraPipeline
-    { build = BuildStage {buildEnable = True, overrideInputs = []}
-    , attic = AtticStage {atticEnable = False}
-    , cachix = CachixStage {cachixEnable = True}
-    , signoff = SignoffStage {signoffEnable = False}
     }
 
 spec :: Spec
@@ -52,10 +43,10 @@ spec = describe "Vira.CI.RepoConfig" $ do
     it "applies valid config correctly" $ do
       configPath <- getDataFileName "test/sample-configs/simple-example.hs"
       configCode <- decodeUtf8 <$> readFileBS configPath
-      result <- applyConfig configCode testEnvMain defaultPipeline
+      result <- applyConfig configCode testEnvStaging (defaultPipeline testEnvStaging)
       case result of
         Right pipeline -> do
-          pipeline.attic.atticEnable `shouldBe` True
-          pipeline.signoff.signoffEnable `shouldBe` False
-          pipeline.build.overrideInputs `shouldBe` []
+          pipeline.attic.atticEnable `shouldBe` False
+          pipeline.signoff.signoffEnable `shouldBe` True
+          pipeline.build.overrideInputs `shouldBe` [("local", "github:boolean-option/false")]
         Left err -> expectationFailure $ "Config application failed: " <> err

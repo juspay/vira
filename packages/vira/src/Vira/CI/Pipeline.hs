@@ -20,16 +20,6 @@ getStages env =
     & hardcodePerRepoConfig env
     & pipelineToProcesses env
 
--- | Create a default pipeline configuration
-defaultPipeline :: ViraEnvironment -> ViraPipeline
-defaultPipeline env =
-  ViraPipeline
-    { build = BuildStage {buildEnable = True, overrideInputs = mempty}
-    , attic = AtticStage {atticEnable = isJust env.atticSettings}
-    , cachix = CachixStage {cachixEnable = isJust env.cachixSettings}
-    , signoff = SignoffStage {signoffEnable = False}
-    }
-
 -- | Convert pipeline configuration to CreateProcess list
 pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> NonEmpty CreateProcess
 pipelineToProcesses env pipeline =
