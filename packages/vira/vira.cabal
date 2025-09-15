@@ -164,6 +164,7 @@ library
     , tail
     , text
     , time
+    , vira-repo-config
     , vira-types
     , wai
     , wai-extra
@@ -273,6 +274,7 @@ executable vira
     , text
     , time
     , vira
+    , vira-repo-config
     , vira-types
     , wai
     , wai-extra
@@ -382,6 +384,7 @@ executable vira-tests
     , text
     , time
     , vira
+    , vira-repo-config
     , vira-types
     , wai
     , wai-extra
