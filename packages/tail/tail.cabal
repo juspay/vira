@@ -15,6 +15,8 @@ maintainer:     srid@srid.ca
 copyright:      2025 Sridhar Ratnakumar
 license:        MIT
 build-type:     Simple
+data-files:
+    test-fixture.txt
 
 library
   exposed-modules:
@@ -70,8 +72,7 @@ library
     , relude 
   default-language: GHC2021
 
-test-suite tail-test
-  type: exitcode-stdio-1.0
+executable tail-test
   main-is: Spec.hs
   other-modules:
       Control.Concurrent.STM.CircularBufferSpec
@@ -107,7 +108,7 @@ test-suite tail-test
       TypeOperators
       TypeSynonymInstances
       ViewPatterns
-  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       async
     , base ==4.*

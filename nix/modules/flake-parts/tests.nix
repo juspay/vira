@@ -1,27 +1,24 @@
-{ root, ... }:
-
 {
-  perSystem = { pkgs, lib, config, ... }:
+  perSystem = { pkgs, config, ... }:
     let
-      # Create a flake cheeck that runs the command in the given devShel
-      flakeCheckInDevShell = devShell: name: shellAttrFilter: text:
+      # Like runCommand, but with network access enabled
+      # Requires `sandbox = relaxed` in CI's nix.conf
+      runCommandWithInternet = name: script:
         pkgs.runCommandNoCC name
-          ({
-            __noChroot = true;
-            src = root;
-            nativeBuildInputs = [ pkgs.cacert ] ++ devShell.nativeBuildInputs;
-            buildInputs = devShell.buildInputs;
-          } // lib.filterAttrs shellAttrFilter devShell) ''
-          export HOME=$TMPDIR
-
+          {
+            __noChroot = true; # Allow network access
+            nativeBuildInputs = [ pkgs.cacert ];
+          } ''
           # Set up SSL certificates for network access
           export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
 
-          cp -r $src source
-          cd source
-          chmod -R u+w .
-
-          ${text}
+          ${script}
+        '';
+      # Instead of `cabal test` (in Nix devShell), run the test executable directly
+      createTestCheck = name: p:
+        runCommandWithInternet name ''
+          # Run the test executable directly
+          ${p}/bin/${name} 2>&1 | tee $out
         '';
     in
     {
@@ -33,12 +30,15 @@
         git-effectful.check = false;
       };
 
-      checks.tests = flakeCheckInDevShell config.devShells.default "cabal-test" (name: _: lib.hasPrefix "VIRA_" name || lib.hasPrefix "HINT_" name) ''
-        cabal test all --test-show-details=direct
-
-        # Capture test logs in output
-        mkdir -p $out
-        find . -name "*.log" -path "*/test/*" -exec cp {} $out/ \;
-      '';
+      checks =
+        let
+          hsPkgs = config.haskellProjects.default.outputs.packages;
+        in
+        {
+          vira-tests = createTestCheck "vira-tests" hsPkgs.vira.package;
+          git-effectful-test = createTestCheck "git-effectful-test" hsPkgs.git-effectful.package;
+          gh-signoff-test = createTestCheck "gh-signoff-test" hsPkgs.gh-signoff.package;
+          tail-test = createTestCheck "tail-test" hsPkgs.tail.package;
+        };
     };
 }

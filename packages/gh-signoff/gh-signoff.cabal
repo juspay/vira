@@ -62,8 +62,7 @@ library
     , relude 
   default-language: GHC2021
 
-test-suite gh-signoff-test
-  type: exitcode-stdio-1.0
+executable gh-signoff-test
   main-is: Spec.hs
   other-modules:
       System.GHSignoffSpec
@@ -98,7 +97,7 @@ test-suite gh-signoff-test
       TypeOperators
       TypeSynonymInstances
       ViewPatterns
-  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base ==4.*
     , gh-signoff
