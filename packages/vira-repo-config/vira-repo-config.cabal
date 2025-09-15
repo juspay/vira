@@ -71,6 +71,8 @@ library
     , relude (Relude as Prelude, Relude.Container.One)
     , relude 
   default-language: GHC2021
+  if os(darwin)
+    ghc-options: -dynamic
 
 test-suite vira-repo-config-tests
   type: exitcode-stdio-1.0
@@ -130,3 +132,5 @@ test-suite vira-repo-config-tests
     , relude (Relude as Prelude, Relude.Container.One)
     , relude 
   default-language: GHC2021
+  if os(darwin)
+    ghc-options: -dynamic
