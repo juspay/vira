@@ -4,6 +4,7 @@
 
 module Vira.State.Type where
 
+import Attic
 import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import Data.Data (Data)
 import Data.IxSet.Typed
@@ -11,7 +12,6 @@ import Data.SafeCopy
 import Data.Time (UTCTime)
 import Effectful.Git (BranchName, CommitID)
 import Servant.API (FromHttpApiData, ToHttpApiData)
-import Vira.Lib.Attic
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
 
 newtype RepoSettings = RepoSettings

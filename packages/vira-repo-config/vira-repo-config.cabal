@@ -1,0 +1,133 @@
+cabal-version: 2.2
+
+-- This file has been generated from package.yaml by hpack version 0.37.0.
+--
+-- see: https://github.com/sol/hpack
+
+name:           vira-repo-config
+version:        0.1.0.0
+synopsis:       Dynamic Haskell configuration for Vira CI pipelines
+description:    Allows repositories to define custom CI pipeline configurations using Haskell files interpreted at runtime
+category:       Development
+homepage:       https://github.com/juspay/vira
+author:         Sridhar Ratnakumar
+maintainer:     srid@srid.ca
+copyright:      2024 Juspay
+license:        AGPL-3.0-or-later
+build-type:     Simple
+data-files:
+    test/sample-configs/simple-example.hs
+
+library
+  exposed-modules:
+      Vira.CI.Nix
+      Vira.CI.RepoConfig
+  other-modules:
+      Paths_vira_repo_config
+  autogen-modules:
+      Paths_vira_repo_config
+  hs-source-dirs:
+      src
+  default-extensions:
+      DataKinds
+      DeriveDataTypeable
+      DeriveGeneric
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      ExplicitForAll
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoStarIsType
+      NumericUnderscores
+      OverloadedStrings
+      ScopedTypeVariables
+      StrictData
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      TypeSynonymInstances
+      ViewPatterns
+      TemplateHaskell
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
+  build-depends:
+      aeson
+    , attic-hs
+    , base ==4.*
+    , bytestring
+    , directory
+    , filepath
+    , hint
+    , include-env
+    , relude >=1.0
+    , text
+    , vira-types
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2021
+
+executable vira-repo-config-test
+  main-is: Spec.hs
+  other-modules:
+      Vira.CI.RepoConfigSpec
+      Paths_vira_repo_config
+  autogen-modules:
+      Paths_vira_repo_config
+  hs-source-dirs:
+      test
+  default-extensions:
+      DataKinds
+      DeriveDataTypeable
+      DeriveGeneric
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      ExplicitForAll
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoStarIsType
+      NumericUnderscores
+      OverloadedStrings
+      ScopedTypeVariables
+      StrictData
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      TypeSynonymInstances
+      ViewPatterns
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
+  build-depends:
+      aeson
+    , attic-hs
+    , base ==4.*
+    , bytestring
+    , directory
+    , filepath
+    , git-effectful
+    , hint
+    , hspec
+    , hspec-discover
+    , include-env
+    , relude >=1.0
+    , text
+    , vira-repo-config
+    , vira-types
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2021

@@ -42,7 +42,6 @@ library
       Vira.App.Stack
       Vira.CI.Environment
       Vira.CI.Pipeline
-      Vira.Lib.Attic
       Vira.Lib.Cachix
       Vira.Lib.Logging
       Vira.Lib.Omnix
@@ -60,7 +59,6 @@ library
       Vira.State.Acid
       Vira.State.Core
       Vira.State.JSON
-      Vira.State.Type
       Vira.Stream.Log
       Vira.Stream.Refresh
       Vira.Supervisor.Core
@@ -112,6 +110,7 @@ library
     , acid-state
     , aeson
     , async
+    , attic-hs
     , base ==4.*
     , base16-bytestring
     , binary
@@ -165,6 +164,8 @@ library
     , tail
     , text
     , time
+    , vira-repo-config
+    , vira-types
     , wai
     , wai-extra
     , wai-middleware-static
@@ -218,6 +219,7 @@ executable vira
     , acid-state
     , aeson
     , async
+    , attic-hs
     , base ==4.*
     , base16-bytestring
     , binary
@@ -272,6 +274,8 @@ executable vira
     , text
     , time
     , vira
+    , vira-repo-config
+    , vira-types
     , wai
     , wai-extra
     , wai-middleware-static
@@ -325,6 +329,7 @@ executable vira-tests
     , acid-state
     , aeson
     , async
+    , attic-hs
     , base ==4.*
     , base16-bytestring
     , binary
@@ -379,6 +384,8 @@ executable vira-tests
     , text
     , time
     , vira
+    , vira-repo-config
+    , vira-types
     , wai
     , wai-extra
     , wai-middleware-static

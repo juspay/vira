@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Working with [attic](https://github.com/zhaofengli/attic) cache servers
-module Vira.Lib.Attic where
+module Attic where
 
 import Data.Aeson (FromJSON, ToJSON)
 import Data.SafeCopy
