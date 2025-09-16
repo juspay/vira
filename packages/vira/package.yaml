@@ -55,6 +55,7 @@ dependencies:
   - git-effectful
   - gitlib
   - hostname
+  - hint
   - hspec
   - hspec-discover
   - htmx

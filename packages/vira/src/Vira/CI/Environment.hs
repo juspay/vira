@@ -17,8 +17,9 @@ environmentFor ::
   ) =>
   Repo ->
   Branch ->
+  FilePath ->
   Eff es ViraEnvironment
-environmentFor repo branch = do
+environmentFor repo branch workspacePath = do
   cachixSettings <- App.query St.GetCachixSettingsA
   atticSettings <- App.query St.GetAtticSettingsA
   pure $ ViraEnvironment {..}

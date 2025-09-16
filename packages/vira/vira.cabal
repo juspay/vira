@@ -133,6 +133,7 @@ library
     , gh-signoff
     , git-effectful
     , gitlib
+    , hint
     , hostname
     , hspec
     , hspec-discover
@@ -242,6 +243,7 @@ executable vira
     , gh-signoff
     , git-effectful
     , gitlib
+    , hint
     , hostname
     , hspec
     , hspec-discover
@@ -352,6 +354,7 @@ executable vira-tests
     , gh-signoff
     , git-effectful
     , gitlib
+    , hint
     , hostname
     , hspec
     , hspec-discover

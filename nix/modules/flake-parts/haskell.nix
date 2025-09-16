@@ -48,7 +48,6 @@
             pkgs.attic-client # For attic
             pkgs.cachix # For cachix
             self'.packages.omnix # For omnix/om
-            pkgs.coreutils # For mkdir
           ];
           custom = drv: drv.overrideAttrs (oldAttrs: {
             postUnpack = (oldAttrs.postUnpack or "") + ''

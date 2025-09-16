@@ -17,12 +17,10 @@
       # Default shell.
       devShells.vira-repo-config = pkgs.mkShell {
         name = "vira-hint";
-        env = hintAttrs;
-        /* shellHook = ''
+        shellHook = ''
           ${pkgs.lib.concatMapStringsSep "\n  " (attrs: "export ${attrs}=\"${hintAttrs.${attrs}}\"") (pkgs.lib.attrNames hintAttrs)}
           env | grep ^HINT_
         '';
-        */
       };
 
       haskellProjects.default = {

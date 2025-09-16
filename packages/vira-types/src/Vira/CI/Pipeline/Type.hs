@@ -13,28 +13,28 @@ data ViraPipeline = ViraPipeline
   , cachix :: CachixStage
   , signoff :: SignoffStage
   }
-  deriving stock (Generic)
+  deriving stock (Generic, Show)
 
 data BuildStage = BuildStage
   { buildEnable :: Bool
   , overrideInputs :: [(Text, Text)]
   }
-  deriving stock (Generic)
+  deriving stock (Generic, Show)
 
 newtype AtticStage = AtticStage
   { atticEnable :: Bool
   }
-  deriving stock (Generic)
+  deriving stock (Generic, Show)
 
 newtype CachixStage = CachixStage
   { cachixEnable :: Bool
   }
-  deriving stock (Generic)
+  deriving stock (Generic, Show)
 
 newtype SignoffStage = SignoffStage
   { signoffEnable :: Bool
   }
-  deriving stock (Generic)
+  deriving stock (Generic, Show)
 
 makeLenses ''ViraPipeline
 makeLenses ''BuildStage

@@ -35,11 +35,12 @@ testEnvStaging =
     , branch = testBranchStaging
     , cachixSettings = Just $ CachixSettings "test-cache" "token123"
     , atticSettings = Nothing
+    , workspacePath = "/tmp/test-workspace"
     }
 
 spec :: Spec
 spec = describe "Vira.CI.RepoConfig" $ do
-  describe "applyConfigFromFile" $ do
+  describe "applyConfig" $ do
     it "applies valid config correctly" $ do
       configPath <- getDataFileName "test/sample-configs/simple-example.hs"
       configCode <- decodeUtf8 <$> readFileBS configPath
@@ -49,4 +50,4 @@ spec = describe "Vira.CI.RepoConfig" $ do
           pipeline.attic.atticEnable `shouldBe` False
           pipeline.signoff.signoffEnable `shouldBe` True
           pipeline.build.overrideInputs `shouldBe` [("local", "github:boolean-option/false")]
-        Left err -> expectationFailure $ "Config application failed: " <> err
+        Left err -> expectationFailure $ "Config application failed: " <> show err

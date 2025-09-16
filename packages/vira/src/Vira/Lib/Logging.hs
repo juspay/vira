@@ -88,7 +88,7 @@ threadDesc :: ThreadId -> IO Text
 threadDesc tid = do
   threadLabel tid >>= \case
     Nothing -> pure $ threadIdToInt tid
-    Just label -> pure $ toText label <> ":" <> threadIdToInt tid
+    Just label -> pure $ toText label <> ";thread=" <> threadIdToInt tid
 
 showProps :: Map Text Text -> Text
 showProps prop =

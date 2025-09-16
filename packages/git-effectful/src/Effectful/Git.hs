@@ -163,8 +163,8 @@ clone url =
     ]
 
 -- | Return the `CreateProcess` to clone a repo at a specific commit
-cloneAtCommit :: Text -> CommitID -> CreateProcess
-cloneAtCommit url commit =
+cloneAtCommit :: Text -> CommitID -> FilePath -> CreateProcess
+cloneAtCommit url commit path =
   proc
     git
     [ "-c"
@@ -176,5 +176,5 @@ cloneAtCommit url commit =
     , "--revision"
     , toString commit
     , toString url
-    , "."
+    , path
     ]

@@ -65,6 +65,7 @@ library
     , deriving-aeson
     , effectful
     , effectful-core
+    , filepath
     , git-effectful
     , http-api-data
     , ixset-typed

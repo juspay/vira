@@ -50,3 +50,9 @@ hpack:
     for f in $(find ./packages/ -name "package.yaml"); do \
         hpack $f; \
     done
+
+# Light version of `om ci`
+ci:
+    @just pc
+    nix --no-accept-flake-config build -L --no-link
+    nix --no-accept-flake-config flake check -L
