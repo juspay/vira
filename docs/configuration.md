@@ -13,9 +13,9 @@ Create a `vira.hs` file in your repository root:
 -- vira.hs
 \ctx pipeline ->
   pipeline
-    & #signoff % #signoffEnable .~ True
+    & #signoff % #enable .~ True
     & #build % #overrideInputs .~ [("nixpkgs", "github:nixos/nixpkgs/nixos-unstable")]
-    & #attic % #atticEnable .~ False
+    & #attic % #enable .~ False
 ```
 
 The configuration uses optics operators (`&`, `%`, `.~`) for modifying the pipeline structure. These operators are automatically imported and available in the configuration context. See the [optics documentation](https://hackage.haskell.org/package/optics) for more details on these operators.
@@ -32,26 +32,26 @@ The configuration function receives two parameters:
 #### Build Stage
 
 ```haskell
-pipeline & #build % #buildEnable .~ True
+pipeline & #build % #enable .~ True
 pipeline & #build % #overrideInputs .~ [("input-name", "flake-url")]
 ```
 
 #### Attic Cache Stage
 
 ```haskell
-pipeline & #attic % #atticEnable .~ True
+pipeline & #attic % #enable .~ True
 ```
 
 #### Cachix Cache Stage
 
 ```haskell
-pipeline & #cachix % #cachixEnable .~ True
+pipeline & #cachix % #enable .~ True
 ```
 
 #### Signoff Stage
 
 ```haskell
-pipeline & #signoff % #signoffEnable .~ True
+pipeline & #signoff % #enable .~ True
 ```
 
 ## Conditional Configuration
@@ -63,8 +63,8 @@ You can customize the pipeline based on branch or repository information:
   let isMainBranch = ctx.branch == "main"
       isReleaseBranch = "release-" `isPrefixOf` ctx.branch
   in pipeline
-    & #signoff % #signoffEnable .~ not isMainBranch
-    & #attic % #atticEnable .~ (isMainBranch || isReleaseBranch)
+    & #signoff % #enable .~ not isMainBranch
+    & #attic % #enable .~ (isMainBranch || isReleaseBranch)
     & #build % #overrideInputs .~
         [("local", "github:boolean-option/false") | isReleaseBranch]
 ```

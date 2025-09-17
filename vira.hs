@@ -2,6 +2,6 @@
 \ctx pipeline ->
   let isMain = ctx.branch == "main"
   in pipeline
-    & #signoff % #signoffEnable .~ True
-    & #cachix % #cachixEnable .~ False
-    & #attic % #atticEnable .~ isMain
+    & #signoff % #enable .~ True
+    & #cachix % #enable .~ False
+    & #attic % #enable .~ isMain

@@ -1,5 +1,9 @@
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NoFieldSelectors #-}
 
 module Vira.CI.Pipeline.Type where
 
@@ -15,26 +19,28 @@ data ViraPipeline = ViraPipeline
   deriving stock (Generic, Show)
 
 data BuildStage = BuildStage
-  { buildEnable :: Bool
+  { enable :: Bool
   , overrideInputs :: [(Text, Text)]
   }
   deriving stock (Generic, Show)
 
 newtype AtticStage = AtticStage
-  { atticEnable :: Bool
+  { enable :: Bool
   }
   deriving stock (Generic, Show)
 
 newtype CachixStage = CachixStage
-  { cachixEnable :: Bool
+  { enable :: Bool
   }
   deriving stock (Generic, Show)
 
 newtype SignoffStage = SignoffStage
-  { signoffEnable :: Bool
+  { enable :: Bool
   }
   deriving stock (Generic, Show)
 
-makeLenses ''ViraPipeline
-makeLenses ''BuildStage
-makeLenses ''SignoffStage
+makeFieldLabelsNoPrefix ''ViraPipeline
+makeFieldLabelsNoPrefix ''BuildStage
+makeFieldLabelsNoPrefix ''AtticStage
+makeFieldLabelsNoPrefix ''CachixStage
+makeFieldLabelsNoPrefix ''SignoffStage

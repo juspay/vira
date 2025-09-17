@@ -67,8 +67,8 @@ pipelineToProcesses' env pipeline =
     ]
 
 buildProcs :: BuildStage -> [CreateProcess]
-buildProcs BuildStage {buildEnable, overrideInputs} =
-  [Omnix.omnixCiProcess (overrideInputsToArgs overrideInputs) | buildEnable]
+buildProcs stage =
+  [Omnix.omnixCiProcess (overrideInputsToArgs stage.overrideInputs) | stage.enable]
   where
     -- Convert override inputs to command line arguments
     overrideInputsToArgs :: [(Text, Text)] -> [String]
@@ -76,8 +76,8 @@ buildProcs BuildStage {buildEnable, overrideInputs} =
       concatMap (\(key, value) -> ["--override-input", toString key, toString value])
 
 atticProcs :: ViraEnvironment -> AtticStage -> [CreateProcess]
-atticProcs env AtticStage {atticEnable} =
-  if atticEnable
+atticProcs env stage =
+  if stage.enable
     then flip concatMap env.atticSettings $ \attic ->
       [ atticLoginProcess attic.atticServer attic.atticToken
       , atticPushProcess attic.atticServer attic.atticCacheName "result"
@@ -85,8 +85,8 @@ atticProcs env AtticStage {atticEnable} =
     else []
 
 cachixProcs :: ViraEnvironment -> CachixStage -> [CreateProcess]
-cachixProcs env CachixStage {cachixEnable} =
-  if cachixEnable
+cachixProcs env stage =
+  if stage.enable
     then flip concatMap env.cachixSettings $ \cachix ->
       [ cachixPushProcess cachix.cachixName "result" & \p ->
           p {env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]}
@@ -94,8 +94,8 @@ cachixProcs env CachixStage {cachixEnable} =
     else []
 
 signoffProcs :: SignoffStage -> [CreateProcess]
-signoffProcs SignoffStage {signoffEnable} =
-  [ghSignoffProcess "vira" "ci" | signoffEnable]
+signoffProcs stage =
+  [ghSignoffProcess "vira" "ci" | stage.enable]
 
 -- HACK: Hardcoding until we have per-repo configuration
 -- Until we have https://github.com/juspay/vira/issues/59
@@ -149,8 +149,8 @@ pipelineForProject env logger = do
 defaultPipeline :: ViraEnvironment -> ViraPipeline
 defaultPipeline env =
   ViraPipeline
-    { build = BuildStage {buildEnable = True, overrideInputs = mempty}
-    , attic = AtticStage {atticEnable = isJust env.atticSettings}
-    , cachix = CachixStage {cachixEnable = isJust env.cachixSettings}
-    , signoff = SignoffStage {signoffEnable = False}
+    { build = BuildStage True mempty
+    , attic = AtticStage (isJust env.atticSettings)
+    , cachix = CachixStage (isJust env.cachixSettings)
+    , signoff = SignoffStage False
     }

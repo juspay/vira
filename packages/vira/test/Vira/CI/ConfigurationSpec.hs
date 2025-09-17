@@ -48,7 +48,7 @@ spec = describe "Vira.CI.Configuration" $ do
       result <- applyConfig configCode (viraContext testEnvStaging) (defaultPipeline testEnvStaging)
       case result of
         Right pipeline -> do
-          pipeline.attic.atticEnable `shouldBe` False
-          pipeline.signoff.signoffEnable `shouldBe` True
+          pipeline.attic.enable `shouldBe` False
+          pipeline.signoff.enable `shouldBe` True
           pipeline.build.overrideInputs `shouldBe` [("local", "github:boolean-option/false")]
         Left err -> expectationFailure $ "Config application failed: " <> show err

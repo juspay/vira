@@ -4,6 +4,6 @@
       isRelease = ctx.branch == "release"
       cabalLocal = [("local", "github:boolean-option/false") | isStaging || isRelease]
   in pipeline
-     & #signoff % #signoffEnable .~ not isMain
+     & #signoff % #enable .~ not isMain
      & #build % #overrideInputs .~ cabalLocal
-     & #attic % #atticEnable .~ (isMain || isRelease)
+     & #attic % #enable .~ (isMain || isRelease)
