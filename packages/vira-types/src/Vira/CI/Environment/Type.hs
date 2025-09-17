@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
-module Vira.CI.Environment.Type where
+module Vira.CI.Environment.Type (
+  ViraEnvironment (..),
+  projectDir,
+) where
 
 import System.FilePath ((</>))
 import Vira.State.Type (AtticSettings, Branch, CachixSettings, Repo)

@@ -14,6 +14,7 @@ import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.GHSignoff
 import Vira.CI.Configuration qualified as Configuration
+import Vira.CI.Context (viraContext)
 import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.CI.Environment.Type (projectDir)
 import Vira.CI.Pipeline.Type
@@ -134,7 +135,7 @@ pipelineForProject env logger = do
     then do
       logger "Found vira.hs configuration file, applying customizations..."
       content <- liftIO $ readFileBS viraConfigPath
-      liftIO (Configuration.applyConfig (decodeUtf8 content) env pipeline) >>= \case
+      liftIO (Configuration.applyConfig (decodeUtf8 content) (viraContext env) pipeline) >>= \case
         Left err -> do
           logger $ "Failed to parse vira.hs: " <> show err
           pure $ Left err

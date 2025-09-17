@@ -18,6 +18,7 @@ build-type:     Simple
 
 library
   exposed-modules:
+      Vira.CI.Context
       Vira.CI.Environment.Type
       Vira.CI.Pipeline.Type
       Vira.State.Type

@@ -7,6 +7,7 @@ import Effectful.Git (BranchName (..), CommitID (..))
 import Paths_vira (getDataFileName)
 import Test.Hspec
 import Vira.CI.Configuration
+import Vira.CI.Context (viraContext)
 import Vira.CI.Environment.Type (ViraEnvironment (..))
 import Vira.CI.Pipeline.Type (AtticStage (..), BuildStage (..), SignoffStage (..), ViraPipeline (..), defaultPipeline)
 import Vira.State.Type (Branch (..), CachixSettings (..), Repo (..), RepoName (..))
@@ -43,7 +44,7 @@ spec = describe "Vira.CI.Configuration" $ do
     it "applies valid config correctly" $ do
       configPath <- getDataFileName "test/sample-configs/simple-example.hs"
       configCode <- decodeUtf8 <$> readFileBS configPath
-      result <- applyConfig configCode testEnvStaging (defaultPipeline testEnvStaging)
+      result <- applyConfig configCode (viraContext testEnvStaging) (defaultPipeline testEnvStaging)
       case result of
         Right pipeline -> do
           pipeline.attic.atticEnable `shouldBe` False
