@@ -11,7 +11,7 @@ Create a `vira.hs` file in your repository root:
 
 ```haskell
 -- vira.hs
-\env pipeline ->
+\ctx pipeline ->
   pipeline
     & #signoff % #signoffEnable .~ True
     & #build % #overrideInputs .~ [("nixpkgs", "github:nixos/nixpkgs/nixos-unstable")]
@@ -24,7 +24,7 @@ The configuration uses optics operators (`&`, `%`, `.~`) for modifying the pipel
 
 The configuration function receives two parameters:
 
-- `env` - The Vira environment containing repository and branch information
+- `ctx` - The Vira context containing repository and branch information
 - `pipeline` - The default pipeline configuration to customize
 
 ### Available Pipeline Stages
@@ -59,9 +59,9 @@ pipeline & #signoff % #signoffEnable .~ True
 You can customize the pipeline based on branch or repository information:
 
 ```haskell
-\env pipeline ->
-  let isMainBranch = env.branch.branchName == "main"
-      isReleaseBranch = "release-" `isPrefixOf` toString env.branch.branchName
+\ctx pipeline ->
+  let isMainBranch = ctx.branch == "main"
+      isReleaseBranch = "release-" `isPrefixOf` ctx.branch
   in pipeline
     & #signoff % #signoffEnable .~ not isMainBranch
     & #attic % #atticEnable .~ (isMainBranch || isReleaseBranch)
