@@ -4,10 +4,10 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 
-name:           vira-types
+name:           vira-ci-types
 version:        0.1.0.0
-synopsis:       Vira shared types
-description:    Core types and data structures for vira
+synopsis:       Vira CI-specific types
+description:    CI-specific types and data structures for vira, separated for use in hint configuration
 category:       Web
 homepage:       https://github.com/juspay/vira
 author:         Sridhar Ratnakumar
@@ -21,9 +21,9 @@ library
       Vira.CI.Context
       Vira.CI.Pipeline.Type
   other-modules:
-      Paths_vira_types
+      Paths_vira_ci_types
   autogen-modules:
-      Paths_vira_types
+      Paths_vira_ci_types
   hs-source-dirs:
       src
   default-extensions:

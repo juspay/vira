@@ -1,6 +1,6 @@
 packages:
   packages/vira
-  packages/vira-types
+  packages/vira-ci-types
   packages/hint-nix
   packages/attic-hs
   packages/tail

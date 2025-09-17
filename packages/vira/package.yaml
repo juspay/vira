@@ -86,7 +86,7 @@ dependencies:
   - tail
   - text
   - time
-  - vira-types
+  - vira-ci-types
   - hint-nix
   - wai
   - wai-extra

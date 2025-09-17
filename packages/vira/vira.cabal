@@ -170,7 +170,7 @@ library
     , tail
     , text
     , time
-    , vira-types
+    , vira-ci-types
     , wai
     , wai-extra
     , wai-middleware-static
@@ -281,7 +281,7 @@ executable vira
     , text
     , time
     , vira
-    , vira-types
+    , vira-ci-types
     , wai
     , wai-extra
     , wai-middleware-static
@@ -393,7 +393,7 @@ executable vira-tests
     , text
     , time
     , vira
-    , vira-types
+    , vira-ci-types
     , wai
     , wai-extra
     , wai-middleware-static

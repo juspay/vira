@@ -8,7 +8,7 @@
   perSystem = { self', lib, config, pkgs, ... }: {
     # Configure hint-nix with packages that vira needs
     hint-nix.packages = ps: with ps; [
-      vira-types
+      vira-ci-types
       attic-hs
       git-effectful
     ];
@@ -46,7 +46,7 @@
             config.settings.warp-tls-simple
             config.settings.gh-signoff
             config.settings.attic-hs
-            config.settings.vira-types
+            config.settings.vira-ci-types
             config.settings.hint-nix
           ];
           generateOptparseApplicativeCompletions = [ "vira" ];
@@ -86,12 +86,6 @@
           extraBuildDepends = [
             pkgs.attic-client # For attic
           ];
-        };
-        vira-types = {
-          # Core types package - no special build dependencies needed
-        };
-        hint-nix = {
-          # Core hint+nix integration package - no special build dependencies needed
         };
         safe-coloured-text-layout = {
           check = false;
