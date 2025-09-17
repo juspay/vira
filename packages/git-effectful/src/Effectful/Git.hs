@@ -95,7 +95,7 @@ remoteBranches url = do
     -- Clone all remote branches, but with minimal depth for efficiency
     -- Clone the repository temporarily to get detailed branch information using for-each-ref
     -- TODO: In future, we want an unified 'workspace' management, where we clone git repo once and re-use that.
-    let cloneCmd = clone url
+    let cloneCmd = cloneForMetadata url
     Log.logMsg $ Msg {msgSeverity = Info, msgText = "Running git clone: " <> show (cmdspec cloneCmd), msgStack = callStack}
     _ <- liftIO $ readCreateProcess cloneCmd {cwd = Just tempDir} ""
     Log.logMsg $ Msg {msgSeverity = Info, msgText = "Cloned repository successfully", msgStack = callStack}
@@ -151,12 +151,13 @@ remoteBranches url = do
       return (branchName, commit)
 
 -- | Return the `CreateProcess` to clone a repo with all remote branches
-clone :: Text -> CreateProcess
-clone url =
+cloneForMetadata :: Text -> CreateProcess
+cloneForMetadata url =
   proc
     git
     [ "clone"
     , "-v"
+    , "--filter=blob:none" -- We don't need file contents
     , "--depth"
     , "1"
     , "--no-single-branch"
