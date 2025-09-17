@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Vira.CI.RepoConfig (
+module Vira.CI.Configuration (
   applyConfig,
 ) where
 
+import Language.Haskell.Hint.Nix
 import Language.Haskell.Interpreter (InterpreterError)
 import Language.Haskell.Interpreter qualified as Hint
 import Vira.CI.Environment.Type (ViraEnvironment)
-import Vira.CI.Nix
 import Vira.CI.Pipeline.Type (ViraPipeline)
 
 -- | Apply a Haskell configuration file to modify a pipeline

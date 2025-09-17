@@ -23,6 +23,7 @@ data-files:
   - vira-logo.svg
   - vira-logo-apple.svg
   - vira-logo-penguin.svg
+  - test/sample-configs/simple-example.hs
 
 ghc-options:
   - -fplugin=Effectful.Plugin
@@ -86,7 +87,7 @@ dependencies:
   - text
   - time
   - vira-types
-  - vira-repo-config
+  - hint-nix
   - wai
   - wai-extra
   - wai-middleware-static

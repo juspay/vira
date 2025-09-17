@@ -15,7 +15,7 @@
     in
     {
       # Default shell.
-      devShells.vira-repo-config = pkgs.mkShell {
+      devShells.hint-nix = pkgs.mkShell {
         name = "vira-hint";
         shellHook = ''
           ${pkgs.lib.concatMapStringsSep "\n  " (attrs: "export ${attrs}=\"${hintAttrs.${attrs}}\"") (pkgs.lib.attrNames hintAttrs)}
@@ -25,7 +25,7 @@
 
       haskellProjects.default = {
         settings = {
-          vira-repo-config = {
+          hint-nix = {
             drvAttrs = hintAttrs;
           };
         };

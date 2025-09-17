@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Convenience for hint+Nix. See https://github.com/srid/hint-demo
-module Vira.CI.Nix where
+module Language.Haskell.Hint.Nix where
 
 import IncludeEnv.TH
 import Language.Haskell.Interpreter

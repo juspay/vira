@@ -1,14 +1,14 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Vira.CI.RepoConfigSpec (spec) where
+module Vira.CI.ConfigurationSpec (spec) where
 
 import Effectful.Git (BranchName (..), CommitID (..))
-import Paths_vira_repo_config (getDataFileName)
+import Paths_vira (getDataFileName)
 import Test.Hspec
+import Vira.CI.Configuration
 import Vira.CI.Environment.Type (ViraEnvironment (..))
 import Vira.CI.Pipeline.Type (AtticStage (..), BuildStage (..), SignoffStage (..), ViraPipeline (..), defaultPipeline)
-import Vira.CI.RepoConfig
 import Vira.State.Type (Branch (..), CachixSettings (..), Repo (..), RepoName (..))
 
 -- Test data
@@ -38,7 +38,7 @@ testEnvStaging =
     }
 
 spec :: Spec
-spec = describe "Vira.CI.RepoConfig" $ do
+spec = describe "Vira.CI.Configuration" $ do
   describe "applyConfig" $ do
     it "applies valid config correctly" $ do
       configPath <- getDataFileName "test/sample-configs/simple-example.hs"

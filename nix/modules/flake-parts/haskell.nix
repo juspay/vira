@@ -2,6 +2,7 @@
 {
   imports = [
     inputs.haskell-flake.flakeModule
+    ../../../packages/hint-nix/flake-module.nix
   ];
   debug = true;
   perSystem = { self', lib, config, pkgs, ... }: {
@@ -40,7 +41,7 @@
             config.settings.gh-signoff
             config.settings.attic-hs
             config.settings.vira-types
-            config.settings.vira-repo-config
+            config.settings.hint-nix
           ];
           generateOptparseApplicativeCompletions = [ "vira" ];
           stan = true;
@@ -49,6 +50,9 @@
             pkgs.cachix # For cachix
             self'.packages.omnix # For omnix/om
           ];
+          # Fix panic on macOS: `Relocation target for PAGE21 out of range.`
+          sharedLibraries = true;
+          sharedExecutables = true;
           custom = drv: drv.overrideAttrs (oldAttrs: {
             postUnpack = (oldAttrs.postUnpack or "") + ''
               ln -s ${self'.packages.jsAssets}/js $sourceRoot/static/js
@@ -83,10 +87,8 @@
         vira-types = {
           # Core types package - no special build dependencies needed
         };
-        vira-repo-config = {
-          # To workaround GHC panic: `Relocation target for PAGE21 out of range.`
-          sharedLibraries = true;
-          sharedExecutables = true;
+        hint-nix = {
+          # Core hint+nix integration package - no special build dependencies needed
         };
         safe-coloured-text-layout = {
           check = false;
