@@ -6,6 +6,12 @@
   ];
   debug = true;
   perSystem = { self', lib, config, pkgs, ... }: {
+    # Configure hint-nix with packages that vira needs
+    hint-nix.packages = ps: with ps; [
+      vira-types
+      attic-hs
+      git-effectful
+    ];
     haskellProjects.default = { config, ... }: {
       # To avoid unnecessary rebuilds, we filter projectRoot:
       # https://community.flake.parts/haskell-flake/local#rebuild
