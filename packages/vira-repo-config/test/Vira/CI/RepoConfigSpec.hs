@@ -9,7 +9,7 @@ import Test.Hspec
 import Vira.CI.Environment.Type (ViraEnvironment (..))
 import Vira.CI.Pipeline.Type (AtticStage (..), BuildStage (..), SignoffStage (..), ViraPipeline (..), defaultPipeline)
 import Vira.CI.RepoConfig
-import Vira.State.Type (Branch (..), CachixSettings (..), Repo (..), RepoName (..), RepoSettings (..))
+import Vira.State.Type (Branch (..), CachixSettings (..), Repo (..), RepoName (..))
 
 -- Test data
 testRepo :: Repo
@@ -17,7 +17,6 @@ testRepo =
   Repo
     { name = RepoName "test-repo"
     , cloneUrl = "https://github.com/test/repo.git"
-    , settings = RepoSettings {dummy = Nothing}
     }
 
 testBranchStaging :: Branch
