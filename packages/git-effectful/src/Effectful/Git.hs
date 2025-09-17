@@ -157,7 +157,9 @@ cloneForMetadata url =
     git
     [ "clone"
     , "-v"
-    , "--filter=blob:none" -- We don't need file contents
+    , -- Download all reachable commits and trees while fetching blobs on-demand
+      -- https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
+      "--filter=blob:none"
     , "--depth"
     , "1"
     , "--no-single-branch"
