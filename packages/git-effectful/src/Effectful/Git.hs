@@ -91,28 +91,29 @@ Filters out the bare "origin" entry and strips "origin/" prefixes.
 -}
 remoteBranches :: (Log Message :> es, IOE :> es) => Text -> Eff es (Map BranchName Commit)
 remoteBranches url = do
-  -- Clone the repository temporarily to get detailed branch information using for-each-ref
-  -- TODO: In future, we want an unified 'workspace' management, where we clone git repo once and re-use that.
-  let cloneCmd = clone url
-  Log.logMsg $ Msg {msgSeverity = Info, msgText = "Running git clone: " <> show (cmdspec cloneCmd), msgStack = callStack}
-  let forEachRefCmd =
-        proc
-          git
-          [ "for-each-ref"
-          , "--format=%(refname:short)%09%(objectname)%09%(committerdate:unix)%09%(authorname)%09%(authoremail)%09%(subject)"
-          , "refs/remotes"
-          ]
-  Log.logMsg $ Msg {msgSeverity = Info, msgText = "Running git for-each-ref: " <> show (cmdspec forEachRefCmd), msgStack = callStack}
-
-  output <- liftIO $ withSystemTempDirectory "vira-git-clone" $ \tempDir -> do
+  output <- withSystemTempDirectory "vira-git-clone" $ \tempDir -> do
     -- Clone all remote branches, but with minimal depth for efficiency
-    _ <- readCreateProcess cloneCmd {cwd = Just tempDir} ""
+    -- Clone the repository temporarily to get detailed branch information using for-each-ref
+    -- TODO: In future, we want an unified 'workspace' management, where we clone git repo once and re-use that.
+    let cloneCmd = clone url
+    Log.logMsg $ Msg {msgSeverity = Info, msgText = "Running git clone: " <> show (cmdspec cloneCmd), msgStack = callStack}
+    _ <- liftIO $ readCreateProcess cloneCmd {cwd = Just tempDir} ""
+    Log.logMsg $ Msg {msgSeverity = Info, msgText = "Cloned repository successfully", msgStack = callStack}
     -- Use git for-each-ref to get detailed branch information for remote branches only
-    readCreateProcess
-      forEachRefCmd
-        { cwd = Just tempDir
-        }
-      ""
+    let forEachRefCmd =
+          proc
+            git
+            [ "for-each-ref"
+            , "--format=%(refname:short)%09%(objectname)%09%(committerdate:unix)%09%(authorname)%09%(authoremail)%09%(subject)"
+            , "refs/remotes"
+            ]
+    Log.logMsg $ Msg {msgSeverity = Info, msgText = "Running git for-each-ref: " <> show (cmdspec forEachRefCmd), msgStack = callStack}
+    liftIO $
+      readCreateProcess
+        forEachRefCmd
+          { cwd = Just tempDir
+          }
+        ""
 
   -- Drop the first line, which is 'origin' (not a branch)
   let gitRefLines = drop 1 $ lines $ T.strip (toText output)
@@ -155,6 +156,7 @@ clone url =
   proc
     git
     [ "clone"
+    , "-v"
     , "--depth"
     , "1"
     , "--no-single-branch"
