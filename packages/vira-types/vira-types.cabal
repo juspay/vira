@@ -19,9 +19,7 @@ build-type:     Simple
 library
   exposed-modules:
       Vira.CI.Context
-      Vira.CI.Environment.Type
       Vira.CI.Pipeline.Type
-      Vira.State.Type
   other-modules:
       Paths_vira_types
   autogen-modules:

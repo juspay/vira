@@ -30,7 +30,6 @@ applyConfig configContent ctx pipeline = do
       , "Data.Text"
       , "Vira.CI.Context"
       , "Vira.CI.Pipeline.Type"
-      , "Vira.State.Type"
       , "Effectful.Git"
       , "Optics.Core"
       ]

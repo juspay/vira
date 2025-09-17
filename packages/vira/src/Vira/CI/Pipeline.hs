@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-module Vira.CI.Pipeline (runPipeline) where
+module Vira.CI.Pipeline (runPipeline, defaultPipeline) where
 
 import Attic
 import Effectful (Eff, IOE, (:>))
@@ -14,8 +14,7 @@ import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.GHSignoff
 import Vira.CI.Configuration qualified as Configuration
-import Vira.CI.Context (viraContext)
-import Vira.CI.Environment (ViraEnvironment (..))
+import Vira.CI.Environment (ViraEnvironment (..), viraContext)
 import Vira.CI.Environment.Type (projectDir)
 import Vira.CI.Pipeline.Type
 import Vira.Lib.Cachix
@@ -145,3 +144,13 @@ pipelineForProject env logger = do
     else do
       logger "No vira.hs found - using default pipeline"
       pure $ Right pipeline
+
+-- | Create a default pipeline configuration
+defaultPipeline :: ViraEnvironment -> ViraPipeline
+defaultPipeline env =
+  ViraPipeline
+    { build = BuildStage {buildEnable = True, overrideInputs = mempty}
+    , attic = AtticStage {atticEnable = isJust env.atticSettings}
+    , cachix = CachixStage {cachixEnable = isJust env.cachixSettings}
+    , signoff = SignoffStage {signoffEnable = False}
+    }
