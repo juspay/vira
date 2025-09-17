@@ -9,7 +9,6 @@
     # Configure hint-nix with packages that vira needs
     hint-nix.packages = ps: with ps; [
       vira-ci-types
-      attic-hs
       git-effectful
     ];
     haskellProjects.default = { config, ... }: {
