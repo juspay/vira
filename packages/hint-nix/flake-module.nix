@@ -27,6 +27,11 @@
         settings = {
           hint-nix = {
             drvAttrs = hintAttrs;
+
+            # Fix GHC panic on macOS: `Relocation target for PAGE21 out of range.`
+            # This happens on some, if not all, uses of `hint`.
+            sharedLibraries = true;
+            sharedExecutables = true;
           };
         };
       };

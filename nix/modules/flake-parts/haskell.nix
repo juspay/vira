@@ -50,9 +50,6 @@
             pkgs.cachix # For cachix
             self'.packages.omnix # For omnix/om
           ];
-          # Fix panic on macOS: `Relocation target for PAGE21 out of range.`
-          sharedLibraries = true;
-          sharedExecutables = true;
           custom = drv: drv.overrideAttrs (oldAttrs: {
             postUnpack = (oldAttrs.postUnpack or "") + ''
               ln -s ${self'.packages.jsAssets}/js $sourceRoot/static/js
