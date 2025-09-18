@@ -10,6 +10,7 @@
         config.pre-commit.devShell # See ./nix/modules/formatter.nix
         config.devShells.jsAssets # See ./nix/modules/flake-parts/assets.nix
         config.devShells.hint-nix # See ./packages/hint-nix/flake-module.nix
+        config.devShells.warp-tls-simple # See ./packages/warp-tls-simple/flake-module.nix
       ];
       packages = with pkgs; [
         just

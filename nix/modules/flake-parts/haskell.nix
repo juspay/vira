@@ -3,6 +3,7 @@
   imports = [
     inputs.haskell-flake.flakeModule
     ../../../packages/hint-nix/flake-module.nix
+    ../../../packages/warp-tls-simple/flake-module.nix
   ];
   debug = true;
   perSystem = { self', lib, config, pkgs, ... }: {
@@ -69,11 +70,6 @@
         tail = {
           extraBuildDepends = [
             pkgs.coreutils # For `tail`
-          ];
-        };
-        warp-tls-simple = {
-          extraBuildDepends = [
-            pkgs.openssl # For openssl
           ];
         };
         gh-signoff = {
