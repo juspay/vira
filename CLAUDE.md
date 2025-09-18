@@ -13,7 +13,7 @@ See README.md for general project information.
 ### Build instructions
 
 - **Before building**, run: `just hpack pc` and fix hlint warnings
-- **For building**: Prefer `nix develop -c cabal build` over `nix build`, and fix _all_ GHC warnings.
+- **For building**: Prefer `nix develop -c cabal build vira` over `nix build`, and fix _all_ GHC warnings and hlint warnings. For full build, you can do `just ci` in devShell.
 
 ## Git
 

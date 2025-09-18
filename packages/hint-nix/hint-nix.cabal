@@ -4,27 +4,25 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 
-name:           vira-types
+name:           hint-nix
 version:        0.1.0.0
-synopsis:       Vira shared types
-description:    Core types and data structures for vira
-category:       Web
+synopsis:       Helper for using hint with Nix package databases
+description:    Provides convenience functions for running Haskell interpreter with proper Nix package database configuration
+category:       Development
 homepage:       https://github.com/juspay/vira
 author:         Sridhar Ratnakumar
 maintainer:     srid@srid.ca
-copyright:      2024 Juspay
+copyright:      2025 Juspay
 license:        AGPL-3.0-or-later
 build-type:     Simple
 
 library
   exposed-modules:
-      Vira.CI.Environment.Type
-      Vira.CI.Pipeline.Type
-      Vira.State.Type
+      Language.Haskell.Hint.Nix
   other-modules:
-      Paths_vira_types
+      Paths_hint_nix
   autogen-modules:
-      Paths_vira_types
+      Paths_hint_nix
   hs-source-dirs:
       src
   default-extensions:
@@ -53,28 +51,13 @@ library
       TypeOperators
       TypeSynonymInstances
       ViewPatterns
+      TemplateHaskell
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
-      aeson
-    , attic-hs
-    , base ==4.*
-    , base16-bytestring
-    , bytestring
-    , containers
-    , data-default
-    , deriving-aeson
-    , effectful
-    , effectful-core
-    , git-effectful
-    , http-api-data
-    , ixset-typed
-    , optics-core
-    , optics-th
+      base ==4.*
+    , hint
+    , include-env
     , relude >=1.0
-    , safecopy
-    , servant
-    , text
-    , time
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)

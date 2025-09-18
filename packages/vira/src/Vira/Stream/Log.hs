@@ -34,7 +34,7 @@ import Vira.App.Stack (AppStack)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
-import Vira.Supervisor.Type (Task (..), TaskSupervisor (..))
+import Vira.Supervisor.Type (Task (..), TaskInfo (tailHandle), TaskSupervisor (..))
 import Vira.Widgets.Status qualified as Status
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO LogChunk))
@@ -96,7 +96,7 @@ streamRouteHandler jobId = S.fromStepT $ step 0 Init
               pure $ S.Error "Task not found in supervisor"
             Just task -> do
               -- Subscribe to the existing Tail handle
-              queue <- liftIO $ Tail.tailSubscribe task.tailHandle
+              queue <- liftIO $ Tail.tailSubscribe task.info.tailHandle
               streamLog n job queue
         Streaming queue -> do
           streamLog n job queue

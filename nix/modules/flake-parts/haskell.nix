@@ -2,9 +2,15 @@
 {
   imports = [
     inputs.haskell-flake.flakeModule
+    ../../../packages/hint-nix/flake-module.nix
   ];
   debug = true;
   perSystem = { self', lib, config, pkgs, ... }: {
+    # Configure hint-nix with packages that vira needs
+    hint-nix.packages = ps: with ps; [
+      vira-ci-types
+      git-effectful
+    ];
     haskellProjects.default = { config, ... }: {
       # To avoid unnecessary rebuilds, we filter projectRoot:
       # https://community.flake.parts/haskell-flake/local#rebuild
@@ -39,8 +45,8 @@
             config.settings.warp-tls-simple
             config.settings.gh-signoff
             config.settings.attic-hs
-            config.settings.vira-types
-            config.settings.vira-repo-config
+            config.settings.vira-ci-types
+            config.settings.hint-nix
           ];
           generateOptparseApplicativeCompletions = [ "vira" ];
           stan = true;
@@ -48,7 +54,6 @@
             pkgs.attic-client # For attic
             pkgs.cachix # For cachix
             self'.packages.omnix # For omnix/om
-            pkgs.coreutils # For mkdir
           ];
           custom = drv: drv.overrideAttrs (oldAttrs: {
             postUnpack = (oldAttrs.postUnpack or "") + ''
@@ -80,14 +85,6 @@
           extraBuildDepends = [
             pkgs.attic-client # For attic
           ];
-        };
-        vira-types = {
-          # Core types package - no special build dependencies needed
-        };
-        vira-repo-config = {
-          # To workaround GHC panic: `Relocation target for PAGE21 out of range.`
-          sharedLibraries = true;
-          sharedExecutables = true;
         };
         safe-coloured-text-layout = {
           check = false;

@@ -21,7 +21,8 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.CI.Environment (environmentFor)
+import Vira.CI.Environment (environmentFor, workspacePath)
+import Vira.CI.Pipeline qualified as Pipeline
 import Vira.Lib.Logging
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Page.JobLog qualified as JobLog
@@ -29,7 +30,7 @@ import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (JobId, RepoName, jobWorkingDir)
 import Vira.Supervisor.Task qualified as Supervisor
-import Vira.Supervisor.Type (TaskException (KilledByUser), TaskSupervisor (baseWorkDir))
+import Vira.Supervisor.Type (TaskException (ConfigurationError, KilledByUser), TaskSupervisor (baseWorkDir))
 import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Code qualified as W
@@ -163,17 +164,18 @@ triggerNewBuild repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
-  viraEnv <- environmentFor repo branch
   asks App.supervisor >>= \supervisor -> do
     creationTime <- liftIO getCurrentTime
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir creationTime
     log Info $ "Added job " <> show job
-    Supervisor.startTaskWithClone supervisor job.jobId job.jobWorkingDir repo branch viraEnv $ \result -> do
+    viraEnv <- environmentFor repo branch job.jobWorkingDir
+    Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (Pipeline.runPipeline viraEnv) $ \result -> do
       endTime <- liftIO getCurrentTime
       let status = case result of
             Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
             Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
             Left KilledByUser -> St.JobFinished St.JobKilled endTime
+            Left (ConfigurationError _) -> St.JobFinished St.JobFailure endTime
       App.update $ St.JobUpdateStatusA job.jobId status
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId

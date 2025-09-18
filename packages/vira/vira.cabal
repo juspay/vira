@@ -25,6 +25,7 @@ data-files:
     vira-logo.svg
     vira-logo-apple.svg
     vira-logo-penguin.svg
+    test/sample-configs/simple-example.hs
 data-dir:       static
 
 library
@@ -40,7 +41,9 @@ library
       Vira.App.Servant
       Vira.App.Server
       Vira.App.Stack
+      Vira.CI.Configuration
       Vira.CI.Environment
+      Vira.CI.Environment.Type
       Vira.CI.Pipeline
       Vira.Lib.Cachix
       Vira.Lib.Logging
@@ -59,6 +62,7 @@ library
       Vira.State.Acid
       Vira.State.Core
       Vira.State.JSON
+      Vira.State.Type
       Vira.Stream.Log
       Vira.Stream.Refresh
       Vira.Supervisor.Core
@@ -133,6 +137,8 @@ library
     , gh-signoff
     , git-effectful
     , gitlib
+    , hint
+    , hint-nix
     , hostname
     , hspec
     , hspec-discover
@@ -164,8 +170,7 @@ library
     , tail
     , text
     , time
-    , vira-repo-config
-    , vira-types
+    , vira-ci-types
     , wai
     , wai-extra
     , wai-middleware-static
@@ -242,6 +247,8 @@ executable vira
     , gh-signoff
     , git-effectful
     , gitlib
+    , hint
+    , hint-nix
     , hostname
     , hspec
     , hspec-discover
@@ -274,8 +281,7 @@ executable vira
     , text
     , time
     , vira
-    , vira-repo-config
-    , vira-types
+    , vira-ci-types
     , wai
     , wai-extra
     , wai-middleware-static
@@ -292,6 +298,7 @@ executable vira
 executable vira-tests
   main-is: Spec.hs
   other-modules:
+      Vira.CI.ConfigurationSpec
       Paths_vira
   autogen-modules:
       Paths_vira
@@ -352,6 +359,8 @@ executable vira-tests
     , gh-signoff
     , git-effectful
     , gitlib
+    , hint
+    , hint-nix
     , hostname
     , hspec
     , hspec-discover
@@ -384,8 +393,7 @@ executable vira-tests
     , text
     , time
     , vira
-    , vira-repo-config
-    , vira-types
+    , vira-ci-types
     , wai
     , wai-extra
     , wai-middleware-static

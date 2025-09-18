@@ -29,4 +29,6 @@ For tech stack details, see [[tech]].
 
 For HTTPS and HTTP/2 configuration details, see [[https]].
 
+For repository configuration using `vira.hs`, see [[configuration]].
+
 For NixOS and Home Manager module usage, see [[modules]].

@@ -2,7 +2,7 @@ defaults:
   - local: ../../hpack-common.yaml
   - local: ../../hpack-relude.yaml
 
-name: vira-types
+name: vira-ci-types
 version: 0.1.0.0
 license: AGPL-3.0-or-later
 copyright: 2024 Juspay
@@ -10,8 +10,8 @@ maintainer: srid@srid.ca
 author: Sridhar Ratnakumar
 category: Web
 homepage: https://github.com/juspay/vira
-synopsis: Vira shared types
-description: Core types and data structures for vira
+synopsis: Vira CI-specific types
+description: CI-specific types and data structures for vira, separated for use in hint configuration
 
 dependencies:
   - aeson
@@ -23,6 +23,7 @@ dependencies:
   - deriving-aeson
   - effectful
   - effectful-core
+  - filepath
   - git-effectful
   - http-api-data
   - ixset-typed
