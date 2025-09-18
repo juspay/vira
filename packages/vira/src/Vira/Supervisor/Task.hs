@@ -68,8 +68,7 @@ startTask ::
   TaskId ->
   FilePath ->
   ( forall es1.
-    ( AppTaskStack es1
-    ) =>
+    (AppTaskStack es1) =>
     Eff es1 (Either TaskException ExitCode)
   ) ->
   -- Handler to call after the task finishes
@@ -105,8 +104,7 @@ startTask supervisor taskId workDir orchestrator onFinish = do
 -- | Run a sequence of processes, stopping on first failure
 runProcesses ::
   forall es.
-  ( AppTaskStack es
-  ) =>
+  (AppTaskStack es) =>
   -- List of processes to run in sequence
   NonEmpty CreateProcess ->
   Eff es (Either TaskException ExitCode)
