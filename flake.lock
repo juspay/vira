@@ -82,6 +82,22 @@
         "type": "github"
       }
     },
+    "hint-nix": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1758223038,
+        "narHash": "sha256-fgInEtoeYPQVM8kuGUdJSSl2n4j+jzFuc17i9Izy8KM=",
+        "owner": "srid",
+        "repo": "hint-nix",
+        "rev": "3afe9336c5d85edd16c40f0f47b0b90299eefe7a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "srid",
+        "repo": "hint-nix",
+        "type": "github"
+      }
+    },
     "htmx": {
       "flake": false,
       "locked": {
@@ -168,6 +184,7 @@
         "fourmolu-nix": "fourmolu-nix",
         "git-hooks": "git-hooks",
         "haskell-flake": "haskell-flake",
+        "hint-nix": "hint-nix",
         "htmx": "htmx",
         "htmx-extensions": "htmx-extensions",
         "nixos-unified": "nixos-unified",

@@ -1,7 +1,6 @@
 packages:
   packages/vira
   packages/vira-ci-types
-  packages/hint-nix
   packages/attic-hs
   packages/tail
   packages/warp-tls-simple

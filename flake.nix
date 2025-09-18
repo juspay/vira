@@ -24,6 +24,8 @@
     # https://github.com/bflyblue/servant-event-stream/pull/13
     servant-event-stream.url = "github:bflyblue/servant-event-stream";
     servant-event-stream.flake = false;
+    hint-nix.url = "github:srid/hint-nix";
+    hint-nix.flake = false;
 
     # Runtime dependencies
     htmx-extensions.url = "github:juspay/htmx-extensions/sse-unload"; # https://github.com/bigskysoftware/htmx-extensions/pull/147
