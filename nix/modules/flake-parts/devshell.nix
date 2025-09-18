@@ -23,7 +23,6 @@
         cachix
         attic-client
         coreutils
-        openssl
         gh-signoff
         self'.packages.nix
         self'.packages.omnix
