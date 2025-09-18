@@ -230,16 +230,15 @@
     "warp-tls-simple": {
       "flake": false,
       "locked": {
-        "lastModified": 1758223977,
-        "narHash": "sha256-mHTglGA77EQTvqdBKnA1rxmWqlBHAvYdI+T/+oyv2/E=",
+        "lastModified": 1758224520,
+        "narHash": "sha256-vQiWGLso8SLMHCGbbtqsIcz2R1J0MI310MOG3vgzvjI=",
         "owner": "srid",
         "repo": "warp-tls-simple",
-        "rev": "b2bd61f14d30b3746e380582e10238a27a95d3f6",
+        "rev": "36444263ad922602739491e0ac1805068c6f9400",
         "type": "github"
       },
       "original": {
         "owner": "srid",
-        "ref": "init",
         "repo": "warp-tls-simple",
         "type": "github"
       }
