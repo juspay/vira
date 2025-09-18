@@ -3,7 +3,7 @@
   imports = [
     inputs.haskell-flake.flakeModule
     (inputs.hint-nix + /flake-module.nix)
-    ../../../packages/warp-tls-simple/flake-module.nix
+    (inputs.warp-tls-simple + /flake-module.nix)
   ];
   debug = true;
   perSystem = { self', lib, config, pkgs, ... }: {

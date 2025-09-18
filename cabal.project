@@ -3,7 +3,6 @@ packages:
   packages/vira-ci-types
   packages/attic-hs
   packages/tail
-  packages/warp-tls-simple
   packages/htmx-lucid-contrib
   packages/git-effectful
   packages/gh-signoff
