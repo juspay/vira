@@ -14,6 +14,7 @@ module Vira.State.Core (
   closeViraState,
 ) where
 
+import Control.Exception (ErrorCall (..), catch)
 import Data.Acid
 import Data.Typeable (typeOf)
 import System.FilePath ((</>))
@@ -21,15 +22,25 @@ import Vira.State.Acid
 import Vira.State.Type
 
 -- | Open vira database
-openViraState :: FilePath -> IO (AcidState ViraState)
+openViraState :: (HasCallStack) => FilePath -> IO (AcidState ViraState)
 openViraState stateDir = do
   let initialState = ViraState mempty mempty mempty mempty Nothing Nothing
   -- Manually construct the path that openLocalState would use: stateDir </> show (typeOf initialState)
   -- This is just for backwards compat.
   let acidStateDir = stateDir </> show (typeOf initialState)
-  st <- openLocalStateFrom acidStateDir initialState
+  st <- openLocalStateFrom acidStateDir initialState `catch` handleStateError acidStateDir
   update st MarkUnfinishedJobsAsStaleA
   pure st
+  where
+    handleStateError acidStateDir (ErrorCall msg) = do
+      putStrLn "ERROR: Failed to open acid-state database. This usually indicates incompatible state format."
+      putStrLn "Please remove the state directory and restart:"
+      putStrLn ("  rm -rf " <> acidStateDir)
+      putStrLn "Your data will be lost, but this is necessary to continue."
+      putStrLn ""
+      putStrLn "Original error:"
+      putStrLn msg
+      exitFailure
 
 {- | Close vira database
 
