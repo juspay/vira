@@ -16,6 +16,7 @@ import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import Data.Map qualified as Map
+import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
@@ -58,11 +59,15 @@ logChunkId = \case
 
 logChunkMsg :: LogChunk -> LByteString
 logChunkMsg = \case
-  Chunk _ logLines -> Lucid.renderBS $ toHtml $ unlines $ toList logLines
+  Chunk _ logLines -> Lucid.renderBS $ rawMultiLine (toList logLines)
   Stop _ -> Lucid.renderBS $
     div_ [class_ "flex items-center space-x-2 text-sm text-gray-600"] $ do
       Status.indicator False
       span_ [class_ "font-medium"] "Build completed"
+
+-- | Render multiline lines for placing under a <pre> such that newlines are preserved & rendered
+rawMultiLine :: [Text] -> Html ()
+rawMultiLine ls = toHtmlRaw $ T.replace "\n" "<br>" $ unlines ls
 
 instance ToServerEvent LogChunk where
   toServerEvent chunk =
