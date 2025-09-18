@@ -57,8 +57,7 @@ library
     , relude 
   default-language: GHC2024
 
-test-suite git-effectful-test
-  type: exitcode-stdio-1.0
+executable git-effectful-test
   main-is: Spec.hs
   other-modules:
       Effectful.GitSpec
@@ -73,7 +72,7 @@ test-suite git-effectful-test
       StrictData
       NumericUnderscores
       ViewPatterns
-  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , base ==4.*

@@ -9,6 +9,7 @@
         config.haskellProjects.default.outputs.devShell # See ./nix/modules/haskell.nix
         config.pre-commit.devShell # See ./nix/modules/formatter.nix
         config.devShells.jsAssets # See ./nix/modules/flake-parts/assets.nix
+        config.devShells.hint-nix # See ./packages/hint-nix/flake-module.nix
       ];
       packages = with pkgs; [
         just

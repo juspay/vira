@@ -1,0 +1,62 @@
+cabal-version: 2.2
+
+-- This file has been generated from package.yaml by hpack version 0.38.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           vira-ci-types
+version:        0.1.0.0
+synopsis:       Vira CI-specific types
+description:    CI-specific types and data structures for vira, separated for use in hint configuration
+category:       Web
+homepage:       https://github.com/juspay/vira
+author:         Sridhar Ratnakumar
+maintainer:     srid@srid.ca
+copyright:      2024 Juspay
+license:        AGPL-3.0-or-later
+build-type:     Simple
+
+library
+  exposed-modules:
+      Vira.CI.Context
+      Vira.CI.Pipeline.Type
+  other-modules:
+      Paths_vira_ci_types
+  autogen-modules:
+      Paths_vira_ci_types
+  hs-source-dirs:
+      src
+  default-extensions:
+      TypeFamilies
+      OverloadedStrings
+      StrictData
+      NumericUnderscores
+      ViewPatterns
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
+  build-depends:
+      aeson
+    , attic-hs
+    , base ==4.*
+    , base16-bytestring
+    , bytestring
+    , containers
+    , data-default
+    , deriving-aeson
+    , effectful
+    , effectful-core
+    , filepath
+    , git-effectful
+    , http-api-data
+    , ixset-typed
+    , optics-core
+    , optics-th
+    , relude >=1.0
+    , safecopy
+    , servant
+    , text
+    , time
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2024

@@ -4,6 +4,7 @@
 
 module Vira.State.Type where
 
+import Attic
 import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import Data.Data (Data)
 import Data.IxSet.Typed
@@ -11,15 +12,7 @@ import Data.SafeCopy
 import Data.Time (UTCTime)
 import Effectful.Git (BranchName, CommitID)
 import Servant.API (FromHttpApiData, ToHttpApiData)
-import Vira.Lib.Attic
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
-
-newtype RepoSettings = RepoSettings
-  { dummy :: Maybe Text
-  -- ^ Placeholder for future per-repo settings)
-  }
-  deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
-  deriving anyclass (FromForm)
 
 data AtticSettings = AtticSettings
   { atticServer :: AtticServer
@@ -71,8 +64,6 @@ data Repo = Repo
   -- ^ An unique name identifying this repository
   , cloneUrl :: Text
   -- ^ The git clone URL of the repository
-  , settings :: RepoSettings
-  -- ^ repo-specific settings
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
@@ -82,7 +73,6 @@ instance FromForm Repo where
     Repo
       <$> parseUnique "name" f
       <*> parseUnique "cloneUrl" f
-      <*> fromForm f
 
 type RepoIxs = '[RepoName]
 type IxRepo = IxSet RepoIxs Repo
@@ -181,7 +171,6 @@ $(deriveSafeCopy 0 'base ''RepoName)
 $(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
 $(deriveSafeCopy 0 'base ''Branch)
-$(deriveSafeCopy 0 'base ''RepoSettings)
 $(deriveSafeCopy 0 'base ''Repo)
 $(deriveSafeCopy 0 'base ''CachixSettings)
 $(deriveSafeCopy 0 'base ''AtticSettings)

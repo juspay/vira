@@ -1,0 +1,50 @@
+cabal-version: 2.2
+
+-- This file has been generated from package.yaml by hpack version 0.38.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           attic-hs
+version:        0.1.0.0
+synopsis:       Haskell bindings for attic cache
+description:    Haskell types and functions for working with attic cache servers
+category:       System
+homepage:       https://github.com/juspay/vira
+author:         Sridhar Ratnakumar
+maintainer:     srid@srid.ca
+copyright:      2024 Juspay
+license:        AGPL-3.0-or-later
+build-type:     Simple
+
+library
+  exposed-modules:
+      Attic
+  other-modules:
+      Paths_attic_hs
+  autogen-modules:
+      Paths_attic_hs
+  hs-source-dirs:
+      src
+  default-extensions:
+      TypeFamilies
+      OverloadedStrings
+      StrictData
+      NumericUnderscores
+      ViewPatterns
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
+  build-depends:
+      aeson
+    , base ==4.*
+    , http-api-data
+    , process
+    , relude >=1.0
+    , safecopy
+    , servant
+    , template-haskell
+    , text
+    , which
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2024

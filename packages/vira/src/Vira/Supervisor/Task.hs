@@ -1,11 +1,15 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Vira.Supervisor.Task (
+  -- * Main supervisor operations
   startTask,
-  startTaskWithClone,
   killTask,
+
+  -- * Utilities for individual task orchestrators
+  AppTaskStack,
+  runProcesses,
+  logToWorkspaceOutput,
 ) where
 
 import Colog (Message, Severity (..))
@@ -13,172 +17,137 @@ import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Concurrent.Async
-import Effectful.Concurrent.MVar (modifyMVar, modifyMVar_, readMVar)
+import Effectful.Concurrent.MVar (modifyMVar_, readMVar)
 import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.FileSystem.IO (hClose, openFile)
-import Effectful.Git qualified as Git
-import Effectful.Process (CreateProcess (cmdspec, create_group, cwd), Pid, Process, createProcess, getPid, interruptProcessGroupOf, proc, waitForProcess)
+import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
+import Effectful.Reader.Dynamic (Reader)
+import Effectful.Reader.Dynamic qualified as Reader
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Tail qualified as Tail
-import System.Which (staticWhich)
-import Vira.CI.Environment (ViraEnvironment)
-import Vira.CI.Pipeline qualified as Pipeline
 import Vira.Lib.Logging (log, tagCurrentThread)
 import Vira.Lib.Process qualified as Process
-import Vira.State.Core qualified as St
-import Vira.Supervisor.Type
-import Prelude hiding (readMVar)
+import Vira.Supervisor.Type (Task (..), TaskException (ConfigurationError, KilledByUser), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..))
+import Prelude hiding (Reader, readMVar, runReader)
 
-{- | Path to the `mkdir` executable
-
-This should be available in the PATH, thanks to Nix and `which` library.
--}
-mkdir :: FilePath
-mkdir = $(staticWhich "mkdir")
-
-logSupervisorState :: (HasCallStack, Concurrent :> es, Log Message :> es) => TaskSupervisor -> Eff es ()
-logSupervisorState supervisor = do
-  tasks <- readMVar (tasks supervisor)
-  withFrozenCallStack $ log Debug $ "Current tasks: " <> show (Map.keys tasks)
-  forM_ (Map.toList tasks) $ \(taskId, task) -> do
-    st <- taskState task
-    withFrozenCallStack $ log Debug $ "Task " <> show taskId <> " state: " <> show st
-
--- TODO: In lieu of https://github.com/juspay/vira/issues/6
-logToWorkspaceOutput :: (IOE :> es) => TaskId -> FilePath -> Text -> Eff es ()
-logToWorkspaceOutput taskId base (msg :: Text) = do
-  let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
-  appendFileText (outputLogFile base) s
-
--- | Start a new a task, returning its working directory.
-startTask ::
+type AppTaskStack es =
   ( Concurrent :> es
   , Process :> es
   , Log Message :> es
-  , FileSystem :> es
   , IOE :> es
+  , FileSystem :> es
+  , Reader TaskInfo :> es
+  )
+
+{- | Start a task in the supervisor
+
+  The orchestrator is a function that runs the actual task logic (using `runProcesses`), and is provided
+  with the necessary Effectful capabilities. It should return an `Either TaskException ExitCode`
+  indicating the result of the task.
+
+  The `onFinish` handler is called when the task completes, whether successfully or due to an exception.
+  It receives the same `Either TaskException ExitCode` result from the orchestrator.
+
+  The working directory for the task is created if it does not exist, and an empty log file is initialized.
+  The task's output is logged to this file, and a tail handle is created for potential log streaming.
+
+  Note: This function assumes that the caller has ensured that no other task with the same `TaskId` is running.
+-}
+startTask ::
+  forall es.
+  ( Concurrent :> es
+  , Process :> es
+  , Log Message :> es
+  , IOE :> es
+  , FileSystem :> es
   , HasCallStack
   ) =>
   TaskSupervisor ->
   TaskId ->
-  -- The working directory of the job (will be created)
   FilePath ->
-  -- List of processes to run in sequence
-  NonEmpty CreateProcess ->
+  ( forall es1.
+    ( AppTaskStack es1
+    ) =>
+    Eff es1 (Either TaskException ExitCode)
+  ) ->
   -- Handler to call after the task finishes
   ( -- Exit code
     Either TaskException ExitCode ->
     Eff es ()
   ) ->
   Eff es ()
-startTask supervisor taskId pwd procs h = do
+startTask supervisor taskId workDir orchestrator onFinish = do
   logSupervisorState supervisor
-  let msg = "Starting task group: " <> show (cmdspec <$> procs) <> " in " <> toText pwd
+  let msg = "Starting Vira pipeline in " <> toText workDir
   log Info msg
-  modifyMVar (tasks supervisor) $ \tasks -> do
+  modifyMVar_ (tasks supervisor) $ \tasks -> do
     if Map.member taskId tasks
       then do
         log Error $ "Task " <> show taskId <> " already exists"
         die $ "Task " <> show taskId <> " already exists"
       else do
-        createDirectoryIfMissing True pwd
-        logToWorkspaceOutput taskId pwd msg
-        tailHandle <- liftIO $ Tail.tailFile 1000 (outputLogFile pwd)
-        let wrappedHandler result = do
-              -- Stop the tail when task finishes for any reason
-              liftIO $ Tail.tailStop tailHandle
-              -- Then call the original handler
-              h result
+        createDirectoryIfMissing True workDir
+        appendFileText (outputLogFile workDir) "" -- Create empty log file before tail starts
+        tailHandle <- liftIO $ Tail.tailFile 1000 (outputLogFile workDir)
+        let info = TaskInfo {..}
+        Reader.runReader info $ logToWorkspaceOutput msg
         asyncHandle <- async $ do
-          hdl <- startTask' taskId pwd wrappedHandler procs
-          logToWorkspaceOutput taskId pwd "CI finished"
-          pure hdl
-        let task = Task {workDir = pwd, asyncHandle, tailHandle}
-        pure (Map.insert taskId task tasks, ())
+          result <- Reader.runReader info orchestrator
+          -- Stop the tail when task finishes for any reason
+          liftIO $ Tail.tailStop tailHandle
+          -- Then call the original handler
+          onFinish result
+        let task = Task {..}
+        pure $ Map.insert taskId task tasks
 
--- | Start a new task with workspace creation and git clone, then run pipeline processes
-startTaskWithClone ::
-  ( Concurrent :> es
-  , Process :> es
-  , Log Message :> es
-  , FileSystem :> es
-  , IOE :> es
-  , HasCallStack
-  ) =>
-  TaskSupervisor ->
-  TaskId ->
-  -- The working directory of the job (will be created)
-  FilePath ->
-  -- Repository and branch information for cloning
-  St.Repo ->
-  St.Branch ->
-  -- Environment for pipeline configuration
-  ViraEnvironment ->
-  -- Handler to call after the task finishes
-  ( -- Exit code
-    Either TaskException ExitCode ->
-    Eff es ()
-  ) ->
-  Eff es ()
-startTaskWithClone supervisor taskId pwd repo branch env h = do
-  let projectDir = pwd </> "project"
-      inProjectDir p = p {cwd = Just projectDir}
-      setupProcs =
-        proc mkdir ["project"]
-          :| [ Git.cloneAtCommit repo.cloneUrl branch.headCommit & inProjectDir
-             ]
-      pipelineProcs = Pipeline.getStages env <&> inProjectDir
-      allProcs = setupProcs <> pipelineProcs
-  startTask supervisor taskId pwd allProcs h
-
-startTask' ::
+-- | Run a sequence of processes, stopping on first failure
+runProcesses ::
   forall es.
-  (Concurrent :> es, Process :> es, Log Message :> es, IOE :> es, FileSystem :> es) =>
-  TaskId ->
-  FilePath ->
-  ( Either TaskException ExitCode ->
-    Eff es ()
-  ) ->
+  ( AppTaskStack es
+  ) =>
   -- List of processes to run in sequence
   NonEmpty CreateProcess ->
   Eff es (Either TaskException ExitCode)
-startTask' taskId pwd h = runProcs . toList
+runProcesses procs = do
+  taskId <- Reader.asks taskId
+  tagCurrentThread $ "🪜 ;task=" <> show taskId
+  runProcs $ toList procs
   where
     -- Run each process one after another; exiting immediately if any fails
     runProcs :: [CreateProcess] -> Eff es (Either TaskException ExitCode)
     runProcs [] = do
-      log Info $ "All procs for task " <> show taskId <> " finished successfully"
-      h $ Right ExitSuccess
+      log Info "All procs for task finished successfully"
       pure $ Right ExitSuccess
     runProcs (process : rest) =
       runProc process >>= \case
         (pid, Right ExitSuccess) -> do
-          log Debug $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") successfully finished."
+          log Debug $ "A proc for task finished successfully (pid=" <> show pid <> ")."
           runProcs rest
         (pid, Right exitCode) -> do
-          log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") failed with exitCode " <> show exitCode
-          h $ Right exitCode
+          log Warning $ "A proc for task failed with exitCode " <> show exitCode <> " (pid=" <> show pid <> ")."
           pure $ Right exitCode
         (pid, Left e) -> do
-          log Warning $ "A proc for task " <> show taskId <> " (pid=" <> show pid <> ") was interrupted:  " <> show e
-          h $ Left e
+          log Warning $ "A proc for task (pid=" <> show pid <> ") was interrupted:  " <> show e
           pure $ Left e
 
     runProc :: CreateProcess -> Eff es (Maybe Pid, Either TaskException ExitCode)
     runProc process = do
-      tagCurrentThread "🪜 "
+      taskId <- Reader.asks taskId
+      workDir <- Reader.asks workDir
+      tagCurrentThread $ "🪜 ;task=" <> show taskId
       log Debug $ "Starting task: " <> show (cmdspec process)
-      logToWorkspaceOutput taskId pwd $ "Starting task: " <> show (cmdspec process)
-      withFileHandle (outputLogFile pwd) AppendMode $ \outputHandle -> do
+      logToWorkspaceOutput $ "Starting task: " <> show (cmdspec process)
+      withFileHandle (outputLogFile workDir) AppendMode $ \outputHandle -> do
         let processSettings =
-              Process.alwaysUnderPath pwd
+              Process.alwaysUnderPath workDir
                 >>> Process.redirectOutputTo outputHandle
                 >>> (\cp -> cp {create_group = True}) -- For `interruptProcessGroupOf`, when the process is `KilledByUser`
         (_, _, _, ph) <- createProcess $ process & processSettings
         pid <- getPid ph
-        log Info $ "Task spawned (pid=" <> show pid <> "): " <> show (cmdspec process)
+        tagCurrentThread $ "🪜 ;task=" <> show taskId <> ";pid=" <> maybe "?" show pid
+        log Info $ "Task spawned : " <> show (cmdspec process)
 
         result <-
           -- `mask` cleanup from asynchronous interruptions
@@ -186,14 +155,17 @@ startTask' taskId pwd h = runProcs . toList
             restore (Right <$> waitForProcess ph)
               `catch` \case
                 KilledByUser -> do
-                  log Info $ "Terminating process (pid=" <> show pid <> ") for task " <> show taskId
+                  log Info "Terminating process"
                   interruptProcessGroupOf ph `catch` \(e :: SomeException) ->
                     -- Analogous to `Control-C`'ing the process in an interactive shell
-                    log Error $ "Failed to terminate process " <> show pid <> " for task " <> show taskId <> ": " <> show e
+                    log Error $ "Failed to terminate process: " <> show e
                   _ <- waitForProcess ph -- Reap to prevent zombies
                   pure $ Left KilledByUser
-        log Debug $ "Task finished (pid=" <> show pid <> "): " <> show (cmdspec process)
-        logToWorkspaceOutput taskId pwd $
+                ConfigurationError err -> do
+                  log Error $ "Configuration error in task: " <> show err
+                  pure $ Left (ConfigurationError err)
+        log Debug $ "Task finished: " <> show (cmdspec process)
+        logToWorkspaceOutput $
           "A task (pid=" <> show pid <> ") finished with " <> either (("exception: " <>) . toText . displayException) (("exitcode: " <>) . show) result
         log Debug "Workspace log done"
         pure (pid, result)
@@ -228,3 +200,19 @@ withFileHandle :: (FileSystem :> es, IOE :> es) => FilePath -> IOMode -> (Handle
 withFileHandle path mode action = do
   handle <- openFile path mode
   finally (action handle) (hClose handle)
+
+logSupervisorState :: (HasCallStack, Concurrent :> es, Log Message :> es) => TaskSupervisor -> Eff es ()
+logSupervisorState supervisor = do
+  tasks <- readMVar (tasks supervisor)
+  withFrozenCallStack $ log Debug $ "Current tasks: " <> show (Map.keys tasks)
+  forM_ (Map.toList tasks) $ \(taskId, task) -> do
+    st <- taskState task
+    withFrozenCallStack $ log Debug $ "Task " <> show taskId <> " state: " <> show st
+
+-- TODO: In lieu of https://github.com/juspay/vira/issues/6
+logToWorkspaceOutput :: (IOE :> es, Reader TaskInfo :> es) => Text -> Eff es ()
+logToWorkspaceOutput (msg :: Text) = do
+  taskId <- Reader.asks taskId
+  workDir <- Reader.asks workDir
+  let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
+  appendFileText (outputLogFile workDir) s

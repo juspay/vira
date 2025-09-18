@@ -11,7 +11,7 @@
     nixos-unified.url = "github:srid/nixos-unified";
     haskell-flake.url = "github:srid/haskell-flake";
     fourmolu-nix.url = "github:jedimahdi/fourmolu-nix";
-    git-hooks.url = "github:bmrips/git-hooks.nix/typos-improvements"; # https://github.com/cachix/git-hooks.nix/pull/583
+    git-hooks.url = "github:bmrips/git-hooks.nix";
     git-hooks.flake = false;
     process-compose-flake.url = "github:Platonic-Systems/process-compose-flake";
 
@@ -20,6 +20,7 @@
     tabler-icons-hs.url = "github:juspay/tabler-icons-hs";
     tabler-icons-hs.flake = false;
     co-log-effectful.url = "github:eldritch-cookie/co-log-effectful";
+    co-log-effectful.flake = false;
     # https://github.com/bflyblue/servant-event-stream/pull/13
     servant-event-stream.url = "github:bflyblue/servant-event-stream";
     servant-event-stream.flake = false;

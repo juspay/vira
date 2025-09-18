@@ -25,6 +25,7 @@ data-files:
     vira-logo.svg
     vira-logo-apple.svg
     vira-logo-penguin.svg
+    test/sample-configs/simple-example.hs
 data-dir:       static
 
 library
@@ -40,9 +41,10 @@ library
       Vira.App.Servant
       Vira.App.Server
       Vira.App.Stack
+      Vira.CI.Configuration
       Vira.CI.Environment
+      Vira.CI.Environment.Type
       Vira.CI.Pipeline
-      Vira.Lib.Attic
       Vira.Lib.Cachix
       Vira.Lib.Logging
       Vira.Lib.Omnix
@@ -92,6 +94,7 @@ library
     , acid-state
     , aeson
     , async
+    , attic-hs
     , base ==4.*
     , base16-bytestring
     , binary
@@ -113,6 +116,8 @@ library
     , filepath
     , gh-signoff
     , git-effectful
+    , hint
+    , hint-nix
     , hostname
     , hspec
     , hspec-discover
@@ -144,6 +149,7 @@ library
     , tail
     , text
     , time
+    , vira-ci-types
     , wai
     , wai-extra
     , wai-middleware-static
@@ -177,6 +183,7 @@ executable vira
     , acid-state
     , aeson
     , async
+    , attic-hs
     , base ==4.*
     , base16-bytestring
     , binary
@@ -198,6 +205,8 @@ executable vira
     , filepath
     , gh-signoff
     , git-effectful
+    , hint
+    , hint-nix
     , hostname
     , hspec
     , hspec-discover
@@ -230,6 +239,7 @@ executable vira
     , text
     , time
     , vira
+    , vira-ci-types
     , wai
     , wai-extra
     , wai-middleware-static
@@ -243,10 +253,10 @@ executable vira
     , relude 
   default-language: GHC2024
 
-test-suite vira-tests
-  type: exitcode-stdio-1.0
+executable vira-tests
   main-is: Spec.hs
   other-modules:
+      Vira.CI.ConfigurationSpec
       Paths_vira
   autogen-modules:
       Paths_vira
@@ -258,12 +268,13 @@ test-suite vira-tests
       StrictData
       NumericUnderscores
       ViewPatterns
-  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QuickCheck
     , acid-state
     , aeson
     , async
+    , attic-hs
     , base ==4.*
     , base16-bytestring
     , binary
@@ -285,6 +296,8 @@ test-suite vira-tests
     , filepath
     , gh-signoff
     , git-effectful
+    , hint
+    , hint-nix
     , hostname
     , hspec
     , hspec-discover
@@ -317,6 +330,7 @@ test-suite vira-tests
     , text
     , time
     , vira
+    , vira-ci-types
     , wai
     , wai-extra
     , wai-middleware-static

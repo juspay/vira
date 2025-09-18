@@ -8,6 +8,7 @@ module Vira.Page.SettingsPage (
 )
 where
 
+import Attic (AtticServer (..))
 import Colog (Severity (..))
 import Effectful (Eff)
 import GHC.Records (HasField)
@@ -24,7 +25,6 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Lib.Attic (AtticServer (..))
 import Vira.Lib.Logging
 import Vira.State.Acid qualified as St
 import Vira.State.Type (AtticSettings (..), CachixSettings (..))

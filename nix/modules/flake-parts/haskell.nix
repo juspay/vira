@@ -2,9 +2,15 @@
 {
   imports = [
     inputs.haskell-flake.flakeModule
+    ../../../packages/hint-nix/flake-module.nix
   ];
   debug = true;
   perSystem = { self', lib, config, pkgs, ... }: {
+    # Configure hint-nix with packages that vira needs
+    hint-nix.packages = ps: with ps; [
+      vira-ci-types
+      git-effectful
+    ];
     haskellProjects.default = { config, ... }: {
       # To avoid unnecessary rebuilds, we filter projectRoot:
       # https://community.flake.parts/haskell-flake/local#rebuild
@@ -38,6 +44,9 @@
             config.settings.tail
             config.settings.warp-tls-simple
             config.settings.gh-signoff
+            config.settings.attic-hs
+            config.settings.vira-ci-types
+            config.settings.hint-nix
           ];
           generateOptparseApplicativeCompletions = [ "vira" ];
           stan = true;
@@ -45,7 +54,6 @@
             pkgs.attic-client # For attic
             pkgs.cachix # For cachix
             self'.packages.omnix # For omnix/om
-            pkgs.coreutils # For mkdir
           ];
           custom = drv: drv.overrideAttrs (oldAttrs: {
             postUnpack = (oldAttrs.postUnpack or "") + ''
@@ -71,6 +79,11 @@
         gh-signoff = {
           extraBuildDepends = [
             pkgs.gh-signoff # For gh-signoff
+          ];
+        };
+        attic-hs = {
+          extraBuildDepends = [
+            pkgs.attic-client # For attic
           ];
         };
         safe-coloured-text-layout = {

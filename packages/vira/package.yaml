@@ -23,6 +23,7 @@ data-files:
   - vira-logo.svg
   - vira-logo-apple.svg
   - vira-logo-penguin.svg
+  - test/sample-configs/simple-example.hs
 
 ghc-options:
   - -fplugin=Effectful.Plugin
@@ -31,6 +32,7 @@ dependencies:
   - acid-state
   - aeson
   - async
+  - attic-hs
   - base16-bytestring
   - bytestring
   - cereal
@@ -53,6 +55,7 @@ dependencies:
   - gh-signoff
   - git-effectful
   - hostname
+  - hint
   - hspec
   - hspec-discover
   - htmx
@@ -82,6 +85,8 @@ dependencies:
   - tail
   - text
   - time
+  - vira-ci-types
+  - hint-nix
   - wai
   - wai-extra
   - wai-middleware-static
@@ -103,10 +108,12 @@ executables:
       - -with-rtsopts=-N
     dependencies:
       - vira
-
-tests:
   vira-tests:
     main: Spec.hs
     source-dirs: test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
       - vira
