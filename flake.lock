@@ -82,6 +82,22 @@
         "type": "github"
       }
     },
+    "hint-nix": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1758223038,
+        "narHash": "sha256-fgInEtoeYPQVM8kuGUdJSSl2n4j+jzFuc17i9Izy8KM=",
+        "owner": "srid",
+        "repo": "hint-nix",
+        "rev": "3afe9336c5d85edd16c40f0f47b0b90299eefe7a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "srid",
+        "repo": "hint-nix",
+        "type": "github"
+      }
+    },
     "htmx": {
       "flake": false,
       "locked": {
@@ -168,13 +184,15 @@
         "fourmolu-nix": "fourmolu-nix",
         "git-hooks": "git-hooks",
         "haskell-flake": "haskell-flake",
+        "hint-nix": "hint-nix",
         "htmx": "htmx",
         "htmx-extensions": "htmx-extensions",
         "nixos-unified": "nixos-unified",
         "nixpkgs": "nixpkgs",
         "process-compose-flake": "process-compose-flake",
         "servant-event-stream": "servant-event-stream",
-        "tabler-icons-hs": "tabler-icons-hs"
+        "tabler-icons-hs": "tabler-icons-hs",
+        "warp-tls-simple": "warp-tls-simple"
       }
     },
     "servant-event-stream": {
@@ -206,6 +224,22 @@
       "original": {
         "owner": "juspay",
         "repo": "tabler-icons-hs",
+        "type": "github"
+      }
+    },
+    "warp-tls-simple": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1758224520,
+        "narHash": "sha256-vQiWGLso8SLMHCGbbtqsIcz2R1J0MI310MOG3vgzvjI=",
+        "owner": "srid",
+        "repo": "warp-tls-simple",
+        "rev": "36444263ad922602739491e0ac1805068c6f9400",
+        "type": "github"
+      },
+      "original": {
+        "owner": "srid",
+        "repo": "warp-tls-simple",
         "type": "github"
       }
     }

@@ -2,15 +2,19 @@
 {
   imports = [
     inputs.haskell-flake.flakeModule
-    ../../../packages/hint-nix/flake-module.nix
+    (inputs.hint-nix + /flake-module.nix)
+    (inputs.warp-tls-simple + /flake-module.nix)
   ];
   debug = true;
   perSystem = { self', lib, config, pkgs, ... }: {
     # Configure hint-nix with packages that vira needs
-    hint-nix.packages = ps: with ps; [
-      vira-ci-types
-      git-effectful
-    ];
+    hint-nix = {
+      workaroundGhcPanic = true;
+      packages = ps: with ps; [
+        vira-ci-types
+        git-effectful
+      ];
+    };
     haskellProjects.default = { config, ... }: {
       # To avoid unnecessary rebuilds, we filter projectRoot:
       # https://community.flake.parts/haskell-flake/local#rebuild
@@ -69,11 +73,6 @@
         tail = {
           extraBuildDepends = [
             pkgs.coreutils # For `tail`
-          ];
-        };
-        warp-tls-simple = {
-          extraBuildDepends = [
-            pkgs.openssl # For openssl
           ];
         };
         gh-signoff = {
