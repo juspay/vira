@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        system: [x86_64-linux, aarch64-darwin, aarch64-linux]
+        system: [x86_64-linux, aarch64-darwin]
     steps:
       - uses: actions/checkout@v4
       - name: Build all flake outputs
