@@ -68,9 +68,16 @@ in
         ProcessType = "Background";
         StandardOutPath = "${config.home.homeDirectory}/Library/Logs/vira.log";
         StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/vira.log";
-        EnvironmentVariables = {
-          PATH = "${makeBinPath cfg.extraPackages}:${config.home.sessionVariables.PATH or ""}";
-        };
+        EnvironmentVariables.PATH =
+          let
+            # Extra packages needed for the launchd agent to work with private repos
+            # TODO: Move it to top-level (if needed) after testing the systemd home-manager module
+            packagesForPrivateRepos = with pkgs; [
+              openssh
+              git
+            ];
+          in
+          makeBinPath (cfg.extraPackages ++ packagesForPrivateRepos);
       };
     };
 
