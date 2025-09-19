@@ -33,9 +33,10 @@ openViraState stateDir = do
   pure st
   where
     handleStateError acidStateDir (ErrorCall msg) = do
+      let workspaceDir = stateDir </> "workspace"
       putStrLn "ERROR: Failed to open acid-state database. This usually indicates incompatible state format."
       putStrLn "Please remove the state directory and restart:"
-      putStrLn ("  rm -rf " <> acidStateDir)
+      putStrLn ("  rm -rf " <> acidStateDir <> " " <> workspaceDir)
       putStrLn "Your data will be lost, but this is necessary to continue."
       putStrLn ""
       putStrLn "Original error:"
