@@ -68,9 +68,7 @@ in
         ProcessType = "Background";
         StandardOutPath = "${config.home.homeDirectory}/Library/Logs/vira.log";
         StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/vira.log";
-        EnvironmentVariables = {
-          PATH = "${makeBinPath cfg.extraPackages}:${config.home.sessionVariables.PATH or ""}";
-        };
+        EnvironmentVariables.PATH = makeBinPath cfg.extraPackages;
       };
     };
 
