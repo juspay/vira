@@ -63,6 +63,12 @@
             postUnpack = (oldAttrs.postUnpack or "") + ''
               ln -s ${self'.packages.jsAssets}/js $sourceRoot/static/js
             '';
+            nativeBuildInputs = (oldAttrs.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
+            postInstall = (oldAttrs.postInstall or "") + ''
+              # Required for building private repos, see https://github.com/juspay/vira/pull/166
+              wrapProgram $out/bin/vira \
+                --prefix PATH : ${lib.makeBinPath [ pkgs.openssh pkgs.git ]}
+            '';
           });
         };
         git-effectful = {
