@@ -161,7 +161,7 @@ viewStream job = do
             Status.indicator True
             span_ [class_ "font-medium"] "Streaming build logs..."
 
--- | Log viewer widget agnostic to static or streaming nature.
+-- | Log viewer widget supporting both static and streaming context.
 logViewerWidget :: Job -> (forall m. (Monad m) => HtmlT m ()) -> AppHtml ()
 logViewerWidget job w = do
   jobLogUrl <- lift $ getLinkUrl $ LinkTo.JobLog job.jobId
@@ -180,12 +180,13 @@ logViewerWidget job w = do
     div_
       [ id_ "logContainer"
       , class_ "h-[60vh] overflow-y-auto overflow-x-hidden bg-gray-900 rounded-t-lg border border-b-0 border-gray-200 shadow-sm"
+      , -- Auto-scroll to bottom when content changes (SSE updates, page load, or any DOM mutations)
+        hyperscript_ "on htmx:afterSwap or load or mutation set my scrollTop to my scrollHeight"
       ]
       $ do
         pre_
           [ id_ sseTarget
           , class_ "text-gray-100 p-4 text-sm h-full whitespace-pre-wrap break-all m-0 font-mono leading-relaxed"
-          , hyperscript_ "on htmx:afterSwap set #logContainer.scrollTop to #logContainer.scrollHeight"
           ]
           $ do
             code_ w
