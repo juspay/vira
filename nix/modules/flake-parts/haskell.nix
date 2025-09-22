@@ -101,6 +101,7 @@
       # Development shell configuration
       devShell = {
         hlsCheck.enable = false;
+        hoogle = false;
         tools = _: {
           stan = pkgs.haskellPackages.stan;
         };
