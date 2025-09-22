@@ -177,6 +177,22 @@
         "type": "github"
       }
     },
+    "record-hasfield": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1705829538,
+        "narHash": "sha256-GmPVs+M8LIL3h8QO57yV9e6okczJdpEtzinD8gxCvjQ=",
+        "owner": "ndmitchell",
+        "repo": "record-hasfield",
+        "rev": "093fb013d3e8951a215e0508cda2c24977ef117c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ndmitchell",
+        "repo": "record-hasfield",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "co-log-effectful": "co-log-effectful",
@@ -190,6 +206,7 @@
         "nixos-unified": "nixos-unified",
         "nixpkgs": "nixpkgs",
         "process-compose-flake": "process-compose-flake",
+        "record-hasfield": "record-hasfield",
         "servant-event-stream": "servant-event-stream",
         "tabler-icons-hs": "tabler-icons-hs",
         "warp-tls-simple": "warp-tls-simple"

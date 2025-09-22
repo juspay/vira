@@ -38,6 +38,7 @@
         co-log-effectful.source = inputs.co-log-effectful;
         tabler-icons.source = inputs.tabler-icons-hs;
         servant-event-stream.source = inputs.servant-event-stream;
+        record-hasfield.source = inputs.record-hasfield;
       };
 
       # Add your package overrides here
