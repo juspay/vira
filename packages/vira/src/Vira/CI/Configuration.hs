@@ -22,16 +22,23 @@ applyConfig ::
 applyConfig configContent ctx pipeline = do
   result <- runInterpreterWithNixPackageDb $ do
     -- Set up the interpreter context
-    Hint.set [Hint.languageExtensions Hint.:= [Hint.OverloadedStrings, Hint.UnknownExtension "OverloadedRecordDot", Hint.UnknownExtension "OverloadedLabels"]]
+    Hint.set
+      [ Hint.languageExtensions
+          Hint.:= [ Hint.OverloadedStrings
+                  , Hint.UnknownExtension "OverloadedRecordDot"
+                  , Hint.UnknownExtension "OverloadedRecordUpdate"
+                  , Hint.UnknownExtension "RebindableSyntax"
+                  ]
+      ]
 
     -- Import necessary modules
     Hint.setImports
-      [ "Prelude"
+      [ "Relude"
       , "Data.Text"
       , "Vira.CI.Context"
       , "Vira.CI.Pipeline.Type"
       , "Effectful.Git"
-      , "Optics.Core"
+      , "GHC.Records.Compat"
       ]
 
     -- Interpret the configuration code directly as a function

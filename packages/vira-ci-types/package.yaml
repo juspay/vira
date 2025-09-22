@@ -33,6 +33,7 @@ dependencies:
   - servant
   - text
   - time
+  - record-hasfield
 
 library:
   source-dirs: src

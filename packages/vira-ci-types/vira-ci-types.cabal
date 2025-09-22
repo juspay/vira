@@ -70,6 +70,7 @@ library
     , ixset-typed
     , optics-core
     , optics-th
+    , record-hasfield
     , relude >=1.0
     , safecopy
     , servant
