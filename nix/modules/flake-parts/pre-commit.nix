@@ -13,7 +13,10 @@
           package = config.fourmolu.wrapper;
           excludes = [ "sample\-configs/.+\.hs" "vira\.hs" ];
         };
-        hlint.enable = true;
+        hlint = {
+          enable = true;
+          excludes = [ "sample\-configs/.+\.hs" "vira\.hs" ];
+        };
         hpack.enable = true;
         prettier.enable = true;
         typos = {
