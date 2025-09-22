@@ -77,16 +77,16 @@ instance HasField "enable" SignoffStage Bool where
 
 -- ViraPipeline stage instances
 instance HasField "build" ViraPipeline BuildStage where
-  hasField r = (\x -> r {build = x}, r.build)
+  hasField (ViraPipeline build attic cachix signoff) = (\x -> ViraPipeline x attic cachix signoff, build)
 
 instance HasField "attic" ViraPipeline AtticStage where
-  hasField r = (\x -> r {attic = x}, r.attic)
+  hasField (ViraPipeline build attic cachix signoff) = (\x -> ViraPipeline build x cachix signoff, attic)
 
 instance HasField "cachix" ViraPipeline CachixStage where
-  hasField r = (\x -> r {cachix = x}, r.cachix)
+  hasField (ViraPipeline build attic cachix signoff) = (\x -> ViraPipeline build attic x signoff, cachix)
 
 instance HasField "signoff" ViraPipeline SignoffStage where
-  hasField r = (\x -> r {signoff = x}, r.signoff)
+  hasField (ViraPipeline build attic cachix signoff) = (\x -> ViraPipeline build attic cachix x, signoff)
 
 -- Demo function showing nested field updates for all pipeline stages
 demo :: ViraPipeline -> ViraPipeline
