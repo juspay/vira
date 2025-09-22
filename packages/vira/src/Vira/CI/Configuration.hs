@@ -26,7 +26,6 @@ applyConfig configContent ctx pipeline = do
       [ Hint.languageExtensions
           Hint.:= [ Hint.OverloadedStrings
                   , Hint.UnknownExtension "OverloadedRecordDot"
-                  , Hint.UnknownExtension "OverloadedLabels"
                   , Hint.UnknownExtension "OverloadedRecordUpdate"
                   , Hint.UnknownExtension "RebindableSyntax"
                   ]
@@ -39,8 +38,7 @@ applyConfig configContent ctx pipeline = do
       , "Vira.CI.Context"
       , "Vira.CI.Pipeline.Type"
       , "Effectful.Git"
-      , -- , "Optics.Core"
-        "GHC.Records.Compat"
+      , "GHC.Records.Compat"
       ]
 
     -- Interpret the configuration code directly as a function

@@ -1,16 +1,9 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedRecordUpdate #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RebindableSyntax #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoFieldSelectors #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
@@ -21,8 +14,7 @@
 module Vira.CI.Pipeline.Type where
 
 import GHC.Records.Compat
-import Optics.TH
-import Relude (Bool (..), Generic, Show, Text, fromString)
+import Relude (Bool (..), Generic, Show, Text)
 
 -- | CI Pipeline configuration types
 data ViraPipeline = ViraPipeline
@@ -58,10 +50,10 @@ newtype SignoffStage = SignoffStage
 
 -- BuildStage field instances
 instance HasField "enable" BuildStage Bool where
-  hasField (BuildStage enable overrideInputs) = (\x -> BuildStage x overrideInputs, enable)
+  hasField (BuildStage enable overrideInputs) = ((`BuildStage` overrideInputs), enable)
 
 instance HasField "overrideInputs" BuildStage [(Text, Text)] where
-  hasField (BuildStage enable overrideInputs) = (\x -> BuildStage enable x, overrideInputs)
+  hasField (BuildStage enable overrideInputs) = (BuildStage enable, overrideInputs)
 
 -- AtticStage field instances
 instance HasField "enable" AtticStage Bool where
@@ -86,21 +78,4 @@ instance HasField "cachix" ViraPipeline CachixStage where
   hasField (ViraPipeline build attic cachix signoff) = (\x -> ViraPipeline build attic x signoff, cachix)
 
 instance HasField "signoff" ViraPipeline SignoffStage where
-  hasField (ViraPipeline build attic cachix signoff) = (\x -> ViraPipeline build attic cachix x, signoff)
-
--- Demo function showing nested field updates for all pipeline stages
-demo :: ViraPipeline -> ViraPipeline
-demo r =
-  r
-    { signoff.enable = True
-    , build.enable = False
-    , build.overrideInputs = [("input1", "value1"), ("input2", "value2")]
-    , attic.enable = True
-    , cachix.enable = False
-    }
-
-makeFieldLabelsNoPrefix ''ViraPipeline
-makeFieldLabelsNoPrefix ''BuildStage
-makeFieldLabelsNoPrefix ''AtticStage
-makeFieldLabelsNoPrefix ''CachixStage
-makeFieldLabelsNoPrefix ''SignoffStage
+  hasField (ViraPipeline build attic cachix signoff) = (ViraPipeline build attic cachix, signoff)
