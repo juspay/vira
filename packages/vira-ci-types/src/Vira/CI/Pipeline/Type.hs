@@ -6,18 +6,23 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedRecordUpdate #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RebindableSyntax #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoFieldSelectors #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Avoid lambda using `infix`" #-}
+{-# HLINT ignore "Avoid lambda" #-}
 
 module Vira.CI.Pipeline.Type where
 
-import Optics.TH
-import Relude (Bool (..), Generic, Show, Text)
 import GHC.Records.Compat
+import Optics.TH
+import Relude (Bool (..), Generic, Show, Text, fromString)
 
 -- | CI Pipeline configuration types
 data ViraPipeline = ViraPipeline
@@ -49,16 +54,50 @@ newtype SignoffStage = SignoffStage
   }
   deriving stock (Generic, Show)
 
+-- HasField instances for enabling OverloadedRecordUpdate syntax
+
+-- BuildStage field instances
+instance HasField "enable" BuildStage Bool where
+  hasField (BuildStage enable overrideInputs) = (\x -> BuildStage x overrideInputs, enable)
+
+instance HasField "overrideInputs" BuildStage [(Text, Text)] where
+  hasField (BuildStage enable overrideInputs) = (\x -> BuildStage enable x, overrideInputs)
+
+-- AtticStage field instances
+instance HasField "enable" AtticStage Bool where
+  hasField (AtticStage enable) = (AtticStage, enable)
+
+-- CachixStage field instances
+instance HasField "enable" CachixStage Bool where
+  hasField (CachixStage enable) = (CachixStage, enable)
+
+-- SignoffStage field instances
 instance HasField "enable" SignoffStage Bool where
   hasField (SignoffStage enable) = (SignoffStage, enable)
 
-instance HasField "signoff" ViraPipeline SignoffStage where
-   hasField r = (\x -> r{ signoff = x } , r.signoff)
+-- ViraPipeline stage instances
+instance HasField "build" ViraPipeline BuildStage where
+  hasField r = (\x -> r {build = x}, r.build)
 
--- TODO: Implement the necessary instances, and demo updating all kinds of nested fields of the pipeline
+instance HasField "attic" ViraPipeline AtticStage where
+  hasField r = (\x -> r {attic = x}, r.attic)
+
+instance HasField "cachix" ViraPipeline CachixStage where
+  hasField r = (\x -> r {cachix = x}, r.cachix)
+
+instance HasField "signoff" ViraPipeline SignoffStage where
+  hasField r = (\x -> r {signoff = x}, r.signoff)
+
+-- Demo function showing nested field updates for all pipeline stages
 demo :: ViraPipeline -> ViraPipeline
 demo r =
-  r {signoff.enable = True}
+  r
+    { signoff.enable = True
+    , build.enable = False
+    , build.overrideInputs = [("input1", "value1"), ("input2", "value2")]
+    , attic.enable = True
+    , cachix.enable = False
+    }
 
 makeFieldLabelsNoPrefix ''ViraPipeline
 makeFieldLabelsNoPrefix ''BuildStage
