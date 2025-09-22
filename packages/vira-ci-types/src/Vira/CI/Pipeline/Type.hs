@@ -46,28 +46,25 @@ newtype SignoffStage = SignoffStage
   }
   deriving stock (Generic, Show)
 
--- HasField instances for enabling OverloadedRecordUpdate syntax
+-- HasField instances for enabling OverloadedRecordUpdate syntax (see vira.hs)
+-- NOTE: Do not forgot to fill in these instances if the types above change.
+-- In future, we could generically derive them using generics-sop and the like.
 
--- BuildStage field instances
 instance HasField "enable" BuildStage Bool where
   hasField (BuildStage enable overrideInputs) = ((`BuildStage` overrideInputs), enable)
 
 instance HasField "overrideInputs" BuildStage [(Text, Text)] where
   hasField (BuildStage enable overrideInputs) = (BuildStage enable, overrideInputs)
 
--- AtticStage field instances
 instance HasField "enable" AtticStage Bool where
   hasField (AtticStage enable) = (AtticStage, enable)
 
--- CachixStage field instances
 instance HasField "enable" CachixStage Bool where
   hasField (CachixStage enable) = (CachixStage, enable)
 
--- SignoffStage field instances
 instance HasField "enable" SignoffStage Bool where
   hasField (SignoffStage enable) = (SignoffStage, enable)
 
--- ViraPipeline stage instances
 instance HasField "build" ViraPipeline BuildStage where
   hasField (ViraPipeline build attic cachix signoff) = (\x -> ViraPipeline x attic cachix signoff, build)
 
