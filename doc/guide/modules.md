@@ -1,3 +1,7 @@
+---
+slug: modules
+---
+
 # Nix Modules
 
 ## NixOS Module

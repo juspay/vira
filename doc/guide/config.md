@@ -1,3 +1,7 @@
+---
+slug: config
+---
+
 # Repository Configuration
 
 > [!warning]

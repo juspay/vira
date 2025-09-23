@@ -23,12 +23,4 @@ nix --accept-flake-config run github:juspay/vira -- web --port 5005
 
 You can now add your repositories in the web app.
 
-## Guide
-
-For tech stack details, see [[tech]].
-
-For HTTPS and HTTP/2 configuration details, see [[https]].
-
-For repository configuration using `vira.hs`, see [[configuration]].
-
-For NixOS and Home Manager module usage, see [[modules]].
+See [[guide]]

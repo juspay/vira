@@ -1,3 +1,7 @@
+---
+slug: https
+---
+
 # HTTPS and HTTP/2 Support
 
 Vira uses HTTP/2 for superior SSE (log streaming) performance and automatically handles TLS certificate generation via the [`warp-tls-simple`](https://github.com/juspay/vira/blob/main/packages/warp-tls-simple/README.md) package.
