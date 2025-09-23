@@ -27,3 +27,7 @@ just run
 # NOTE: This won't delete TLS certs.
 just resetdb run
 ```
+
+## Contributing
+
+See <https://vira.nixos.asia/contrib>
