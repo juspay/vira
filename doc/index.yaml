@@ -11,7 +11,7 @@ template:
 
   # You can add your own variables here, like editBaseUrl.
   # See after-note.tpl to see where editBaseUrl gets used.
-  editBaseUrl: https://github.com/juspay/vira/edit/master/docs
+  editBaseUrl: https://github.com/juspay/vira/edit/master/doc
 
   # Uncomment this to get neuron-style pages
   # name: /templates/layouts/note
