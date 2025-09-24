@@ -16,16 +16,6 @@
         just
         nixd
         yq
-
-        # vira extraBuildDepends from haskell.nix
-        # TODO: Can we find a way DRY this up?
-        git
-        cachix
-        attic-client
-        coreutils
-        gh-signoff
-        self'.packages.nix
-        self'.packages.omnix
       ];
     };
   };

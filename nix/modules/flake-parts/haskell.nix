@@ -58,6 +58,7 @@
           extraBuildDepends = [
             pkgs.attic-client # For attic
             pkgs.cachix # For cachix
+            self'.packages.nix
             self'.packages.omnix # For omnix/om
           ];
           custom = drv: drv.overrideAttrs (oldAttrs: {
@@ -84,7 +85,8 @@
         };
         gh-signoff = {
           extraBuildDepends = [
-            pkgs.gh-signoff # For gh-signoff
+            pkgs.gh-signoff
+            pkgs.gh
           ];
         };
         attic-hs = {
@@ -105,7 +107,12 @@
         hoogle = false;
         tools = _: {
           stan = pkgs.haskellPackages.stan;
-        };
+        } //
+        # Bring all the `extraBuildDepends` (above) into the devShell, so
+        # cabal/ghcid can resolve `staticWhich`.
+        lib.flip lib.concatMapAttrs config.outputs.packages (_: v:
+          lib.listToAttrs (lib.map (p: lib.nameValuePair p.name p) v.package.getCabalDeps.buildDepends)
+        );
       };
 
       # What should haskell-flake add to flake outputs?

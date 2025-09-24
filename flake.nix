@@ -34,6 +34,8 @@
     # Runtime dependencies
     htmx-extensions.url = "github:juspay/htmx-extensions/sse-unload"; # https://github.com/bigskysoftware/htmx-extensions/pull/147
     htmx-extensions.flake = false;
+    gh-cli-pr-11544.url = "github:cli/cli/pull/11544/head";
+    gh-cli-pr-11544.flake = false;
   };
 
   outputs = inputs:
