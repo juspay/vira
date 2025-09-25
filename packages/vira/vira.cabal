@@ -43,7 +43,6 @@ library
       Vira.App.Stack
       Vira.CI.Configuration
       Vira.CI.Environment
-      Vira.CI.Environment.Type
       Vira.CI.Pipeline
       Vira.Lib.Cachix
       Vira.Lib.Logging
