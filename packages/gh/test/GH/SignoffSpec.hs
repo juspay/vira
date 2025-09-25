@@ -1,4 +1,4 @@
-module System.GHSignoffSpec where
+module GH.SignoffSpec where
 
 import Test.Hspec
 

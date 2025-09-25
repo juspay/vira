@@ -1,27 +1,28 @@
-cabal-version: 2.2
+cabal-version: 2.0
 
 -- This file has been generated from package.yaml by hpack version 0.37.0.
 --
 -- see: https://github.com/sol/hpack
 
-name:           gh-signoff
+name:           gh
 version:        0.1.0.0
-synopsis:       Haskell bindings for gh-signoff
-description:    A standalone library for gh-signoff operations
+synopsis:       Haskell bindings for gh CLI
+description:    A standalone library for gh CLI operations
 category:       System
+homepage:       https://github.com/juspay/vira/tree/main/packages/gh
 author:         Sridhar Ratnakumar
 maintainer:     srid@srid.ca
 copyright:      2025 Juspay
-license:        AGPL-3.0-or-later
+license:        MIT
 build-type:     Simple
 
 library
   exposed-modules:
-      System.GHSignoff
+      GH.Signoff
   other-modules:
-      Paths_gh_signoff
+      Paths_gh
   autogen-modules:
-      Paths_gh_signoff
+      Paths_gh
   hs-source-dirs:
       src
   default-extensions:
@@ -62,13 +63,13 @@ library
     , relude 
   default-language: GHC2021
 
-executable gh-signoff-test
+executable gh-test
   main-is: Spec.hs
   other-modules:
-      System.GHSignoffSpec
-      Paths_gh_signoff
+      GH.SignoffSpec
+      Paths_gh
   autogen-modules:
-      Paths_gh_signoff
+      Paths_gh
   hs-source-dirs:
       test
   default-extensions:
@@ -100,7 +101,7 @@ executable gh-signoff-test
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base ==4.*
-    , gh-signoff
+    , gh
     , hspec
     , hspec-discover
     , process

@@ -134,7 +134,7 @@ library
     , effectful-th
     , envparse
     , filepath
-    , gh-signoff
+    , gh
     , git-effectful
     , gitlib
     , hint
@@ -244,7 +244,7 @@ executable vira
     , effectful-th
     , envparse
     , filepath
-    , gh-signoff
+    , gh
     , git-effectful
     , gitlib
     , hint
@@ -356,7 +356,7 @@ executable vira-tests
     , effectful-th
     , envparse
     , filepath
-    , gh-signoff
+    , gh
     , git-effectful
     , gitlib
     , hint

@@ -52,7 +52,7 @@ dependencies:
   - effectful-th
   - envparse
   - filepath
-  - gh-signoff
+  - gh
   - git-effectful
   - gitlib
   - hostname

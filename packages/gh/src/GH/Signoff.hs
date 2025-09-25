@@ -4,7 +4,7 @@
 
 A standalone library for gh-signoff operations.
 -}
-module System.GHSignoff (ghSignoffProcess) where
+module GH.Signoff (ghSignoffProcess) where
 
 import System.Info qualified as SysInfo
 import System.Process (CreateProcess, proc)

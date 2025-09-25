@@ -5,7 +5,7 @@ packages:
   packages/tail
   packages/htmx-lucid-contrib
   packages/git-effectful
-  packages/gh-signoff
+  packages/gh
 
 multi-repl: true
 tests: True

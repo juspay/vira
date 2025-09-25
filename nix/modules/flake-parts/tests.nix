@@ -37,7 +37,7 @@
         {
           vira-tests = createTestCheck "vira-tests" hsPkgs.vira.package;
           git-effectful-test = createTestCheck "git-effectful-test" hsPkgs.git-effectful.package;
-          gh-signoff-test = createTestCheck "gh-signoff-test" hsPkgs.gh-signoff.package;
+          gh-test = createTestCheck "gh-test" hsPkgs.gh.package;
           tail-test = createTestCheck "tail-test" hsPkgs.tail.package;
         };
     };

@@ -7,12 +7,12 @@ import Attic
 import Effectful (Eff, IOE, (:>))
 import Effectful.Git qualified as Git
 import Effectful.Process (CreateProcess (cwd), env, proc)
+import GH.Signoff
 import Language.Haskell.Interpreter (InterpreterError)
 import Optics.Core
 import System.Directory (doesFileExist)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
-import System.GHSignoff
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Environment (ViraEnvironment (..), viraContext)
 import Vira.CI.Environment.Type (projectDir)

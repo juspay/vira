@@ -48,7 +48,7 @@
             config.settings.git-effectful
             config.settings.tail
             config.settings.warp-tls-simple
-            config.settings.gh-signoff
+            config.settings.gh
             config.settings.attic-hs
             config.settings.vira-ci-types
             config.settings.hint-nix
@@ -83,7 +83,7 @@
             pkgs.coreutils # For `tail`
           ];
         };
-        gh-signoff = {
+        gh = {
           extraBuildDepends = [
             pkgs.gh-signoff
             pkgs.gh
