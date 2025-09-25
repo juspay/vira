@@ -5,7 +5,7 @@ cabal-version: 2.0
 -- see: https://github.com/sol/hpack
 
 name:           gh
-version:        0.1.0.1
+version:        0.2.0.0
 synopsis:       Haskell bindings for gh CLI
 description:    A standalone library for gh CLI operations
 category:       System

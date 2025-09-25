@@ -28,4 +28,4 @@ Parameters:
 -}
 create :: Force -> String -> CreateProcess
 create force name =
-  proc ghSignoffBin $ "create" : (["--force" | force == Force] <> [name])
+  proc ghSignoffBin $ "create" : (["-f" | force == Force] <> [name])

@@ -3,7 +3,7 @@ defaults:
   - local: ../../hpack-relude.yaml
 
 name: gh
-version: 0.1.0.1
+version: 0.2.0.0
 license: MIT
 copyright: 2025 Juspay
 maintainer: srid@srid.ca
