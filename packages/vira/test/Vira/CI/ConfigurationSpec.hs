@@ -7,8 +7,7 @@ import Effectful.Git (BranchName (..), CommitID (..))
 import Paths_vira (getDataFileName)
 import Test.Hspec
 import Vira.CI.Configuration
-import Vira.CI.Environment (viraContext)
-import Vira.CI.Environment.Type (ViraEnvironment (..))
+import Vira.CI.Environment (ViraEnvironment (..), viraContext)
 import Vira.CI.Pipeline (defaultPipeline)
 import Vira.CI.Pipeline.Type (AtticStage (..), BuildStage (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), CachixSettings (..), Repo (..), RepoName (..))

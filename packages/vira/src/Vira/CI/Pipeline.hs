@@ -15,8 +15,7 @@ import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Info qualified as SysInfo
 import Vira.CI.Configuration qualified as Configuration
-import Vira.CI.Environment (ViraEnvironment (..), viraContext)
-import Vira.CI.Environment.Type (projectDir)
+import Vira.CI.Environment (ViraEnvironment (..), projectDir, viraContext)
 import Vira.CI.Pipeline.Type
 import Vira.Lib.Cachix
 import Vira.Lib.Omnix qualified as Omnix
