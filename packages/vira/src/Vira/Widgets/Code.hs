@@ -102,12 +102,12 @@ Date uses smaller text size for secondary information hierarchy.
 viraCommitInfo_ :: Git.CommitID -> Vira.App.AppHtml ()
 viraCommitInfo_ commitId = do
   maybeCommit <- lift $ Vira.App.query $ Vira.State.Acid.GetCommitByIdA commitId
-  div_ [class_ "flex items-center space-x-2"] $ do
+  div_ [class_ "flex items-center space-x-2 min-w-0"] $ do
     viraCommitHash_ commitId
     case maybeCommit of
       Just commit -> do
         unless (T.null commit.commitMessage) $ do
-          span_ [class_ "text-sm text-gray-600 truncate"] $ toHtml commit.commitMessage
+          span_ [class_ "text-sm text-gray-600 truncate min-w-0 max-w-sm"] $ toHtml commit.commitMessage
         unless (T.null commit.commitAuthor) $ do
           span_ [class_ "text-xs text-gray-500"] $ do
             "by " <> toHtml commit.commitAuthor

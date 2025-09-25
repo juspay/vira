@@ -53,11 +53,11 @@ viewBranch repo branch jobs = do
     (toHtmlRaw Icon.git_branch)
     (toText $ toString repo.name <> " → " <> toString branch.branchName)
     ( div_ [class_ "flex items-center justify-between"] $ do
-        div_ [class_ "flex items-center space-x-3 text-gray-600"] $ do
-          span_ [class_ "text-sm"] "Latest commit:"
-          div_ [class_ "flex items-center space-x-2"] $ do
-            div_ [class_ "w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.git_commit
-            W.viraCommitInfo_ branch.headCommit
+        div_ [class_ "flex items-center space-x-3 text-gray-600 min-w-0 flex-1"] $ do
+          span_ [class_ "text-sm shrink-0"] "Latest commit:"
+          div_ [class_ "flex items-center space-x-2 min-w-0"] $ do
+            div_ [class_ "w-4 h-4 flex items-center justify-center shrink-0"] $ toHtmlRaw Icon.git_commit
+            div_ [class_ "min-w-0"] $ W.viraCommitInfo_ branch.headCommit
         div_ [class_ "flex items-center gap-2"] $ do
           buildLink <- lift $ App.getLink $ LinkTo.Build repo.name branch.branchName
           updateLink <- lift $ App.getLink $ LinkTo.RepoUpdate repo.name
