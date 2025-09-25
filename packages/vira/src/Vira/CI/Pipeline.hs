@@ -7,12 +7,13 @@ import Attic
 import Effectful (Eff, IOE, (:>))
 import Effectful.Git qualified as Git
 import Effectful.Process (CreateProcess (cwd), env, proc)
-import GH.Signoff
+import GH.Signoff qualified as Signoff
 import Language.Haskell.Interpreter (InterpreterError)
 import Optics.Core
 import System.Directory (doesFileExist)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
+import System.Info qualified as SysInfo
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Environment (ViraEnvironment (..), viraContext)
 import Vira.CI.Environment.Type (projectDir)
@@ -95,7 +96,10 @@ cachixProcs env stage =
 
 signoffProcs :: SignoffStage -> [CreateProcess]
 signoffProcs stage =
-  [ghSignoffProcess "vira" "ci" | stage.enable]
+  [Signoff.create Signoff.Force statusTitle | stage.enable]
+  where
+    nixSystem = SysInfo.arch <> "-" <> SysInfo.os
+    statusTitle = "vira/" <> nixSystem <> "/ci"
 
 -- HACK: Hardcoding until we have per-repo configuration
 -- Until we have https://github.com/juspay/vira/issues/59
