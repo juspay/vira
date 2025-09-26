@@ -15,7 +15,7 @@ description: CI-specific types and data structures for vira, separated for use i
 
 dependencies:
   - aeson
-  - attic-hs
+  - attic
   - base16-bytestring
   - bytestring
   - containers

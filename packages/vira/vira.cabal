@@ -113,7 +113,7 @@ library
     , acid-state
     , aeson
     , async
-    , attic-hs
+    , attic
     , base ==4.*
     , base16-bytestring
     , binary
@@ -223,7 +223,7 @@ executable vira
     , acid-state
     , aeson
     , async
-    , attic-hs
+    , attic
     , base ==4.*
     , base16-bytestring
     , binary
@@ -335,7 +335,7 @@ executable vira-tests
     , acid-state
     , aeson
     , async
-    , attic-hs
+    , attic
     , base ==4.*
     , base16-bytestring
     , binary

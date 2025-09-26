@@ -1,7 +1,7 @@
 packages:
   packages/vira
   packages/vira-ci-types
-  packages/attic-hs
+  packages/attic
   packages/tail
   packages/htmx-lucid-contrib
   packages/git-effectful

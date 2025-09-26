@@ -4,4 +4,4 @@
 # https://x.com/sridca/status/1901283945779544362
 
 exec cabal repl "$@" \
-    vira vira-ci-types attic-hs tail htmx-lucid-contrib git-effectful gh
+    vira vira-ci-types attic tail htmx-lucid-contrib git-effectful gh

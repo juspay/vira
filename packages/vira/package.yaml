@@ -32,7 +32,7 @@ dependencies:
   - acid-state
   - aeson
   - async
-  - attic-hs
+  - attic
   - base16-bytestring
   - bytestring
   - cereal

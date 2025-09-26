@@ -49,7 +49,7 @@
             config.settings.tail
             config.settings.warp-tls-simple
             config.settings.gh
-            config.settings.attic-hs
+            config.settings.attic
             config.settings.vira-ci-types
             config.settings.hint-nix
           ];
@@ -89,7 +89,7 @@
             pkgs.gh
           ];
         };
-        attic-hs = {
+        attic = {
           extraBuildDepends = [
             pkgs.attic-client # For attic
           ];
