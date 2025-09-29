@@ -15,7 +15,7 @@ import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Info qualified as SysInfo
 import Vira.CI.Configuration qualified as Configuration
-import Vira.CI.Environment (ViraEnvironment (..), projectDir, sharedCloneDir, viraContext)
+import Vira.CI.Environment (ViraEnvironment (..), projectDir, viraContext)
 import Vira.CI.Pipeline.Type
 import Vira.Lib.Cachix
 import Vira.Lib.Omnix qualified as Omnix
@@ -30,11 +30,10 @@ runPipeline ::
   ViraEnvironment ->
   Eff es (Either TaskException ExitCode)
 runPipeline env = do
-  -- 1. Setup workspace and clone from shared clone
+  -- 1. Setup workspace and clone directly from original remote
   -- HACK: We hardcoding "project" (see projectDir function in Environment.hs)
-  let sharedClonePath = sharedCloneDir env
-      setupProcs =
-        one $ Git.cloneFromSharedClone sharedClonePath env.branch.headCommit "project"
+  let setupProcs =
+        one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit "project"
   setupResult <- Task.runProcesses setupProcs
   case setupResult of
     Right ExitSuccess -> do
