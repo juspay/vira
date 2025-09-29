@@ -9,6 +9,7 @@ Servant instances should be gated behind a Cabal flag.
 module Effectful.Git where
 
 import Colog (Message, Msg (..), Severity (..))
+import Control.Exception (try)
 import Data.Aeson (ToJSON)
 import Data.Data (Data)
 import Data.IxSet.Typed (Indexable (..), IxSet, ixFun, ixList)
@@ -21,7 +22,7 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog qualified as Log
 import Servant (FromHttpApiData, ToHttpApiData)
-import System.IO.Temp (withSystemTempDirectory)
+import System.Directory (doesDirectoryExist)
 import System.Process
 import System.Which (staticWhich)
 import Text.Megaparsec (Parsec, anySingle, manyTill, parse, takeRest)
@@ -84,88 +85,29 @@ type IxCommit = IxSet CommitIxs Commit
 instance Indexable CommitIxs Commit where
   indices = ixList (ixFun $ \commit -> [commit.commitId])
 
-{- | Get all remote branches with their commit information.
+-- | Parse a git ref line into a branch name and commit
+gitRefParser :: Parsec Void Text (BranchName, Commit)
+gitRefParser = do
+  branchName' <- toText <$> manyTill anySingle tab
+  commitId <- fromString <$> manyTill anySingle tab
+  timestampStr <- manyTill anySingle tab
+  author <- toText <$> manyTill anySingle tab
+  authorEmailRaw <- toText <$> manyTill anySingle tab
+  message <- takeRest
 
-Clones the repository and returns a Map of branch names to commits.
-Filters out the bare "origin" entry and strips "origin/" prefixes.
--}
-remoteBranches :: (Log Message :> es, IOE :> es) => Text -> Eff es (Map BranchName Commit)
-remoteBranches url = do
-  output <- withSystemTempDirectory "vira-git-clone" $ \tempDir -> do
-    -- Clone all remote branches, but with minimal depth for efficiency
-    -- Clone the repository temporarily to get detailed branch information using for-each-ref
-    -- TODO: In future, we want an unified 'workspace' management, where we clone git repo once and re-use that.
-    let cloneCmd = cloneForMetadata url
-    Log.logMsg $ Msg {msgSeverity = Info, msgText = "Running git clone: " <> show (cmdspec cloneCmd), msgStack = callStack}
-    _ <- liftIO $ readCreateProcess cloneCmd {cwd = Just tempDir} ""
-    Log.logMsg $ Msg {msgSeverity = Info, msgText = "Cloned repository successfully", msgStack = callStack}
-    -- Use git for-each-ref to get detailed branch information for remote branches only
-    let forEachRefCmd =
-          proc
-            git
-            [ "for-each-ref"
-            , "--format=%(refname:short)%09%(objectname)%09%(committerdate:unix)%09%(authorname)%09%(authoremail)%09%(subject)"
-            , "refs/remotes"
-            ]
-    Log.logMsg $ Msg {msgSeverity = Info, msgText = "Running git for-each-ref: " <> show (cmdspec forEachRefCmd), msgStack = callStack}
-    liftIO $
-      readCreateProcess
-        forEachRefCmd
-          { cwd = Just tempDir
-          }
-        ""
+  -- Strip "origin/" prefix from branch name if present to get clean branch names
+  let branchName = fromString . toString $ T.stripPrefix "origin/" branchName' ?: branchName'
 
-  -- Drop the first line, which is 'origin' (not a branch)
-  let gitRefLines = drop 1 $ lines $ T.strip (toText output)
-  commits <- catMaybes <$> mapM (parseCommitLine url) gitRefLines
-  return $ Map.fromList commits
-  where
-    parseCommitLine :: (Log Message :> es) => Text -> Text -> Eff es (Maybe (BranchName, Commit))
-    parseCommitLine repoUrl line = case parse gitRefParser "" line of
-      Left err -> do
-        Log.logMsg $ Msg {msgSeverity = Error, msgText = "Parse error for repo " <> repoUrl <> " on line '" <> line <> "': " <> toText @String (show err), msgStack = callStack}
-        return Nothing
-      Right result -> return $ Just result
+  -- Strip angle brackets from email if present (git %(authoremail) includes < >)
+  let authorEmail = T.strip $ fromMaybe authorEmailRaw $ do
+        stripped1 <- T.stripPrefix "<" authorEmailRaw
+        T.stripSuffix ">" stripped1
 
-    gitRefParser :: Parsec Void Text (BranchName, Commit)
-    gitRefParser = do
-      branchName' <- toText <$> manyTill anySingle tab
-      commitId <- fromString <$> manyTill anySingle tab
-      timestampStr <- manyTill anySingle tab
-      author <- toText <$> manyTill anySingle tab
-      authorEmailRaw <- toText <$> manyTill anySingle tab
-      message <- takeRest
+  timestamp <- maybe (fail $ "Invalid timestamp: " <> timestampStr) return (readMaybe timestampStr)
+  let date = posixSecondsToUTCTime (fromIntegral (timestamp :: Int))
 
-      -- Strip "origin/" prefix from branch name if present to get clean branch names
-      let branchName = fromString . toString $ T.stripPrefix "origin/" branchName' ?: branchName'
-
-      -- Strip angle brackets from email if present (git %(authoremail) includes < >)
-      let authorEmail = T.strip $ fromMaybe authorEmailRaw $ do
-            stripped1 <- T.stripPrefix "<" authorEmailRaw
-            T.stripSuffix ">" stripped1
-
-      timestamp <- maybe (fail $ "Invalid timestamp: " <> timestampStr) return (readMaybe timestampStr)
-      let date = posixSecondsToUTCTime (fromIntegral (timestamp :: Int))
-
-      let commit = Commit commitId message date author authorEmail
-      return (branchName, commit)
-
--- | Return the `CreateProcess` to clone a repo with all remote branches
-cloneForMetadata :: Text -> CreateProcess
-cloneForMetadata url =
-  proc
-    git
-    [ "clone"
-    , "-v"
-    , -- Download all reachable commits and trees while fetching blobs on-demand
-      -- https://github.blog/open-source/git/get-up-to-speed-with-partial-clone-and-shallow-clone/
-      "--filter=blob:none"
-    , "--depth"
-    , "1"
-    , "--no-single-branch"
-    , toString url
-    , "."
-    ]
+  let commit = Commit commitId message date author authorEmail
+  return (branchName, commit)
 
 -- | Return the `CreateProcess` to clone a repo at a specific commit
 cloneAtCommit :: Text -> CommitID -> FilePath -> CreateProcess
@@ -183,3 +125,90 @@ cloneAtCommit url commit path =
     , toString url
     , path
     ]
+
+-- | Return the `CreateProcess` to clone from a shared clone at a specific commit
+cloneFromSharedClone :: FilePath -> CommitID -> FilePath -> CreateProcess
+cloneFromSharedClone sharedClonePath commit targetPath =
+  proc
+    git
+    [ "-c"
+    , "advice.detachedHead=false"
+    , "clone"
+    , "--depth"
+    , "1"
+    , "--single-branch"
+    , "--revision"
+    , toString commit
+    , sharedClonePath
+    , targetPath
+    ]
+
+{- | Get remote branches using a shared clone directory.
+This function expects the shared clone to already exist and be updated.
+It parses branches from the existing shared clone without modifying it.
+-}
+remoteBranchesFromSharedClone :: (Log Message :> es, IOE :> es) => FilePath -> Eff es (Either Text (Map BranchName Commit))
+remoteBranchesFromSharedClone sharedClonePath = do
+  -- Check if shared clone directory exists
+  exists <- liftIO $ doesDirectoryExist sharedClonePath
+
+  if not exists
+    then do
+      Log.logMsg $
+        Msg
+          { msgSeverity = Error
+          , msgText = "Shared clone directory does not exist: " <> toText sharedClonePath
+          , msgStack = callStack
+          }
+      return $ Left $ "Shared clone directory does not exist: " <> toText sharedClonePath
+    else do
+      -- Use git for-each-ref to get detailed branch information for remote branches only
+      let forEachRefCmd =
+            proc
+              git
+              [ "for-each-ref"
+              , "--format=%(refname:short)%09%(objectname)%09%(committerdate:unix)%09%(authorname)%09%(authoremail)%09%(subject)"
+              , "refs/remotes"
+              ]
+
+      Log.logMsg $
+        Msg
+          { msgSeverity = Info
+          , msgText = "Running git for-each-ref in shared clone: " <> show (cmdspec forEachRefCmd)
+          , msgStack = callStack
+          }
+
+      result <-
+        liftIO $
+          try $
+            readCreateProcess
+              forEachRefCmd {cwd = Just sharedClonePath}
+              ""
+
+      case result of
+        Left (ex :: SomeException) -> do
+          let errorMsg = "Git for-each-ref failed: " <> show ex
+          Log.logMsg $
+            Msg
+              { msgSeverity = Error
+              , msgText = errorMsg
+              , msgStack = callStack
+              }
+          return $ Left $ toText errorMsg
+        Right output -> do
+          -- Drop the first line, which is 'origin' (not a branch)
+          let gitRefLines = drop 1 $ lines $ T.strip (toText output)
+          commits <- catMaybes <$> mapM parseCommitLineShared gitRefLines
+          return $ Right $ Map.fromList commits
+  where
+    parseCommitLineShared :: (Log Message :> es) => Text -> Eff es (Maybe (BranchName, Commit))
+    parseCommitLineShared line = case parse gitRefParser "" line of
+      Left err -> do
+        Log.logMsg $
+          Msg
+            { msgSeverity = Error
+            , msgText = "Parse error on line '" <> line <> "': " <> toText @String (show err)
+            , msgStack = callStack
+            }
+        return Nothing
+      Right result -> return $ Just result

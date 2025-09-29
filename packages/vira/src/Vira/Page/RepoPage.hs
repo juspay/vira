@@ -5,10 +5,13 @@ module Vira.Page.RepoPage (
   handlers,
 ) where
 
+import Data.ByteString.Builder (toLazyByteString)
+import Data.Text.Encoding (encodeUtf8Builder)
 import Data.Time (diffUTCTime)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Git qualified as Git
+import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
@@ -21,9 +24,11 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.Git.SharedClone qualified as SharedClone
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
+import Vira.Supervisor.Type (TaskSupervisor (baseWorkDir))
 import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Code qualified as W
 import Vira.Widgets.Form qualified as W
@@ -61,9 +66,30 @@ viewHandler name = do
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  allBranches <- Git.remoteBranches repo.cloneUrl
-  App.update $ St.SetRepoBranchesA repo.name allBranches
-  pure $ addHeader True "Ok"
+  supervisor <- asks App.supervisor
+  sharedCloneState <- asks App.sharedCloneState
+
+  -- Ensure shared clone exists
+  ensureResult <- SharedClone.ensureSharedClone sharedCloneState repo.name repo.cloneUrl supervisor.baseWorkDir
+
+  case ensureResult of
+    Left errorMsg -> throwError $ err500 {errBody = toLazyByteString $ encodeUtf8Builder errorMsg}
+    Right () -> do
+      -- Update shared clone
+      updateResult <- SharedClone.updateSharedClone sharedCloneState repo.name supervisor.baseWorkDir
+
+      case updateResult of
+        Left errorMsg -> throwError $ err500 {errBody = toLazyByteString $ encodeUtf8Builder errorMsg}
+        Right () -> do
+          -- Get branches from shared clone
+          let sharedClonePath = SharedClone.getSharedClonePath supervisor.baseWorkDir repo.name
+          branchesResult <- Git.remoteBranchesFromSharedClone sharedClonePath
+
+          case branchesResult of
+            Left errorMsg -> throwError $ err500 {errBody = toLazyByteString $ encodeUtf8Builder errorMsg}
+            Right allBranches -> do
+              App.update $ St.SetRepoBranchesA repo.name allBranches
+              pure $ addHeader True "Ok"
 
 deleteHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do

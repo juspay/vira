@@ -57,6 +57,7 @@ library
     , co-log
     , co-log-effectful
     , containers
+    , directory
     , effectful
     , effectful-core
     , effectful-plugin
@@ -67,7 +68,6 @@ library
     , relude >=1.0
     , safecopy
     , servant-server
-    , temporary
     , text
     , time
     , which
@@ -119,9 +119,11 @@ executable git-effectful-test
     , co-log
     , co-log-effectful
     , containers
+    , directory
     , effectful
     , effectful-core
     , effectful-plugin
+    , filepath
     , git-effectful
     , hspec
     , hspec-discover

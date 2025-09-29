@@ -14,6 +14,7 @@ import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Server qualified as Server
+import Vira.Git.SharedClone qualified as SharedClone
 import Vira.State.Core (ViraState, closeViraState, openViraState)
 import Vira.State.JSON (getExportData, importViraState)
 import Vira.Supervisor.Core qualified as Supervisor
@@ -43,9 +44,10 @@ runVira = do
 
         instanceInfo <- getInstanceInfo
         supervisor <- Supervisor.newSupervisor (stateDir globalSettings)
+        sharedCloneState <- SharedClone.newSharedCloneState
         -- Initialize broadcast channel for state update tracking
         stateUpdateBuffer <- atomically newBroadcastTChan
-        let appState = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer}
+        let appState = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.sharedCloneState = sharedCloneState, App.stateUpdated = stateUpdateBuffer}
             appServer = Server.runServer globalSettings webSettings
         App.runApp appState appServer
 

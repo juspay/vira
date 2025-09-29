@@ -17,6 +17,7 @@ import Servant.Links (Link)
 import Vira.App.CLI (WebSettings)
 import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.App.LinkTo.Type (LinkTo)
+import Vira.Git.SharedClone (SharedCloneState)
 import Vira.Lib.Logging (runLogActionStdout)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
@@ -57,6 +58,8 @@ data AppState = AppState
     acid :: AcidState ViraState
   , -- Process supervisor state
     supervisor :: TaskSupervisor
+  , -- Shared git clone state for managing repository clones
+    sharedCloneState :: SharedCloneState
   , -- Create a link to a part of the app.
     --
     -- This is decoupled from servant types deliberately to avoid cyclic imports.

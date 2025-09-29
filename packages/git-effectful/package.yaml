@@ -20,6 +20,7 @@ dependencies:
   - co-log
   - co-log-effectful
   - containers
+  - directory
   - effectful
   - effectful-core
   - effectful-plugin
@@ -30,7 +31,6 @@ dependencies:
   - process
   - safecopy
   - servant-server
-  - temporary
   - text
   - time
 
@@ -49,3 +49,6 @@ executables:
       - git-effectful
       - hspec
       - hspec-discover
+      - temporary
+      - process
+      - filepath
