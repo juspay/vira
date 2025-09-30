@@ -126,23 +126,6 @@ cloneAtCommit url commit path =
     , path
     ]
 
--- | Return the `CreateProcess` to clone from a shared clone at a specific commit
-cloneFromSharedClone :: FilePath -> CommitID -> FilePath -> CreateProcess
-cloneFromSharedClone sharedClonePath commit targetPath =
-  proc
-    git
-    [ "-c"
-    , "advice.detachedHead=false"
-    , "clone"
-    , "--depth"
-    , "1"
-    , "--single-branch"
-    , "--revision"
-    , toString commit
-    , sharedClonePath
-    , targetPath
-    ]
-
 {- | Get remote branches using a shared clone directory.
 This function expects the shared clone to already exist and be updated.
 It parses branches from the existing shared clone without modifying it.
