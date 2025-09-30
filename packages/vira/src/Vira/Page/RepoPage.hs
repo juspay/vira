@@ -68,10 +68,9 @@ updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
 updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   supervisor <- asks App.supervisor
-  sharedCloneState <- asks App.sharedCloneState
 
   -- Ensure shared clone exists and update it
-  sharedCloneResult <- SharedClone.ensureAndUpdateSharedClone sharedCloneState repo.name repo.cloneUrl supervisor.baseWorkDir
+  sharedCloneResult <- SharedClone.ensureAndUpdateSharedClone repo.name repo.cloneUrl supervisor.baseWorkDir
 
   case sharedCloneResult of
     Left errorMsg -> throwError $ err500 {errBody = toLazyByteString $ encodeUtf8Builder errorMsg}

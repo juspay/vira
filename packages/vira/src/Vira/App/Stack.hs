@@ -10,7 +10,7 @@ import Effectful.Colog (Log)
 import Effectful.Concurrent.Async (Concurrent, runConcurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem, runFileSystem)
-import Effectful.Git.Shared (SharedCloneState)
+
 import Effectful.Process (Process, runProcess)
 import Effectful.Reader.Dynamic (Reader, runReader)
 import Servant (Handler (Handler), ServerError)
@@ -58,8 +58,6 @@ data AppState = AppState
     acid :: AcidState ViraState
   , -- Process supervisor state
     supervisor :: TaskSupervisor
-  , -- Shared git clone state for managing repository clones
-    sharedCloneState :: SharedCloneState
   , -- Create a link to a part of the app.
     --
     -- This is decoupled from servant types deliberately to avoid cyclic imports.

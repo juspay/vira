@@ -65,14 +65,15 @@ library
     , filepath
     , http-api-data
     , ixset-typed
+    , lukko
     , megaparsec
     , process
     , relude >=1.0
     , safecopy
     , servant-server
-    , stm
     , text
     , time
+    , unliftio
     , which
   mixins:
       base hiding (Prelude)
@@ -132,15 +133,16 @@ executable git-effectful-test
     , hspec-discover
     , http-api-data
     , ixset-typed
+    , lukko
     , megaparsec
     , process
     , relude >=1.0
     , safecopy
     , servant-server
-    , stm
     , temporary
     , text
     , time
+    , unliftio
     , which
   mixins:
       base hiding (Prelude)

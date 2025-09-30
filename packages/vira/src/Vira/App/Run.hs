@@ -7,7 +7,7 @@ import Control.Exception (bracket)
 import Data.Acid (AcidState)
 import Data.Aeson (encode)
 import Data.ByteString.Lazy qualified as LBS
-import Effectful.Git.Shared qualified as SharedClone
+
 import Main.Utf8 qualified as Utf8
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
@@ -44,10 +44,9 @@ runVira = do
 
         instanceInfo <- getInstanceInfo
         supervisor <- Supervisor.newSupervisor (stateDir globalSettings)
-        sharedCloneState <- SharedClone.newSharedCloneState
         -- Initialize broadcast channel for state update tracking
         stateUpdateBuffer <- atomically newBroadcastTChan
-        let appState = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.sharedCloneState = sharedCloneState, App.stateUpdated = stateUpdateBuffer}
+        let appState = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer}
             appServer = Server.runServer globalSettings webSettings
         App.runApp appState appServer
 

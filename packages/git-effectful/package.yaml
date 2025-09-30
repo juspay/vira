@@ -28,13 +28,14 @@ dependencies:
   - http-api-data
   - which
   - ixset-typed
+  - lukko
   - megaparsec
   - process
   - safecopy
   - servant-server
-  - stm
   - text
   - time
+  - unliftio
 
 library:
   source-dirs: src

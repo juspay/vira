@@ -1,71 +1,87 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
-{- | Module for managing shared git clones with STM concurrency control
+{- | Shared git clone management with file-based locking.
 
-This module provides thread-safe management of shared git repositories
-to avoid repeated cloning during branch refresh operations.
+Maintains a single clone per repository at @baseWorkDir/repoName/source@,
+reusing it across operations to avoid repeated cloning. Uses file locks
+(@source.lock@) to serialize concurrent updates to the same repository,
+working across processes.
+
+= Usage
+
+@
+result <- ensureAndUpdateSharedClone "myrepo" "https://..." "/work"
+case result of
+  Right path -> -- use path for git operations
+  Left err -> -- handle error, may need to delete corrupt clone
+@
 -}
 module Effectful.Git.Shared (
-  SharedCloneState,
-  newSharedCloneState,
   ensureAndUpdateSharedClone,
 ) where
 
 import Colog (Message, Msg (..), Severity (..))
-import Control.Concurrent.STM qualified as STM
-import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog qualified as Log
 import Effectful.Git (RepoName (..), cloneShared, git)
+import Lukko (LockMode (ExclusiveLock))
+import Lukko qualified
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist)
 import System.Exit (ExitCode (..))
-import System.FilePath ((</>))
+import System.FilePath (takeDirectory, (</>))
 import System.Process (CreateProcess (..), proc, readCreateProcessWithExitCode)
+import UnliftIO.Exception (finally)
 
--- | State tracking which repositories are currently being updated
-newtype SharedCloneState = SharedCloneState (STM.TVar (Map RepoName Bool))
+{- | Ensure shared clone exists and is up-to-date, returning its path.
 
--- | Create a new shared clone state
-newSharedCloneState :: IO SharedCloneState
-newSharedCloneState = SharedCloneState <$> STM.atomically (STM.newTVar Map.empty)
-
--- | Ensure a shared clone exists and update it with latest changes, returning the path
+Clones if needed, then fetches latest. Returns @baseWorkDir/repoName/source@.
+Concurrent calls for the same repo block on file lock until the first completes.
+On error, caller may need to delete the clone directory and retry.
+-}
 ensureAndUpdateSharedClone ::
   ( Log Message :> es
   , IOE :> es
   ) =>
-  SharedCloneState ->
   RepoName ->
+  -- | Clone URL
   Text ->
+  -- | Base work directory
   FilePath ->
   Eff es (Either Text FilePath)
-ensureAndUpdateSharedClone sharedState repoName cloneUrl baseWorkDir = do
-  ensureResult <- ensureSharedClone sharedState repoName cloneUrl baseWorkDir
+ensureAndUpdateSharedClone repoName cloneUrl baseWorkDir = do
+  ensureResult <- ensureSharedClone repoName cloneUrl baseWorkDir
   case ensureResult of
     Left err -> return $ Left err
     Right () -> do
-      updateResult <- updateSharedClone sharedState repoName baseWorkDir
+      updateResult <- updateSharedClone repoName baseWorkDir
       case updateResult of
         Left err -> return $ Left err
         Right () -> return $ Right $ getSharedClonePath baseWorkDir repoName
 
--- | Get the path to the shared clone for a repository
+{- | Compute path to shared clone: @baseWorkDir/repoName/source@.
+
+The @source@ subdirectory allows future expansion (e.g., worktrees, metadata).
+-}
 getSharedClonePath :: FilePath -> RepoName -> FilePath
 getSharedClonePath baseWorkDir repoName =
   baseWorkDir </> toString repoName </> "source"
 
--- | Ensure a shared clone exists for the given repository
+{- | Clone repository if not present. Idempotent.
+
+Checks directory existence first. If missing, acquires lock and clones.
+Race condition: Multiple processes may see "doesn't exist" before first clone completes,
+but file lock ensures only one actually clones.
+-}
 ensureSharedClone ::
   ( Log Message :> es
   , IOE :> es
   ) =>
-  SharedCloneState ->
   RepoName ->
   Text ->
   FilePath ->
   Eff es (Either Text ())
-ensureSharedClone sharedState repoName cloneUrl baseWorkDir = do
+ensureSharedClone repoName cloneUrl baseWorkDir = do
   let sharedClonePath = getSharedClonePath baseWorkDir repoName
 
   -- Check if shared clone directory exists
@@ -81,7 +97,7 @@ ensureSharedClone sharedState repoName cloneUrl baseWorkDir = do
           }
       return $ Right ()
     else do
-      -- Clone the repository with STM protection
+      -- Clone the repository with file lock protection
       Log.logMsg $
         Msg
           { msgSeverity = Info
@@ -89,7 +105,7 @@ ensureSharedClone sharedState repoName cloneUrl baseWorkDir = do
           , msgStack = callStack
           }
 
-      withSTMLock sharedState repoName $ do
+      withFileLock (baseWorkDir </> toString repoName </> "source") $ do
         -- Create parent directory
         liftIO $ createDirectoryIfMissing True (baseWorkDir </> toString repoName)
 
@@ -140,16 +156,18 @@ ensureSharedClone sharedState repoName cloneUrl baseWorkDir = do
                   <> toText sharedClonePath
                   <> " and try again."
 
--- | Update an existing shared clone with latest changes from remote
+{- | Fetch latest changes from remote. Uses @--force@ to handle force-pushes.
+
+Acquires file lock before fetching to prevent concurrent updates to same repo.
+-}
 updateSharedClone ::
   ( Log Message :> es
   , IOE :> es
   ) =>
-  SharedCloneState ->
   RepoName ->
   FilePath ->
   Eff es (Either Text ())
-updateSharedClone sharedState repoName baseWorkDir = do
+updateSharedClone repoName baseWorkDir = do
   let sharedClonePath = getSharedClonePath baseWorkDir repoName
 
   Log.logMsg $
@@ -159,7 +177,7 @@ updateSharedClone sharedState repoName baseWorkDir = do
       , msgStack = callStack
       }
 
-  withSTMLock sharedState repoName $ do
+  withFileLock sharedClonePath $ do
     -- Use --force to handle forced pushes
     let fetchCmd =
           proc
@@ -214,27 +232,27 @@ updateSharedClone sharedState repoName baseWorkDir = do
               <> toText sharedClonePath
               <> " and try again."
 
--- | Execute an action with STM lock for the given repository
-withSTMLock ::
+{- | Run action with file-based lock on a directory.
+
+Creates/acquires @dirPath.lock@ file.
+Blocks if another process holds the lock, ensuring sequential access.
+Exception-safe via onException.
+-}
+withFileLock ::
   (IOE :> es) =>
-  SharedCloneState ->
-  RepoName ->
+  -- | Directory to lock
+  FilePath ->
   Eff es a ->
   Eff es a
-withSTMLock (SharedCloneState stateVar) repoName action = do
+withFileLock dirPath action = do
+  let lockPath = dirPath <> ".lock"
+
   -- Acquire lock
-  liftIO $ STM.atomically $ do
-    stateMap <- STM.readTVar stateVar
-    case Map.lookup repoName stateMap of
-      Just True -> STM.retry -- Repository is being updated, wait
-      _ -> STM.writeTVar stateVar (Map.insert repoName True stateMap)
+  fd <- liftIO $ do
+    createDirectoryIfMissing True (takeDirectory lockPath)
+    fd <- Lukko.fdOpen lockPath
+    Lukko.fdLock fd ExclusiveLock
+    return fd
 
-  -- Execute action
-  result <- action
-
-  -- Release lock
-  liftIO $ STM.atomically $ do
-    stateMap <- STM.readTVar stateVar
-    STM.writeTVar stateVar (Map.delete repoName stateMap)
-
-  return result
+  -- Run action with cleanup via finally
+  action `finally` liftIO (Lukko.fdUnlock fd >> Lukko.fdClose fd)
