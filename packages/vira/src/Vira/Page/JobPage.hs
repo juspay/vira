@@ -6,7 +6,7 @@ import Colog (Severity (..))
 import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
-import Effectful.Git (BranchName)
+import Effectful.Git (BranchName, RepoName)
 import Effectful.Reader.Dynamic (asks)
 import GHC.IO.Exception (ExitCode (..))
 import Htmx.Lucid.Core (hxSwapS_)
@@ -28,7 +28,7 @@ import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Page.JobLog qualified as JobLog
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type (JobId, RepoName, jobWorkingDir)
+import Vira.State.Type (JobId, jobWorkingDir)
 import Vira.Supervisor.Task qualified as Supervisor
 import Vira.Supervisor.Type (TaskException (ConfigurationError, KilledByUser), TaskSupervisor (baseWorkDir))
 import Vira.Widgets.Button qualified as W

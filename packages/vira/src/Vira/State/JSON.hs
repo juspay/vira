@@ -12,8 +12,9 @@ import Data.Acid (AcidState, query, update)
 import Data.Aeson (FromJSON (..), ToJSON (..), decode)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Map qualified as Map
+import Effectful.Git (RepoName)
 import Vira.State.Acid (AddNewRepoA (AddNewRepoA), GetAllReposA (GetAllReposA), GetAtticSettingsA (GetAtticSettingsA), GetCachixSettingsA (GetCachixSettingsA), GetRepoByNameA (GetRepoByNameA), SetAtticSettingsA (SetAtticSettingsA), SetCachixSettingsA (SetCachixSettingsA), ViraState)
-import Vira.State.Type (AtticSettings, CachixSettings, Repo (..), RepoName)
+import Vira.State.Type (AtticSettings, CachixSettings, Repo (..))
 
 -- | Subset of ViraState that can be exported/imported
 data ViraExportData = ViraExportData

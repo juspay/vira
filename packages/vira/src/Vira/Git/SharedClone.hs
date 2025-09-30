@@ -17,12 +17,11 @@ import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog qualified as Log
-import Effectful.Git (cloneShared, git)
+import Effectful.Git (RepoName (..), cloneShared, git)
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist)
 import System.Exit (ExitCode (..))
 import System.FilePath ((</>))
 import System.Process (CreateProcess (..), proc, readCreateProcessWithExitCode)
-import Vira.State.Type (RepoName (..))
 
 -- | State tracking which repositories are currently being updated
 newtype SharedCloneState = SharedCloneState (STM.TVar (Map RepoName Bool))

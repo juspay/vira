@@ -16,7 +16,7 @@ import Data.List (maximum)
 import Data.Map.Strict qualified as Map
 import Data.SafeCopy (base, deriveSafeCopy)
 import Data.Time (UTCTime)
-import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit)
+import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit, RepoName)
 import System.FilePath ((</>))
 import Vira.State.Type
 import Vira.State.Type qualified as T

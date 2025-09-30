@@ -10,6 +10,7 @@ import Data.Text.Encoding (encodeUtf8Builder)
 import Data.Time (diffUTCTime)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
+import Effectful.Git (RepoName)
 import Effectful.Git qualified as Git
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwapS_)

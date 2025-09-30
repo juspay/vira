@@ -10,7 +10,7 @@ module Effectful.Git where
 
 import Colog (Message, Msg (..), Severity (..))
 import Control.Exception (try)
-import Data.Aeson (ToJSON)
+import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import Data.Data (Data)
 import Data.IxSet.Typed (Indexable (..), IxSet, ixFun, ixList)
 import Data.Map.Strict qualified as Map
@@ -55,8 +55,9 @@ newtype CommitID = CommitID {unCommitID :: Text}
   deriving stock (Generic, Show, Eq, Ord, Data)
   deriving newtype
     ( IsString
-    , ToJSON
     , ToString
+    , ToText
+    , ToJSON
     , ToHttpApiData
     , FromHttpApiData
     )
@@ -67,14 +68,32 @@ newtype BranchName = BranchName {unBranchName :: Text}
   deriving newtype (Show, Eq, Ord)
   deriving newtype
     ( IsString
-    , ToJSON
     , ToString
+    , ToText
+    , ToJSON
     , ToHttpApiData
     , FromHttpApiData
     )
 
+-- | Git repository name
+newtype RepoName = RepoName {unRepoName :: Text}
+  deriving stock (Generic, Data)
+  deriving newtype (Show, Eq, Ord)
+  deriving newtype
+    ( IsString
+    , ToText
+    , ToString
+    , ToHttpApiData
+    , FromHttpApiData
+    , ToJSON
+    , FromJSON
+    , ToJSONKey
+    , FromJSONKey
+    )
+
 $(deriveSafeCopy 0 'base ''CommitID)
 $(deriveSafeCopy 0 'base ''BranchName)
+$(deriveSafeCopy 0 'base ''RepoName)
 $(deriveSafeCopy 0 'base ''Commit)
 
 -- | IxSet index for commits
