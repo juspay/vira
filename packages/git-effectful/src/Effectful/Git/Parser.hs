@@ -10,7 +10,7 @@ module Effectful.Git.Parser (
 
 import Data.Text qualified as T
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
-import Effectful.Git.Types (BranchName (..), Commit (..), CommitID (..))
+import Effectful.Git.Types (BranchName (..), Commit (..))
 import Text.Megaparsec (Parsec, anySingle, manyTill, takeRest)
 import Text.Megaparsec.Char (tab)
 

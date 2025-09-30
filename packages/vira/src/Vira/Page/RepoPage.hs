@@ -72,19 +72,15 @@ updateHandler name = do
 
   -- Ensure mirror exists and update it
   let mirrorPath = supervisor.baseWorkDir </> toString repo.name </> "source"
-  mirrorResult <- Mirror.syncMirror repo.cloneUrl mirrorPath
 
-  case mirrorResult of
+  result <- runExceptT $ do
+    ExceptT $ Mirror.syncMirror repo.cloneUrl mirrorPath
+    allBranches <- ExceptT $ Git.remoteBranchesFromClone mirrorPath
+    lift $ App.update $ St.SetRepoBranchesA repo.name allBranches
+
+  case result of
     Left errorMsg -> throwError $ err500 {errBody = toLazyByteString $ encodeUtf8Builder errorMsg}
-    Right () -> do
-      -- Get branches from mirror
-      branchesResult <- Git.remoteBranchesFromClone mirrorPath
-
-      case branchesResult of
-        Left errorMsg -> throwError $ err500 {errBody = toLazyByteString $ encodeUtf8Builder errorMsg}
-        Right allBranches -> do
-          App.update $ St.SetRepoBranchesA repo.name allBranches
-          pure $ addHeader True "Ok"
+    Right () -> pure $ addHeader True "Ok"
 
 deleteHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do
