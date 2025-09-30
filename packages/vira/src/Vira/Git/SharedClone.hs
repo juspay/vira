@@ -31,6 +31,26 @@ newtype SharedCloneState = SharedCloneState (STM.TVar (Map RepoName Bool))
 newSharedCloneState :: IO SharedCloneState
 newSharedCloneState = SharedCloneState <$> STM.atomically (STM.newTVar Map.empty)
 
+-- | Ensure a shared clone exists and update it with latest changes, returning the path
+ensureAndUpdateSharedClone ::
+  ( Log Message :> es
+  , IOE :> es
+  ) =>
+  SharedCloneState ->
+  RepoName ->
+  Text ->
+  FilePath ->
+  Eff es (Either Text FilePath)
+ensureAndUpdateSharedClone sharedState repoName cloneUrl baseWorkDir = do
+  ensureResult <- ensureSharedClone sharedState repoName cloneUrl baseWorkDir
+  case ensureResult of
+    Left err -> return $ Left err
+    Right () -> do
+      updateResult <- updateSharedClone sharedState repoName baseWorkDir
+      case updateResult of
+        Left err -> return $ Left err
+        Right () -> return $ Right $ getSharedClonePath baseWorkDir repoName
+
 -- | Get the path to the shared clone for a repository
 getSharedClonePath :: FilePath -> RepoName -> FilePath
 getSharedClonePath baseWorkDir repoName =
@@ -120,26 +140,6 @@ ensureSharedClone sharedState repoName cloneUrl baseWorkDir = do
                   <> ". Please delete "
                   <> toText sharedClonePath
                   <> " and try again."
-
--- | Ensure a shared clone exists and update it with latest changes, returning the path
-ensureAndUpdateSharedClone ::
-  ( Log Message :> es
-  , IOE :> es
-  ) =>
-  SharedCloneState ->
-  RepoName ->
-  Text ->
-  FilePath ->
-  Eff es (Either Text FilePath)
-ensureAndUpdateSharedClone sharedState repoName cloneUrl baseWorkDir = do
-  ensureResult <- ensureSharedClone sharedState repoName cloneUrl baseWorkDir
-  case ensureResult of
-    Left err -> return $ Left err
-    Right () -> do
-      updateResult <- updateSharedClone sharedState repoName baseWorkDir
-      case updateResult of
-        Left err -> return $ Left err
-        Right () -> return $ Right $ getSharedClonePath baseWorkDir repoName
 
 -- | Update an existing shared clone with latest changes from remote
 updateSharedClone ::
