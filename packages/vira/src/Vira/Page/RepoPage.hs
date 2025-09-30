@@ -5,8 +5,6 @@ module Vira.Page.RepoPage (
   handlers,
 ) where
 
-import Data.ByteString.Builder (toLazyByteString)
-import Data.Text.Encoding (encodeUtf8Builder)
 import Data.Time (diffUTCTime)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
@@ -14,9 +12,9 @@ import Effectful.Git (RepoName)
 import Effectful.Git qualified as Git
 import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Reader.Dynamic (asks)
-import Htmx.Lucid.Core (hxSwapS_)
+import Htmx.Lucid.Core (hxSwapS_, hxTarget_)
 import Htmx.Servant.Response
-import Htmx.Swap (Swap (AfterEnd))
+import Htmx.Swap (Swap (..))
 import Lucid
 import Lucid.Htmx.Contrib (hxConfirm_, hxPostSafe_)
 import Servant hiding (throwError)
@@ -35,6 +33,7 @@ import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Code qualified as W
 import Vira.Widgets.Form qualified as W
 import Vira.Widgets.Layout qualified as W
+import Vira.Widgets.Modal qualified as W
 import Vira.Widgets.Status qualified as Status
 import Vira.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
@@ -42,7 +41,7 @@ import Prelude hiding (ask, asks)
 
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
-  , _update :: mode :- "fetch" :> Post '[HTML] (Headers '[HXRefresh] Text)
+  , _update :: mode :- "fetch" :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
   , _delete :: mode :- "delete" :> Post '[HTML] (Headers '[HXRedirect] Text)
   }
   deriving stock (Generic)
@@ -65,7 +64,7 @@ viewHandler name = do
   allJobs <- lift $ App.query $ St.GetJobsByRepoA repo.name
   W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branches allJobs
 
-updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
+updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
 updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   supervisor <- asks App.supervisor
@@ -79,8 +78,10 @@ updateHandler name = do
     lift $ App.update $ St.SetRepoBranchesA repo.name allBranches
 
   case result of
-    Left errorMsg -> throwError $ err500 {errBody = toLazyByteString $ encodeUtf8Builder errorMsg}
-    Right () -> pure $ addHeader True "Ok"
+    Left errorMsg -> do
+      errorHtml <- App.runAppHtml $ W.viraErrorModal_ errorMsg
+      pure $ noHeader errorHtml
+    Right () -> pure $ addHeader True mempty
 
 deleteHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do
@@ -106,13 +107,17 @@ viewRepo repo branches _allJobs = do
           W.viraButton_
             W.ButtonSecondary
             [ hxPostSafe_ updateLink
-            , hxSwapS_ AfterEnd
+            , hxSwapS_ InnerHTML
+            , hxTarget_ "#refresh-modal-container"
             , title_ "Refresh branches"
             ]
             $ do
               W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
               "Refresh"
     )
+
+  -- Container for modal (initially empty)
+  div_ [id_ "refresh-modal-container"] mempty
 
   W.viraSection_ [] $ do
     -- Branch listing

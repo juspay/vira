@@ -73,6 +73,7 @@ library
       Vira.Widgets.Code
       Vira.Widgets.Form
       Vira.Widgets.Layout
+      Vira.Widgets.Modal
       Vira.Widgets.Status
       Vira.Widgets.Time
   other-modules:
