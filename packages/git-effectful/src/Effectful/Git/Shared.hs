@@ -5,7 +5,7 @@
 This module provides thread-safe management of shared git repositories
 to avoid repeated cloning during branch refresh operations.
 -}
-module Vira.Git.SharedClone (
+module Effectful.Git.Shared (
   SharedCloneState,
   newSharedCloneState,
   ensureAndUpdateSharedClone,

@@ -18,6 +18,7 @@ build-type:     Simple
 library
   exposed-modules:
       Effectful.Git
+      Effectful.Git.Shared
   other-modules:
       Paths_git_effectful
   autogen-modules:
@@ -61,6 +62,7 @@ library
     , effectful
     , effectful-core
     , effectful-plugin
+    , filepath
     , http-api-data
     , ixset-typed
     , megaparsec
@@ -68,6 +70,7 @@ library
     , relude >=1.0
     , safecopy
     , servant-server
+    , stm
     , text
     , time
     , which
@@ -134,6 +137,7 @@ executable git-effectful-test
     , relude >=1.0
     , safecopy
     , servant-server
+    , stm
     , temporary
     , text
     , time

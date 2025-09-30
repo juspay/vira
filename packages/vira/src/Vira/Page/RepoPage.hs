@@ -12,6 +12,7 @@ import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (RepoName)
 import Effectful.Git qualified as Git
+import Effectful.Git.Shared qualified as SharedClone
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
@@ -25,7 +26,6 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Git.SharedClone qualified as SharedClone
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type

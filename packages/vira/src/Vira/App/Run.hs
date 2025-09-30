@@ -7,6 +7,7 @@ import Control.Exception (bracket)
 import Data.Acid (AcidState)
 import Data.Aeson (encode)
 import Data.ByteString.Lazy qualified as LBS
+import Effectful.Git.Shared qualified as SharedClone
 import Main.Utf8 qualified as Utf8
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
@@ -14,7 +15,6 @@ import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Server qualified as Server
-import Vira.Git.SharedClone qualified as SharedClone
 import Vira.State.Core (ViraState, closeViraState, openViraState)
 import Vira.State.JSON (getExportData, importViraState)
 import Vira.Supervisor.Core qualified as Supervisor
