@@ -118,57 +118,6 @@ type IxCommit = IxSet CommitIxs Commit
 instance Indexable CommitIxs Commit where
   indices = ixList (ixFun $ \commit -> [commit.commitId])
 
--- | Parse a git ref line into a branch name and commit
-gitRefParser :: Parsec Void Text (BranchName, Commit)
-gitRefParser = do
-  branchName' <- toText <$> manyTill anySingle tab
-  commitId <- fromString <$> manyTill anySingle tab
-  timestampStr <- manyTill anySingle tab
-  author <- toText <$> manyTill anySingle tab
-  authorEmailRaw <- toText <$> manyTill anySingle tab
-  message <- takeRest
-
-  -- Strip "origin/" prefix from branch name if present to get clean branch names
-  let branchName = fromString . toString $ T.stripPrefix "origin/" branchName' ?: branchName'
-
-  -- Strip angle brackets from email if present (git %(authoremail) includes < >)
-  let authorEmail = T.strip $ fromMaybe authorEmailRaw $ do
-        stripped1 <- T.stripPrefix "<" authorEmailRaw
-        T.stripSuffix ">" stripped1
-
-  timestamp <- maybe (fail $ "Invalid timestamp: " <> timestampStr) return (readMaybe timestampStr)
-  let date = posixSecondsToUTCTime (fromIntegral (timestamp :: Int))
-
-  let commit = Commit commitId message date author authorEmail
-  return (branchName, commit)
-
--- | Return the `CreateProcess` to clone a repo at a specific commit
-cloneAtCommit :: Text -> CommitID -> FilePath -> CreateProcess
-cloneAtCommit url commit path =
-  proc
-    git
-    [ "-c"
-    , "advice.detachedHead=false"
-    , "clone"
-    , "--depth"
-    , "1"
-    , "--single-branch"
-    , "--revision"
-    , toString commit
-    , toString url
-    , path
-    ]
-
--- | Return the `CreateProcess` to list remote branches with metadata
-forEachRefRemoteBranches :: CreateProcess
-forEachRefRemoteBranches =
-  proc
-    git
-    [ "for-each-ref"
-    , "--format=%(refname:short)%09%(objectname)%09%(committerdate:unix)%09%(authorname)%09%(authoremail)%09%(subject)"
-    , "refs/remotes"
-    ]
-
 {- | Get remote branches from a git clone.
 This function expects the clone to already exist and be updated.
 It parses branches from the existing clone without modifying it.
@@ -201,3 +150,54 @@ remoteBranchesFromClone clonePath = do
         log Error $ "Parse error on line '" <> line <> "': " <> toText @String (show err)
         return Nothing
       Right result -> return $ Just result
+
+-- | Return the `CreateProcess` to clone a repo at a specific commit
+cloneAtCommit :: Text -> CommitID -> FilePath -> CreateProcess
+cloneAtCommit url commit path =
+  proc
+    git
+    [ "-c"
+    , "advice.detachedHead=false"
+    , "clone"
+    , "--depth"
+    , "1"
+    , "--single-branch"
+    , "--revision"
+    , toString commit
+    , toString url
+    , path
+    ]
+
+-- | Return the `CreateProcess` to list remote branches with metadata
+forEachRefRemoteBranches :: CreateProcess
+forEachRefRemoteBranches =
+  proc
+    git
+    [ "for-each-ref"
+    , "--format=%(refname:short)%09%(objectname)%09%(committerdate:unix)%09%(authorname)%09%(authoremail)%09%(subject)"
+    , "refs/remotes"
+    ]
+
+-- | Parse a git ref line into a branch name and commit
+gitRefParser :: Parsec Void Text (BranchName, Commit)
+gitRefParser = do
+  branchName' <- toText <$> manyTill anySingle tab
+  commitId <- fromString <$> manyTill anySingle tab
+  timestampStr <- manyTill anySingle tab
+  author <- toText <$> manyTill anySingle tab
+  authorEmailRaw <- toText <$> manyTill anySingle tab
+  message <- takeRest
+
+  -- Strip "origin/" prefix from branch name if present to get clean branch names
+  let branchName = fromString . toString $ T.stripPrefix "origin/" branchName' ?: branchName'
+
+  -- Strip angle brackets from email if present (git %(authoremail) includes < >)
+  let authorEmail = T.strip $ fromMaybe authorEmailRaw $ do
+        stripped1 <- T.stripPrefix "<" authorEmailRaw
+        T.stripSuffix ">" stripped1
+
+  timestamp <- maybe (fail $ "Invalid timestamp: " <> timestampStr) return (readMaybe timestampStr)
+  let date = posixSecondsToUTCTime (fromIntegral (timestamp :: Int))
+
+  let commit = Commit commitId message date author authorEmail
+  return (branchName, commit)
