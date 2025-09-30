@@ -1,20 +1,23 @@
-{- | Shared git clone management with file-based locking.
+{- | Git repository mirroring with file-based locking.
 
-Maintains a single clone per repository, reusing it across operations to avoid
-repeated cloning. Uses file locks to serialize concurrent updates to the same
-repository, working across processes.
+Maintains a synchronized mirror of a git repository (metadata only, without blobs)
+that can be safely accessed and updated by multiple processes. Uses file locks
+to serialize concurrent updates to the same mirror.
+
+The mirror is created with @--filter=blob:none@ for efficiency, containing only
+repository metadata (refs, commits, trees) without file blobs.
 
 = Usage
 
 @
-result <- ensureAndUpdateSharedClone "https://..." "/path/to/clone"
+result <- syncMirror "https://..." "/path/to/mirror"
 case result of
-  Right () -> -- clone ready for use
-  Left err -> -- handle error, may need to delete corrupt clone
+  Right () -> -- mirror is up-to-date and ready for use
+  Left err -> -- handle error, may need to delete corrupt mirror
 @
 -}
-module Effectful.Git.Shared (
-  ensureAndUpdateSharedClone,
+module Effectful.Git.Mirror (
+  syncMirror,
 ) where
 
 import Colog (Message, Msg (..), Severity (..))
@@ -30,50 +33,50 @@ import System.FilePath (takeDirectory, takeFileName)
 import System.Process (CreateProcess (..), proc, readCreateProcessWithExitCode)
 import UnliftIO.Exception (finally)
 
-{- | Ensure shared clone exists and is up-to-date.
+{- | Ensure git mirror exists and is up-to-date.
 
-Clones if needed, then fetches latest.
+Creates mirror if needed, then fetches latest changes.
 Concurrent calls for the same directory block on file lock until the first completes.
-On error, caller may need to delete the clone directory and retry.
+On error, caller may need to delete the mirror directory and retry.
 -}
-ensureAndUpdateSharedClone ::
+syncMirror ::
   ( Log Message :> es
   , IOE :> es
   ) =>
   -- | Clone URL
   Text ->
-  -- | Shared clone directory path
+  -- | Mirror directory path
   FilePath ->
   Eff es (Either Text ())
-ensureAndUpdateSharedClone cloneUrl sharedClonePath = do
-  ensureResult <- ensureSharedClone cloneUrl sharedClonePath
+syncMirror cloneUrl mirrorPath = do
+  ensureResult <- ensureMirror cloneUrl mirrorPath
   case ensureResult of
     Left err -> return $ Left err
-    Right () -> updateSharedClone sharedClonePath
+    Right () -> updateMirror mirrorPath
 
-{- | Clone repository if not present. Idempotent.
+{- | Clone repository mirror if not present. Idempotent.
 
 Checks directory existence first. If missing, acquires lock and clones.
 Race condition: Multiple processes may see "doesn't exist" before first clone completes,
 but file lock ensures only one actually clones.
 -}
-ensureSharedClone ::
+ensureMirror ::
   ( Log Message :> es
   , IOE :> es
   ) =>
   Text ->
   FilePath ->
   Eff es (Either Text ())
-ensureSharedClone cloneUrl sharedClonePath = do
-  -- Check if shared clone directory exists
-  exists <- liftIO $ doesDirectoryExist sharedClonePath
+ensureMirror cloneUrl mirrorPath = do
+  -- Check if mirror directory exists
+  exists <- liftIO $ doesDirectoryExist mirrorPath
 
   if exists
     then do
       Log.logMsg $
         Msg
           { msgSeverity = Info
-          , msgText = "Shared clone already exists: " <> toText sharedClonePath
+          , msgText = "Git mirror already exists: " <> toText mirrorPath
           , msgStack = callStack
           }
       return $ Right ()
@@ -82,17 +85,17 @@ ensureSharedClone cloneUrl sharedClonePath = do
       Log.logMsg $
         Msg
           { msgSeverity = Info
-          , msgText = "Creating shared clone at " <> toText sharedClonePath
+          , msgText = "Creating git mirror at " <> toText mirrorPath
           , msgStack = callStack
           }
 
-      withFileLock sharedClonePath $ do
+      withFileLock mirrorPath $ do
         -- Create parent directory
-        liftIO $ createDirectoryIfMissing True (takeDirectory sharedClonePath)
+        liftIO $ createDirectoryIfMissing True (takeDirectory mirrorPath)
 
         -- Clone the repository
-        let cloneCmd = cloneAllBranches cloneUrl (takeFileName sharedClonePath)
-            parentDir = takeDirectory sharedClonePath
+        let cloneCmd = cloneAllBranches cloneUrl (takeFileName mirrorPath)
+            parentDir = takeDirectory mirrorPath
 
         Log.logMsg $
           Msg
@@ -112,7 +115,7 @@ ensureSharedClone cloneUrl sharedClonePath = do
             Log.logMsg $
               Msg
                 { msgSeverity = Info
-                , msgText = "Successfully created shared clone at " <> toText sharedClonePath
+                , msgText = "Successfully created git mirror at " <> toText mirrorPath
                 , msgStack = callStack
                 }
             return $ Right ()
@@ -132,29 +135,29 @@ ensureSharedClone cloneUrl sharedClonePath = do
                 }
             return $
               Left $
-                "Failed to create shared clone at "
-                  <> toText sharedClonePath
+                "Failed to create git mirror at "
+                  <> toText mirrorPath
                   <> ". Please delete it and try again."
 
 {- | Fetch latest changes from remote. Uses @--force@ to handle force-pushes.
 
-Acquires file lock before fetching to prevent concurrent updates to same repo.
+Acquires file lock before fetching to prevent concurrent updates to same mirror.
 -}
-updateSharedClone ::
+updateMirror ::
   ( Log Message :> es
   , IOE :> es
   ) =>
   FilePath ->
   Eff es (Either Text ())
-updateSharedClone sharedClonePath = do
+updateMirror mirrorPath = do
   Log.logMsg $
     Msg
       { msgSeverity = Info
-      , msgText = "Updating shared clone at " <> toText sharedClonePath
+      , msgText = "Updating git mirror at " <> toText mirrorPath
       , msgStack = callStack
       }
 
-  withFileLock sharedClonePath $ do
+  withFileLock mirrorPath $ do
     -- Use --force to handle forced pushes
     let fetchCmd = fetchAllBranches
 
@@ -168,7 +171,7 @@ updateSharedClone sharedClonePath = do
     (exitCode, stdoutStr, stderrStr) <-
       liftIO $
         readCreateProcessWithExitCode
-          fetchCmd {cwd = Just sharedClonePath}
+          fetchCmd {cwd = Just mirrorPath}
           ""
 
     case exitCode of
@@ -176,7 +179,7 @@ updateSharedClone sharedClonePath = do
         Log.logMsg $
           Msg
             { msgSeverity = Info
-            , msgText = "Successfully updated shared clone at " <> toText sharedClonePath
+            , msgText = "Successfully updated git mirror at " <> toText mirrorPath
             , msgStack = callStack
             }
         return $ Right ()
@@ -196,15 +199,15 @@ updateSharedClone sharedClonePath = do
             }
         return $
           Left $
-            "Failed to update shared clone at "
-              <> toText sharedClonePath
+            "Failed to update git mirror at "
+              <> toText mirrorPath
               <> ". Please delete it and try again."
 
 {- | Run action with file-based lock on a directory.
 
 Creates/acquires @dirPath.lock@ file.
 Blocks if another process holds the lock, ensuring sequential access.
-Exception-safe via onException.
+Exception-safe via finally.
 -}
 withFileLock ::
   (IOE :> es) =>

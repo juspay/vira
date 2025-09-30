@@ -13,10 +13,10 @@ import Test.Hspec
 spec :: Spec
 spec = do
   describe "Git" $ do
-    it "remoteBranchesFromSharedClone with non-existent directory" $ do
+    it "remoteBranchesFromClone with non-existent directory" $ do
       withSystemTempDirectory "git-test" $ \tempDir -> do
         let nonExistentDir = tempDir </> "nonexistent"
-        result <- runEff . runLogAction (LogAction $ const pass) $ remoteBranchesFromSharedClone nonExistentDir
+        result <- runEff . runLogAction (LogAction $ const pass) $ remoteBranchesFromClone nonExistentDir
         case result of
           Left _ -> pass -- Expected behavior for non-existent directory
           Right _ -> expectationFailure "Should fail for non-existent directory"

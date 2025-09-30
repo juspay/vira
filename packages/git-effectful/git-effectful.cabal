@@ -18,7 +18,7 @@ build-type:     Simple
 library
   exposed-modules:
       Effectful.Git
-      Effectful.Git.Shared
+      Effectful.Git.Mirror
   other-modules:
       Paths_git_effectful
   autogen-modules:

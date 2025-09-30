@@ -158,24 +158,24 @@ cloneAtCommit url commit path =
     , path
     ]
 
-{- | Get remote branches using a shared clone directory.
-This function expects the shared clone to already exist and be updated.
-It parses branches from the existing shared clone without modifying it.
+{- | Get remote branches from a git clone.
+This function expects the clone to already exist and be updated.
+It parses branches from the existing clone without modifying it.
 -}
-remoteBranchesFromSharedClone :: (Log Message :> es, IOE :> es) => FilePath -> Eff es (Either Text (Map BranchName Commit))
-remoteBranchesFromSharedClone sharedClonePath = do
-  -- Check if shared clone directory exists
-  exists <- liftIO $ doesDirectoryExist sharedClonePath
+remoteBranchesFromClone :: (Log Message :> es, IOE :> es) => FilePath -> Eff es (Either Text (Map BranchName Commit))
+remoteBranchesFromClone clonePath = do
+  -- Check if clone directory exists
+  exists <- liftIO $ doesDirectoryExist clonePath
 
   if not exists
     then do
       Log.logMsg $
         Msg
           { msgSeverity = Error
-          , msgText = "Shared clone directory does not exist: " <> toText sharedClonePath
+          , msgText = "Git clone directory does not exist: " <> toText clonePath
           , msgStack = callStack
           }
-      return $ Left $ "Shared clone directory does not exist: " <> toText sharedClonePath
+      return $ Left $ "Git clone directory does not exist: " <> toText clonePath
     else do
       -- Use git for-each-ref to get detailed branch information for remote branches only
       let forEachRefCmd =
@@ -189,7 +189,7 @@ remoteBranchesFromSharedClone sharedClonePath = do
       Log.logMsg $
         Msg
           { msgSeverity = Info
-          , msgText = "Running git for-each-ref in shared clone: " <> show (cmdspec forEachRefCmd)
+          , msgText = "Running git for-each-ref in clone: " <> show (cmdspec forEachRefCmd)
           , msgStack = callStack
           }
 
@@ -197,7 +197,7 @@ remoteBranchesFromSharedClone sharedClonePath = do
         liftIO $
           try $
             readCreateProcess
-              forEachRefCmd {cwd = Just sharedClonePath}
+              forEachRefCmd {cwd = Just clonePath}
               ""
 
       case result of
@@ -213,11 +213,11 @@ remoteBranchesFromSharedClone sharedClonePath = do
         Right output -> do
           -- Drop the first line, which is 'origin' (not a branch)
           let gitRefLines = drop 1 $ lines $ T.strip (toText output)
-          commits <- catMaybes <$> mapM parseCommitLineShared gitRefLines
+          commits <- catMaybes <$> mapM parseCommitLine gitRefLines
           return $ Right $ Map.fromList commits
   where
-    parseCommitLineShared :: (Log Message :> es) => Text -> Eff es (Maybe (BranchName, Commit))
-    parseCommitLineShared line = case parse gitRefParser "" line of
+    parseCommitLine :: (Log Message :> es) => Text -> Eff es (Maybe (BranchName, Commit))
+    parseCommitLine line = case parse gitRefParser "" line of
       Left err -> do
         Log.logMsg $
           Msg

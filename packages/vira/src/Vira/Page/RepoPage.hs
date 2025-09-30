@@ -12,7 +12,7 @@ import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (RepoName)
 import Effectful.Git qualified as Git
-import Effectful.Git.Shared qualified as SharedClone
+import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
@@ -70,15 +70,15 @@ updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   supervisor <- asks App.supervisor
 
-  -- Ensure shared clone exists and update it
-  let sharedClonePath = supervisor.baseWorkDir </> toString repo.name </> "source"
-  sharedCloneResult <- SharedClone.ensureAndUpdateSharedClone repo.cloneUrl sharedClonePath
+  -- Ensure mirror exists and update it
+  let mirrorPath = supervisor.baseWorkDir </> toString repo.name </> "source"
+  mirrorResult <- Mirror.syncMirror repo.cloneUrl mirrorPath
 
-  case sharedCloneResult of
+  case mirrorResult of
     Left errorMsg -> throwError $ err500 {errBody = toLazyByteString $ encodeUtf8Builder errorMsg}
     Right () -> do
-      -- Get branches from shared clone
-      branchesResult <- Git.remoteBranchesFromSharedClone sharedClonePath
+      -- Get branches from mirror
+      branchesResult <- Git.remoteBranchesFromClone mirrorPath
 
       case branchesResult of
         Left errorMsg -> throwError $ err500 {errBody = toLazyByteString $ encodeUtf8Builder errorMsg}
