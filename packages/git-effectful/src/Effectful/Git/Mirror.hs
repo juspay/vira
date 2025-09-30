@@ -108,11 +108,7 @@ ensureMirror cloneUrl mirrorPath = do
                     <> ". Stderr: "
                     <> toText stderrStr
             log Error errorMsg
-            return $
-              Left $
-                "Failed to create git mirror at "
-                  <> toText mirrorPath
-                  <> ". Please delete it and try again."
+            return $ Left errorMsg
 
 {- | Fetch latest changes from remote. Uses @--force@ to handle force-pushes.
 
@@ -152,11 +148,7 @@ updateMirror mirrorPath = do
                 <> ". Stderr: "
                 <> toText stderrStr
         log Error errorMsg
-        return $
-          Left $
-            "Failed to update git mirror at "
-              <> toText mirrorPath
-              <> ". Please delete it and try again."
+        return $ Left errorMsg
 
 {- | Run action with file-based lock on a directory.
 
