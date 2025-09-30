@@ -20,6 +20,8 @@ library
       Effectful.Git
       Effectful.Git.Logging
       Effectful.Git.Mirror
+      Effectful.Git.Parser
+      Effectful.Git.Types
   other-modules:
       Paths_git_effectful
   autogen-modules:
@@ -86,6 +88,7 @@ library
 executable git-effectful-test
   main-is: Spec.hs
   other-modules:
+      Effectful.Git.ParserSpec
       Effectful.GitSpec
       Paths_git_effectful
   autogen-modules:

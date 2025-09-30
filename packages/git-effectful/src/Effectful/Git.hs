@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 {- | Module for working with Git repositories in Haskell
@@ -11,12 +12,7 @@ module Effectful.Git (
   git,
 
   -- * Types
-  Commit (..),
-  CommitID (..),
-  BranchName (..),
-  RepoName (..),
-  CommitIxs,
-  IxCommit,
+  module Effectful.Git.Types,
 
   -- * Operations
   remoteBranchesFromClone,
@@ -25,22 +21,16 @@ module Effectful.Git (
 
 import Colog (Message, Severity (..))
 import Control.Exception (try)
-import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
-import Data.Data (Data)
-import Data.IxSet.Typed (Indexable (..), IxSet, ixFun, ixList)
 import Data.Map.Strict qualified as Map
-import Data.SafeCopy
 import Data.Text qualified as T
-import Data.Time (UTCTime)
-import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Git.Logging (log)
-import Servant (FromHttpApiData, ToHttpApiData)
+import Effectful.Git.Parser (gitRefParser)
+import Effectful.Git.Types
 import System.Process
 import System.Which (staticWhich)
-import Text.Megaparsec (Parsec, anySingle, manyTill, parse, takeRest)
-import Text.Megaparsec.Char (tab)
+import Text.Megaparsec (parse)
 
 {- | Path to the `git` executable
 
@@ -48,75 +38,6 @@ This should be available in the PATH, thanks to Nix and `which` library.
 -}
 git :: FilePath
 git = $(staticWhich "git")
-
--- A git commit object.
-data Commit = Commit
-  { commitId :: CommitID
-  -- ^ The unique identifier of the commit
-  , commitMessage :: Text
-  -- ^ The commit message
-  , commitDate :: UTCTime
-  -- ^ The commit date
-  , commitAuthor :: Text
-  -- ^ The commit author name
-  , commitAuthorEmail :: Text
-  -- ^ The commit author email
-  }
-  deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
-
--- | Git commit hash
-newtype CommitID = CommitID {unCommitID :: Text}
-  deriving stock (Generic, Show, Eq, Ord, Data)
-  deriving newtype
-    ( IsString
-    , ToString
-    , ToText
-    , ToJSON
-    , ToHttpApiData
-    , FromHttpApiData
-    )
-
--- | Git branch name
-newtype BranchName = BranchName {unBranchName :: Text}
-  deriving stock (Generic, Data)
-  deriving newtype (Show, Eq, Ord)
-  deriving newtype
-    ( IsString
-    , ToString
-    , ToText
-    , ToJSON
-    , ToHttpApiData
-    , FromHttpApiData
-    )
-
--- | Git repository name
-newtype RepoName = RepoName {unRepoName :: Text}
-  deriving stock (Generic, Data)
-  deriving newtype (Show, Eq, Ord)
-  deriving newtype
-    ( IsString
-    , ToText
-    , ToString
-    , ToHttpApiData
-    , FromHttpApiData
-    , ToJSON
-    , FromJSON
-    , ToJSONKey
-    , FromJSONKey
-    )
-
-$(deriveSafeCopy 0 'base ''CommitID)
-$(deriveSafeCopy 0 'base ''BranchName)
-$(deriveSafeCopy 0 'base ''RepoName)
-$(deriveSafeCopy 0 'base ''Commit)
-
--- | IxSet index for commits
-type CommitIxs = '[CommitID]
-
-type IxCommit = IxSet CommitIxs Commit
-
-instance Indexable CommitIxs Commit where
-  indices = ixList (ixFun $ \commit -> [commit.commitId])
 
 {- | Get remote branches from a git clone.
 This function expects the clone to already exist and be updated.
@@ -177,27 +98,3 @@ forEachRefRemoteBranches =
     , "--format=%(refname:short)%09%(objectname)%09%(committerdate:unix)%09%(authorname)%09%(authoremail)%09%(subject)"
     , "refs/remotes"
     ]
-
--- | Parse a git ref line into a branch name and commit
-gitRefParser :: Parsec Void Text (BranchName, Commit)
-gitRefParser = do
-  branchName' <- toText <$> manyTill anySingle tab
-  commitId <- fromString <$> manyTill anySingle tab
-  timestampStr <- manyTill anySingle tab
-  author <- toText <$> manyTill anySingle tab
-  authorEmailRaw <- toText <$> manyTill anySingle tab
-  message <- takeRest
-
-  -- Strip "origin/" prefix from branch name if present to get clean branch names
-  let branchName = fromString . toString $ T.stripPrefix "origin/" branchName' ?: branchName'
-
-  -- Strip angle brackets from email if present (git %(authoremail) includes < >)
-  let authorEmail = T.strip $ fromMaybe authorEmailRaw $ do
-        stripped1 <- T.stripPrefix "<" authorEmailRaw
-        T.stripSuffix ">" stripped1
-
-  timestamp <- maybe (fail $ "Invalid timestamp: " <> timestampStr) return (readMaybe timestampStr)
-  let date = posixSecondsToUTCTime (fromIntegral (timestamp :: Int))
-
-  let commit = Commit commitId message date author authorEmail
-  return (branchName, commit)
