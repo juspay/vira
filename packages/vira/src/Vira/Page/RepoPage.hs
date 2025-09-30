@@ -69,27 +69,20 @@ updateHandler name = do
   supervisor <- asks App.supervisor
   sharedCloneState <- asks App.sharedCloneState
 
-  -- Ensure shared clone exists
-  ensureResult <- SharedClone.ensureSharedClone sharedCloneState repo.name repo.cloneUrl supervisor.baseWorkDir
+  -- Ensure shared clone exists and update it
+  sharedCloneResult <- SharedClone.ensureAndUpdateSharedClone sharedCloneState repo.name repo.cloneUrl supervisor.baseWorkDir
 
-  case ensureResult of
+  case sharedCloneResult of
     Left errorMsg -> throwError $ err500 {errBody = toLazyByteString $ encodeUtf8Builder errorMsg}
-    Right () -> do
-      -- Update shared clone
-      updateResult <- SharedClone.updateSharedClone sharedCloneState repo.name supervisor.baseWorkDir
+    Right sharedClonePath -> do
+      -- Get branches from shared clone
+      branchesResult <- Git.remoteBranchesFromSharedClone sharedClonePath
 
-      case updateResult of
+      case branchesResult of
         Left errorMsg -> throwError $ err500 {errBody = toLazyByteString $ encodeUtf8Builder errorMsg}
-        Right () -> do
-          -- Get branches from shared clone
-          let sharedClonePath = SharedClone.getSharedClonePath supervisor.baseWorkDir repo.name
-          branchesResult <- Git.remoteBranchesFromSharedClone sharedClonePath
-
-          case branchesResult of
-            Left errorMsg -> throwError $ err500 {errBody = toLazyByteString $ encodeUtf8Builder errorMsg}
-            Right allBranches -> do
-              App.update $ St.SetRepoBranchesA repo.name allBranches
-              pure $ addHeader True "Ok"
+        Right allBranches -> do
+          App.update $ St.SetRepoBranchesA repo.name allBranches
+          pure $ addHeader True "Ok"
 
 deleteHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do
