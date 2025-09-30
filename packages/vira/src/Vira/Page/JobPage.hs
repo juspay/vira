@@ -3,8 +3,6 @@
 module Vira.Page.JobPage where
 
 import Colog (Severity (..))
-import Data.ByteString.Builder (toLazyByteString)
-import Data.Text.Encoding (encodeUtf8Builder)
 import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
@@ -25,7 +23,6 @@ import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.CI.Environment (environmentFor, workspacePath)
 import Vira.CI.Pipeline qualified as Pipeline
-import Vira.Git.SharedClone qualified as SharedClone
 import Vira.Lib.Logging
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Page.JobLog qualified as JobLog
@@ -169,24 +166,18 @@ triggerNewBuild repoName branchName = do
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
 
   supervisor <- asks App.supervisor
-  sharedCloneState <- asks App.sharedCloneState
 
-  -- Ensure shared clone exists before creating the job
-  ensureResult <- SharedClone.ensureSharedClone sharedCloneState repo.name repo.cloneUrl supervisor.baseWorkDir
-  case ensureResult of
-    Left errorMsg -> throwError $ err500 {errBody = "Failed to prepare shared clone: " <> toLazyByteString (encodeUtf8Builder errorMsg)}
-    Right () -> do
-      creationTime <- liftIO getCurrentTime
-      job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir creationTime
-      log Info $ "Added job " <> show job
-      viraEnv <- environmentFor repo branch job.jobWorkingDir
-      Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (Pipeline.runPipeline viraEnv) $ \result -> do
-        endTime <- liftIO getCurrentTime
-        let status = case result of
-              Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
-              Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
-              Left KilledByUser -> St.JobFinished St.JobKilled endTime
-              Left (ConfigurationError _) -> St.JobFinished St.JobFailure endTime
-        App.update $ St.JobUpdateStatusA job.jobId status
-      App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
-      log Info $ "Started task " <> show job.jobId
+  creationTime <- liftIO getCurrentTime
+  job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir creationTime
+  log Info $ "Added job " <> show job
+  viraEnv <- environmentFor repo branch job.jobWorkingDir
+  Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (Pipeline.runPipeline viraEnv) $ \result -> do
+    endTime <- liftIO getCurrentTime
+    let status = case result of
+          Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
+          Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
+          Left KilledByUser -> St.JobFinished St.JobKilled endTime
+          Left (ConfigurationError _) -> St.JobFinished St.JobFailure endTime
+    App.update $ St.JobUpdateStatusA job.jobId status
+  App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
+  log Info $ "Started task " <> show job.jobId
