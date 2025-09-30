@@ -19,7 +19,7 @@ import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog qualified as Log
-import Effectful.Git (git)
+import Effectful.Git (cloneShared, git)
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist)
 import System.Exit (ExitCode (..))
 import System.FilePath ((</>))
@@ -77,16 +77,7 @@ ensureSharedClone sharedState repoName cloneUrl baseWorkDir = do
         liftIO $ createDirectoryIfMissing True (baseWorkDir </> toString repoName)
 
         -- Clone the repository
-        let cloneCmd =
-              proc
-                git
-                [ "clone"
-                , "-v"
-                , "--filter=blob:none"
-                , "--no-single-branch"
-                , toString cloneUrl
-                , "source"
-                ]
+        let cloneCmd = cloneShared cloneUrl "source"
 
         Log.logMsg $
           Msg

@@ -109,6 +109,19 @@ gitRefParser = do
   let commit = Commit commitId message date author authorEmail
   return (branchName, commit)
 
+-- | Return the `CreateProcess` to clone a shared repo with all branches
+cloneShared :: Text -> FilePath -> CreateProcess
+cloneShared url path =
+  proc
+    git
+    [ "clone"
+    , "-v"
+    , "--filter=blob:none"
+    , "--no-single-branch"
+    , toString url
+    , path
+    ]
+
 -- | Return the `CreateProcess` to clone a repo at a specific commit
 cloneAtCommit :: Text -> CommitID -> FilePath -> CreateProcess
 cloneAtCommit url commit path =
