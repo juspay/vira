@@ -18,6 +18,7 @@ build-type:     Simple
 library
   exposed-modules:
       Effectful.Git
+      Effectful.Git.Logging
       Effectful.Git.Mirror
   other-modules:
       Paths_git_effectful
@@ -56,6 +57,7 @@ library
       aeson
     , base ==4.*
     , co-log
+    , co-log-core
     , co-log-effectful
     , containers
     , directory
@@ -121,6 +123,7 @@ executable git-effectful-test
       aeson
     , base ==4.*
     , co-log
+    , co-log-core
     , co-log-effectful
     , containers
     , directory

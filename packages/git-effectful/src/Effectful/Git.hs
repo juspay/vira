@@ -23,7 +23,7 @@ module Effectful.Git (
   cloneAtCommit,
 ) where
 
-import Colog (Message, Msg (..), Severity (..))
+import Colog (Message, Severity (..))
 import Control.Exception (try)
 import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import Data.Data (Data)
@@ -35,7 +35,7 @@ import Data.Time (UTCTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
-import Effectful.Colog qualified as Log
+import Effectful.Git.Logging (log)
 import Servant (FromHttpApiData, ToHttpApiData)
 import System.Process
 import System.Which (staticWhich)
@@ -175,12 +175,7 @@ It parses branches from the existing clone without modifying it.
 -}
 remoteBranchesFromClone :: (Log Message :> es, IOE :> es) => FilePath -> Eff es (Either Text (Map BranchName Commit))
 remoteBranchesFromClone clonePath = do
-  Log.logMsg $
-    Msg
-      { msgSeverity = Info
-      , msgText = "Running git for-each-ref in clone: " <> show (cmdspec forEachRefRemoteBranches)
-      , msgStack = callStack
-      }
+  log Info $ "Running git for-each-ref in clone: " <> show (cmdspec forEachRefRemoteBranches)
 
   result <-
     liftIO $
@@ -192,12 +187,7 @@ remoteBranchesFromClone clonePath = do
   case result of
     Left (ex :: SomeException) -> do
       let errorMsg = "Git for-each-ref failed: " <> show ex
-      Log.logMsg $
-        Msg
-          { msgSeverity = Error
-          , msgText = errorMsg
-          , msgStack = callStack
-          }
+      log Error errorMsg
       return $ Left $ toText errorMsg
     Right output -> do
       -- Drop the first line, which is 'origin' (not a branch)
@@ -208,11 +198,6 @@ remoteBranchesFromClone clonePath = do
     parseCommitLine :: (Log Message :> es) => Text -> Eff es (Maybe (BranchName, Commit))
     parseCommitLine line = case parse gitRefParser "" line of
       Left err -> do
-        Log.logMsg $
-          Msg
-            { msgSeverity = Error
-            , msgText = "Parse error on line '" <> line <> "': " <> toText @String (show err)
-            , msgStack = callStack
-            }
+        log Error $ "Parse error on line '" <> line <> "': " <> toText @String (show err)
         return Nothing
       Right result -> return $ Just result

@@ -20,11 +20,11 @@ module Effectful.Git.Mirror (
   syncMirror,
 ) where
 
-import Colog (Message, Msg (..), Severity (..))
+import Colog (Message, Severity (..))
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
-import Effectful.Colog qualified as Log
 import Effectful.Git (git)
+import Effectful.Git.Logging (log)
 import Lukko (LockMode (ExclusiveLock))
 import Lukko qualified
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist)
@@ -73,21 +73,11 @@ ensureMirror cloneUrl mirrorPath = do
 
   if exists
     then do
-      Log.logMsg $
-        Msg
-          { msgSeverity = Info
-          , msgText = "Git mirror already exists: " <> toText mirrorPath
-          , msgStack = callStack
-          }
+      log Info $ "Git mirror already exists: " <> toText mirrorPath
       return $ Right ()
     else do
       -- Clone the repository with file lock protection
-      Log.logMsg $
-        Msg
-          { msgSeverity = Info
-          , msgText = "Creating git mirror at " <> toText mirrorPath
-          , msgStack = callStack
-          }
+      log Info $ "Creating git mirror at " <> toText mirrorPath
 
       withFileLock mirrorPath $ do
         -- Create parent directory
@@ -97,12 +87,7 @@ ensureMirror cloneUrl mirrorPath = do
         let cloneCmd = cloneAllBranches cloneUrl (takeFileName mirrorPath)
             parentDir = takeDirectory mirrorPath
 
-        Log.logMsg $
-          Msg
-            { msgSeverity = Info
-            , msgText = "Running git clone: " <> show (cmdspec cloneCmd)
-            , msgStack = callStack
-            }
+        log Info $ "Running git clone: " <> show (cmdspec cloneCmd)
 
         (exitCode, stdoutStr, stderrStr) <-
           liftIO $
@@ -112,12 +97,7 @@ ensureMirror cloneUrl mirrorPath = do
 
         case exitCode of
           ExitSuccess -> do
-            Log.logMsg $
-              Msg
-                { msgSeverity = Info
-                , msgText = "Successfully created git mirror at " <> toText mirrorPath
-                , msgStack = callStack
-                }
+            log Info $ "Successfully created git mirror at " <> toText mirrorPath
             return $ Right ()
           ExitFailure code -> do
             let errorMsg =
@@ -127,12 +107,7 @@ ensureMirror cloneUrl mirrorPath = do
                     <> toText stdoutStr
                     <> ". Stderr: "
                     <> toText stderrStr
-            Log.logMsg $
-              Msg
-                { msgSeverity = Error
-                , msgText = errorMsg
-                , msgStack = callStack
-                }
+            log Error errorMsg
             return $
               Left $
                 "Failed to create git mirror at "
@@ -150,23 +125,13 @@ updateMirror ::
   FilePath ->
   Eff es (Either Text ())
 updateMirror mirrorPath = do
-  Log.logMsg $
-    Msg
-      { msgSeverity = Info
-      , msgText = "Updating git mirror at " <> toText mirrorPath
-      , msgStack = callStack
-      }
+  log Info $ "Updating git mirror at " <> toText mirrorPath
 
   withFileLock mirrorPath $ do
     -- Use --force to handle forced pushes
     let fetchCmd = fetchAllBranches
 
-    Log.logMsg $
-      Msg
-        { msgSeverity = Info
-        , msgText = "Running git fetch: " <> show (cmdspec fetchCmd)
-        , msgStack = callStack
-        }
+    log Info $ "Running git fetch: " <> show (cmdspec fetchCmd)
 
     (exitCode, stdoutStr, stderrStr) <-
       liftIO $
@@ -176,12 +141,7 @@ updateMirror mirrorPath = do
 
     case exitCode of
       ExitSuccess -> do
-        Log.logMsg $
-          Msg
-            { msgSeverity = Info
-            , msgText = "Successfully updated git mirror at " <> toText mirrorPath
-            , msgStack = callStack
-            }
+        log Info $ "Successfully updated git mirror at " <> toText mirrorPath
         return $ Right ()
       ExitFailure code -> do
         let errorMsg =
@@ -191,12 +151,7 @@ updateMirror mirrorPath = do
                 <> toText stdoutStr
                 <> ". Stderr: "
                 <> toText stderrStr
-        Log.logMsg $
-          Msg
-            { msgSeverity = Error
-            , msgText = errorMsg
-            , msgStack = callStack
-            }
+        log Error errorMsg
         return $
           Left $
             "Failed to update git mirror at "
