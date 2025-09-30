@@ -164,20 +164,18 @@ triggerNewBuild repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
-
-  supervisor <- asks App.supervisor
-
-  creationTime <- liftIO getCurrentTime
-  job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir creationTime
-  log Info $ "Added job " <> show job
-  viraEnv <- environmentFor repo branch job.jobWorkingDir
-  Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (Pipeline.runPipeline viraEnv) $ \result -> do
-    endTime <- liftIO getCurrentTime
-    let status = case result of
-          Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
-          Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
-          Left KilledByUser -> St.JobFinished St.JobKilled endTime
-          Left (ConfigurationError _) -> St.JobFinished St.JobFailure endTime
-    App.update $ St.JobUpdateStatusA job.jobId status
-  App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
-  log Info $ "Started task " <> show job.jobId
+  asks App.supervisor >>= \supervisor -> do
+    creationTime <- liftIO getCurrentTime
+    job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir creationTime
+    log Info $ "Added job " <> show job
+    viraEnv <- environmentFor repo branch job.jobWorkingDir
+    Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (Pipeline.runPipeline viraEnv) $ \result -> do
+      endTime <- liftIO getCurrentTime
+      let status = case result of
+            Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
+            Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
+            Left KilledByUser -> St.JobFinished St.JobKilled endTime
+            Left (ConfigurationError _) -> St.JobFinished St.JobFailure endTime
+      App.update $ St.JobUpdateStatusA job.jobId status
+    App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
+    log Info $ "Started task " <> show job.jobId
