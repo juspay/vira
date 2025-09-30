@@ -22,6 +22,7 @@ import Lucid.Htmx.Contrib (hxConfirm_, hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
+import System.FilePath ((</>))
 import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
@@ -70,11 +71,12 @@ updateHandler name = do
   supervisor <- asks App.supervisor
 
   -- Ensure shared clone exists and update it
-  sharedCloneResult <- SharedClone.ensureAndUpdateSharedClone repo.name repo.cloneUrl supervisor.baseWorkDir
+  let sharedClonePath = supervisor.baseWorkDir </> toString repo.name </> "source"
+  sharedCloneResult <- SharedClone.ensureAndUpdateSharedClone repo.cloneUrl sharedClonePath
 
   case sharedCloneResult of
     Left errorMsg -> throwError $ err500 {errBody = toLazyByteString $ encodeUtf8Builder errorMsg}
-    Right sharedClonePath -> do
+    Right () -> do
       -- Get branches from shared clone
       branchesResult <- Git.remoteBranchesFromSharedClone sharedClonePath
 

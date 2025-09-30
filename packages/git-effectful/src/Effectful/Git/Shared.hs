@@ -1,18 +1,15 @@
-{-# LANGUAGE OverloadedRecordDot #-}
-
 {- | Shared git clone management with file-based locking.
 
-Maintains a single clone per repository at @baseWorkDir/repoName/source@,
-reusing it across operations to avoid repeated cloning. Uses file locks
-(@source.lock@) to serialize concurrent updates to the same repository,
-working across processes.
+Maintains a single clone per repository, reusing it across operations to avoid
+repeated cloning. Uses file locks to serialize concurrent updates to the same
+repository, working across processes.
 
 = Usage
 
 @
-result <- ensureAndUpdateSharedClone "myrepo" "https://..." "/work"
+result <- ensureAndUpdateSharedClone "https://..." "/path/to/clone"
 case result of
-  Right path -> -- use path for git operations
+  Right () -> -- clone ready for use
   Left err -> -- handle error, may need to delete corrupt clone
 @
 -}
@@ -24,48 +21,35 @@ import Colog (Message, Msg (..), Severity (..))
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog qualified as Log
-import Effectful.Git (RepoName (..), cloneShared, git)
+import Effectful.Git (git)
 import Lukko (LockMode (ExclusiveLock))
 import Lukko qualified
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist)
 import System.Exit (ExitCode (..))
-import System.FilePath (takeDirectory, (</>))
+import System.FilePath (takeDirectory, takeFileName)
 import System.Process (CreateProcess (..), proc, readCreateProcessWithExitCode)
 import UnliftIO.Exception (finally)
 
-{- | Ensure shared clone exists and is up-to-date, returning its path.
+{- | Ensure shared clone exists and is up-to-date.
 
-Clones if needed, then fetches latest. Returns @baseWorkDir/repoName/source@.
-Concurrent calls for the same repo block on file lock until the first completes.
+Clones if needed, then fetches latest.
+Concurrent calls for the same directory block on file lock until the first completes.
 On error, caller may need to delete the clone directory and retry.
 -}
 ensureAndUpdateSharedClone ::
   ( Log Message :> es
   , IOE :> es
   ) =>
-  RepoName ->
   -- | Clone URL
   Text ->
-  -- | Base work directory
+  -- | Shared clone directory path
   FilePath ->
-  Eff es (Either Text FilePath)
-ensureAndUpdateSharedClone repoName cloneUrl baseWorkDir = do
-  ensureResult <- ensureSharedClone repoName cloneUrl baseWorkDir
+  Eff es (Either Text ())
+ensureAndUpdateSharedClone cloneUrl sharedClonePath = do
+  ensureResult <- ensureSharedClone cloneUrl sharedClonePath
   case ensureResult of
     Left err -> return $ Left err
-    Right () -> do
-      updateResult <- updateSharedClone repoName baseWorkDir
-      case updateResult of
-        Left err -> return $ Left err
-        Right () -> return $ Right $ getSharedClonePath baseWorkDir repoName
-
-{- | Compute path to shared clone: @baseWorkDir/repoName/source@.
-
-The @source@ subdirectory allows future expansion (e.g., worktrees, metadata).
--}
-getSharedClonePath :: FilePath -> RepoName -> FilePath
-getSharedClonePath baseWorkDir repoName =
-  baseWorkDir </> toString repoName </> "source"
+    Right () -> updateSharedClone sharedClonePath
 
 {- | Clone repository if not present. Idempotent.
 
@@ -77,13 +61,10 @@ ensureSharedClone ::
   ( Log Message :> es
   , IOE :> es
   ) =>
-  RepoName ->
   Text ->
   FilePath ->
   Eff es (Either Text ())
-ensureSharedClone repoName cloneUrl baseWorkDir = do
-  let sharedClonePath = getSharedClonePath baseWorkDir repoName
-
+ensureSharedClone cloneUrl sharedClonePath = do
   -- Check if shared clone directory exists
   exists <- liftIO $ doesDirectoryExist sharedClonePath
 
@@ -101,16 +82,17 @@ ensureSharedClone repoName cloneUrl baseWorkDir = do
       Log.logMsg $
         Msg
           { msgSeverity = Info
-          , msgText = "Creating shared clone for " <> repoName.unRepoName
+          , msgText = "Creating shared clone at " <> toText sharedClonePath
           , msgStack = callStack
           }
 
-      withFileLock (baseWorkDir </> toString repoName </> "source") $ do
+      withFileLock sharedClonePath $ do
         -- Create parent directory
-        liftIO $ createDirectoryIfMissing True (baseWorkDir </> toString repoName)
+        liftIO $ createDirectoryIfMissing True (takeDirectory sharedClonePath)
 
         -- Clone the repository
-        let cloneCmd = cloneShared cloneUrl "source"
+        let cloneCmd = cloneAllBranches cloneUrl (takeFileName sharedClonePath)
+            parentDir = takeDirectory sharedClonePath
 
         Log.logMsg $
           Msg
@@ -122,7 +104,7 @@ ensureSharedClone repoName cloneUrl baseWorkDir = do
         (exitCode, stdoutStr, stderrStr) <-
           liftIO $
             readCreateProcessWithExitCode
-              cloneCmd {cwd = Just (baseWorkDir </> toString repoName)}
+              cloneCmd {cwd = Just parentDir}
               ""
 
         case exitCode of
@@ -130,7 +112,7 @@ ensureSharedClone repoName cloneUrl baseWorkDir = do
             Log.logMsg $
               Msg
                 { msgSeverity = Info
-                , msgText = "Successfully created shared clone for " <> repoName.unRepoName
+                , msgText = "Successfully created shared clone at " <> toText sharedClonePath
                 , msgStack = callStack
                 }
             return $ Right ()
@@ -150,11 +132,9 @@ ensureSharedClone repoName cloneUrl baseWorkDir = do
                 }
             return $
               Left $
-                "Failed to create shared clone for "
-                  <> repoName.unRepoName
-                  <> ". Please delete "
+                "Failed to create shared clone at "
                   <> toText sharedClonePath
-                  <> " and try again."
+                  <> ". Please delete it and try again."
 
 {- | Fetch latest changes from remote. Uses @--force@ to handle force-pushes.
 
@@ -164,29 +144,19 @@ updateSharedClone ::
   ( Log Message :> es
   , IOE :> es
   ) =>
-  RepoName ->
   FilePath ->
   Eff es (Either Text ())
-updateSharedClone repoName baseWorkDir = do
-  let sharedClonePath = getSharedClonePath baseWorkDir repoName
-
+updateSharedClone sharedClonePath = do
   Log.logMsg $
     Msg
       { msgSeverity = Info
-      , msgText = "Updating shared clone for " <> repoName.unRepoName
+      , msgText = "Updating shared clone at " <> toText sharedClonePath
       , msgStack = callStack
       }
 
   withFileLock sharedClonePath $ do
     -- Use --force to handle forced pushes
-    let fetchCmd =
-          proc
-            git
-            [ "fetch"
-            , "--force"
-            , "origin"
-            , "+refs/heads/*:refs/remotes/origin/*"
-            ]
+    let fetchCmd = fetchAllBranches
 
     Log.logMsg $
       Msg
@@ -206,7 +176,7 @@ updateSharedClone repoName baseWorkDir = do
         Log.logMsg $
           Msg
             { msgSeverity = Info
-            , msgText = "Successfully updated shared clone for " <> repoName.unRepoName
+            , msgText = "Successfully updated shared clone at " <> toText sharedClonePath
             , msgStack = callStack
             }
         return $ Right ()
@@ -226,11 +196,9 @@ updateSharedClone repoName baseWorkDir = do
             }
         return $
           Left $
-            "Failed to update shared clone for "
-              <> repoName.unRepoName
-              <> ". Please delete "
+            "Failed to update shared clone at "
               <> toText sharedClonePath
-              <> " and try again."
+              <> ". Please delete it and try again."
 
 {- | Run action with file-based lock on a directory.
 
@@ -256,3 +224,27 @@ withFileLock dirPath action = do
 
   -- Run action with cleanup via finally
   action `finally` liftIO (Lukko.fdUnlock fd >> Lukko.fdClose fd)
+
+-- | Return the `CreateProcess` to clone a repo with all branches (blob:none for efficiency)
+cloneAllBranches :: Text -> FilePath -> CreateProcess
+cloneAllBranches url path =
+  proc
+    git
+    [ "clone"
+    , "-v"
+    , "--filter=blob:none"
+    , "--no-single-branch"
+    , toString url
+    , path
+    ]
+
+-- | Return the `CreateProcess` to fetch all branches with force
+fetchAllBranches :: CreateProcess
+fetchAllBranches =
+  proc
+    git
+    [ "fetch"
+    , "--force"
+    , "origin"
+    , "+refs/heads/*:refs/remotes/origin/*"
+    ]
