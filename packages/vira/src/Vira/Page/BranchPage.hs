@@ -4,7 +4,7 @@ module Vira.Page.BranchPage where
 
 import Data.Time (diffUTCTime)
 import Effectful.Error.Static (throwError)
-import Effectful.Git (BranchName)
+import Effectful.Git (BranchName, RepoName)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Swap (Swap (AfterEnd))
 import Lucid

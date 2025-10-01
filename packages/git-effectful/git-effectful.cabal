@@ -18,6 +18,10 @@ build-type:     Simple
 library
   exposed-modules:
       Effectful.Git
+      Effectful.Git.Logging
+      Effectful.Git.Mirror
+      Effectful.Git.Parser
+      Effectful.Git.Types
   other-modules:
       Paths_git_effectful
   autogen-modules:
@@ -55,21 +59,25 @@ library
       aeson
     , base ==4.*
     , co-log
+    , co-log-core
     , co-log-effectful
     , containers
+    , directory
     , effectful
     , effectful-core
     , effectful-plugin
+    , filepath
     , http-api-data
     , ixset-typed
+    , lukko
     , megaparsec
     , process
     , relude >=1.0
     , safecopy
     , servant-server
-    , temporary
     , text
     , time
+    , unliftio
     , which
   mixins:
       base hiding (Prelude)
@@ -80,6 +88,7 @@ library
 executable git-effectful-test
   main-is: Spec.hs
   other-modules:
+      Effectful.Git.ParserSpec
       Effectful.GitSpec
       Paths_git_effectful
   autogen-modules:
@@ -117,16 +126,20 @@ executable git-effectful-test
       aeson
     , base ==4.*
     , co-log
+    , co-log-core
     , co-log-effectful
     , containers
+    , directory
     , effectful
     , effectful-core
     , effectful-plugin
+    , filepath
     , git-effectful
     , hspec
     , hspec-discover
     , http-api-data
     , ixset-typed
+    , lukko
     , megaparsec
     , process
     , relude >=1.0
@@ -135,6 +148,7 @@ executable git-effectful-test
     , temporary
     , text
     , time
+    , unliftio
     , which
   mixins:
       base hiding (Prelude)

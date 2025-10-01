@@ -3,14 +3,14 @@
 
 module Vira.CI.ConfigurationSpec (spec) where
 
-import Effectful.Git (BranchName (..), CommitID (..))
+import Effectful.Git (BranchName (..), CommitID (..), RepoName (..))
 import Paths_vira (getDataFileName)
 import Test.Hspec
 import Vira.CI.Configuration
 import Vira.CI.Environment (ViraEnvironment (..), viraContext)
 import Vira.CI.Pipeline (defaultPipeline)
 import Vira.CI.Pipeline.Type (AtticStage (..), BuildStage (..), SignoffStage (..), ViraPipeline (..))
-import Vira.State.Type (Branch (..), CachixSettings (..), Repo (..), RepoName (..))
+import Vira.State.Type (Branch (..), CachixSettings (..), Repo (..))
 
 -- Test data
 testRepo :: Repo

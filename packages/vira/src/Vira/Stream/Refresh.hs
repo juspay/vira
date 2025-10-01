@@ -8,7 +8,7 @@ module Vira.Stream.Refresh (
   viewStream,
 ) where
 
-import Colog.Core (Severity (Info))
+import Colog.Core (Severity (Debug))
 import Control.Concurrent.STM (TChan, dupTChan)
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (asks)
@@ -50,12 +50,12 @@ waitForStateUpdate :: (HasCallStack) => TChan (Text, ByteString) -> Eff AppStack
 waitForStateUpdate chan = do
   events <- liftIO $ atomically $ drainTChan chan
   forM_ events $ \(eventName, _eventData) -> do
-    log Info $ "Update event received: " <> eventName
+    log Debug $ "Update event received: " <> eventName
 
 streamRouteHandler :: (HasCallStack) => SourceT (Eff AppStack) Refresh
 streamRouteHandler = S.fromStepT $ S.Effect $ do
   tagCurrentThread "🐬"
-  log Info "Starting stream"
+  log Debug "Starting stream"
   chan <- asks stateUpdated
   chanDup <- liftIO $ atomically $ do
     dup <- dupTChan chan
@@ -65,5 +65,5 @@ streamRouteHandler = S.fromStepT $ S.Effect $ do
   where
     step (n :: Int) chan = S.Effect $ do
       waitForStateUpdate chan
-      log Info $ "Triggering refresh; n=" <> show n
+      log Debug $ "Triggering refresh; n=" <> show n
       pure $ S.Yield Refresh $ step (n + 1) chan
