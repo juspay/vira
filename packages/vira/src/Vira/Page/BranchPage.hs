@@ -5,10 +5,7 @@ module Vira.Page.BranchPage where
 import Data.Time (diffUTCTime)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName, RepoName)
-import Htmx.Lucid.Core (hxSwapS_)
-import Htmx.Swap (Swap (AfterEnd))
 import Lucid
-import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
@@ -61,12 +58,10 @@ viewBranch repo branch jobs = do
         div_ [class_ "flex items-center gap-2"] $ do
           buildLink <- lift $ App.getLink $ LinkTo.Build repo.name branch.branchName
           updateLink <- lift $ App.getLink $ LinkTo.RepoUpdate repo.name
-          W.viraButton_
+          W.viraRequestButton_
             W.ButtonPrimary
-            [ hxPostSafe_ buildLink
-            , hxSwapS_ AfterEnd
-            , title_ "Build this branch"
-            ]
+            buildLink
+            [title_ "Build this branch"]
             $ do
               W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
               "Build"

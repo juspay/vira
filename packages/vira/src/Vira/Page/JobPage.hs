@@ -9,11 +9,8 @@ import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName, RepoName)
 import Effectful.Reader.Dynamic (asks)
 import GHC.IO.Exception (ExitCode (..))
-import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
-import Htmx.Swap (Swap (AfterEnd))
 import Lucid
-import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
@@ -100,11 +97,10 @@ viewJob job = do
             viewJobStatus job.jobStatus
             when jobActive $ do
               killLink <- lift $ App.getLink $ LinkTo.Kill job.jobId
-              W.viraButton_
+              W.viraRequestButton_
                 W.ButtonDestructive
-                [ hxPostSafe_ killLink
-                , hxSwapS_ AfterEnd
-                ]
+                killLink
+                [title_ "Kill this job"]
                 $ do
                   W.viraButtonIcon_ $ toHtmlRaw Icon.ban
                   "Kill Job"
