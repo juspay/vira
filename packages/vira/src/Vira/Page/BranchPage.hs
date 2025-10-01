@@ -70,12 +70,10 @@ viewBranch repo branch jobs = do
             $ do
               W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
               "Build"
-          W.viraButton_
+          W.viraRequestButton_
             W.ButtonSecondary
-            [ hxPostSafe_ updateLink
-            , hxSwapS_ AfterEnd
-            , title_ "Refresh branches"
-            ]
+            updateLink
+            [title_ "Refresh branches"]
             $ do
               W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
               "Refresh"

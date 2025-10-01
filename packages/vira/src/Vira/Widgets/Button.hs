@@ -9,6 +9,7 @@ module Vira.Widgets.Button (
 ) where
 
 import Htmx.Lucid.Core (hxSwapS_, hxTarget_)
+import Htmx.Lucid.Extra (hxDisabledElt_)
 import Htmx.Swap (Swap (InnerHTML))
 import Lucid
 import Lucid.Htmx.Contrib (hxPostSafe_, hyperscript_)
@@ -102,6 +103,8 @@ Button for server requests that displays errors in a modal.
 Automatically configures htmx POST and modal error handling using the global
 modal container ('viraGlobalModalContainer_') defined in the layout.
 
+The button is automatically disabled when clicked to prevent duplicate requests.
+
 = Usage
 
 @
@@ -131,6 +134,8 @@ viraRequestButton_ buttonType endpoint attrs content = do
         [ hxPostSafe_ endpoint
         , hxTarget_ ("#" <> viraGlobalModalId)
         , hxSwapS_ InnerHTML
+        , -- Disable button on click to prevent duplicate requests
+          hxDisabledElt_ "this"
         ]
           <> attrs
   viraButton_ buttonType allAttrs content
