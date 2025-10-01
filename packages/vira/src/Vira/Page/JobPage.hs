@@ -23,6 +23,7 @@ import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.CI.Environment (environmentFor, workspacePath)
 import Vira.CI.Pipeline qualified as Pipeline
+import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.Logging
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Page.JobLog qualified as JobLog
@@ -30,7 +31,7 @@ import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (JobId, jobWorkingDir)
 import Vira.Supervisor.Task qualified as Supervisor
-import Vira.Supervisor.Type (TaskException (ConfigurationError, KilledByUser), TaskSupervisor (baseWorkDir))
+import Vira.Supervisor.Type (TaskException (ConfigurationError, KilledByUser))
 import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Code qualified as W
@@ -166,7 +167,8 @@ triggerNewBuild repoName branchName = do
   log Info $ "Building commit " <> show (repoName, branch.headCommit)
   asks App.supervisor >>= \supervisor -> do
     creationTime <- liftIO getCurrentTime
-    job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit supervisor.baseWorkDir creationTime
+    let baseDir = Workspace.repoJobsDir supervisor repo.name
+    job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit baseDir creationTime
     log Info $ "Added job " <> show job
     viraEnv <- environmentFor repo branch job.jobWorkingDir
     Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (Pipeline.runPipeline viraEnv) $ \result -> do
