@@ -4,9 +4,8 @@ module Vira.Page.BranchPage where
 
 import Data.Time (diffUTCTime)
 import Effectful.Error.Static (throwError)
-import Effectful.Git (BranchName)
+import Effectful.Git (BranchName, RepoName)
 import Htmx.Lucid.Core (hxSwapS_)
-import Htmx.Lucid.Extra (hxDisabledElt_)
 import Htmx.Swap (Swap (AfterEnd))
 import Lucid
 import Lucid.Htmx.Contrib (hxPostSafe_)
@@ -71,13 +70,10 @@ viewBranch repo branch jobs = do
             $ do
               W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
               "Build"
-          W.viraButton_
+          W.viraRequestButton_
             W.ButtonSecondary
-            [ hxPostSafe_ updateLink
-            , hxSwapS_ AfterEnd
-            , hxDisabledElt_ "this"
-            , title_ "Refresh branches"
-            ]
+            updateLink
+            [title_ "Refresh branches"]
             $ do
               W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
               "Refresh"

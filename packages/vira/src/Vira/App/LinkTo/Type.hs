@@ -1,8 +1,8 @@
 -- | Hints from across the apps to link to any route, but without needing a direct reference to all the routes (avoiding cylicic imports in Haskell)
 module Vira.App.LinkTo.Type where
 
-import Effectful.Git (BranchName)
-import Vira.State.Type (JobId, RepoName)
+import Effectful.Git (BranchName, RepoName)
+import Vira.State.Type (JobId)
 
 {- | The part of the application the caller intends to link to
 

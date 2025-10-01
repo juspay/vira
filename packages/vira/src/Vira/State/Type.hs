@@ -5,12 +5,12 @@
 module Vira.State.Type where
 
 import Attic
-import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
+import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Data)
 import Data.IxSet.Typed
 import Data.SafeCopy
 import Data.Time (UTCTime)
-import Effectful.Git (BranchName, CommitID)
+import Effectful.Git (BranchName, CommitID, RepoName (..))
 import Servant.API (FromHttpApiData, ToHttpApiData)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
 
@@ -41,22 +41,6 @@ data CachixSettings = CachixSettings
   }
   deriving stock (Show, Generic)
   deriving anyclass (FromForm, ToJSON, FromJSON)
-
-newtype RepoName = RepoName {unRepoName :: Text}
-  deriving stock (Generic, Data)
-  deriving newtype (Show, Eq, Ord)
-  deriving newtype
-    ( IsString
-    , ToString
-    , ToText
-    , ToHttpApiData
-    , FromHttpApiData
-    , ToJSON
-    , FromJSON
-    , ToJSONKey
-    , FromJSONKey
-    )
-  deriving anyclass (FromForm)
 
 -- | A project's git repository
 data Repo = Repo
@@ -100,7 +84,7 @@ instance Indexable BranchIxs Branch where
       (ixFun $ \Branch {branchName} -> [branchName])
       (ixFun $ \Branch {headCommit} -> [headCommit])
 
-newtype JobId = JobId {unJobId :: Int}
+newtype JobId = JobId {unJobId :: Natural}
   deriving stock (Generic, Data)
   deriving newtype
     ( Show
@@ -167,7 +151,6 @@ jobEndTime job = case jobStatus job of
 
 $(deriveSafeCopy 0 'base ''JobResult)
 $(deriveSafeCopy 0 'base ''JobStatus)
-$(deriveSafeCopy 0 'base ''RepoName)
 $(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
 $(deriveSafeCopy 0 'base ''Branch)

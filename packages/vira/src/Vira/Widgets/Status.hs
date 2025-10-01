@@ -30,6 +30,7 @@ module Vira.Widgets.Status (
   statusLabel,
 ) where
 
+import Effectful.Git (RepoName (..))
 import Lucid
 import Vira.App.AcidState qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo

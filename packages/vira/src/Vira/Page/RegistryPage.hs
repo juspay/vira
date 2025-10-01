@@ -5,7 +5,7 @@ module Vira.Page.RegistryPage where
 
 import Colog (Severity (..))
 import Effectful (Eff)
-import Effectful.Git (BranchName)
+import Effectful.Git (BranchName, RepoName (..))
 import GHC.Records (HasField)
 import GHC.TypeLits (KnownSymbol, symbolVal)
 import Htmx.Lucid.Core (hxSwapS_)
@@ -23,7 +23,7 @@ import Vira.Lib.Logging
 import Vira.Page.BranchPage qualified as BranchPage
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.State.Acid qualified as St
-import Vira.State.Type (Repo (..), RepoName (..))
+import Vira.State.Type (Repo (..))
 import Vira.Widgets.Alert qualified as W
 import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Card qualified as W

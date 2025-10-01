@@ -16,7 +16,7 @@ import Data.List (maximum)
 import Data.Map.Strict qualified as Map
 import Data.SafeCopy (base, deriveSafeCopy)
 import Data.Time (UTCTime)
-import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit)
+import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit, RepoName)
 import System.FilePath ((</>))
 import Vira.State.Type
 import Vira.State.Type qualified as T
@@ -180,14 +180,14 @@ getJobA jobId = do
 
 -- | Create a new job returning it.
 addNewJobA :: RepoName -> BranchName -> CommitID -> FilePath -> UTCTime -> Update ViraState Job
-addNewJobA jobRepo jobBranch jobCommit baseWorkDir jobCreatedTime = do
+addNewJobA jobRepo jobBranch jobCommit baseDir jobCreatedTime = do
   jobs <- Ix.toList <$> gets jobs
   let
     jobId =
       let ids = T.jobId <$> jobs
        in if Prelude.null ids then JobId 1 else JobId 1 + maximum ids
     jobStatus = JobPending
-    jobWorkingDir = baseWorkDir </> toString jobRepo </> show jobId
+    jobWorkingDir = baseDir </> show jobId
     job = Job {..}
   modify $ \s ->
     s

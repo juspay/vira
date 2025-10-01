@@ -6,13 +6,15 @@ module Vira.Page.RepoPage (
 ) where
 
 import Data.Time (diffUTCTime)
-import Effectful (Eff)
-import Effectful.Error.Static (throwError)
+import Effectful (Eff, raise)
+import Effectful.Error.Static (runErrorNoCallStack, throwError)
+import Effectful.Git (RepoName)
 import Effectful.Git qualified as Git
+import Effectful.Git.Mirror qualified as Mirror
+import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwapS_)
-import Htmx.Lucid.Extra (hxDisabledElt_)
 import Htmx.Servant.Response
-import Htmx.Swap (Swap (AfterEnd))
+import Htmx.Swap (Swap (..))
 import Lucid
 import Lucid.Htmx.Contrib (hxConfirm_, hxPostSafe_)
 import Servant hiding (throwError)
@@ -22,6 +24,7 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.CI.Workspace qualified as Workspace
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -29,6 +32,7 @@ import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Code qualified as W
 import Vira.Widgets.Form qualified as W
 import Vira.Widgets.Layout qualified as W
+import Vira.Widgets.Modal (ErrorModal (..))
 import Vira.Widgets.Status qualified as Status
 import Vira.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
@@ -36,7 +40,7 @@ import Prelude hiding (ask, asks)
 
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
-  , _update :: mode :- "fetch" :> Post '[HTML] (Headers '[HXRefresh] Text)
+  , _update :: mode :- "fetch" :> Post '[HTML] (Headers '[HXRefresh] (Maybe ErrorModal))
   , _delete :: mode :- "delete" :> Post '[HTML] (Headers '[HXRedirect] Text)
   }
   deriving stock (Generic)
@@ -59,12 +63,21 @@ viewHandler name = do
   allJobs <- lift $ App.query $ St.GetJobsByRepoA repo.name
   W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branches allJobs
 
-updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)
+updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  allBranches <- Git.remoteBranches repo.cloneUrl
-  App.update $ St.SetRepoBranchesA repo.name allBranches
-  pure $ addHeader True "Ok"
+  supervisor <- asks @App.AppState (.supervisor)
+  let mirrorPath = Workspace.mirrorPath supervisor repo.name
+  result <- runErrorNoCallStack @Text $ do
+    -- Ensure mirror exists and update it
+    Mirror.syncMirror repo.cloneUrl mirrorPath
+    allBranches <- Git.remoteBranchesFromClone mirrorPath
+    raise $ App.update $ St.SetRepoBranchesA repo.name allBranches
+
+  case result of
+    Left errorMsg ->
+      pure $ noHeader $ Just (ErrorModal errorMsg)
+    Right () -> pure $ addHeader True Nothing
 
 deleteHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do
@@ -87,13 +100,10 @@ viewRepo repo branches _allJobs = do
         p_ [class_ "text-gray-600 text-sm font-mono break-all"] $
           toHtml repo.cloneUrl
         div_ [class_ "flex items-center gap-2 ml-4"] $ do
-          W.viraButton_
+          W.viraRequestButton_
             W.ButtonSecondary
-            [ hxPostSafe_ updateLink
-            , hxSwapS_ AfterEnd
-            , hxDisabledElt_ "this"
-            , title_ "Refresh branches"
-            ]
+            updateLink
+            [title_ "Refresh branches"]
             $ do
               W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
               "Refresh"

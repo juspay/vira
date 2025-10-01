@@ -11,3 +11,6 @@ multi-repl: true
 tests: True
 benchmarks: True
 optimization: False
+
+package *
+  ghc-options: -Werror

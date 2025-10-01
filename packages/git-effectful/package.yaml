@@ -18,21 +18,25 @@ ghc-options:
 dependencies:
   - aeson
   - co-log
+  - co-log-core
   - co-log-effectful
   - containers
+  - directory
   - effectful
   - effectful-core
   - effectful-plugin
+  - filepath
   - http-api-data
   - which
   - ixset-typed
+  - lukko
   - megaparsec
   - process
   - safecopy
   - servant-server
-  - temporary
   - text
   - time
+  - unliftio
 
 library:
   source-dirs: src
@@ -49,3 +53,6 @@ executables:
       - git-effectful
       - hspec
       - hspec-discover
+      - temporary
+      - process
+      - filepath
