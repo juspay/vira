@@ -84,7 +84,7 @@ instance Indexable BranchIxs Branch where
       (ixFun $ \Branch {branchName} -> [branchName])
       (ixFun $ \Branch {headCommit} -> [headCommit])
 
-newtype JobId = JobId {unJobId :: Int}
+newtype JobId = JobId {unJobId :: Natural}
   deriving stock (Generic, Data)
   deriving newtype
     ( Show

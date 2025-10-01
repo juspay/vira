@@ -187,6 +187,7 @@ addNewJobA jobRepo jobBranch jobCommit baseWorkDir jobCreatedTime = do
       let ids = T.jobId <$> jobs
        in if Prelude.null ids then JobId 1 else JobId 1 + maximum ids
     jobStatus = JobPending
+    -- FIXME: Use Workspace.hs
     jobWorkingDir = baseWorkDir </> toString jobRepo </> "jobs" </> show jobId
     job = Job {..}
   modify $ \s ->

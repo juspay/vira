@@ -44,6 +44,7 @@ library
       Vira.CI.Configuration
       Vira.CI.Environment
       Vira.CI.Pipeline
+      Vira.CI.Workspace
       Vira.Lib.Cachix
       Vira.Lib.Logging
       Vira.Lib.Omnix

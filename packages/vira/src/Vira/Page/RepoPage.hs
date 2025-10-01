@@ -20,15 +20,14 @@ import Lucid.Htmx.Contrib (hxConfirm_, hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
-import System.FilePath ((</>))
 import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.CI.Workspace qualified as Workspace
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
-import Vira.Supervisor.Type (TaskSupervisor (baseWorkDir))
 import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Code qualified as W
 import Vira.Widgets.Form qualified as W
@@ -67,12 +66,10 @@ viewHandler name = do
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  supervisor <- asks App.supervisor
-
-  -- Ensure mirror exists and update it
-  let mirrorPath = supervisor.baseWorkDir </> toString repo.name </> "source"
-
+  supervisor <- asks @App.AppState (.supervisor)
+  let mirrorPath = Workspace.mirrorPath supervisor repo.name
   result <- runExceptT $ do
+    -- Ensure mirror exists and update it
     ExceptT $ Mirror.syncMirror repo.cloneUrl mirrorPath
     allBranches <- ExceptT $ Git.remoteBranchesFromClone mirrorPath
     lift $ App.update $ St.SetRepoBranchesA repo.name allBranches
