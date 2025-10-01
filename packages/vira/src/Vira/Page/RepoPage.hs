@@ -10,6 +10,7 @@ import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Git qualified as Git
 import Htmx.Lucid.Core (hxSwapS_)
+import Htmx.Lucid.Extra (hxDisabledElt_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (AfterEnd))
 import Lucid
@@ -90,6 +91,7 @@ viewRepo repo branches _allJobs = do
             W.ButtonSecondary
             [ hxPostSafe_ updateLink
             , hxSwapS_ AfterEnd
+            , hxDisabledElt_ "this"
             , title_ "Refresh branches"
             ]
             $ do
