@@ -46,6 +46,7 @@ import Vira.App.LinkTo.Type (LinkTo (..), linkShortTitle, linkTitle)
 import Vira.App.Lucid (AppHtml)
 import Vira.App.Stack (AppState)
 import Vira.Stream.Refresh qualified as Refresh
+import Vira.Widgets.Modal qualified as W
 import Vira.Widgets.Status qualified as Status
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (asks)
@@ -97,6 +98,8 @@ layout crumbs content = do
           ]
     body_ [class_ "bg-gray-50 min-h-screen font-inter"] $ do
       Refresh.viewStream
+      -- Global modal container for all pages
+      W.viraGlobalModalContainer_
       div_ [class_ "min-h-screen flex flex-col"] $ do
         -- Main container with clean styling
         div_ [class_ "container mx-auto px-4 py-3 lg:px-8 flex-1"] $ do

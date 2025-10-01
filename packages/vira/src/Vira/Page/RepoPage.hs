@@ -107,7 +107,6 @@ viewRepo repo branches _allJobs = do
           W.viraRequestButton_
             W.ButtonSecondary
             updateLink
-            "refresh-modal"
             [title_ "Refresh branches"]
             $ do
               W.viraButtonIcon_ $ toHtmlRaw Icon.refresh

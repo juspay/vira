@@ -3,11 +3,26 @@ Modal components for displaying overlay content.
 -}
 module Vira.Widgets.Modal (
   viraErrorModal_,
+  viraGlobalModalContainer_,
+  viraGlobalModalId,
 ) where
 
 import Lucid
 import Vira.Widgets.Alert qualified as W
 import Web.TablerIcons.Outline qualified as Icon
+
+-- | Global modal container ID used throughout the application
+viraGlobalModalId :: Text
+viraGlobalModalId = "vira-modal"
+
+{- |
+Global modal container for the application.
+
+This should be rendered once in the layout (typically in the body, before main content).
+All request buttons using 'viraRequestButton_' will target this container.
+-}
+viraGlobalModalContainer_ :: (Monad m) => HtmlT m ()
+viraGlobalModalContainer_ = div_ [id_ viraGlobalModalId] mempty
 
 {- |
 Modal popup for displaying error messages.

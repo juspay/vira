@@ -13,6 +13,7 @@ import Htmx.Swap (Swap (InnerHTML))
 import Lucid
 import Lucid.Htmx.Contrib (hxPostSafe_, hyperscript_)
 import Servant.Links (Link)
+import Vira.Widgets.Modal (viraGlobalModalId)
 
 -- | Button variant types for consistent styling
 data ButtonVariant
@@ -98,18 +99,19 @@ viraButtonIcon_ =
 {- |
 Button for server requests that displays errors in a modal.
 
-Automatically configures htmx POST and modal error handling.
+Automatically configures htmx POST and modal error handling using the global
+modal container ('viraGlobalModalContainer_') defined in the layout.
 
 = Usage
 
 @
 updateLink <- lift $ App.getLink $ LinkTo.RepoUpdate repo.name
-W.viraRequestButton_ W.ButtonSecondary updateLink "refresh-modal" [title_ "Refresh"] $ do
+W.viraRequestButton_ W.ButtonSecondary updateLink [title_ "Refresh"] $ do
   W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
   "Refresh"
 @
 
-Handler returns modal on error, refresh header on success:
+Handler returns 'viraErrorModal_' on error, refresh header on success:
 @
 case result of
   Left err -> App.runAppHtml (W.viraErrorModal_ err) >>= pure . noHeader
@@ -121,17 +123,14 @@ viraRequestButton_ ::
   ButtonVariant ->
   -- | Endpoint to POST to
   Link ->
-  -- | Modal container ID
-  Text ->
   [Attributes] ->
   HtmlT m () ->
   HtmlT m ()
-viraRequestButton_ buttonType endpoint modalId attrs content = do
+viraRequestButton_ buttonType endpoint attrs content = do
   let allAttrs =
         [ hxPostSafe_ endpoint
-        , hxTarget_ ("#" <> modalId)
+        , hxTarget_ ("#" <> viraGlobalModalId)
         , hxSwapS_ InnerHTML
         ]
           <> attrs
   viraButton_ buttonType allAttrs content
-  div_ [id_ modalId] mempty
