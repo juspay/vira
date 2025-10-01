@@ -12,7 +12,7 @@ import Effectful.Git (RepoName)
 import Effectful.Git qualified as Git
 import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Reader.Dynamic (asks)
-import Htmx.Lucid.Core (hxSwapS_, hxTarget_)
+import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (..))
 import Lucid
@@ -104,20 +104,15 @@ viewRepo repo branches _allJobs = do
         p_ [class_ "text-gray-600 text-sm font-mono break-all"] $
           toHtml repo.cloneUrl
         div_ [class_ "flex items-center gap-2 ml-4"] $ do
-          W.viraButton_
+          W.viraRequestButton_
             W.ButtonSecondary
-            [ hxPostSafe_ updateLink
-            , hxSwapS_ InnerHTML
-            , hxTarget_ "#refresh-modal-container"
-            , title_ "Refresh branches"
-            ]
+            updateLink
+            "refresh-modal"
+            [title_ "Refresh branches"]
             $ do
               W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
               "Refresh"
     )
-
-  -- Container for modal (initially empty)
-  div_ [id_ "refresh-modal-container"] mempty
 
   W.viraSection_ [] $ do
     -- Branch listing
