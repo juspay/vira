@@ -4,7 +4,6 @@
 module Vira.CI.Environment (
   ViraEnvironment (..),
   projectDir,
-  sharedCloneDir,
   environmentFor,
   viraContext,
 ) where
@@ -31,17 +30,6 @@ data ViraEnvironment = ViraEnvironment
 -- | Get the project directory path from the workspace
 projectDir :: ViraEnvironment -> FilePath
 projectDir env = env.workspacePath </> "project"
-
-{- | Get the shared clone directory path from the workspace
-Job workspace: baseWorkDir/repo/jobs/jobId
-Shared clone:  baseWorkDir/repo/source
--}
-sharedCloneDir :: ViraEnvironment -> FilePath
-sharedCloneDir env =
-  let jobWorkspace = env.workspacePath
-      -- Remove "/jobs/jobId" to get the repo directory
-      repoDir = takeDirectory $ takeDirectory jobWorkspace
-   in repoDir </> "source"
 
 -- | Construct the 'ViraEnvironment' for a given repository and branch.
 environmentFor ::
