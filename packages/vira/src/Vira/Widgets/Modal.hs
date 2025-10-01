@@ -2,46 +2,29 @@
 Modal components for displaying overlay content.
 -}
 module Vira.Widgets.Modal (
-  viraErrorModal_,
   viraGlobalModalContainer_,
   viraGlobalModalId,
+  ErrorModal (..),
 ) where
 
 import Lucid
 import Vira.Widgets.Alert qualified as W
 import Web.TablerIcons.Outline qualified as Icon
 
--- | Global modal container ID used throughout the application
-viraGlobalModalId :: Text
-viraGlobalModalId = "vira-modal"
+-- | Type-safe wrapper for error modal content
+newtype ErrorModal = ErrorModal {errorMessage :: Text}
 
-{- |
-Global modal container for the application.
+instance ToHtml ErrorModal where
+  toHtmlRaw = toHtml
+  toHtml (ErrorModal errorMsg) = renderErrorModal errorMsg
 
-This should be rendered once in the layout (typically in the body, before main content).
-All request buttons using 'viraRequestButton_' will target this container.
--}
-viraGlobalModalContainer_ :: (Monad m) => HtmlT m ()
-viraGlobalModalContainer_ = div_ [id_ viraGlobalModalId] mempty
+instance ToHtml (Maybe ErrorModal) where
+  toHtmlRaw = toHtml
+  toHtml Nothing = mempty
+  toHtml (Just modal) = toHtml modal
 
-{- |
-Modal popup for displaying error messages.
-
-Displays a centered modal with a dimmed backdrop that can be closed by:
-- Clicking the backdrop
-- Clicking the X button
-
-The error message is displayed in a monospace font to preserve formatting
-of technical error messages (like git output).
-
-= Usage
-
-@
-W.viraErrorModal_ "Git clone failed with exit code 128..."
-@
--}
-viraErrorModal_ :: (Monad m) => Text -> HtmlT m ()
-viraErrorModal_ errorMsg = do
+renderErrorModal :: (Monad m) => Text -> HtmlT m ()
+renderErrorModal errorMsg =
   -- Fixed overlay backdrop
   div_
     [ class_ "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -74,3 +57,16 @@ viraErrorModal_ errorMsg = do
             W.viraAlert_ W.AlertError $
               pre_ [class_ "text-sm text-red-800 font-mono whitespace-pre-wrap break-words"] $
                 toHtml errorMsg
+
+-- | Global modal container ID used throughout the application
+viraGlobalModalId :: Text
+viraGlobalModalId = "vira-modal"
+
+{- |
+Global modal container for the application.
+
+This should be rendered once in the layout (typically in the body, before main content).
+All request buttons using 'viraRequestButton_' will target this container.
+-}
+viraGlobalModalContainer_ :: (Monad m) => HtmlT m ()
+viraGlobalModalContainer_ = div_ [id_ viraGlobalModalId] mempty

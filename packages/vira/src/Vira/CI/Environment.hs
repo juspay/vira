@@ -10,7 +10,7 @@ module Vira.CI.Environment (
 
 import Effectful (Eff, IOE, (:>))
 import Effectful.Reader.Dynamic qualified as Reader
-import System.FilePath (takeDirectory, (</>))
+import System.FilePath ((</>))
 import Vira.App qualified as App
 import Vira.App.Stack (AppState)
 import Vira.CI.Context (ViraContext (..))

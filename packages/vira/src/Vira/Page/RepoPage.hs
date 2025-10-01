@@ -33,7 +33,7 @@ import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Code qualified as W
 import Vira.Widgets.Form qualified as W
 import Vira.Widgets.Layout qualified as W
-import Vira.Widgets.Modal qualified as W
+import Vira.Widgets.Modal (ErrorModal (..))
 import Vira.Widgets.Status qualified as Status
 import Vira.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
@@ -41,7 +41,7 @@ import Prelude hiding (ask, asks)
 
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
-  , _update :: mode :- "fetch" :> Post '[HTML] (Headers '[HXRefresh] (Html ()))
+  , _update :: mode :- "fetch" :> Post '[HTML] (Headers '[HXRefresh] (Maybe ErrorModal))
   , _delete :: mode :- "delete" :> Post '[HTML] (Headers '[HXRedirect] Text)
   }
   deriving stock (Generic)
@@ -64,7 +64,7 @@ viewHandler name = do
   allJobs <- lift $ App.query $ St.GetJobsByRepoA repo.name
   W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branches allJobs
 
-updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Html ()))
+updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   supervisor <- asks App.supervisor
@@ -78,10 +78,9 @@ updateHandler name = do
     lift $ App.update $ St.SetRepoBranchesA repo.name allBranches
 
   case result of
-    Left errorMsg -> do
-      errorHtml <- App.runAppHtml $ W.viraErrorModal_ errorMsg
-      pure $ noHeader errorHtml
-    Right () -> pure $ addHeader True mempty
+    Left errorMsg ->
+      pure $ noHeader $ Just (ErrorModal errorMsg)
+    Right () -> pure $ addHeader True Nothing
 
 deleteHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do
