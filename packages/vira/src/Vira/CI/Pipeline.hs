@@ -30,7 +30,7 @@ runPipeline ::
   ViraEnvironment ->
   Eff es (Either TaskException ExitCode)
 runPipeline env = do
-  -- 1. Setup workspace and clone directly from original remote
+  -- 1. Setup workspace and clone
   -- HACK: We hardcoding "project" (see projectDir function in Environment.hs)
   let setupProcs =
         one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit "project"

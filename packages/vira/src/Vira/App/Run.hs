@@ -7,7 +7,6 @@ import Control.Exception (bracket)
 import Data.Acid (AcidState)
 import Data.Aeson (encode)
 import Data.ByteString.Lazy qualified as LBS
-
 import Main.Utf8 qualified as Utf8
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))

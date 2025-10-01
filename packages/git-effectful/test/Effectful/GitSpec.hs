@@ -1,34 +1,37 @@
 module Effectful.GitSpec where
 
 import Colog (LogAction (LogAction))
-import Data.List (isSubsequenceOf)
+import Data.Map.Strict qualified as Map
+import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Effectful (runEff)
 import Effectful.Colog (runLogAction)
 import Effectful.Git
+import Effectful.Git.Mirror qualified as Mirror
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
-import System.Process (CmdSpec (RawCommand, ShellCommand), CreateProcess (..))
 import Test.Hspec
 
 spec :: Spec
 spec = do
   describe "Git" $ do
-    it "remoteBranchesFromClone with non-existent directory" $ do
+    it "remoteBranchesFromClone with fixtures" $ do
       withSystemTempDirectory "git-test" $ \tempDir -> do
-        let nonExistentDir = tempDir </> "nonexistent"
-        result <- runEff . runLogAction (LogAction $ const pass) $ remoteBranchesFromClone nonExistentDir
-        case result of
-          Left _ -> pass -- Expected behavior for non-existent directory
-          Right _ -> expectationFailure "Should fail for non-existent directory"
-
-    it "cloneAtCommit creates proper CreateProcess" $ do
-      let cmd = cloneAtCommit "https://github.com/example/repo.git" "abc123" "/tmp/target"
-      -- Verify the command is structured correctly
-      case cmdspec cmd of
-        RawCommand prog args -> do
-          prog `shouldSatisfy` isSubsequenceOf "git"
-          args `shouldContain` ["clone"]
-          args `shouldContain` ["abc123"]
-        ShellCommand _ -> expectationFailure "Expected RawCommand, got ShellCommand"
-
--- Just check that we get some branches, don't rely on exact commit hashes
+        let cloneUrl = "https://github.com/srid/haskell.page-old.git"
+            mirrorPath = tempDir </> "mirror"
+        -- Clone the repository first
+        mirrorResult <- runEff . runLogAction (LogAction $ const pass) $ Mirror.syncMirror cloneUrl mirrorPath
+        case mirrorResult of
+          Left err -> expectationFailure $ "Failed to clone: " <> toString err
+          Right () -> do
+            -- Get branches from the cloned repository
+            result <- runEff . runLogAction (LogAction $ const pass) $ remoteBranchesFromClone mirrorPath
+            case result of
+              Left err -> expectationFailure $ "Failed to get branches: " <> toString err
+              Right branches -> do
+                let expected =
+                      Map.fromList
+                        [ ("gh-pages", Commit (CommitID "0532a9a379790e6962996c756316d28501fe8a7f") "deploy: 2d06bb9e9f9c7ec6a27bd688412df99333c074bb" (posixSecondsToUTCTime 1638762332) "srid" "srid@users.noreply.github.com")
+                        , ("hercules-effects", Commit (CommitID "7a105d260227129f68f87f00051a61b686375b7a") "try again" (posixSecondsToUTCTime 1638755989) "Sridhar Ratnakumar" "srid@srid.ca")
+                        , ("master", Commit (CommitID "2d06bb9e9f9c7ec6a27bd688412df99333c074bb") "cache refactor, and start monthlyhask" (posixSecondsToUTCTime 1638762125) "Sridhar Ratnakumar" "srid@srid.ca")
+                        ]
+                branches `shouldBe` expected
