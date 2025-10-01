@@ -25,6 +25,7 @@ import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
+import Effectful.Error.Static (Error, throwError)
 import Effectful.Git.Logging (log)
 import Effectful.Git.Parser (gitRefParser)
 import Effectful.Git.Types
@@ -43,34 +44,29 @@ git = $(staticWhich "git")
 This function expects the clone to already exist and be updated.
 It parses branches from the existing clone without modifying it.
 -}
-remoteBranchesFromClone :: (Log Message :> es, IOE :> es) => FilePath -> Eff es (Either Text (Map BranchName Commit))
+remoteBranchesFromClone :: (Error Text :> es, Log Message :> es, IOE :> es) => FilePath -> Eff es (Map BranchName Commit)
 remoteBranchesFromClone clonePath = do
   log Info $ "Running git for-each-ref in clone: " <> show (cmdspec forEachRefRemoteBranches)
 
-  result <-
-    liftIO $
-      try $
-        readCreateProcess
-          forEachRefRemoteBranches {cwd = Just clonePath}
-          ""
+  result <- liftIO $ try $ readCreateProcess forEachRefRemoteBranches {cwd = Just clonePath} ""
 
   case result of
     Left (ex :: SomeException) -> do
       let errorMsg = "Git for-each-ref failed: " <> show ex
       log Error errorMsg
-      return $ Left $ toText errorMsg
+      throwError $ toText errorMsg
     Right output -> do
       -- Drop the first line, which is 'origin' (not a branch)
       let gitRefLines = drop 1 $ lines $ T.strip (toText output)
-      commits <- catMaybes <$> mapM parseCommitLine gitRefLines
-      return $ Right $ Map.fromList commits
+      case traverse parseCommitLine gitRefLines of
+        Left err -> throwError err
+        Right commits -> return $ Map.fromList commits
   where
-    parseCommitLine :: (Log Message :> es) => Text -> Eff es (Maybe (BranchName, Commit))
+    parseCommitLine :: Text -> Either Text (BranchName, Commit)
     parseCommitLine line = case parse gitRefParser "" line of
-      Left err -> do
-        log Error $ "Parse error on line '" <> line <> "': " <> toText @String (show err)
-        return Nothing
-      Right result -> return $ Just result
+      Left err ->
+        Left $ "Parse error on line '" <> line <> "': " <> toText @String (show err)
+      Right result -> Right result
 
 -- | Return the `CreateProcess` to clone a repo at a specific commit
 cloneAtCommit :: Text -> CommitID -> FilePath -> CreateProcess

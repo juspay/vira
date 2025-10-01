@@ -23,6 +23,7 @@ module Effectful.Git.Mirror (
 import Colog (Message, Severity (..))
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
+import Effectful.Error.Static (Error, throwError)
 import Effectful.Git (git)
 import Effectful.Git.Logging (log)
 import Lukko (LockMode (ExclusiveLock))
@@ -40,19 +41,18 @@ Concurrent calls for the same directory block on file lock until the first compl
 On error, caller may need to delete the mirror directory and retry.
 -}
 syncMirror ::
-  ( Log Message :> es
+  ( Error Text :> es
+  , Log Message :> es
   , IOE :> es
   ) =>
   -- | Clone URL
   Text ->
   -- | Mirror directory path
   FilePath ->
-  Eff es (Either Text ())
+  Eff es ()
 syncMirror cloneUrl mirrorPath = do
-  ensureResult <- ensureMirror cloneUrl mirrorPath
-  case ensureResult of
-    Left err -> return $ Left err
-    Right () -> updateMirror mirrorPath
+  ensureMirror cloneUrl mirrorPath
+  updateMirror mirrorPath
 
 {- | Clone repository mirror if not present. Idempotent.
 
@@ -61,20 +61,19 @@ Race condition: Multiple processes may see "doesn't exist" before first clone co
 but file lock ensures only one actually clones.
 -}
 ensureMirror ::
-  ( Log Message :> es
+  ( Error Text :> es
+  , Log Message :> es
   , IOE :> es
   ) =>
   Text ->
   FilePath ->
-  Eff es (Either Text ())
+  Eff es ()
 ensureMirror cloneUrl mirrorPath = do
   -- Check if mirror directory exists
   exists <- liftIO $ doesDirectoryExist mirrorPath
 
   if exists
-    then do
-      log Info $ "Git mirror already exists: " <> toText mirrorPath
-      return $ Right ()
+    then log Info $ "Git mirror already exists: " <> toText mirrorPath
     else do
       -- Clone the repository with file lock protection
       log Info $ "Creating git mirror at " <> toText mirrorPath
@@ -96,9 +95,8 @@ ensureMirror cloneUrl mirrorPath = do
               ""
 
         case exitCode of
-          ExitSuccess -> do
+          ExitSuccess ->
             log Info $ "Successfully created git mirror at " <> toText mirrorPath
-            return $ Right ()
           ExitFailure code -> do
             let errorMsg =
                   "Git clone failed with exit code "
@@ -108,18 +106,19 @@ ensureMirror cloneUrl mirrorPath = do
                     <> ". Stderr: "
                     <> toText stderrStr
             log Error errorMsg
-            return $ Left errorMsg
+            throwError errorMsg
 
 {- | Fetch latest changes from remote. Uses @--force@ to handle force-pushes.
 
 Acquires file lock before fetching to prevent concurrent updates to same mirror.
 -}
 updateMirror ::
-  ( Log Message :> es
+  ( Error Text :> es
+  , Log Message :> es
   , IOE :> es
   ) =>
   FilePath ->
-  Eff es (Either Text ())
+  Eff es ()
 updateMirror mirrorPath = do
   log Info $ "Updating git mirror at " <> toText mirrorPath
 
@@ -136,9 +135,8 @@ updateMirror mirrorPath = do
           ""
 
     case exitCode of
-      ExitSuccess -> do
+      ExitSuccess ->
         log Info $ "Successfully updated git mirror at " <> toText mirrorPath
-        return $ Right ()
       ExitFailure code -> do
         let errorMsg =
               "Git fetch failed with exit code "
@@ -148,7 +146,7 @@ updateMirror mirrorPath = do
                 <> ". Stderr: "
                 <> toText stderrStr
         log Error errorMsg
-        return $ Left errorMsg
+        throwError errorMsg
 
 {- | Run action with file-based lock on a directory.
 

@@ -6,8 +6,8 @@ module Vira.Page.RepoPage (
 ) where
 
 import Data.Time (diffUTCTime)
-import Effectful (Eff)
-import Effectful.Error.Static (throwError)
+import Effectful (Eff, raise)
+import Effectful.Error.Static (runErrorNoCallStack, throwError)
 import Effectful.Git (RepoName)
 import Effectful.Git qualified as Git
 import Effectful.Git.Mirror qualified as Mirror
@@ -68,11 +68,11 @@ updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   supervisor <- asks @App.AppState (.supervisor)
   let mirrorPath = Workspace.mirrorPath supervisor repo.name
-  result <- runExceptT $ do
+  result <- runErrorNoCallStack @Text $ do
     -- Ensure mirror exists and update it
-    ExceptT $ Mirror.syncMirror repo.cloneUrl mirrorPath
-    allBranches <- ExceptT $ Git.remoteBranchesFromClone mirrorPath
-    lift $ App.update $ St.SetRepoBranchesA repo.name allBranches
+    Mirror.syncMirror repo.cloneUrl mirrorPath
+    allBranches <- Git.remoteBranchesFromClone mirrorPath
+    raise $ App.update $ St.SetRepoBranchesA repo.name allBranches
 
   case result of
     Left errorMsg ->

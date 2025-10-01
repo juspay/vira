@@ -5,6 +5,7 @@ module Vira.CI.Pipeline (runPipeline, defaultPipeline) where
 
 import Attic
 import Effectful (Eff, IOE, (:>))
+import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Git qualified as Git
 import Effectful.Process (CreateProcess (cwd), env, proc)
 import GH.Signoff qualified as Signoff
@@ -39,7 +40,7 @@ runPipeline env = do
     Right ExitSuccess -> do
       -- 2. Configure and run pipeline
       Task.logToWorkspaceOutput "Setting up pipeline..."
-      pipelineForProject env Task.logToWorkspaceOutput >>= \case
+      runErrorNoCallStack @InterpreterError (pipelineForProject env Task.logToWorkspaceOutput) >>= \case
         Left interpreterError -> do
           Task.logToWorkspaceOutput $ "Pipeline configuration failed: " <> show interpreterError
           pure $ Left $ ConfigurationError interpreterError
@@ -121,12 +122,12 @@ eulerLspConfiguration env pipeline =
 
 -- | Load pipeline configuration for a project directory
 pipelineForProject ::
-  (IOE :> es) =>
+  (Error InterpreterError :> es, IOE :> es) =>
   -- | Project's environment
   ViraEnvironment ->
   -- | Logger function
   (Text -> Eff es ()) ->
-  Eff es (Either InterpreterError ViraPipeline)
+  Eff es ViraPipeline
 pipelineForProject env logger = do
   let
     pipeline = defaultPipeline env & hardcodePerRepoConfig env
@@ -140,13 +141,13 @@ pipelineForProject env logger = do
       liftIO (Configuration.applyConfig (decodeUtf8 content) (viraContext env) pipeline) >>= \case
         Left err -> do
           logger $ "Failed to parse vira.hs: " <> show err
-          pure $ Left err
+          throwError err
         Right customPipeline -> do
           logger "Successfully applied vira.hs configuration"
-          pure $ Right customPipeline
+          pure customPipeline
     else do
       logger "No vira.hs found - using default pipeline"
-      pure $ Right pipeline
+      pure pipeline
 
 -- | Create a default pipeline configuration
 defaultPipeline :: ViraEnvironment -> ViraPipeline
