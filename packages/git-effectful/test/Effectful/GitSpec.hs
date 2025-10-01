@@ -8,6 +8,7 @@ import Effectful.Colog (runLogAction)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Git
 import Effectful.Git.Mirror qualified as Mirror
+import Effectful.Process (runProcess)
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
@@ -20,12 +21,12 @@ spec = do
         let cloneUrl = "https://github.com/srid/haskell.page-old.git"
             mirrorPath = tempDir </> "mirror"
         -- Clone the repository first
-        mirrorResult <- runEff . runErrorNoCallStack @Text . runLogAction (LogAction $ const pass) $ Mirror.syncMirror cloneUrl mirrorPath
+        mirrorResult <- runEff . runProcess . runErrorNoCallStack @Text . runLogAction (LogAction $ const pass) $ Mirror.syncMirror cloneUrl mirrorPath
         case mirrorResult of
           Left err -> expectationFailure $ "Failed to clone: " <> toString err
           Right () -> do
             -- Get branches from the cloned repository
-            result <- runEff . runErrorNoCallStack @Text . runLogAction (LogAction $ const pass) $ remoteBranchesFromClone mirrorPath
+            result <- runEff . runProcess . runErrorNoCallStack @Text . runLogAction (LogAction $ const pass) $ remoteBranchesFromClone mirrorPath
             case result of
               Left err -> expectationFailure $ "Failed to get branches: " <> toString err
               Right branches -> do

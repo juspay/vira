@@ -24,15 +24,15 @@ import Colog (Message, Severity (..))
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Error.Static (Error, throwError)
+import Effectful.Exception (finally)
 import Effectful.Git (git)
 import Effectful.Git.Logging (log)
+import Effectful.Process (CreateProcess (..), Process, proc, readCreateProcessWithExitCode)
 import Lukko (LockMode (ExclusiveLock))
 import Lukko qualified
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist)
 import System.Exit (ExitCode (..))
 import System.FilePath (takeDirectory, takeFileName)
-import System.Process (CreateProcess (..), proc, readCreateProcessWithExitCode)
-import UnliftIO.Exception (finally)
 
 {- | Ensure git mirror exists and is up-to-date.
 
@@ -43,6 +43,7 @@ On error, caller may need to delete the mirror directory and retry.
 syncMirror ::
   ( Error Text :> es
   , Log Message :> es
+  , Process :> es
   , IOE :> es
   ) =>
   -- | Clone URL
@@ -63,6 +64,7 @@ but file lock ensures only one actually clones.
 ensureMirror ::
   ( Error Text :> es
   , Log Message :> es
+  , Process :> es
   , IOE :> es
   ) =>
   Text ->
@@ -89,10 +91,9 @@ ensureMirror cloneUrl mirrorPath = do
         log Info $ "Running git clone: " <> show (cmdspec cloneCmd)
 
         (exitCode, stdoutStr, stderrStr) <-
-          liftIO $
-            readCreateProcessWithExitCode
-              cloneCmd {cwd = Just parentDir}
-              ""
+          readCreateProcessWithExitCode
+            cloneCmd {cwd = Just parentDir}
+            ""
 
         case exitCode of
           ExitSuccess ->
@@ -115,6 +116,7 @@ Acquires file lock before fetching to prevent concurrent updates to same mirror.
 updateMirror ::
   ( Error Text :> es
   , Log Message :> es
+  , Process :> es
   , IOE :> es
   ) =>
   FilePath ->
@@ -129,10 +131,9 @@ updateMirror mirrorPath = do
     log Info $ "Running git fetch: " <> show (cmdspec fetchCmd)
 
     (exitCode, stdoutStr, stderrStr) <-
-      liftIO $
-        readCreateProcessWithExitCode
-          fetchCmd {cwd = Just mirrorPath}
-          ""
+      readCreateProcessWithExitCode
+        fetchCmd {cwd = Just mirrorPath}
+        ""
 
     case exitCode of
       ExitSuccess ->
