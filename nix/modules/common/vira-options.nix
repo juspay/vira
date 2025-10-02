@@ -85,11 +85,37 @@ in
           atticSettings = mkOption {
             description = "Attic configuration";
             default = null;
-            type = types.nullOr (types.submodule {
-              options = {
-                # Add attic-specific options here when needed
-              };
-            });
+            type = types.nullOr (
+              types.submodule {
+                options = {
+                  atticServer = mkOption {
+                    type = (
+                      types.submodule {
+                        options = {
+                          serverName = mkOption {
+                            type = types.str;
+                            description = "Attic server name";
+                          };
+                          serverUrl = mkOption {
+                            type = types.str;
+                            description = "Attic server URL";
+                          };
+                        };
+                      }
+                    );
+                    description = "Attic server Configuration";
+                  };
+                  atticCacheName = mkOption {
+                    type = types.str;
+                    description = "Attic cache name";
+                  };
+                  atticToken = mkOption {
+                    type = types.str;
+                    description = "Attic authentication token";
+                  };
+                };
+              }
+            );
           };
         };
       };
