@@ -60,6 +60,12 @@ library
       Vira.Page.RepoPage
       Vira.Page.SettingsPage
       Vira.Page.ToolsPage
+      Vira.Page.ToolsPage.Attic
+      Vira.Page.ToolsPage.Cachix
+      Vira.Page.ToolsPage.Core
+      Vira.Page.ToolsPage.Git
+      Vira.Page.ToolsPage.GitHub
+      Vira.Page.ToolsPage.Omnix
       Vira.State.Acid
       Vira.State.Core
       Vira.State.JSON
