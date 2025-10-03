@@ -7,6 +7,8 @@ module Vira.Page.ToolsPage (
 )
 where
 
+import Data.Dependent.Map qualified as DMap
+import Data.Dependent.Sum (DSum (..))
 import Lucid
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -15,12 +17,7 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Page.ToolsPage.Attic qualified as Attic
-import Vira.Page.ToolsPage.Cachix qualified as Cachix
-import Vira.Page.ToolsPage.Core (Tool (..), ToolDisplay (..))
-import Vira.Page.ToolsPage.Git qualified as Git
-import Vira.Page.ToolsPage.GitHub qualified as GitHub
-import Vira.Page.ToolsPage.Omnix qualified as Omnix
+import Vira.Page.ToolsPage.Tool
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Layout qualified as W
 import Web.TablerIcons.Outline qualified as Icon
@@ -41,38 +38,40 @@ viewHandler = W.layout [LinkTo.Tools] viewTools
 
 viewTools :: AppHtml ()
 viewTools = do
-  ghInfo <- lift $ liftIO GitHub.read
-  atticInfo <- lift $ liftIO Attic.read
+  -- Read ALL tool infos into DMap
+  toolInfos <- lift $ liftIO readAllTools
 
   W.viraSection_ [] $ do
     W.viraPageHeader_ "Tools" $ do
       p_ [class_ "text-gray-600"] "Command-line tools used by Vira jobs"
 
     div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
-      toolCard Omnix.display Omnix.tool mempty
-      toolCard Git.display Git.tool mempty
-      toolCard Attic.display Attic.tool (Attic.view atticInfo)
-      toolCard Cachix.display Cachix.tool mempty
-      toolCard GitHub.display GitHub.tool (GitHub.view ghInfo)
+      -- Iterate over allTools list to maintain order
+      forM_ allTools $ \(tool :=> _) ->
+        case DMap.lookup tool toolInfos of
+          Just (Identity info) -> toolCard tool info
+          Nothing -> error "Tool info missing" -- shouldn't happen
 
-toolCard :: (Monad m) => ToolDisplay -> Tool -> HtmlT m () -> HtmlT m ()
-toolCard disp tool extraInfo = do
+toolCard :: (Monad m) => Tool info -> info -> HtmlT m ()
+toolCard tool info = do
+  let meta = toolMeta tool
+      disp = toolDisplay tool
   W.viraCard_ [class_ "p-6"] $ do
     div_ [class_ "flex items-start mb-4"] $ do
       span_ [class_ $ "h-12 w-12 mr-4 " <> disp.bgClass <> " rounded-lg flex items-center justify-center " <> disp.textClass <> " font-bold text-xl"] $
         toHtml disp.initial
       div_ [class_ "flex-1"] $ do
-        h3_ [class_ "text-xl font-bold text-gray-900 mb-2"] $ toHtml tool.name
-        p_ [class_ "text-gray-600 text-sm mb-3"] $ toHtml tool.description
+        h3_ [class_ "text-xl font-bold text-gray-900 mb-2"] $ toHtml meta.name
+        p_ [class_ "text-gray-600 text-sm mb-3"] $ toHtml meta.description
         div_ [class_ "mb-3 space-y-1"] $ do
-          forM_ tool.binPaths $ \binPath ->
-            code_ [class_ "block text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono"] $ toHtml binPath
+          forM_ meta.binPaths $ \binPath ->
+            code_ [class_ "block text-xs bg-gray-100 text-gray-700 text px-2 py-1 rounded font-mono"] $ toHtml binPath
 
-        -- Extra info (e.g., auth status)
-        extraInfo
+        -- Render tool-specific info
+        renderInfo tool info
 
         a_
-          [ href_ tool.url
+          [ href_ meta.url
           , target_ "_blank"
           , class_ "inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-sm font-medium"
           ]

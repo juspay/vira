@@ -70,6 +70,7 @@ data HostAuth = HostAuth
 -- | Check GitHub CLI authentication status
 checkAuthStatus :: IO AuthStatus
 checkAuthStatus = do
+  putStrLn ghBin
   output <- readProcess ghBin ["auth", "status", "--json", "hosts"] ""
 
   case Aeson.decode (encodeUtf8 output) of

@@ -60,12 +60,7 @@ library
       Vira.Page.RepoPage
       Vira.Page.SettingsPage
       Vira.Page.ToolsPage
-      Vira.Page.ToolsPage.Attic
-      Vira.Page.ToolsPage.Cachix
-      Vira.Page.ToolsPage.Core
-      Vira.Page.ToolsPage.Git
-      Vira.Page.ToolsPage.GitHub
-      Vira.Page.ToolsPage.Omnix
+      Vira.Page.ToolsPage.Tool
       Vira.State.Acid
       Vira.State.Core
       Vira.State.JSON
@@ -134,6 +129,9 @@ library
     , containers
     , dani-servant-lucid2
     , data-default
+    , dependent-map
+    , dependent-sum
+    , dependent-sum-template
     , deriving-aeson
     , directory
     , effectful
@@ -245,6 +243,9 @@ executable vira
     , containers
     , dani-servant-lucid2
     , data-default
+    , dependent-map
+    , dependent-sum
+    , dependent-sum-template
     , deriving-aeson
     , directory
     , effectful
@@ -358,6 +359,9 @@ executable vira-tests
     , containers
     , dani-servant-lucid2
     , data-default
+    , dependent-map
+    , dependent-sum
+    , dependent-sum-template
     , deriving-aeson
     , directory
     , effectful
