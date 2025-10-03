@@ -26,6 +26,7 @@ data LinkTo
   | SettingsDeleteCachix
   | SettingsUpdateAttic
   | SettingsDeleteAttic
+  | Tools
   | Refresh
 
 linkShortTitle :: LinkTo -> Text
@@ -47,6 +48,7 @@ linkShortTitle = \case
   SettingsDeleteCachix -> "Delete Cachix Settings" -- unused
   SettingsUpdateAttic -> "Attic Settings" -- unused
   SettingsDeleteAttic -> "Delete Attic Settings" -- unused
+  Tools -> "Tools"
   Refresh -> "Refresh"
 
 linkTitle :: LinkTo -> Text

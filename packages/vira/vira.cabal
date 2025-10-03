@@ -59,6 +59,7 @@ library
       Vira.Page.RegistryPage
       Vira.Page.RepoPage
       Vira.Page.SettingsPage
+      Vira.Page.ToolsPage
       Vira.State.Acid
       Vira.State.Core
       Vira.State.JSON
