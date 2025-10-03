@@ -5,6 +5,8 @@ module Vira.Page.ToolsPage (
 )
 where
 
+import Attic qualified
+import GH.Signoff qualified as GH
 import Lucid
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -13,6 +15,8 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.Lib.Cachix qualified as Cachix
+import Vira.Lib.Omnix qualified as Omnix
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Layout qualified as W
 import Web.TablerIcons.Outline qualified as Icon
@@ -48,6 +52,7 @@ viewTools = do
         "Omnix"
         "Nix CI/CD orchestration tool for running builds"
         "https://github.com/juspay/omnix"
+        (toText Omnix.omnixBin)
 
       -- Attic
       toolCard
@@ -57,6 +62,7 @@ viewTools = do
         "Attic"
         "Self-hosted Nix binary cache server"
         "https://github.com/zhaofengli/attic"
+        (toText Attic.atticBin)
 
       -- Cachix
       toolCard
@@ -66,6 +72,7 @@ viewTools = do
         "Cachix"
         "Hosted Nix binary cache service"
         "https://cachix.org"
+        (toText Cachix.cachixBin)
 
       -- GitHub CLI (gh-signoff)
       toolCard
@@ -74,10 +81,11 @@ viewTools = do
         "text-green-600"
         "GitHub CLI"
         "Git signoff automation via gh-signoff extension"
-        "https://github.com/srid/gh-signoff"
+        "https://cli.github.com"
+        (toText GH.ghSignoffBin)
 
-toolCard :: (Monad m) => Text -> Text -> Text -> Text -> Text -> Text -> HtmlT m ()
-toolCard initial bgClass textClass name description url = do
+toolCard :: (Monad m) => Text -> Text -> Text -> Text -> Text -> Text -> Text -> HtmlT m ()
+toolCard initial bgClass textClass name description url binPath = do
   W.viraCard_ [class_ "p-6"] $ do
     div_ [class_ "flex items-start mb-4"] $ do
       span_ [class_ $ "h-12 w-12 mr-4 " <> bgClass <> " rounded-lg flex items-center justify-center " <> textClass <> " font-bold text-xl"] $
@@ -85,11 +93,13 @@ toolCard initial bgClass textClass name description url = do
       div_ [class_ "flex-1"] $ do
         h3_ [class_ "text-xl font-bold text-gray-900 mb-2"] $ toHtml name
         p_ [class_ "text-gray-600 text-sm mb-3"] $ toHtml description
+        div_ [class_ "mb-3"] $ do
+          code_ [class_ "text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono"] $ toHtml binPath
         a_
           [ href_ url
           , target_ "_blank"
-          , class_ "inline-flex items-center text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+          , class_ "inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-sm font-medium"
           ]
           $ do
-            span_ [class_ "mr-1"] "Learn more"
-            div_ [class_ "w-4 h-4"] $ toHtmlRaw Icon.external_link
+            span_ "Learn more"
+            span_ [class_ "w-4 h-4 flex items-center"] $ toHtmlRaw Icon.external_link

@@ -4,7 +4,7 @@
 
 A standalone library for gh-signoff operations.
 -}
-module GH.Signoff (create, Force (..)) where
+module GH.Signoff (create, Force (..), ghSignoffBin) where
 
 import System.Process (CreateProcess, proc)
 import System.Which (staticWhich)
