@@ -20,6 +20,7 @@ extra-source-files:
 
 library
   exposed-modules:
+      GH.Auth.Status
       GH.Signoff
   other-modules:
       Paths_gh
@@ -55,7 +56,10 @@ library
       ViewPatterns
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
-      base ==4.*
+      aeson
+    , base ==4.*
+    , bytestring
+    , containers
     , process
     , relude >=1.0
     , which
@@ -102,7 +106,10 @@ executable gh-test
       ViewPatterns
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base ==4.*
+      aeson
+    , base ==4.*
+    , bytestring
+    , containers
     , gh
     , hspec
     , hspec-discover

@@ -9,6 +9,8 @@ where
 
 import Attic qualified
 import Effectful.Git qualified as Git
+import GH.Auth.Status (AuthStatus (..))
+import GH.Auth.Status qualified as GH
 import GH.Signoff qualified as GH
 import Lucid
 import Servant
@@ -20,10 +22,10 @@ import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.Cachix qualified as Cachix
 import Vira.Lib.Omnix qualified as Omnix
+import Vira.Widgets.Alert qualified as W
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Layout qualified as W
 import Web.TablerIcons.Outline qualified as Icon
-import Prelude hiding (for_)
 
 newtype Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
@@ -37,6 +39,10 @@ data Tool = Tool
   , binPath :: Text
   }
 
+newtype GhToolInfo = GhToolInfo
+  { authStatus :: AuthStatus
+  }
+
 handlers :: App.AppState -> WebSettings -> Routes AsServer
 handlers cfg webSettings =
   Routes
@@ -45,20 +51,21 @@ handlers cfg webSettings =
 
 viewHandler :: AppHtml ()
 viewHandler = do
-  W.layout [LinkTo.Tools] viewTools
+  ghAuthStatus <- lift $ liftIO GH.checkAuthStatus
+  W.layout [LinkTo.Tools] (viewTools ghAuthStatus)
 
-viewTools :: AppHtml ()
-viewTools = do
+viewTools :: AuthStatus -> AppHtml ()
+viewTools ghAuthStatus = do
   W.viraSection_ [] $ do
     W.viraPageHeader_ "Tools" $ do
       p_ [class_ "text-gray-600"] "Command-line tools used by Vira jobs"
 
     div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
-      toolCard "O" "bg-purple-100" "text-purple-600" omnix
-      toolCard "G" "bg-orange-100" "text-orange-600" gitTool
-      toolCard "A" "bg-indigo-100" "text-indigo-600" attic
-      toolCard "C" "bg-blue-100" "text-blue-600" cachix
-      toolCard "G" "bg-green-100" "text-green-600" githubCli
+      toolCard "O" "bg-purple-100" "text-purple-600" omnix mempty
+      toolCard "G" "bg-orange-100" "text-orange-600" gitTool mempty
+      toolCard "A" "bg-indigo-100" "text-indigo-600" attic mempty
+      toolCard "C" "bg-blue-100" "text-blue-600" cachix mempty
+      toolCard "G" "bg-green-100" "text-green-600" githubCli (ghToolInfo $ GhToolInfo ghAuthStatus)
   where
     omnix =
       Tool
@@ -96,8 +103,8 @@ viewTools = do
         , binPath = toText GH.ghSignoffBin
         }
 
-toolCard :: (Monad m) => Text -> Text -> Text -> Tool -> HtmlT m ()
-toolCard initial bgClass textClass tool = do
+toolCard :: (Monad m) => Text -> Text -> Text -> Tool -> HtmlT m () -> HtmlT m ()
+toolCard initial bgClass textClass tool extraInfo = do
   W.viraCard_ [class_ "p-6"] $ do
     div_ [class_ "flex items-start mb-4"] $ do
       span_ [class_ $ "h-12 w-12 mr-4 " <> bgClass <> " rounded-lg flex items-center justify-center " <> textClass <> " font-bold text-xl"] $
@@ -107,6 +114,10 @@ toolCard initial bgClass textClass tool = do
         p_ [class_ "text-gray-600 text-sm mb-3"] $ toHtml tool.description
         div_ [class_ "mb-3"] $ do
           code_ [class_ "text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono"] $ toHtml tool.binPath
+
+        -- Extra info (e.g., auth status)
+        extraInfo
+
         a_
           [ href_ tool.url
           , target_ "_blank"
@@ -115,3 +126,25 @@ toolCard initial bgClass textClass tool = do
           $ do
             span_ "Learn more"
             span_ [class_ "w-4 h-4 flex items-center"] $ toHtmlRaw Icon.external_link
+
+ghToolInfo :: (Monad m) => GhToolInfo -> HtmlT m ()
+ghToolInfo info = do
+  div_ [class_ "mb-3"] $ do
+    case info.authStatus of
+      Authenticated {host, login, scopes} -> do
+        W.viraAlert_ W.AlertSuccess $ do
+          p_ [class_ "text-green-800 font-semibold mb-1"] $ do
+            "✓ Authenticated as "
+            strong_ $ toHtml login
+            " on "
+            strong_ $ toHtml host
+          p_ [class_ "text-green-700 text-xs"] $ do
+            "Scopes: "
+            toHtml scopes
+      NotAuthenticated -> do
+        W.viraAlert_ W.AlertError $ do
+          p_ [class_ "text-red-800 mb-1"] "✗ Not authenticated"
+          p_ [class_ "text-red-700 text-sm"] $ do
+            "Run "
+            code_ [class_ "bg-red-100 px-1 rounded"] "gh auth login"
+            " to authenticate."
