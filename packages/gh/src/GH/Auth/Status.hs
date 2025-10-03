@@ -11,7 +11,6 @@ module GH.Auth.Status (
   checkAuthStatus,
 ) where
 
-import Control.Exception (catch)
 import Data.Aeson (FromJSON (..))
 import Data.Aeson qualified as Aeson
 import Data.Map.Strict qualified as Map
@@ -48,13 +47,9 @@ data GHHostAuth = GHHostAuth
 -- | Check GitHub CLI authentication status
 checkAuthStatus :: IO AuthStatus
 checkAuthStatus = do
-  -- Run gh auth status --json hosts, redirecting stderr to /dev/null
-  output <-
-    catch
-      (readProcess ghSignoffBin ["auth", "status", "--json", "hosts"] "" `catch` \(_ :: SomeException) -> pure "{}")
-      (\(_ :: SomeException) -> pure "{}")
+  output <- readProcess ghSignoffBin ["auth", "status", "--json", "hosts"] ""
 
-  case Aeson.decode (fromStrict $ encodeUtf8 $ toText output) of
+  case Aeson.decode (encodeUtf8 $ toText output) of
     Nothing -> pure NotAuthenticated
     Just (GHAuthResponse hostsMap) -> do
       case Map.lookup "github.com" hostsMap of
