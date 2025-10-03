@@ -10,8 +10,6 @@ docs:
 # Run the application, re-compiling if necessary.
 [group('1. vira')]
 run:
-    #!/usr/bin/env bash
-    export PATH=$(echo "$PATH" | tr ':' '\n' | grep '^/nix/store' | tr '\n' ':' | sed 's/:$//')
     vira-dev --no-server --tui=false
 
 # Run cabal tests (Pass, for example, `tail-test` to run for different component)
