@@ -14,7 +14,7 @@ module GH.Auth.Status (
 import Data.Aeson (FromJSON (..))
 import Data.Aeson qualified as Aeson
 import Data.Map.Strict qualified as Map
-import GH.Signoff (ghSignoffBin)
+import GH.Core (ghBin)
 import System.Process (readProcess)
 
 -- | GitHub CLI authentication status
@@ -47,7 +47,7 @@ data GHHostAuth = GHHostAuth
 -- | Check GitHub CLI authentication status
 checkAuthStatus :: IO AuthStatus
 checkAuthStatus = do
-  output <- readProcess ghSignoffBin ["auth", "status", "--json", "hosts"] ""
+  output <- readProcess ghBin ["auth", "status", "--json", "hosts"] ""
 
   case Aeson.decode (encodeUtf8 $ toText output) of
     Nothing -> pure NotAuthenticated

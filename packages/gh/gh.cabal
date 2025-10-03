@@ -21,6 +21,7 @@ extra-source-files:
 library
   exposed-modules:
       GH.Auth.Status
+      GH.Core
       GH.Signoff
   other-modules:
       Paths_gh
