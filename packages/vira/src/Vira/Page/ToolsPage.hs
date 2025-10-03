@@ -11,7 +11,7 @@ import Attic qualified
 import Effectful.Git qualified as Git
 import GH.Auth.Status (AuthStatus (..))
 import GH.Auth.Status qualified as GH
-import GH.Signoff qualified as GH
+import GH.Core qualified as GH
 import Lucid
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -100,7 +100,7 @@ viewTools ghAuthStatus = do
         { name = "GitHub CLI"
         , description = "GitHub command line tool for various operations"
         , url = "https://cli.github.com"
-        , binPath = toText GH.ghSignoffBin
+        , binPath = toText GH.ghBin
         }
 
 toolCard :: (Monad m) => Text -> Text -> Text -> Tool -> HtmlT m () -> HtmlT m ()
