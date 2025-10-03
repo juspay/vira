@@ -5,9 +5,9 @@
       inherit system;
       overlays = [
         (final: prev: {
-          # https://github.com/cli/cli/pull/11544
+          # https://github.com/cli/cli/releases/tag/v2.81.0
           gh = prev.gh.overrideAttrs (oldAttrs: {
-            src = inputs.gh-cli-pr-11544;
+            src = inputs.gh-cli-v2-81-0;
           });
         })
       ];
