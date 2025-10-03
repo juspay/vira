@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 -- | Tools information page
 module Vira.Page.ToolsPage (
   Routes (..),
@@ -27,6 +29,13 @@ newtype Routes mode = Routes
   }
   deriving stock (Generic)
 
+data Tool = Tool
+  { name :: Text
+  , description :: Text
+  , url :: Text
+  , binPath :: Text
+  }
+
 handlers :: App.AppState -> WebSettings -> Routes AsServer
 handlers cfg webSettings =
   Routes
@@ -41,62 +50,56 @@ viewTools :: AppHtml ()
 viewTools = do
   W.viraSection_ [] $ do
     W.viraPageHeader_ "Tools" $ do
-      p_ [class_ "text-gray-600"] "Command-line tools used by Vira for CI/CD operations"
+      p_ [class_ "text-gray-600"] "Command-line tools used by Vira jobs"
 
     div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
-      -- Omnix
-      toolCard
-        "O"
-        "bg-purple-100"
-        "text-purple-600"
-        "Omnix"
-        "Nix CI/CD orchestration tool for running builds"
-        "https://github.com/juspay/omnix"
-        (toText Omnix.omnixBin)
+      toolCard "O" "bg-purple-100" "text-purple-600" omnix
+      toolCard "A" "bg-indigo-100" "text-indigo-600" attic
+      toolCard "C" "bg-blue-100" "text-blue-600" cachix
+      toolCard "G" "bg-green-100" "text-green-600" githubCli
+  where
+    omnix =
+      Tool
+        { name = "Omnix"
+        , description = "A tool for building all Nix flake outputs"
+        , url = "https://github.com/juspay/omnix"
+        , binPath = toText Omnix.omnixBin
+        }
+    attic =
+      Tool
+        { name = "Attic"
+        , description = "Self-hosted Nix binary cache server"
+        , url = "https://github.com/zhaofengli/attic"
+        , binPath = toText Attic.atticBin
+        }
+    cachix =
+      Tool
+        { name = "Cachix"
+        , description = "Proprietary Nix binary cache hosting service"
+        , url = "https://cachix.org"
+        , binPath = toText Cachix.cachixBin
+        }
+    githubCli =
+      Tool
+        { name = "GitHub CLI"
+        , description = "GitHub command line tool for various operations"
+        , url = "https://cli.github.com"
+        , binPath = toText GH.ghSignoffBin
+        }
 
-      -- Attic
-      toolCard
-        "A"
-        "bg-indigo-100"
-        "text-indigo-600"
-        "Attic"
-        "Self-hosted Nix binary cache server"
-        "https://github.com/zhaofengli/attic"
-        (toText Attic.atticBin)
-
-      -- Cachix
-      toolCard
-        "C"
-        "bg-blue-100"
-        "text-blue-600"
-        "Cachix"
-        "Hosted Nix binary cache service"
-        "https://cachix.org"
-        (toText Cachix.cachixBin)
-
-      -- GitHub CLI (gh-signoff)
-      toolCard
-        "G"
-        "bg-green-100"
-        "text-green-600"
-        "GitHub CLI"
-        "Git signoff automation via gh-signoff extension"
-        "https://cli.github.com"
-        (toText GH.ghSignoffBin)
-
-toolCard :: (Monad m) => Text -> Text -> Text -> Text -> Text -> Text -> Text -> HtmlT m ()
-toolCard initial bgClass textClass name description url binPath = do
+toolCard :: (Monad m) => Text -> Text -> Text -> Tool -> HtmlT m ()
+toolCard initial bgClass textClass tool = do
   W.viraCard_ [class_ "p-6"] $ do
     div_ [class_ "flex items-start mb-4"] $ do
       span_ [class_ $ "h-12 w-12 mr-4 " <> bgClass <> " rounded-lg flex items-center justify-center " <> textClass <> " font-bold text-xl"] $
         toHtml initial
       div_ [class_ "flex-1"] $ do
-        h3_ [class_ "text-xl font-bold text-gray-900 mb-2"] $ toHtml name
-        p_ [class_ "text-gray-600 text-sm mb-3"] $ toHtml description
+        h3_ [class_ "text-xl font-bold text-gray-900 mb-2"] $ toHtml tool.name
+        p_ [class_ "text-gray-600 text-sm mb-3"] $ toHtml tool.description
         div_ [class_ "mb-3"] $ do
-          code_ [class_ "text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono"] $ toHtml binPath
+          code_ [class_ "text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono"] $ toHtml tool.binPath
         a_
-          [ href_ url
+          [ href_ tool.url
           , target_ "_blank"
           , class_ "inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-sm font-medium"
           ]
