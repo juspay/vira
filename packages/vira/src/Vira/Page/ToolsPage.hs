@@ -21,6 +21,7 @@ import Lucid
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
+import TOML (TOMLError)
 import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
@@ -49,7 +50,7 @@ newtype GhToolInfo = GhToolInfo
   }
 
 newtype AtticToolInfo = AtticToolInfo
-  { config :: Maybe AtticConfig
+  { config :: Either TOMLError (Maybe AtticConfig)
   }
 
 handlers :: App.AppState -> WebSettings -> Routes AsServer
@@ -64,7 +65,7 @@ viewHandler = do
   atticConfig <- lift $ liftIO Attic.Config.readAtticConfig
   W.layout [LinkTo.Tools] (viewTools ghAuthStatus atticConfig)
 
-viewTools :: AuthStatus -> Maybe AtticConfig -> AppHtml ()
+viewTools :: AuthStatus -> Either TOMLError (Maybe AtticConfig) -> AppHtml ()
 viewTools ghAuthStatus atticConfig = do
   W.viraSection_ [] $ do
     W.viraPageHeader_ "Tools" $ do
@@ -164,13 +165,17 @@ atticToolInfo :: (Monad m) => AtticToolInfo -> HtmlT m ()
 atticToolInfo info = do
   div_ [class_ "mb-3"] $ do
     case info.config of
-      Nothing -> do
+      Left err -> do
+        W.viraAlert_ W.AlertError $ do
+          p_ [class_ "text-red-800 font-semibold mb-1"] "✗ Parse error"
+          p_ [class_ "text-red-700 text-sm"] $ toHtml (show err :: String)
+      Right Nothing -> do
         W.viraAlert_ W.AlertWarning $ do
           p_ [class_ "text-yellow-800 mb-1"] "⚠ Not configured"
           p_ [class_ "text-yellow-700 text-sm"] $ do
             "Config file not found at "
             code_ [class_ "bg-yellow-100 px-1 rounded"] "~/.config/attic/config.toml"
-      Just cfg -> do
+      Right (Just cfg) -> do
         W.viraAlert_ W.AlertSuccess $ do
           case cfg.defaultServer of
             Just defServer -> do

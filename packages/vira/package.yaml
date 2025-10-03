@@ -86,6 +86,7 @@ dependencies:
   - tail
   - text
   - time
+  - toml-reader
   - vira-ci-types
   - hint-nix
   - wai

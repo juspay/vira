@@ -172,6 +172,7 @@ library
     , tail
     , text
     , time
+    , toml-reader
     , vira-ci-types
     , wai
     , wai-extra
@@ -282,6 +283,7 @@ executable vira
     , tail
     , text
     , time
+    , toml-reader
     , vira
     , vira-ci-types
     , wai
@@ -394,6 +396,7 @@ executable vira-tests
     , tail
     , text
     , time
+    , toml-reader
     , vira
     , vira-ci-types
     , wai

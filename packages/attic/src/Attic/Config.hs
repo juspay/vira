@@ -3,10 +3,11 @@ module Attic.Config (
   AtticConfig (..),
   AtticServerConfig (..),
   readAtticConfig,
+  TOML.TOMLError,
 ) where
 
 import System.Directory (XdgDirectory (..), doesFileExist, getXdgDirectory)
-import TOML (DecodeTOML, getField, getFields)
+import TOML (DecodeTOML, TOMLError, getField, getFields)
 import TOML qualified
 
 -- | Attic server configuration from config.toml
@@ -37,18 +38,19 @@ instance DecodeTOML AtticConfig where
 
 {- | Read Attic configuration from ~/.config/attic/config.toml
 
-Returns Nothing if the config file doesn't exist (not configured).
+Returns:
+- Left TOMLError if config file exists but failed to parse
+- Right Nothing if config file doesn't exist (not configured)
+- Right (Just config) if successfully parsed
 -}
-readAtticConfig :: IO (Maybe AtticConfig)
+readAtticConfig :: IO (Either TOMLError (Maybe AtticConfig))
 readAtticConfig = do
   configPath <- getXdgDirectory XdgConfig "attic/config.toml"
   exists <- doesFileExist configPath
   if not exists
-    then pure Nothing
+    then pure $ Right Nothing
     else do
       contents <- readFileBS configPath <&> decodeUtf8
       case TOML.decode contents of
-        Left err -> do
-          putTextLn $ "Warning: Failed to parse Attic config: " <> show err
-          pure Nothing
-        Right config -> pure $ Just config
+        Left err -> pure $ Left err
+        Right config -> pure $ Right $ Just config
