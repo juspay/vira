@@ -15,12 +15,14 @@ description: Haskell types and functions for working with NIx attic cache server
 
 dependencies:
   - aeson
+  - directory
   - http-api-data
   - process
   - safecopy
   - servant
   - template-haskell
   - text
+  - toml-reader
   - which
 
 library:

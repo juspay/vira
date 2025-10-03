@@ -8,6 +8,9 @@ module Vira.Page.ToolsPage (
 where
 
 import Attic qualified
+import Attic.Config (AtticConfig (..), AtticServerConfig (..))
+import Attic.Config qualified
+import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful.Git qualified as Git
 import GH.Auth.Status (AuthStatus (..))
@@ -45,6 +48,10 @@ newtype GhToolInfo = GhToolInfo
   { authStatus :: AuthStatus
   }
 
+newtype AtticToolInfo = AtticToolInfo
+  { config :: Maybe AtticConfig
+  }
+
 handlers :: App.AppState -> WebSettings -> Routes AsServer
 handlers cfg webSettings =
   Routes
@@ -54,10 +61,11 @@ handlers cfg webSettings =
 viewHandler :: AppHtml ()
 viewHandler = do
   ghAuthStatus <- lift $ liftIO GH.checkAuthStatus
-  W.layout [LinkTo.Tools] (viewTools ghAuthStatus)
+  atticConfig <- lift $ liftIO Attic.Config.readAtticConfig
+  W.layout [LinkTo.Tools] (viewTools ghAuthStatus atticConfig)
 
-viewTools :: AuthStatus -> AppHtml ()
-viewTools ghAuthStatus = do
+viewTools :: AuthStatus -> Maybe AtticConfig -> AppHtml ()
+viewTools ghAuthStatus atticConfig = do
   W.viraSection_ [] $ do
     W.viraPageHeader_ "Tools" $ do
       p_ [class_ "text-gray-600"] "Command-line tools used by Vira jobs"
@@ -65,7 +73,7 @@ viewTools ghAuthStatus = do
     div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
       toolCard "O" "bg-purple-100" "text-purple-600" omnix mempty
       toolCard "G" "bg-orange-100" "text-orange-600" gitTool mempty
-      toolCard "A" "bg-indigo-100" "text-indigo-600" attic mempty
+      toolCard "A" "bg-indigo-100" "text-indigo-600" attic (atticToolInfo $ AtticToolInfo atticConfig)
       toolCard "C" "bg-blue-100" "text-blue-600" cachix mempty
       toolCard "G" "bg-green-100" "text-green-600" githubCli (ghToolInfo $ GhToolInfo ghAuthStatus)
   where
@@ -151,3 +159,36 @@ ghToolInfo info = do
             "Run "
             code_ [class_ "bg-red-100 px-1 rounded"] "gh auth login"
             " to authenticate."
+
+atticToolInfo :: (Monad m) => AtticToolInfo -> HtmlT m ()
+atticToolInfo info = do
+  div_ [class_ "mb-3"] $ do
+    case info.config of
+      Nothing -> do
+        W.viraAlert_ W.AlertWarning $ do
+          p_ [class_ "text-yellow-800 mb-1"] "⚠ Not configured"
+          p_ [class_ "text-yellow-700 text-sm"] $ do
+            "Config file not found at "
+            code_ [class_ "bg-yellow-100 px-1 rounded"] "~/.config/attic/config.toml"
+      Just cfg -> do
+        W.viraAlert_ W.AlertSuccess $ do
+          case cfg.defaultServer of
+            Just defServer -> do
+              p_ [class_ "text-green-800 font-semibold mb-1"] $ do
+                "✓ Default server: "
+                strong_ $ toHtml defServer
+            Nothing -> do
+              p_ [class_ "text-green-800 font-semibold mb-1"] "✓ Configured"
+
+          -- Display all configured servers
+          unless (Map.null cfg.servers) $ do
+            p_ [class_ "text-green-700 text-xs mt-2 mb-1"] "Configured servers:"
+            div_ [class_ "space-y-1"] $ do
+              forM_ (Map.toList cfg.servers) $ \(serverName, serverCfg) -> do
+                div_ [class_ "text-green-700 text-xs pl-2"] $ do
+                  strong_ $ toHtml serverName
+                  ": "
+                  code_ [class_ "bg-green-100 px-1 rounded"] $ toHtml serverCfg.endpoint
+                  case serverCfg.token of
+                    Just _ -> span_ [class_ "ml-2 text-green-600"] "🔑"
+                    Nothing -> span_ [class_ "ml-2 text-yellow-600"] "⚠ No token"

@@ -39,6 +39,7 @@
         tabler-icons.source = inputs.tabler-icons-hs;
         servant-event-stream.source = inputs.servant-event-stream;
         record-hasfield.source = inputs.record-hasfield;
+        toml-reader.source = "0.3.0.0";
       };
 
       # Add your package overrides here
@@ -99,6 +100,7 @@
           broken = false;
         };
         co-log-effectful.jailbreak = true;
+        toml-reader.check = false;
       };
 
       # Development shell configuration
