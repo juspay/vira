@@ -8,6 +8,7 @@ module Vira.Page.ToolsPage (
 where
 
 import Attic qualified
+import Data.Text qualified as T
 import Effectful.Git qualified as Git
 import GH.Auth.Status (AuthStatus (..))
 import GH.Auth.Status qualified as GH
@@ -142,7 +143,7 @@ ghToolInfo info = do
             strong_ $ toHtml host
           p_ [class_ "text-green-700 text-xs"] $ do
             "Scopes: "
-            toHtml scopes
+            toHtml $ T.intercalate ", " scopes
       NotAuthenticated -> do
         W.viraAlert_ W.AlertError $ do
           p_ [class_ "text-red-800 mb-1"] "✗ Not authenticated"

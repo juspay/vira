@@ -11,9 +11,10 @@ module GH.Auth.Status (
   checkAuthStatus,
 ) where
 
-import Data.Aeson (FromJSON (..))
+import Data.Aeson (FromJSON (..), (.:))
 import Data.Aeson qualified as Aeson
 import Data.Map.Strict qualified as Map
+import Data.Text qualified as T
 import GH.Core (ghBin)
 import System.Process (readProcess)
 
@@ -22,7 +23,7 @@ data AuthStatus
   = Authenticated
       { host :: Text
       , login :: Text
-      , scopes :: Text
+      , scopes :: [Text]
       }
   | NotAuthenticated
   deriving stock (Show, Eq)
@@ -39,10 +40,18 @@ data HostAuth = HostAuth
   , active :: Bool
   , host :: Text
   , login :: Text
-  , scopes :: Text
+  , scopesRaw :: Text
   }
   deriving stock (Show, Generic)
-  deriving anyclass (FromJSON)
+
+instance FromJSON HostAuth where
+  parseJSON = Aeson.withObject "HostAuth" $ \v ->
+    HostAuth
+      <$> v .: "state"
+      <*> v .: "active"
+      <*> v .: "host"
+      <*> v .: "login"
+      <*> v .: "scopes"
 
 -- | Check GitHub CLI authentication status
 checkAuthStatus :: IO AuthStatus
@@ -63,5 +72,5 @@ checkAuthStatus = do
                 Authenticated
                   { host = auth.host
                   , login = auth.login
-                  , scopes = auth.scopes
+                  , scopes = map T.strip $ T.splitOn "," auth.scopesRaw
                   }
