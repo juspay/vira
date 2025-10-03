@@ -15,6 +15,7 @@ import Vira.App.Servant (mapSourceT)
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.SettingsPage qualified as SettingsPage
+import Vira.Page.ToolsPage qualified as ToolsPage
 import Vira.Stream.Refresh qualified as Refresh
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Layout qualified as W
@@ -25,6 +26,7 @@ data Routes mode = Routes
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _settings :: mode :- "settings" Servant.API.:> NamedRoutes SettingsPage.Routes
+  , _tools :: mode :- "tools" Servant.API.:> NamedRoutes ToolsPage.Routes
   , _refresh :: mode :- "refresh" Servant.API.:> Refresh.StreamRoute
   }
   deriving stock (Generic)
@@ -42,6 +44,7 @@ handlers cfg webSettings =
     , _repos = RegistryPage.handlers cfg webSettings
     , _jobs = JobPage.handlers cfg webSettings
     , _settings = SettingsPage.handlers cfg webSettings
+    , _tools = ToolsPage.handlers cfg webSettings
     , _refresh =
         pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp cfg) Refresh.streamRouteHandler
     }
@@ -50,6 +53,7 @@ handlers cfg webSettings =
     menu :: (Monad m) => [(HtmlT m (), Text)]
     menu =
       [ ("Repositories", linkText $ fieldLink _repos // RegistryPage._listing)
+      , ("Tools", linkText $ fieldLink _tools // ToolsPage._view)
       , ("Settings", linkText $ fieldLink _settings // SettingsPage._view)
       ]
 

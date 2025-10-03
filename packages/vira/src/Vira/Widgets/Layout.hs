@@ -142,6 +142,7 @@ linkToIcon = \case
   RepoBranch _ _ -> toHtmlRaw Icon.git_branch
   Job _ -> toHtmlRaw Icon.player_play
   Settings -> toHtmlRaw Icon.settings_2
+  Tools -> toHtmlRaw Icon.tool
   _ -> toHtmlRaw Icon.circle -- fallback for other types
 
 -- | Show breadcrumbs at the top of the page for navigation to parent routes
