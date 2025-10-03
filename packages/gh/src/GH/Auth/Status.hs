@@ -28,13 +28,13 @@ data AuthStatus
   deriving stock (Show, Eq)
 
 -- | JSON response structure from gh auth status
-newtype GHAuthResponse = GHAuthResponse
-  { hosts :: Map Text [GHHostAuth]
+newtype AuthResponse = AuthResponse
+  { hosts :: Map Text [HostAuth]
   }
   deriving stock (Show, Generic)
   deriving anyclass (FromJSON)
 
-data GHHostAuth = GHHostAuth
+data HostAuth = HostAuth
   { state :: Text
   , active :: Bool
   , host :: Text
@@ -51,7 +51,7 @@ checkAuthStatus = do
 
   case Aeson.decode (encodeUtf8 $ toText output) of
     Nothing -> pure NotAuthenticated
-    Just (GHAuthResponse hostsMap) -> do
+    Just (AuthResponse hostsMap) -> do
       case Map.lookup "github.com" hostsMap of
         Nothing -> pure NotAuthenticated
         Just auths -> do

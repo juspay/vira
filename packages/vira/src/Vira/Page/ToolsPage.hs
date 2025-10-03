@@ -12,6 +12,7 @@ import Effectful.Git qualified as Git
 import GH.Auth.Status (AuthStatus (..))
 import GH.Auth.Status qualified as GH
 import GH.Core qualified as GH
+import GH.Signoff qualified as GH
 import Lucid
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -36,7 +37,7 @@ data Tool = Tool
   { name :: Text
   , description :: Text
   , url :: Text
-  , binPath :: Text
+  , binPaths :: NonEmpty Text
   }
 
 newtype GhToolInfo = GhToolInfo
@@ -72,35 +73,35 @@ viewTools ghAuthStatus = do
         { name = "Omnix"
         , description = "A tool for building all Nix flake outputs"
         , url = "https://github.com/juspay/omnix"
-        , binPath = toText Omnix.omnixBin
+        , binPaths = toText Omnix.omnixBin :| []
         }
     gitTool =
       Tool
         { name = "Git"
         , description = "Distributed version control system"
         , url = "https://git-scm.com"
-        , binPath = toText Git.git
+        , binPaths = toText Git.git :| []
         }
     attic =
       Tool
         { name = "Attic"
         , description = "Self-hosted Nix binary cache server"
         , url = "https://github.com/zhaofengli/attic"
-        , binPath = toText Attic.atticBin
+        , binPaths = toText Attic.atticBin :| []
         }
     cachix =
       Tool
         { name = "Cachix"
         , description = "Proprietary Nix binary cache hosting service"
         , url = "https://cachix.org"
-        , binPath = toText Cachix.cachixBin
+        , binPaths = toText Cachix.cachixBin :| []
         }
     githubCli =
       Tool
         { name = "GitHub CLI"
         , description = "GitHub command line tool for various operations"
         , url = "https://cli.github.com"
-        , binPath = toText GH.ghBin
+        , binPaths = toText GH.ghBin :| [toText GH.ghSignoffBin]
         }
 
 toolCard :: (Monad m) => Text -> Text -> Text -> Tool -> HtmlT m () -> HtmlT m ()
@@ -112,8 +113,9 @@ toolCard initial bgClass textClass tool extraInfo = do
       div_ [class_ "flex-1"] $ do
         h3_ [class_ "text-xl font-bold text-gray-900 mb-2"] $ toHtml tool.name
         p_ [class_ "text-gray-600 text-sm mb-3"] $ toHtml tool.description
-        div_ [class_ "mb-3"] $ do
-          code_ [class_ "text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono"] $ toHtml tool.binPath
+        div_ [class_ "mb-3 space-y-1"] $ do
+          forM_ tool.binPaths $ \binPath ->
+            code_ [class_ "block text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono"] $ toHtml binPath
 
         -- Extra info (e.g., auth status)
         extraInfo
