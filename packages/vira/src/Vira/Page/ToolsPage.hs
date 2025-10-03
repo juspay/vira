@@ -8,6 +8,7 @@ module Vira.Page.ToolsPage (
 where
 
 import Attic qualified
+import Effectful.Git qualified as Git
 import GH.Signoff qualified as GH
 import Lucid
 import Servant
@@ -54,6 +55,7 @@ viewTools = do
 
     div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
       toolCard "O" "bg-purple-100" "text-purple-600" omnix
+      toolCard "G" "bg-orange-100" "text-orange-600" gitTool
       toolCard "A" "bg-indigo-100" "text-indigo-600" attic
       toolCard "C" "bg-blue-100" "text-blue-600" cachix
       toolCard "G" "bg-green-100" "text-green-600" githubCli
@@ -64,6 +66,13 @@ viewTools = do
         , description = "A tool for building all Nix flake outputs"
         , url = "https://github.com/juspay/omnix"
         , binPath = toText Omnix.omnixBin
+        }
+    gitTool =
+      Tool
+        { name = "Git"
+        , description = "Distributed version control system"
+        , url = "https://git-scm.com"
+        , binPath = toText Git.git
         }
     attic =
       Tool
