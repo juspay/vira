@@ -104,30 +104,18 @@ cachixProcs env stage =
 cacheProcs :: ViraEnvironment -> CacheStage -> [CreateProcess]
 cacheProcs env stage = case stage.url of
   Nothing -> []
-  Just urlText ->
-    -- Parse URL and validate attic config from tools
-    case parseCacheUrl urlText of
-      Left err -> [proc "sh" ["-c", "echo 'Error: " <> err <> "' && exit 1"]]
-      Right (serverEndpoint, cacheName) ->
-        -- Look up Attic tool in the tools DMap
-        case DMap.lookup Attic env.tools of
-          Nothing ->
-            [proc "sh" ["-c", "echo 'Error: Attic tool not found in cache' && exit 1"]]
-          Just (ToolData {info = atticConfigResult}) ->
-            case atticConfigResult of
-              Left tomlErr ->
-                [proc "sh" ["-c", "echo 'Error: Failed to parse attic config: " <> show tomlErr <> "' && exit 1"]]
-              Right Nothing ->
-                [proc "sh" ["-c", "echo 'Error: Attic not configured. Run: attic login <name> " <> toString serverEndpoint <> " <token>' && exit 1"]]
-              Right (Just config) ->
-                -- Find server name by matching endpoint
-                case find (\(_name, serverCfg) -> serverCfg.endpoint == serverEndpoint) (Map.toList config.servers) of
-                  Nothing ->
-                    [proc "sh" ["-c", "echo 'Error: No attic server configured for " <> toString serverEndpoint <> ". Run: attic login <name> " <> toString serverEndpoint <> " <token>' && exit 1"]]
-                  Just (serverName, _) ->
-                    -- Return attic push process
-                    [atticPushProcess (AtticServer serverName serverEndpoint) (AtticCache cacheName) "result"]
+  Just urlText -> either errorProc id $ do
+    (serverEndpoint, cacheName) <- parseCacheUrl urlText
+    ToolData {info = atticConfigResult} <- DMap.lookup Attic env.tools & maybeToRight "Attic tool not found in cache"
+    mConfig <- first show atticConfigResult
+    config <- mConfig & maybeToRight "Attic not configured. Run: attic login <name> <endpoint> <token>"
+    (serverName, _) <-
+      find (\(_name, serverCfg) -> serverCfg.endpoint == serverEndpoint) (Map.toList config.servers)
+        & maybeToRight ("No attic server configured for " <> toString serverEndpoint <> ". Run: attic login <name> " <> toString serverEndpoint <> " <token>")
+    pure $ one $ atticPushProcess (AtticServer serverName serverEndpoint) (AtticCache cacheName) "result"
   where
+    -- HACK!
+    errorProc err = [proc "sh" ["-c", "echo 'Error: " <> err <> "' && exit 1"]]
     -- Parse cache URL like "https://cache.nixos.asia/oss" to extract endpoint and cache name
     parseCacheUrl :: Text -> Either String (Text, Text)
     parseCacheUrl urlText = do
