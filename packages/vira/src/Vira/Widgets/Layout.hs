@@ -45,6 +45,7 @@ import Vira.App.InstanceInfo (InstanceInfo (..), platform)
 import Vira.App.LinkTo.Type (LinkTo (..), linkShortTitle, linkTitle)
 import Vira.App.Lucid (AppHtml)
 import Vira.App.Stack (AppState)
+import Vira.Page.ToolsPage.User qualified as User
 import Vira.Stream.Refresh qualified as Refresh
 import Vira.Widgets.Modal qualified as W
 import Vira.Widgets.Status qualified as Status
@@ -127,6 +128,8 @@ layout crumbs content = do
         div_ [class_ "container mx-auto px-4 py-3 lg:px-8"] $ do
           div_ [class_ "flex justify-between items-center text-sm text-gray-600"] $ do
             div_ [class_ "flex items-center space-x-4"] $ do
+              User.viewUserInfo
+              span_ [class_ "text-gray-400"] "•"
               span_ [title_ "Hostname", class_ "cursor-help"] $ toHtml instanceInfo.hostname
               span_ [class_ "text-gray-400"] "•"
               span_ [title_ "Platform", class_ "cursor-help"] $ toHtml (platform instanceInfo)

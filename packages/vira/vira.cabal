@@ -61,6 +61,7 @@ library
       Vira.Page.SettingsPage
       Vira.Page.ToolsPage.Handler
       Vira.Page.ToolsPage.Tool
+      Vira.Page.ToolsPage.User
       Vira.Page.ToolsPage.View
       Vira.State.Acid
       Vira.State.Core
