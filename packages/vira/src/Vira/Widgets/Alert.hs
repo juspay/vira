@@ -72,10 +72,10 @@ Includes role="alert" for screen readers.
 viraAlert_ :: (Monad m) => AlertType -> HtmlT m () -> HtmlT m ()
 viraAlert_ alertType content = do
   let (colorClass, iconSvg, iconColor) = case alertType of
-        AlertError -> ("bg-red-50 border-red-200", Icon.x, "text-red-500")
-        AlertWarning -> ("bg-yellow-50 border-yellow-200", Icon.alert_triangle, "text-yellow-500")
-        AlertSuccess -> ("bg-green-50 border-green-200", Icon.check, "text-green-500")
-        AlertInfo -> ("bg-blue-50 border-blue-200", Icon.info_circle, "text-blue-500")
+        AlertError -> ("bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800", Icon.x, "text-red-500 dark:text-red-400")
+        AlertWarning -> ("bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800", Icon.alert_triangle, "text-yellow-500 dark:text-yellow-400")
+        AlertSuccess -> ("bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800", Icon.check, "text-green-500 dark:text-green-400")
+        AlertInfo -> ("bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800", Icon.info_circle, "text-blue-500 dark:text-blue-400")
   div_ [class_ $ "rounded-lg p-4 border " <> colorClass, role_ "alert"] $ do
     div_ [class_ "flex items-start"] $ do
       div_ [class_ "flex-shrink-0"] $ do

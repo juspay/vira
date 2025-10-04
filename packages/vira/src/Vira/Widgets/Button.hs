@@ -74,7 +74,7 @@ viraButton_ variant attrs =
         ButtonPrimary -> ("bg-indigo-600 hover:bg-indigo-700 text-white", "focus:ring-indigo-500")
         ButtonSuccess -> ("bg-green-600 hover:bg-green-700 text-white", "focus:ring-green-500")
         ButtonDestructive -> ("bg-red-600 hover:bg-red-700 text-white", "focus:ring-red-500")
-        ButtonSecondary -> ("bg-gray-100 hover:bg-gray-200 text-gray-900", "focus:ring-gray-500")
+        ButtonSecondary -> ("bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100", "focus:ring-gray-500")
    in button_
         ( [ class_ $ "inline-flex items-center justify-center px-6 py-3 text-sm font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed " <> colorClasses <> " " <> focusRing
           , hyperscript_ "on click add .scale-95 then wait 100ms then remove .scale-95"

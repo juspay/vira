@@ -29,7 +29,7 @@ W.viraCard_ [class_ "p-6"] $ do
 viraCard_ :: forall {result}. (Term [Attributes] result) => [Attributes] -> result
 viraCard_ attrs =
   div_
-    ( [ class_ "bg-white rounded-xl border border-gray-200 overflow-hidden"
+    ( [ class_ "bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
       ]
         <> attrs
     )
@@ -63,8 +63,8 @@ W.viraNavigationCard_ (show repoUrl) (toHtml $ toString repo.name)
 viraNavigationCard_ :: (Monad m) => Text -> HtmlT m () -> HtmlT m ()
 viraNavigationCard_ href title = do
   a_ [href_ href, class_ "group block"] $ do
-    viraCard_ [class_ "p-6 hover:shadow-lg transition-all duration-300 group-hover:border-indigo-300"] $ do
+    viraCard_ [class_ "p-6 hover:shadow-lg transition-all duration-300 group-hover:border-indigo-300 dark:group-hover:border-indigo-600"] $ do
       div_ [class_ "flex items-center justify-between"] $ do
-        h3_ [class_ "text-xl font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors"] title
-        div_ [class_ "text-gray-400 group-hover:text-indigo-500 transition-colors ml-4 w-6 h-6 flex items-center justify-center"] $
+        h3_ [class_ "text-xl font-semibold text-gray-900 dark:text-gray-100 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors"] title
+        div_ [class_ "text-gray-400 dark:text-gray-500 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors ml-4 w-6 h-6 flex items-center justify-center"] $
           toHtmlRaw Icon.chevron_right

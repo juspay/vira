@@ -90,12 +90,12 @@ viraStatusBadge_ :: (Monad m) => St.JobStatus -> HtmlT m ()
 viraStatusBadge_ jobStatus = do
   let label = statusLabel jobStatus
       (colorClass, iconSvg, iconClass) = case jobStatus of
-        St.JobRunning -> ("bg-blue-100 text-blue-800 border-blue-200", Icon.loader_2, "animate-spin")
-        St.JobPending -> ("bg-yellow-100 text-yellow-800 border-yellow-200", Icon.clock, "")
-        St.JobFinished St.JobSuccess _ -> ("bg-green-100 text-green-800 border-green-200", Icon.check, "")
-        St.JobFinished St.JobFailure _ -> ("bg-red-100 text-red-800 border-red-200", Icon.x, "")
-        St.JobFinished St.JobKilled _ -> ("bg-red-200 text-red-900 border-red-300", Icon.ban, "")
-        St.JobStale -> ("bg-gray-200 text-gray-800 border-gray-300", Icon.clock_off, "")
+        St.JobRunning -> ("bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800", Icon.loader_2, "animate-spin")
+        St.JobPending -> ("bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800", Icon.clock, "")
+        St.JobFinished St.JobSuccess _ -> ("bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800", Icon.check, "")
+        St.JobFinished St.JobFailure _ -> ("bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800", Icon.x, "")
+        St.JobFinished St.JobKilled _ -> ("bg-red-200 dark:bg-red-900/40 text-red-900 dark:text-red-200 border-red-300 dark:border-red-700", Icon.ban, "")
+        St.JobStale -> ("bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-600", Icon.clock_off, "")
   span_ [class_ $ "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium " <> colorClass] $ do
     div_ [class_ $ "w-4 h-4 mr-2 flex items-center justify-center " <> iconClass] $ toHtmlRaw iconSvg
     toHtml label
@@ -118,7 +118,7 @@ indicator :: (Monad m) => Bool -> HtmlT m ()
 indicator active = do
   let (iconSvg, classes) =
         if active
-          then (Icon.loader_2, "text-green-500 animate-spin")
-          else (Icon.circle, "text-gray-500")
+          then (Icon.loader_2, "text-green-500 dark:text-green-400 animate-spin")
+          else (Icon.circle, "text-gray-500 dark:text-gray-400")
   div_ [class_ $ "w-4 h-4 flex items-center justify-center " <> classes] $
     toHtmlRaw iconSvg
