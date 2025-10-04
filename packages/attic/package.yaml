@@ -17,6 +17,7 @@ dependencies:
   - aeson
   - directory
   - http-api-data
+  - megaparsec
   - modern-uri
   - process
   - safecopy

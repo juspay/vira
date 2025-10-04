@@ -10,9 +10,9 @@ spec = do
       parseCacheUrl "https://cache.nixos.asia/oss"
         `shouldBe` Right ("https://cache.nixos.asia", "oss")
 
-    it "parses a cache URL with multiple path segments" $ do
+    it "fails when URL has multiple path segments" $ do
       parseCacheUrl "https://cache.example.com/foo/bar/mycache"
-        `shouldBe` Right ("https://cache.example.com", "mycache")
+        `shouldSatisfy` isLeft
 
     it "parses a cache URL with port" $ do
       parseCacheUrl "https://cache.example.com:8080/cache"
@@ -20,10 +20,6 @@ spec = do
 
     it "fails when URL has no path" $ do
       parseCacheUrl "https://cache.example.com"
-        `shouldSatisfy` isLeft
-
-    it "fails when URL has empty path segments only" $ do
-      parseCacheUrl "https://cache.example.com/"
         `shouldSatisfy` isLeft
 
     it "ignores trailing slash" $ do

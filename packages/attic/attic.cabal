@@ -59,6 +59,7 @@ library
     , base ==4.*
     , directory
     , http-api-data
+    , megaparsec
     , modern-uri
     , process
     , relude >=1.0
@@ -119,6 +120,7 @@ test-suite attic-test
     , hspec
     , hspec-discover
     , http-api-data
+    , megaparsec
     , modern-uri
     , process
     , relude >=1.0

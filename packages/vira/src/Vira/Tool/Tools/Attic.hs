@@ -10,7 +10,7 @@ import Attic (AtticCache (..), AtticServer (..))
 import Attic qualified
 import Attic.Config (AtticConfig (..), AtticServerConfig (..))
 import Attic.Config qualified
-import Attic.Url qualified
+import Attic.Url qualified as Url
 import Data.Map.Strict qualified as Map
 import Data.Some (Some (Some))
 import Effectful (Eff, IOE, (:>))
@@ -43,7 +43,7 @@ createPushProcess ::
   Either ToolError CreateProcess
 createPushProcess atticConfigResult cacheUrl path = do
   -- Parse cache URL to extract server endpoint and cache name
-  (serverEndpoint, cacheName) <- first (ToolError (Some Attic) . toText) $ Attic.Url.parseCacheUrl cacheUrl
+  (serverEndpoint, cacheName) <- first (\err -> ToolError (Some Attic) (toText (show err :: String))) $ Url.parseCacheUrl cacheUrl
 
   -- Validate and extract config
   mConfig <- first (\err -> ToolError (Some Attic) (toText (show err :: String))) atticConfigResult
