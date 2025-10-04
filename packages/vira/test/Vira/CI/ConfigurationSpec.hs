@@ -35,6 +35,7 @@ testEnvStaging =
     , branch = testBranchStaging
     , cachixSettings = Just $ CachixSettings "test-cache" "token123"
     , atticSettings = Nothing
+    , atticConfig = Right Nothing
     , workspacePath = "/tmp/test-workspace"
     }
 

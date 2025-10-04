@@ -5,6 +5,8 @@
 module Vira.CI.Pipeline (runPipeline, defaultPipeline) where
 
 import Attic
+import Attic.Config qualified
+import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
@@ -66,7 +68,7 @@ pipelineToProcesses' env pipeline =
     [ buildProcs pipeline.build
     , atticProcs env pipeline.attic
     , cachixProcs env pipeline.cachix
-    , cacheProcs pipeline.cache
+    , cacheProcs env pipeline.cache
     , signoffProcs pipeline.signoff
     ]
 
@@ -97,29 +99,33 @@ cachixProcs env stage =
       ]
     else []
 
-cacheProcs :: CacheStage -> [CreateProcess]
-cacheProcs stage = case stage.url of
+cacheProcs :: ViraEnvironment -> CacheStage -> [CreateProcess]
+cacheProcs env stage = case stage.url of
   Nothing -> []
   Just urlText ->
-    -- Parse URL text to extract server info and cache name using modern-uri
+    -- Parse URL and validate attic config
     case parseCacheUrl urlText of
-      Left err -> [proc "sh" ["-c", "echo 'Error parsing cache URL: " <> err <> "' && exit 1"]]
-      Right (serverName, serverEndpoint, cacheName) ->
-        -- Create attic push process
-        -- The user must have run `attic login <server-name> <server-url> <token>` first
-        -- The attic command uses the server name to look up credentials from ~/.config/attic/config.toml
-        [atticPushProcess (AtticServer serverName serverEndpoint) (AtticCache cacheName) "result"]
+      Left err -> [proc "sh" ["-c", "echo 'Error: " <> err <> "' && exit 1"]]
+      Right (serverEndpoint, cacheName) ->
+        case env.atticConfig of
+          Left tomlErr ->
+            [proc "sh" ["-c", "echo 'Error: Failed to parse attic config: " <> show tomlErr <> "' && exit 1"]]
+          Right Nothing ->
+            [proc "sh" ["-c", "echo 'Error: Attic not configured. Run: attic login <name> " <> toString serverEndpoint <> " <token>' && exit 1"]]
+          Right (Just config) ->
+            -- Find server name by matching endpoint
+            case find (\(_name, serverCfg) -> serverCfg.endpoint == serverEndpoint) (Map.toList config.servers) of
+              Nothing ->
+                [proc "sh" ["-c", "echo 'Error: No attic server configured for " <> toString serverEndpoint <> ". Run: attic login <name> " <> toString serverEndpoint <> " <token>' && exit 1"]]
+              Just (serverName, _) ->
+                -- Return attic push process
+                [atticPushProcess (AtticServer serverName serverEndpoint) (AtticCache cacheName) "result"]
   where
-    -- Parse cache URL like "https://cache.nixos.asia/oss" to extract server info and cache name
-    -- Returns (serverName, serverEndpoint, cacheName)
-    parseCacheUrl :: Text -> Either String (Text, Text, Text)
+    -- Parse cache URL like "https://cache.nixos.asia/oss" to extract endpoint and cache name
+    parseCacheUrl :: Text -> Either String (Text, Text)
     parseCacheUrl urlText = do
       -- Parse using modern-uri
       uri <- first show $ URI.mkURI urlText
-
-      -- Extract host as server name (e.g., "cache.nixos.asia")
-      auth <- first (const "Cache URL must have authority (host)") $ URI.uriAuthority uri
-      let serverName = URI.unRText $ URI.authHost auth
 
       -- Extract path segments for cache name
       pathParts <- case URI.uriPath uri of
@@ -134,7 +140,7 @@ cacheProcs stage = case stage.url of
 
       -- Render server endpoint without the path
       let serverEndpoint = URI.render $ uri {URI.uriPath = Nothing}
-      Right (serverName, serverEndpoint, cacheName')
+      Right (serverEndpoint, cacheName')
 
 signoffProcs :: SignoffStage -> [CreateProcess]
 signoffProcs stage =
