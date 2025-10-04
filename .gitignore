@@ -19,3 +19,6 @@ result-*
 /packages/vira/static/js
 
 /state
+
+# Claude
+.claude/settings.local.json
