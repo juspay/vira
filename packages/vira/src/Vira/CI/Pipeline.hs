@@ -26,10 +26,10 @@ import Vira.CI.Environment (ViraEnvironment (..), projectDir, viraContext)
 import Vira.CI.Pipeline.Type
 import Vira.Lib.Cachix
 import Vira.Lib.Omnix qualified as Omnix
-import Vira.Page.ToolsPage.Type (Tool (..), ToolData (..))
 import Vira.State.Type
 import Vira.Supervisor.Task qualified as Task
 import Vira.Supervisor.Type (TaskException (ConfigurationError))
+import Vira.Tool.Type (Tool (..), ToolData (..))
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::

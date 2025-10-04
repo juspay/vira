@@ -15,10 +15,10 @@ import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Server qualified as Server
-import Vira.Page.ToolsPage.Tool qualified as Tool
 import Vira.State.Core (ViraState, closeViraState, openViraState)
 import Vira.State.JSON (getExportData, importViraState)
 import Vira.Supervisor.Core qualified as Supervisor
+import Vira.Tool.Core qualified as Tool
 import Prelude hiding (Reader, ask, runReader)
 
 -- | Run the Vira application

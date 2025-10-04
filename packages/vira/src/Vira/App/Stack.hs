@@ -19,9 +19,9 @@ import Vira.App.CLI (WebSettings)
 import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.Lib.Logging (runLogActionStdout)
-import Vira.Page.ToolsPage.Type (Tool, ToolData)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
+import Vira.Tool.Type (Tool, ToolData)
 import Prelude hiding (Reader, ask, asks, runReader)
 
 type AppStack =

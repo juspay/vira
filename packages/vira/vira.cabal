@@ -52,6 +52,7 @@ library
       Vira.Lib.STM
       Vira.Lib.TimeExtra
       Vira.Page.BranchPage
+      Vira.Page.Common.User
       Vira.Page.IndexPage
       Vira.Page.JobLog
       Vira.Page.JobPage
@@ -59,10 +60,7 @@ library
       Vira.Page.RegistryPage
       Vira.Page.RepoPage
       Vira.Page.SettingsPage
-      Vira.Page.ToolsPage.Handler
-      Vira.Page.ToolsPage.Tool
-      Vira.Page.ToolsPage.Type
-      Vira.Page.ToolsPage.User
+      Vira.Page.ToolsPage
       Vira.Page.ToolsPage.View
       Vira.State.Acid
       Vira.State.Core
@@ -73,6 +71,8 @@ library
       Vira.Supervisor.Core
       Vira.Supervisor.Task
       Vira.Supervisor.Type
+      Vira.Tool.Core
+      Vira.Tool.Type
       Vira.Widgets.Alert
       Vira.Widgets.Button
       Vira.Widgets.Card

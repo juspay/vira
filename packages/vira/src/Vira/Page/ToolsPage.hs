@@ -1,5 +1,5 @@
 -- | Tools page HTTP handlers
-module Vira.Page.ToolsPage.Handler (
+module Vira.Page.ToolsPage (
   Routes (..),
   handlers,
 ) where
@@ -14,9 +14,9 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Page.ToolsPage.Tool qualified as Tool
-import Vira.Page.ToolsPage.User qualified as User
+import Vira.Page.Common.User qualified as User
 import Vira.Page.ToolsPage.View qualified as ToolView
+import Vira.Tool.Core qualified as Tool
 import Vira.Widgets.Layout qualified as W
 import Web.TablerIcons.Outline qualified as Icon
 

@@ -10,7 +10,7 @@ import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import GH.Auth.Status (AuthStatus (..))
 import Lucid
-import Vira.Page.ToolsPage.Tool (Tool (..), ToolData (..))
+import Vira.Tool.Core (Tool (..), ToolData (..))
 import Vira.Widgets.Alert qualified as W
 import Vira.Widgets.Card qualified as W
 import Web.TablerIcons.Outline qualified as Icon

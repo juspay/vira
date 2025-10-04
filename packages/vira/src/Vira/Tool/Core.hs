@@ -1,7 +1,7 @@
 -- | Tool definitions and data operations
-module Vira.Page.ToolsPage.Tool (
+module Vira.Tool.Core (
   -- Re-export types
-  module Vira.Page.ToolsPage.Type,
+  module Vira.Tool.Type,
   -- Operations
   newToolsTVar,
   getTools,
@@ -24,7 +24,7 @@ import GH.Signoff qualified as GH
 import Vira.App.Stack (AppState (..))
 import Vira.Lib.Cachix qualified as Cachix
 import Vira.Lib.Omnix qualified as Omnix
-import Vira.Page.ToolsPage.Type
+import Vira.Tool.Type
 import Prelude hiding (Reader)
 
 -- | All tools to display (in desired order)

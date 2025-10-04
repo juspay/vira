@@ -15,10 +15,10 @@ import System.FilePath ((</>))
 import Vira.App qualified as App
 import Vira.App.Stack (AppState)
 import Vira.CI.Context (ViraContext (..))
-import Vira.Page.ToolsPage.Tool qualified as Tool
-import Vira.Page.ToolsPage.Type (Tool, ToolData)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (AtticSettings, Branch (..), CachixSettings, Repo)
+import Vira.Tool.Core qualified as Tool
+import Vira.Tool.Type (Tool, ToolData)
 
 -- | The full context in which the CI pipeline is executed.
 data ViraEnvironment = ViraEnvironment

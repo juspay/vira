@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Tool type definitions (split from Tool.hs to avoid circular dependencies)
-module Vira.Page.ToolsPage.Type (
+module Vira.Tool.Type (
   Tool (..),
   ToolData (ToolData, name, description, url, binPaths, info),
 ) where
