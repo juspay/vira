@@ -159,6 +159,7 @@ library
     , http-types
     , ixset-typed
     , lucid2
+    , modern-uri
     , mtl
     , optics-core
     , optics-th
@@ -273,6 +274,7 @@ executable vira
     , http-types
     , ixset-typed
     , lucid2
+    , modern-uri
     , mtl
     , optics-core
     , optics-th
@@ -389,6 +391,7 @@ executable vira-tests
     , http-types
     , ixset-typed
     , lucid2
+    , modern-uri
     , mtl
     , optics-core
     , optics-th

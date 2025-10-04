@@ -71,6 +71,7 @@ dependencies:
   - http-types
   - ixset-typed
   - lucid2
+  - modern-uri
   - mtl
   - optics-core
   - optics-th

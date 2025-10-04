@@ -4,5 +4,8 @@
   in pipeline
     { signoff.enable = True
     , cachix.enable = False
-    , attic.enable = isMain
+    , attic.enable = False
+    , cache.url = if isMain
+        then Just "https://cache.nixos.asia/oss"
+        else Nothing
     }
