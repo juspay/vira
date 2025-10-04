@@ -19,6 +19,7 @@ build-type:     Simple
 library
   exposed-modules:
       Attic
+      Attic.Config
   other-modules:
       Paths_attic
   autogen-modules:
@@ -55,6 +56,7 @@ library
   build-depends:
       aeson
     , base ==4.*
+    , directory
     , http-api-data
     , process
     , relude >=1.0
@@ -62,6 +64,7 @@ library
     , servant
     , template-haskell
     , text
+    , toml-reader
     , which
   mixins:
       base hiding (Prelude)

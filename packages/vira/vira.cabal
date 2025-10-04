@@ -59,7 +59,9 @@ library
       Vira.Page.RegistryPage
       Vira.Page.RepoPage
       Vira.Page.SettingsPage
-      Vira.Page.ToolsPage
+      Vira.Page.ToolsPage.Handler
+      Vira.Page.ToolsPage.Tool
+      Vira.Page.ToolsPage.View
       Vira.State.Acid
       Vira.State.Core
       Vira.State.JSON
@@ -128,6 +130,9 @@ library
     , containers
     , dani-servant-lucid2
     , data-default
+    , dependent-map
+    , dependent-sum
+    , dependent-sum-template
     , deriving-aeson
     , directory
     , effectful
@@ -172,6 +177,7 @@ library
     , tail
     , text
     , time
+    , toml-reader
     , vira-ci-types
     , wai
     , wai-extra
@@ -238,6 +244,9 @@ executable vira
     , containers
     , dani-servant-lucid2
     , data-default
+    , dependent-map
+    , dependent-sum
+    , dependent-sum-template
     , deriving-aeson
     , directory
     , effectful
@@ -282,6 +291,7 @@ executable vira
     , tail
     , text
     , time
+    , toml-reader
     , vira
     , vira-ci-types
     , wai
@@ -350,6 +360,9 @@ executable vira-tests
     , containers
     , dani-servant-lucid2
     , data-default
+    , dependent-map
+    , dependent-sum
+    , dependent-sum-template
     , deriving-aeson
     , directory
     , effectful
@@ -394,6 +407,7 @@ executable vira-tests
     , tail
     , text
     , time
+    , toml-reader
     , vira
     , vira-ci-types
     , wai

@@ -15,7 +15,7 @@ import Vira.App.Servant (mapSourceT)
 import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.SettingsPage qualified as SettingsPage
-import Vira.Page.ToolsPage qualified as ToolsPage
+import Vira.Page.ToolsPage.Handler qualified as ToolsPage
 import Vira.Stream.Refresh qualified as Refresh
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Layout qualified as W

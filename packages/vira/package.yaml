@@ -43,6 +43,9 @@ dependencies:
   - containers
   - dani-servant-lucid2
   - data-default
+  - dependent-map
+  - dependent-sum
+  - dependent-sum-template
   - deriving-aeson
   - directory
   - effectful
@@ -86,6 +89,7 @@ dependencies:
   - tail
   - text
   - time
+  - toml-reader
   - vira-ci-types
   - hint-nix
   - wai
