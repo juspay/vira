@@ -97,7 +97,7 @@ viewRepo repo branches _allJobs = do
     (toHtmlRaw Icon.book_2)
     (toText $ toString repo.name)
     ( div_ [class_ "flex items-center justify-between"] $ do
-        p_ [class_ "text-gray-600 text-sm font-mono break-all"] $
+        p_ [class_ "text-gray-600 dark:text-gray-300 text-sm font-mono break-all"] $
           toHtml repo.cloneUrl
         div_ [class_ "flex items-center gap-2 ml-4"] $ do
           W.viraRequestButton_
@@ -111,16 +111,16 @@ viewRepo repo branches _allJobs = do
 
   W.viraSection_ [] $ do
     -- Branch listing
-    div_ [class_ "bg-white rounded-xl border border-gray-200 p-4 lg:p-8"] $ do
+    div_ [class_ "bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 lg:p-8"] $ do
       -- Branch listing header
       div_ [class_ "mb-8"] $ do
         div_ [class_ "flex items-center mb-3"] $ do
-          div_ [class_ "text-gray-600 w-8 h-8 mr-3 flex items-center justify-center"] $ toHtmlRaw Icon.git_branch
-          h2_ [class_ "text-2xl font-bold text-gray-800"] "Branches"
-          div_ [class_ "ml-auto text-sm text-gray-500"] $
+          div_ [class_ "text-gray-600 dark:text-gray-300 w-8 h-8 mr-3 flex items-center justify-center"] $ toHtmlRaw Icon.git_branch
+          h2_ [class_ "text-2xl font-bold text-gray-800 dark:text-gray-100"] "Branches"
+          div_ [class_ "ml-auto text-sm text-gray-500 dark:text-gray-400"] $
             toHtml $
               show @Text (length branches) <> " branches"
-        div_ [class_ "h-px bg-gray-200"] mempty
+        div_ [class_ "h-px bg-gray-200 dark:bg-gray-700"] mempty
 
       -- Branch filter input
       div_ [class_ "mb-6"] $ do
@@ -129,27 +129,27 @@ viewRepo repo branches _allJobs = do
           [placeholder_ "Filter branches...", id_ "branch-filter"]
 
         -- Filter results counter (updated by JavaScript)
-        div_ [class_ "mt-2 text-xs text-gray-600", id_ "branch-count"] mempty
+        div_ [class_ "mt-2 text-xs text-gray-600 dark:text-gray-400", id_ "branch-count"] mempty
 
       -- Branch listing
       if null branches
         then div_ [class_ "text-center py-12"] $ do
-          div_ [class_ "text-gray-500 mb-4"] "No branches found"
-          div_ [class_ "text-sm text-gray-400"] "Click Refresh to fetch branches from remote"
+          div_ [class_ "text-gray-500 dark:text-gray-400 mb-4"] "No branches found"
+          div_ [class_ "text-sm text-gray-400 dark:text-gray-500"] "Click Refresh to fetch branches from remote"
         else viewBranchListing repo branches
 
     -- Delete button at bottom
-    div_ [class_ "mt-8 pt-8 border-t border-gray-200"] $ do
+    div_ [class_ "mt-8 pt-8 border-t border-gray-200 dark:border-gray-700"] $ do
       deleteLink <- lift $ App.getLink $ LinkTo.RepoDelete repo.name
-      div_ [class_ "bg-red-50 border border-red-200 rounded-lg p-6"] $ do
+      div_ [class_ "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6"] $ do
         div_ [class_ "flex items-start"] $ do
           div_ [class_ "flex-shrink-0"] $ do
-            div_ [class_ "w-8 h-8 bg-red-100 rounded-full flex items-center justify-center"] $ do
-              div_ [class_ "w-4 h-4 text-red-600"] $ toHtmlRaw Icon.alert_triangle
+            div_ [class_ "w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center"] $ do
+              div_ [class_ "w-4 h-4 text-red-600 dark:text-red-400"] $ toHtmlRaw Icon.alert_triangle
           div_ [class_ "ml-3 flex-1"] $ do
-            h3_ [class_ "text-sm font-medium text-red-800"] "Delete Repository"
+            h3_ [class_ "text-sm font-medium text-red-800 dark:text-red-200"] "Delete Repository"
             p_
-              [class_ "mt-1 text-sm text-red-700"]
+              [class_ "mt-1 text-sm text-red-700 dark:text-red-300"]
               "Permanently delete this repository and all its associated data. This action cannot be undone."
           div_ [class_ "ml-4 flex-shrink-0"] $ do
             W.viraButton_
@@ -180,13 +180,13 @@ viewBranchListing repo branches = do
     forM_ sortedBranchStatuses $ \(branch, maybeLatestJob, effectiveStatus) -> do
       branchUrl <- lift $ App.getLinkUrl $ LinkTo.RepoBranch repo.name branch.branchName
       let branchNameText = toText $ toString branch.branchName
-      a_ [href_ branchUrl, class_ "block p-3 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200 hover:border-gray-300", data_ "branch-item" branchNameText] $ do
+      a_ [href_ branchUrl, class_ "block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600", data_ "branch-item" branchNameText] $ do
         -- Single-line columnar layout for easy scanning
         div_ [class_ "grid grid-cols-12 gap-4 items-center"] $ do
           -- Column 1: Branch name (4 columns)
           div_ [class_ "col-span-4 flex items-center space-x-2 min-w-0"] $ do
-            div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600"] $ toHtmlRaw Icon.git_branch
-            h3_ [class_ "text-sm font-semibold text-gray-900 truncate"] $
+            div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"] $ toHtmlRaw Icon.git_branch
+            h3_ [class_ "text-sm font-semibold text-gray-900 dark:text-gray-100 truncate"] $
               toHtml $
                 toString branch.branchName
 
@@ -200,7 +200,7 @@ viewBranchListing repo branches = do
             case maybeLatestJob of
               Just latestJob -> do
                 jobs <- lift $ App.query $ St.GetJobsByBranchA repo.name branch.branchName
-                div_ [class_ "flex items-center space-x-2 text-xs text-gray-500"] $ do
+                div_ [class_ "flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400"] $ do
                   case St.jobEndTime latestJob of
                     Just endTime -> do
                       let duration = diffUTCTime endTime latestJob.jobCreatedTime
@@ -209,16 +209,16 @@ viewBranchListing repo branches = do
                   span_ $ "#" <> toHtml (show @Text latestJob.jobId)
                   span_ $ "(" <> toHtml (show @Text (length jobs)) <> ")"
               Nothing ->
-                span_ [class_ "text-xs text-gray-500"] "No builds"
+                span_ [class_ "text-xs text-gray-500 dark:text-gray-400"] "No builds"
 
             -- Status badge
             case effectiveStatus of
               NeverBuilt ->
-                span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700"] "Never built"
+                span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"] "Never built"
               JobStatus jobStatus ->
                 Status.viraStatusBadge_ jobStatus
               OutOfDate ->
-                span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700"] $ do
+                span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
                   div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
                   "Out of date"
 

@@ -14,6 +14,7 @@ Clean, minimal CI/CD application design system emphasizing clarity and functiona
 
 - **Indigo**: `indigo-600` (primary actions), `indigo-700` (hover states)
 - **Background**: `gray-50` (page), `white` (cards), `gray-200` (dividers)
+  - **Dark mode**: `gray-900` (page), `gray-800` (cards), `gray-700` (dividers)
 
 ### Semantic Colors
 
@@ -21,12 +22,16 @@ Clean, minimal CI/CD application design system emphasizing clarity and functiona
 - **Destructive**: `red-600` (delete/dangerous actions)
 - **Warning**: `yellow-500` (cautionary states)
 - **Secondary**: `gray-100` (secondary actions)
+  - **Dark mode**: `gray-700` (secondary actions)
 
 ### Neutrals
 
 - **Text**: `gray-900` (primary), `gray-600` (secondary), `gray-500` (muted)
+  - **Dark mode**: `gray-100` (primary), `gray-300` (secondary), `gray-400` (muted)
 - **Borders**: `gray-200` (default), `gray-300` (interactive)
+  - **Dark mode**: `gray-700` (default), `gray-600` (interactive)
 - **Backgrounds**: `gray-50` (sections), `gray-100` (subtle contrast)
+  - **Dark mode**: `gray-800` (sections), `gray-700` (subtle contrast)
 
 ## Typography
 
@@ -97,15 +102,49 @@ W.viraButton_ W.ButtonPrimary [] $ do
 - **Regular text**: Can use `text-gray-500` for secondary information
 - **Interactive labels**: Always use `text-gray-600` or darker
 
+## Dark Mode
+
+Vira implements automatic dark mode using Tailwind's `@media (prefers-color-scheme: dark)` strategy. Dark mode activates based on system preferences without any JavaScript or configuration.
+
+### Dark Mode Guidelines
+
+1. **Always add dark variants** - When using gray colors, always include `dark:` variants
+2. **Use semantic opacity** - Use opacity for tinted backgrounds (e.g., `dark:bg-red-900/20`)
+3. **Maintain contrast** - Ensure text remains readable in both modes
+4. **Test both modes** - Always verify styling in light and dark modes
+
+### Common Dark Mode Patterns
+
+```haskell
+-- Backgrounds
+"bg-white dark:bg-gray-800"
+"bg-gray-50 dark:bg-gray-900"
+"bg-gray-100 dark:bg-gray-700"
+
+-- Borders
+"border-gray-200 dark:border-gray-700"
+"border-gray-300 dark:border-gray-600"
+
+-- Text
+"text-gray-900 dark:text-gray-100"
+"text-gray-600 dark:text-gray-300"
+"text-gray-500 dark:text-gray-400"
+
+-- Semantic colors with opacity
+"bg-red-50 dark:bg-red-900/20"
+"bg-blue-50 dark:bg-blue-900/20"
+```
+
 ## Guidelines
 
 1. **KISS Principle** - Avoid unnecessary abstractions and complexity
 2. **Accessibility First** - Follow WCAG contrast requirements
-3. **Use existing widgets** - Check `Widgets/*.hs` first
-4. **Follow naming** - `vira[ComponentName]_` pattern
-5. **Accept attributes** - `[Attributes]` parameter for extensibility
-6. **Minimal shadows** - Only use elevation when creating meaningful hierarchy
-7. **No gradients** - Prefer solid colors for clarity and performance
+3. **Dark Mode** - Always include `dark:` variants for gray colors
+4. **Use existing widgets** - Check `Widgets/*.hs` first
+5. **Follow naming** - `vira[ComponentName]_` pattern
+6. **Accept attributes** - `[Attributes]` parameter for extensibility
+7. **Minimal shadows** - Only use elevation when creating meaningful hierarchy
+8. **No gradients** - Prefer solid colors for clarity and performance
 
 ---
 

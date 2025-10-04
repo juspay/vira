@@ -71,7 +71,7 @@ Integrates seamlessly with surrounding text flow.
 -}
 viraCodeInline_ :: (Monad m) => Text -> HtmlT m ()
 viraCodeInline_ code = do
-  code_ [class_ "px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded font-mono"] $ toHtml code
+  code_ [class_ "px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded font-mono"] $ toHtml code
 
 {- |
 Commit information display component showing hash, message, author, and date.
@@ -107,17 +107,17 @@ viraCommitInfo_ commitId = do
     case maybeCommit of
       Just commit -> do
         unless (T.null commit.commitMessage) $ do
-          span_ [class_ "text-sm text-gray-600 truncate min-w-0 max-w-sm"] $ toHtml commit.commitMessage
+          span_ [class_ "text-sm text-gray-600 dark:text-gray-300 truncate min-w-0 max-w-sm"] $ toHtml commit.commitMessage
         unless (T.null commit.commitAuthor) $ do
-          span_ [class_ "text-xs text-gray-500"] $ do
+          span_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $ do
             "by " <> toHtml commit.commitAuthor
             unless (T.null commit.commitAuthorEmail) $ do
               " <" <> toHtml commit.commitAuthorEmail <> ">"
-        div_ [class_ "text-xs text-gray-400"] $
+        div_ [class_ "text-xs text-gray-400 dark:text-gray-500"] $
           toHtml $
             formatTime defaultTimeLocale "%b %d, %Y" commit.commitDate
       Nothing -> do
-        span_ [class_ "text-xs text-red-600"] "Commit not found"
+        span_ [class_ "text-xs text-red-600 dark:text-red-400"] "Commit not found"
 
 {- |
 Compact commit information component for space-constrained layouts.
@@ -134,12 +134,12 @@ viraCommitInfoCompact_ commitId = do
     case maybeCommit of
       Just commit -> do
         unless (T.null commit.commitMessage) $ do
-          span_ [class_ "text-sm text-gray-700 truncate max-w-xs"] $ toHtml commit.commitMessage
-        div_ [class_ "text-xs text-gray-500"] $
+          span_ [class_ "text-sm text-gray-700 dark:text-gray-300 truncate max-w-xs"] $ toHtml commit.commitMessage
+        div_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $
           toHtml $
             formatRelativeTime now commit.commitDate
       Nothing -> do
-        span_ [class_ "text-xs text-red-600"] "Commit not found"
+        span_ [class_ "text-xs text-red-600 dark:text-red-400"] "Commit not found"
 
 {- |
 Clickable commit hash component with copy functionality.
@@ -151,7 +151,7 @@ viraCommitHash_ commitId = do
   let shortHash = T.take 8 $ toText $ Git.unCommitID commitId
       fullHash = toText $ Git.unCommitID commitId
   button_
-    [ class_ "px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded font-mono transition-colors cursor-pointer border-none"
+    [ class_ "px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded font-mono transition-colors cursor-pointer border-none"
     , title_ $ "Click to copy: " <> fullHash
     , onclick_ $ "event.stopPropagation(); event.preventDefault(); navigator.clipboard.writeText('" <> fullHash <> "'); this.innerText = 'Copied!'; setTimeout(() => { this.innerText = '" <> shortHash <> "'; }, 1000); return false;"
     ]

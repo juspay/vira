@@ -71,7 +71,7 @@ Focus ring uses indigo-500 to match brand colors.
 -}
 viraInput_ :: forall (m :: Type -> Type). (Monad m) => [Attributes] -> HtmlT m ()
 viraInput_ attrs = do
-  input_ ([class_ "block w-full px-4 py-3 text-sm border border-gray-300 rounded-lg shadow-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white transition-colors duration-200"] <> attrs)
+  input_ ([class_ "block w-full px-4 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 transition-colors duration-200"] <> attrs)
 
 {- |
 Form label component with consistent typography and spacing.
@@ -105,7 +105,7 @@ This ensures proper label-input association for screen readers.
 -}
 viraLabel_ :: forall {result}. (Term [Attributes] result) => [Attributes] -> result
 viraLabel_ attrs = do
-  label_ ([class_ "block text-sm font-semibold text-gray-700 mb-1"] <> attrs)
+  label_ ([class_ "block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1"] <> attrs)
 
 {- |
 Form group component for consistent form field layout.
@@ -226,7 +226,7 @@ viraFilterInput_ targetSelector attrs = do
   div_ [class_ "relative"] $ do
     input_
       ( [ type_ "text"
-        , class_ "w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white transition-colors duration-200 pr-10"
+        , class_ "w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 transition-colors duration-200 pr-10"
         , hyperscript_ $
             "on input "
               <> "set filterText to my.value.toLowerCase() "
@@ -244,4 +244,4 @@ viraFilterInput_ targetSelector attrs = do
           <> attrs
       )
     div_ [class_ "absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"] $ do
-      div_ [class_ "text-gray-500 w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.search
+      div_ [class_ "text-gray-500 dark:text-gray-400 w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.search

@@ -106,7 +106,7 @@ viewJob job = do
                   "Kill Job"
 
         -- Bottom row: timing information
-        div_ [class_ "flex items-center space-x-6 text-sm text-gray-600 border-t pt-3"] $ do
+        div_ [class_ "flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-300 border-t dark:border-gray-700 pt-3"] $ do
           div_ [class_ "flex items-center space-x-2"] $ do
             span_ [class_ "font-medium"] "Started:"
             Time.viraUTCTime_ job.jobCreatedTime
@@ -128,10 +128,10 @@ viewJob job = do
               div_ [class_ "flex items-center space-x-2"] $ do
                 span_ [class_ "font-medium"] "Status:"
                 case job.jobStatus of
-                  St.JobStale -> span_ [class_ "text-gray-500"] "Stale"
-                  St.JobPending -> span_ [class_ "text-gray-500"] "In progress"
-                  St.JobRunning -> span_ [class_ "text-gray-500"] "In progress"
-                  St.JobFinished {} -> span_ [class_ "text-gray-500"] "In progress" -- Should not happen due to outer case
+                  St.JobStale -> span_ [class_ "text-gray-500 dark:text-gray-400"] "Stale"
+                  St.JobPending -> span_ [class_ "text-gray-500 dark:text-gray-400"] "In progress"
+                  St.JobRunning -> span_ [class_ "text-gray-500 dark:text-gray-400"] "In progress"
+                  St.JobFinished {} -> span_ [class_ "text-gray-500 dark:text-gray-400"] "In progress" -- Should not happen due to outer case
 
     -- Job logs
     W.viraCard_ [class_ "p-6"] $ do
@@ -144,7 +144,7 @@ viewJobHeader job = do
     div_ [class_ "flex items-center justify-between"] $ do
       div_ [class_ "flex items-center space-x-4"] $ do
         div_ [class_ "flex-shrink-0"] $ do
-          span_ [class_ "inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-800"] $ do
+          span_ [class_ "inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"] $ do
             "Job #" <> toHtml (show @Text job.jobId)
         W.viraCommitInfo_ job.jobCommit
       viewJobStatus job.jobStatus

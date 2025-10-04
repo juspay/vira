@@ -97,7 +97,7 @@ layout crumbs content = do
           , "body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }"
           , ".transition-smooth { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }"
           ]
-    body_ [class_ "bg-gray-50 min-h-screen font-inter"] $ do
+    body_ [class_ "bg-gray-50 dark:bg-gray-900 min-h-screen font-inter"] $ do
       Refresh.viewStream
       -- Global modal container for all pages
       W.viraGlobalModalContainer_
@@ -124,17 +124,17 @@ layout crumbs content = do
     footer :: [LinkTo] -> AppHtml ()
     footer _crumbs = do
       instanceInfo <- lift $ asks @AppState (.instanceInfo)
-      div_ [class_ "bg-gray-100 border-t border-gray-200 mt-auto"] $ do
+      div_ [class_ "bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-auto"] $ do
         div_ [class_ "container mx-auto px-4 py-3 lg:px-8"] $ do
-          div_ [class_ "flex justify-between items-center text-sm text-gray-600"] $ do
+          div_ [class_ "flex justify-between items-center text-sm text-gray-600 dark:text-gray-300"] $ do
             div_ [class_ "flex items-center space-x-4"] $ do
               User.viewUserInfo
               span_ [class_ "text-gray-400"] "•"
               span_ [title_ "Hostname", class_ "cursor-help"] $ toHtml instanceInfo.hostname
-              span_ [class_ "text-gray-400"] "•"
+              span_ [class_ "text-gray-400 dark:text-gray-500"] "•"
               span_ [title_ "Platform", class_ "cursor-help"] $ toHtml (platform instanceInfo)
-            div_ [class_ "text-xs text-gray-500"] $ do
-              a_ [href_ "https://github.com/juspay/vira", target_ "_blank", class_ "hover:text-gray-700 transition-colors"] "Vira"
+            div_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $ do
+              a_ [href_ "https://github.com/juspay/vira", target_ "_blank", class_ "hover:text-gray-700 dark:hover:text-gray-200 transition-colors"] "Vira"
 
 -- | Get icon for a LinkTo type
 linkToIcon :: (Monad m) => LinkTo -> HtmlT m ()
@@ -200,9 +200,9 @@ Features indigo styling that connects visually with breadcrumbs.
 -}
 viraPageHeader_ :: (Monad m) => Text -> HtmlT m () -> HtmlT m ()
 viraPageHeader_ title subtitle = do
-  div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-4 mb-6"] $ do
-    h1_ [class_ "text-2xl font-bold text-indigo-900 tracking-tight mb-2"] $ toHtml title
-    div_ [class_ "text-indigo-700"] subtitle
+  div_ [class_ "bg-indigo-50 dark:bg-indigo-900/20 border-2 border-t-0 border-indigo-200 dark:border-indigo-800 rounded-b-xl p-4 mb-6"] $ do
+    h1_ [class_ "text-2xl font-bold text-indigo-900 dark:text-indigo-200 tracking-tight mb-2"] $ toHtml title
+    div_ [class_ "text-indigo-700 dark:text-indigo-300"] subtitle
 
 {- |
 Standardized page header with icon, title and subtitle.
@@ -211,11 +211,11 @@ Features indigo styling that connects visually with breadcrumbs, with an icon di
 -}
 viraPageHeaderWithIcon_ :: (Monad m) => HtmlT m () -> Text -> HtmlT m () -> HtmlT m ()
 viraPageHeaderWithIcon_ icon title subtitle = do
-  div_ [class_ "bg-indigo-50 border-2 border-t-0 border-indigo-200 rounded-b-xl p-4 mb-6"] $ do
-    h1_ [class_ "text-2xl font-bold text-indigo-900 tracking-tight mb-2 flex items-center"] $ do
-      div_ [class_ "w-6 h-6 mr-3 flex items-center justify-center text-indigo-900"] icon
+  div_ [class_ "bg-indigo-50 dark:bg-indigo-900/20 border-2 border-t-0 border-indigo-200 dark:border-indigo-800 rounded-b-xl p-4 mb-6"] $ do
+    h1_ [class_ "text-2xl font-bold text-indigo-900 dark:text-indigo-200 tracking-tight mb-2 flex items-center"] $ do
+      div_ [class_ "w-6 h-6 mr-3 flex items-center justify-center text-indigo-900 dark:text-indigo-200"] icon
       toHtml title
-    div_ [class_ "text-indigo-700"] subtitle
+    div_ [class_ "text-indigo-700 dark:text-indigo-300"] subtitle
 
 {- |
 Section component for grouping and spacing page content.
@@ -281,4 +281,4 @@ Includes my-6 (24px) vertical margin for proper content separation.
 -}
 viraDivider_ :: (Monad m) => HtmlT m ()
 viraDivider_ = do
-  hr_ [class_ "border-gray-200 my-6"]
+  hr_ [class_ "border-gray-200 dark:border-gray-700 my-6"]

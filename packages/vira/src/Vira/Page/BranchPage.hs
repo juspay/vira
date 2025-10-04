@@ -50,7 +50,7 @@ viewBranch repo branch jobs = do
     (toHtmlRaw Icon.git_branch)
     (toText $ toString repo.name <> " → " <> toString branch.branchName)
     ( div_ [class_ "flex items-center justify-between"] $ do
-        div_ [class_ "flex items-center space-x-3 text-gray-600 min-w-0 flex-1"] $ do
+        div_ [class_ "flex items-center space-x-3 text-gray-600 dark:text-gray-300 min-w-0 flex-1"] $ do
           span_ [class_ "text-sm shrink-0"] "Latest commit:"
           div_ [class_ "flex items-center space-x-2 min-w-0"] $ do
             div_ [class_ "w-4 h-4 flex items-center justify-center shrink-0"] $ toHtmlRaw Icon.git_commit
@@ -75,7 +75,7 @@ viewBranch repo branch jobs = do
     )
 
   W.viraSection_ [] $ do
-    div_ [class_ "bg-white rounded-xl border border-gray-200 p-4 lg:p-8"] $ do
+    div_ [class_ "bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 lg:p-8"] $ do
       viewCommitTimeline branch jobs
 
 -- Simple job list showing commit id, job id, and status
@@ -84,23 +84,23 @@ viewCommitTimeline branch jobs = do
   div_ [class_ "space-y-3"] $ do
     -- Show current branch commit if no jobs exist
     when (null jobs) $ do
-      div_ [class_ "flex items-center p-3 rounded-lg bg-gray-50 border border-gray-200"] $ do
-        div_ [class_ "w-5 h-5 mr-3 flex items-center justify-center text-gray-500"] $ toHtmlRaw Icon.git_commit
+      div_ [class_ "flex items-center p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600"] $ do
+        div_ [class_ "w-5 h-5 mr-3 flex items-center justify-center text-gray-500 dark:text-gray-400"] $ toHtmlRaw Icon.git_commit
         div_ [class_ "flex-1"] $ do
           div_ [class_ "flex items-center space-x-4"] $ do
             W.viraCommitInfo_ branch.headCommit
-            span_ [class_ "text-sm text-gray-500"] "No builds yet"
+            span_ [class_ "text-sm text-gray-500 dark:text-gray-400"] "No builds yet"
 
     -- Show all jobs for this branch
     forM_ jobs $ \job -> do
       jobUrl <- lift $ App.getLinkUrl $ LinkTo.Job job.jobId
-      a_ [href_ jobUrl, class_ "block p-3 rounded-lg hover:bg-gray-50 border border-gray-200 transition-colors"] $ do
+      a_ [href_ jobUrl, class_ "block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-colors"] $ do
         -- Single-line columnar layout for easy scanning
         div_ [class_ "grid grid-cols-12 gap-4 items-center"] $ do
           -- Column 1: Job ID (2 columns)
           div_ [class_ "col-span-2 flex items-center space-x-2"] $ do
-            div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600"] $ toHtmlRaw Icon.git_commit
-            span_ [class_ "text-sm font-semibold text-gray-900"] $ "#" <> toHtml (show @Text job.jobId)
+            div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"] $ toHtmlRaw Icon.git_commit
+            span_ [class_ "text-sm font-semibold text-gray-900 dark:text-gray-100"] $ "#" <> toHtml (show @Text job.jobId)
 
           -- Column 2: Commit info (6 columns)
           div_ [class_ "col-span-6 min-w-0"] $ do

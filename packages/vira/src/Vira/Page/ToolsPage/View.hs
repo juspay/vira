@@ -24,11 +24,11 @@ viewTool tool toolData = do
       span_ [class_ $ "h-12 w-12 mr-4 " <> disp.bgClass <> " rounded-lg flex items-center justify-center " <> disp.textClass <> " font-bold text-xl"] $
         toHtml disp.initial
       div_ [class_ "flex-1"] $ do
-        h3_ [class_ "text-xl font-bold text-gray-900 mb-2"] $ toHtml toolData.name
-        p_ [class_ "text-gray-600 text-sm mb-3"] $ toHtml toolData.description
+        h3_ [class_ "text-xl font-bold text-gray-900 dark:text-gray-100 mb-2"] $ toHtml toolData.name
+        p_ [class_ "text-gray-600 dark:text-gray-300 text-sm mb-3"] $ toHtml toolData.description
         div_ [class_ "mb-3 space-y-1"] $ do
           forM_ toolData.binPaths $ \binPath ->
-            code_ [class_ "block text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono"] $ toHtml binPath
+            code_ [class_ "block text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded font-mono"] $ toHtml binPath
 
         -- Render tool-specific info
         viewToolInfo tool toolData.info
@@ -36,7 +36,7 @@ viewTool tool toolData = do
         a_
           [ href_ toolData.url
           , target_ "_blank"
-          , class_ "inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+          , class_ "inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-sm font-medium"
           ]
           $ do
             span_ "Learn more"
