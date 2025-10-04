@@ -28,7 +28,7 @@ import Vira.Supervisor.Task qualified as Task
 import Vira.Supervisor.Type (TaskException (ConfigurationError, ToolError))
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type (Tool (..), ToolData (..))
-import Vira.Tool.Type qualified
+import Vira.Tool.Type qualified as Tool
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
@@ -62,14 +62,14 @@ runPipeline env = do
       pure setupResult
 
 -- | Convert pipeline configuration to CreateProcess list
-pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> Either Vira.Tool.Type.ToolError (NonEmpty CreateProcess)
+pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> Either Tool.ToolError (NonEmpty CreateProcess)
 pipelineToProcesses env pipeline = do
   procs <- pipelineToProcesses' env pipeline
   case procs of
-    [] -> Left $ Vira.Tool.Type.ToolError (Some Attic) "No pipeline stages enabled"
+    [] -> Left $ Tool.ToolError (Some Attic) "No pipeline stages enabled"
     (x : xs) -> Right $ (x :| xs) <&> \p -> p {cwd = Just (projectDir env)}
 
-pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> Either Vira.Tool.Type.ToolError [CreateProcess]
+pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> Either Tool.ToolError [CreateProcess]
 pipelineToProcesses' env pipeline = do
   atticPs <- atticProcs env pipeline.attic
   cachePs <- cacheProcs env pipeline.cache
@@ -91,7 +91,7 @@ buildProcs stage =
     overrideInputsToArgs =
       concatMap (\(key, value) -> ["--override-input", toString key, toString value])
 
-atticProcs :: ViraEnvironment -> AtticStage -> Either Vira.Tool.Type.ToolError [CreateProcess]
+atticProcs :: ViraEnvironment -> AtticStage -> Either Tool.ToolError [CreateProcess]
 atticProcs env stage =
   pure $
     if stage.enable
@@ -110,12 +110,12 @@ cachixProcs env stage =
       ]
     else []
 
-cacheProcs :: ViraEnvironment -> CacheStage -> Either Vira.Tool.Type.ToolError [CreateProcess]
+cacheProcs :: ViraEnvironment -> CacheStage -> Either Tool.ToolError [CreateProcess]
 cacheProcs env stage = case stage.url of
   Nothing -> Right []
   Just urlText -> do
-    ToolData {info = atticConfigResult} <- DMap.lookup Attic env.tools & maybeToRight (Vira.Tool.Type.ToolError (Some Attic) "Attic tool not found in cache")
-    pushProc <- first (\err -> Vira.Tool.Type.ToolError (Some Attic) (toText (show err :: String))) $ AtticTool.createPushProcess atticConfigResult urlText "result"
+    ToolData {info = atticConfigResult} <- DMap.lookup Attic env.tools & maybeToRight (Tool.ToolError (Some Attic) "Attic tool not found in cache")
+    pushProc <- first (Tool.ToolError (Some Attic) . show) $ AtticTool.createPushProcess atticConfigResult urlText "result"
     pure $ one pushProc
 
 signoffProcs :: SignoffStage -> [CreateProcess]
