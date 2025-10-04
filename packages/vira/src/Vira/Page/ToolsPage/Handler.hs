@@ -41,8 +41,8 @@ viewTools = do
   W.viraSection_ [] $ do
     W.viraPageHeaderWithIcon_ (toHtmlRaw Icon.tool) "Tools" $ do
       div_ [class_ "flex items-center justify-between"] $ do
-        p_ [class_ "text-gray-600"] "Command-line tools used by Vira jobs"
-        span_ [class_ "text-indigo-800 font-semibold"] User.viewUserInfo
+        p_ [class_ "text-gray-600 dark:text-gray-300"] "Command-line tools used by Vira jobs"
+        span_ [class_ "text-indigo-800 dark:text-indigo-300 font-semibold"] User.viewUserInfo
 
     div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
       forM_ tools $ \(tool :=> toolData) ->
