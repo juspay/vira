@@ -115,7 +115,7 @@ cacheProcs env stage = case stage.url of
   Nothing -> Right []
   Just urlText -> do
     ToolData {info = atticConfigResult} <- DMap.lookup Attic env.tools & maybeToRight (Vira.Tool.Type.ToolError (Some Attic) "Attic tool not found in cache")
-    pushProc <- AtticTool.createPushProcess atticConfigResult urlText "result"
+    pushProc <- first (\err -> Vira.Tool.Type.ToolError (Some Attic) (toText (show err :: String))) $ AtticTool.createPushProcess atticConfigResult urlText "result"
     pure $ one pushProc
 
 signoffProcs :: SignoffStage -> [CreateProcess]
