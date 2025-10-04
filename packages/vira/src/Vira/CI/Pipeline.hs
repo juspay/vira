@@ -20,7 +20,6 @@ import System.Directory (doesFileExist)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Info qualified as SysInfo
-import Text.URI qualified as URI
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Environment (ViraEnvironment (..), projectDir, viraContext)
 import Vira.CI.Pipeline.Type
@@ -29,6 +28,7 @@ import Vira.Lib.Omnix qualified as Omnix
 import Vira.State.Type
 import Vira.Supervisor.Task qualified as Task
 import Vira.Supervisor.Type (TaskException (ConfigurationError))
+import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type (Tool (..), ToolData (..))
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
@@ -105,37 +105,12 @@ cacheProcs :: ViraEnvironment -> CacheStage -> [CreateProcess]
 cacheProcs env stage = case stage.url of
   Nothing -> []
   Just urlText -> either errorProc id $ do
-    (serverEndpoint, cacheName) <- parseCacheUrl urlText
     ToolData {info = atticConfigResult} <- DMap.lookup Attic env.tools & maybeToRight "Attic tool not found in cache"
-    mConfig <- first show atticConfigResult
-    config <- mConfig & maybeToRight "Attic not configured. Run: attic login <name> <endpoint> <token>"
-    (serverName, _) <-
-      find (\(_name, serverCfg) -> serverCfg.endpoint == serverEndpoint) (Map.toList config.servers)
-        & maybeToRight ("No attic server configured for " <> toString serverEndpoint <> ". Run: attic login <name> " <> toString serverEndpoint <> " <token>")
-    pure $ one $ atticPushProcess (AtticServer serverName serverEndpoint) (AtticCache cacheName) "result"
+    pushProc <- AtticTool.createPushProcess atticConfigResult urlText "result"
+    pure $ one pushProc
   where
     -- HACK!
     errorProc err = [proc "sh" ["-c", "echo 'Error: " <> err <> "' && exit 1"]]
-    -- Parse cache URL like "https://cache.nixos.asia/oss" to extract endpoint and cache name
-    parseCacheUrl :: Text -> Either String (Text, Text)
-    parseCacheUrl urlText = do
-      -- Parse using modern-uri
-      uri <- first show $ URI.mkURI urlText
-
-      -- Extract path segments for cache name
-      pathParts <- case URI.uriPath uri of
-        Nothing -> Left "Cache URL must have a path"
-        Just (_isAbsolute, pathSegments) ->
-          let segments = map URI.unRText (toList pathSegments)
-              nonEmptySegments = filter (not . T.null) segments
-           in case nonEmpty nonEmptySegments of
-                Nothing -> Left "Cache URL must have a path segment for the cache name"
-                Just ne -> Right ne
-      let cacheName' = last pathParts
-
-      -- Render server endpoint without the path
-      let serverEndpoint = URI.render $ uri {URI.uriPath = Nothing}
-      Right (serverEndpoint, cacheName')
 
 signoffProcs :: SignoffStage -> [CreateProcess]
 signoffProcs stage =

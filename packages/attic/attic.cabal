@@ -20,6 +20,7 @@ library
   exposed-modules:
       Attic
       Attic.Config
+      Attic.Url
   other-modules:
       Paths_attic
   autogen-modules:
@@ -58,6 +59,67 @@ library
     , base ==4.*
     , directory
     , http-api-data
+    , modern-uri
+    , process
+    , relude >=1.0
+    , safecopy
+    , servant
+    , template-haskell
+    , text
+    , toml-reader
+    , which
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2021
+
+test-suite attic-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Attic.UrlSpec
+      Paths_attic
+  autogen-modules:
+      Paths_attic
+  hs-source-dirs:
+      test
+  default-extensions:
+      DataKinds
+      DeriveDataTypeable
+      DeriveGeneric
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      ExplicitForAll
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoStarIsType
+      NumericUnderscores
+      OverloadedStrings
+      ScopedTypeVariables
+      StrictData
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      TypeSynonymInstances
+      ViewPatterns
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson
+    , attic
+    , base ==4.*
+    , directory
+    , hspec
+    , hspec-discover
+    , http-api-data
+    , modern-uri
     , process
     , relude >=1.0
     , safecopy

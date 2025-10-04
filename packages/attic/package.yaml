@@ -17,6 +17,7 @@ dependencies:
   - aeson
   - directory
   - http-api-data
+  - modern-uri
   - process
   - safecopy
   - servant
@@ -27,3 +28,16 @@ dependencies:
 
 library:
   source-dirs: src
+
+tests:
+  attic-test:
+    main: Spec.hs
+    source-dirs: test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - attic
+      - hspec
+      - hspec-discover
