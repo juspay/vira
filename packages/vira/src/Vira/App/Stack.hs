@@ -5,6 +5,7 @@ import Colog (Message)
 import Control.Concurrent.STM (TChan)
 import Data.Acid (AcidState)
 import Data.ByteString
+import Data.Dependent.Map (DMap)
 import Effectful (Eff, IOE, runEff)
 import Effectful.Colog (Log)
 import Effectful.Concurrent.Async (Concurrent, runConcurrent)
@@ -18,6 +19,7 @@ import Vira.App.CLI (WebSettings)
 import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.Lib.Logging (runLogActionStdout)
+import Vira.Page.ToolsPage.Type (Tool, ToolData)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Prelude hiding (Reader, ask, asks, runReader)
@@ -63,4 +65,6 @@ data AppState = AppState
     linkTo :: LinkTo -> Link
   , -- Broadcast channel to track when state is updated
     stateUpdated :: TChan (Text, ByteString)
+  , -- Cached tools data (mutable for refreshing)
+    tools :: TVar (DMap Tool ToolData)
   }

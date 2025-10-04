@@ -6,6 +6,7 @@ module Vira.CI.Pipeline (runPipeline, defaultPipeline) where
 
 import Attic
 import Attic.Config qualified
+import Data.Dependent.Map qualified as DMap
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
@@ -25,6 +26,7 @@ import Vira.CI.Environment (ViraEnvironment (..), projectDir, viraContext)
 import Vira.CI.Pipeline.Type
 import Vira.Lib.Cachix
 import Vira.Lib.Omnix qualified as Omnix
+import Vira.Page.ToolsPage.Type (Tool (..), ToolData (..))
 import Vira.State.Type
 import Vira.Supervisor.Task qualified as Task
 import Vira.Supervisor.Type (TaskException (ConfigurationError))
@@ -103,23 +105,28 @@ cacheProcs :: ViraEnvironment -> CacheStage -> [CreateProcess]
 cacheProcs env stage = case stage.url of
   Nothing -> []
   Just urlText ->
-    -- Parse URL and validate attic config
+    -- Parse URL and validate attic config from tools
     case parseCacheUrl urlText of
       Left err -> [proc "sh" ["-c", "echo 'Error: " <> err <> "' && exit 1"]]
       Right (serverEndpoint, cacheName) ->
-        case env.atticConfig of
-          Left tomlErr ->
-            [proc "sh" ["-c", "echo 'Error: Failed to parse attic config: " <> show tomlErr <> "' && exit 1"]]
-          Right Nothing ->
-            [proc "sh" ["-c", "echo 'Error: Attic not configured. Run: attic login <name> " <> toString serverEndpoint <> " <token>' && exit 1"]]
-          Right (Just config) ->
-            -- Find server name by matching endpoint
-            case find (\(_name, serverCfg) -> serverCfg.endpoint == serverEndpoint) (Map.toList config.servers) of
-              Nothing ->
-                [proc "sh" ["-c", "echo 'Error: No attic server configured for " <> toString serverEndpoint <> ". Run: attic login <name> " <> toString serverEndpoint <> " <token>' && exit 1"]]
-              Just (serverName, _) ->
-                -- Return attic push process
-                [atticPushProcess (AtticServer serverName serverEndpoint) (AtticCache cacheName) "result"]
+        -- Look up Attic tool in the tools DMap
+        case DMap.lookup Attic env.tools of
+          Nothing ->
+            [proc "sh" ["-c", "echo 'Error: Attic tool not found in cache' && exit 1"]]
+          Just (ToolData {info = atticConfigResult}) ->
+            case atticConfigResult of
+              Left tomlErr ->
+                [proc "sh" ["-c", "echo 'Error: Failed to parse attic config: " <> show tomlErr <> "' && exit 1"]]
+              Right Nothing ->
+                [proc "sh" ["-c", "echo 'Error: Attic not configured. Run: attic login <name> " <> toString serverEndpoint <> " <token>' && exit 1"]]
+              Right (Just config) ->
+                -- Find server name by matching endpoint
+                case find (\(_name, serverCfg) -> serverCfg.endpoint == serverEndpoint) (Map.toList config.servers) of
+                  Nothing ->
+                    [proc "sh" ["-c", "echo 'Error: No attic server configured for " <> toString serverEndpoint <> ". Run: attic login <name> " <> toString serverEndpoint <> " <token>' && exit 1"]]
+                  Just (serverName, _) ->
+                    -- Return attic push process
+                    [atticPushProcess (AtticServer serverName serverEndpoint) (AtticCache cacheName) "result"]
   where
     -- Parse cache URL like "https://cache.nixos.asia/oss" to extract endpoint and cache name
     parseCacheUrl :: Text -> Either String (Text, Text)

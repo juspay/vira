@@ -3,6 +3,7 @@
 
 module Vira.CI.ConfigurationSpec (spec) where
 
+import Data.Dependent.Map qualified as DMap
 import Effectful.Git (BranchName (..), CommitID (..), RepoName (..))
 import Paths_vira (getDataFileName)
 import Test.Hspec
@@ -35,7 +36,7 @@ testEnvStaging =
     , branch = testBranchStaging
     , cachixSettings = Just $ CachixSettings "test-cache" "token123"
     , atticSettings = Nothing
-    , atticConfig = Right Nothing
+    , tools = DMap.empty -- Empty tools for test
     , workspacePath = "/tmp/test-workspace"
     }
 

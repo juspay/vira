@@ -4,6 +4,7 @@ module Vira.Page.ToolsPage.Handler (
   handlers,
 ) where
 
+import Data.Dependent.Map qualified as DMap
 import Data.Dependent.Sum (DSum (..))
 import Lucid
 import Servant
@@ -35,8 +36,9 @@ viewHandler = W.layout [LinkTo.Tools] viewTools
 
 viewTools :: AppHtml ()
 viewTools = do
-  -- Read all tools with metadata and runtime info (preserves order)
-  tools <- lift $ liftIO Tool.readAllTools
+  -- Refresh tools data every time the page is loaded
+  toolsMap <- lift Tool.refreshTools
+  let tools = DMap.toList toolsMap
 
   W.viraSection_ [] $ do
     W.viraPageHeaderWithIcon_ (toHtmlRaw Icon.tool) "Tools" $ do

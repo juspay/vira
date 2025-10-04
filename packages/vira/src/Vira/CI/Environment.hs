@@ -8,15 +8,15 @@ module Vira.CI.Environment (
   viraContext,
 ) where
 
-import Attic.Config (AtticConfig)
-import Attic.Config qualified
+import Data.Dependent.Map (DMap)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Reader.Dynamic qualified as Reader
 import System.FilePath ((</>))
-import TOML (TOMLError)
 import Vira.App qualified as App
 import Vira.App.Stack (AppState)
 import Vira.CI.Context (ViraContext (..))
+import Vira.Page.ToolsPage.Tool qualified as Tool
+import Vira.Page.ToolsPage.Type (Tool, ToolData)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (AtticSettings, Branch (..), CachixSettings, Repo)
 
@@ -26,10 +26,8 @@ data ViraEnvironment = ViraEnvironment
   , branch :: Branch
   , cachixSettings :: Maybe CachixSettings
   , atticSettings :: Maybe AtticSettings
-  , atticConfig :: Either TOMLError (Maybe AtticConfig)
-  -- ^ Attic configuration from ~/.config/attic/config.toml (Left = parse error, Right Nothing = not configured)
-  -- TODO: Use 'Tools' more generally instead of reading configs individually
-  -- TODO: And then, do early validation and fail before continuing CI.
+  , tools :: DMap Tool ToolData
+  -- ^ All tools with their runtime info (configs, auth status, etc.)
   , workspacePath :: FilePath
   -- ^ Workspace directory path
   }
@@ -50,8 +48,8 @@ environmentFor ::
 environmentFor repo branch workspacePath = do
   cachixSettings <- App.query St.GetCachixSettingsA
   atticSettings <- App.query St.GetAtticSettingsA
-  -- Read attic config for cache stage validation
-  atticConfig <- liftIO Attic.Config.readAtticConfig
+  -- Get all tools with their runtime info from cache
+  tools <- Tool.getTools
   pure $ ViraEnvironment {..}
 
 -- | Extract ViraContext from ViraEnvironment

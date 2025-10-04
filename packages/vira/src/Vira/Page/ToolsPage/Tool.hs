@@ -1,47 +1,31 @@
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE TemplateHaskell #-}
-
 -- | Tool definitions and data operations
 module Vira.Page.ToolsPage.Tool (
-  Tool (..),
-  ToolData (..),
+  -- Re-export types
+  module Vira.Page.ToolsPage.Type,
+  -- Operations
+  newToolsTVar,
+  getTools,
+  refreshTools,
   readAllTools,
 ) where
 
 import Attic qualified
-import Attic.Config (AtticConfig (..))
 import Attic.Config qualified
+import Control.Concurrent.STM qualified as STM
+import Data.Dependent.Map (DMap)
+import Data.Dependent.Map qualified as DMap
 import Data.Dependent.Sum (DSum (..))
-import Data.GADT.Compare.TH (deriveGCompare, deriveGEq)
+import Effectful (Eff, IOE, (:>))
 import Effectful.Git qualified as Git
-import GH.Auth.Status (AuthStatus (..))
+import Effectful.Reader.Dynamic qualified as Reader
 import GH.Auth.Status qualified as GH
 import GH.Core qualified as GH
 import GH.Signoff qualified as GH
-import TOML (TOMLError)
+import Vira.App.Stack (AppState (..))
 import Vira.Lib.Cachix qualified as Cachix
 import Vira.Lib.Omnix qualified as Omnix
-
--- | GADT for tool keys with their info types inlined
-data Tool info where
-  Attic :: Tool (Either TOMLError (Maybe AtticConfig))
-  GitHub :: Tool AuthStatus
-  Omnix :: Tool ()
-  Git :: Tool ()
-  Cachix :: Tool ()
-
-$(deriveGEq ''Tool)
-$(deriveGCompare ''Tool)
-
--- | Tool data combining metadata and runtime info
-data ToolData info = ToolData
-  { name :: Text
-  , description :: Text
-  , url :: Text
-  , binPaths :: NonEmpty Text
-  , info :: info
-  }
+import Vira.Page.ToolsPage.Type
+import Prelude hiding (Reader)
 
 -- | All tools to display (in desired order)
 toolsOrder :: [DSum Tool (Const ())]
@@ -53,14 +37,16 @@ toolsOrder =
   , GitHub :=> Const ()
   ]
 
--- | Read all tools with metadata and runtime info (preserves order)
-readAllTools :: IO [DSum Tool ToolData]
-readAllTools = forM toolsOrder $ \(tool :=> _) -> do
-  toolData <- getToolData tool
-  pure $ tool :=> toolData
+-- | Read all tools with metadata and runtime info
+readAllTools :: (IOE :> es) => Eff es (DMap Tool ToolData)
+readAllTools = do
+  toolsList <- forM toolsOrder $ \(tool :=> _) -> do
+    toolData <- getToolData tool
+    pure $ tool :=> toolData
+  pure $ DMap.fromList toolsList
 
 -- | Get complete tool data (metadata + runtime info)
-getToolData :: Tool info -> IO (ToolData info)
+getToolData :: (IOE :> es) => Tool info -> Eff es (ToolData info)
 getToolData tool = do
   info <- readToolInfo
   pure ToolData {name, description, url, binPaths, info}
@@ -94,8 +80,28 @@ getToolData tool = do
       Cachix -> one $ toText Cachix.cachixBin
 
     readToolInfo = case tool of
-      Attic -> Attic.Config.readAtticConfig
-      GitHub -> GH.checkAuthStatus
+      Attic -> liftIO Attic.Config.readAtticConfig
+      GitHub -> liftIO GH.checkAuthStatus
       Omnix -> pass
       Git -> pass
       Cachix -> pass
+
+-- | Create a new TVar with all tools data
+newToolsTVar :: (IOE :> es) => Eff es (STM.TVar (DMap Tool ToolData))
+newToolsTVar = do
+  initialTools <- readAllTools
+  liftIO $ STM.newTVarIO initialTools
+
+-- | Get cached tools from AppState
+getTools :: (IOE :> es, Reader.Reader AppState :> es) => Eff es (DMap Tool ToolData)
+getTools = do
+  AppState {tools = toolsVar} <- Reader.ask
+  liftIO $ STM.readTVarIO toolsVar
+
+-- | Refresh tools data and update cache in AppState
+refreshTools :: (IOE :> es, Reader.Reader AppState :> es) => Eff es (DMap Tool ToolData)
+refreshTools = do
+  AppState {tools = toolsVar} <- Reader.ask
+  freshTools <- readAllTools
+  liftIO $ STM.atomically $ STM.writeTVar toolsVar freshTools
+  pure freshTools
