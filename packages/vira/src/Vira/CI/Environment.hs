@@ -29,6 +29,7 @@ data ViraEnvironment = ViraEnvironment
   , atticConfig :: Either TOMLError (Maybe AtticConfig)
   -- ^ Attic configuration from ~/.config/attic/config.toml (Left = parse error, Right Nothing = not configured)
   -- TODO: Use 'Tools' more generally instead of reading configs individually
+  -- TODO: And then, do early validation and fail before continuing CI.
   , workspacePath :: FilePath
   -- ^ Workspace directory path
   }
