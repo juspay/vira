@@ -13,7 +13,8 @@ import Attic.Config qualified
 import Control.Concurrent.STM qualified as STM
 import Data.Dependent.Map (DMap)
 import Data.Dependent.Map qualified as DMap
-import Data.Dependent.Sum (DSum (..))
+import Data.Dependent.Sum (DSum ((:=>)))
+import Data.Some (Some (..))
 import Effectful (Eff, IOE, (:>))
 import Effectful.Git qualified as Git
 import Effectful.Reader.Dynamic qualified as Reader
@@ -49,18 +50,17 @@ refreshTools = do
 -- | Read all tools with metadata and runtime info
 getAllToolData :: (IOE :> es) => Eff es (DMap Tool ToolData)
 getAllToolData =
-  DMap.traverseWithKey (\tool _ -> getToolData tool) allTools
+  DMap.fromList <$> forM allTools (\(Some tool) -> (tool :=>) <$> getToolData tool)
   where
     -- All tools to display (in desired order)
-    allTools :: DMap Tool (Const ())
+    allTools :: [Some Tool]
     allTools =
-      DMap.fromList
-        [ Omnix :=> Const ()
-        , Git :=> Const ()
-        , Attic :=> Const ()
-        , Cachix :=> Const ()
-        , GitHub :=> Const ()
-        ]
+      [ Some Omnix
+      , Some Git
+      , Some Attic
+      , Some Cachix
+      , Some GitHub
+      ]
 
 -- | Get complete tool data (metadata + runtime info)
 getToolData :: (IOE :> es) => Tool info -> Eff es (ToolData info)
