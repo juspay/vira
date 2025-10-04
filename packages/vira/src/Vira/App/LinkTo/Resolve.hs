@@ -11,7 +11,7 @@ import Vira.Page.JobPage qualified as JobPage
 import Vira.Page.RegistryPage qualified as RegistryPage
 import Vira.Page.RepoPage qualified as RepoPage
 import Vira.Page.SettingsPage qualified as SettingsPage
-import Vira.Page.ToolsPage qualified as ToolsPage
+import Vira.Page.ToolsPage.Handler qualified as ToolsPage
 
 -- | Resolve a `LinkTo` into a servant `Link`
 linkTo :: LinkTo -> Link
