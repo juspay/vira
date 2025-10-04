@@ -29,7 +29,7 @@ import System.FilePath ((</>))
 import System.Tail qualified as Tail
 import Vira.Lib.Logging (log, tagCurrentThread)
 import Vira.Lib.Process qualified as Process
-import Vira.Supervisor.Type (Task (..), TaskException (ConfigurationError, KilledByUser), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..))
+import Vira.Supervisor.Type (Task (..), TaskException (ConfigurationError, KilledByUser, ToolError), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..))
 import Prelude hiding (Reader, readMVar, runReader)
 
 type AppTaskStack es =
@@ -164,6 +164,9 @@ runProcesses procs = do
                 ConfigurationError err -> do
                   log Error $ "Configuration error in task: " <> show err
                   pure $ Left (ConfigurationError err)
+                ToolError err -> do
+                  log Error $ "Tool error in task: " <> show err
+                  pure $ Left (ToolError err)
         log Debug $ "Task finished: " <> show (cmdspec process)
         logToWorkspaceOutput $
           "A task (pid=" <> show pid <> ") finished with " <> either (("exception: " <>) . toText . displayException) (("exitcode: " <>) . show) result

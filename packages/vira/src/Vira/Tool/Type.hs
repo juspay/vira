@@ -1,14 +1,18 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Tool type definitions (split from Tool.hs to avoid circular dependencies)
 module Vira.Tool.Type (
   Tool (..),
   ToolData (ToolData, name, description, url, binPaths, info),
+  ToolError (..),
 ) where
 
 import Attic.Config (AtticConfig)
 import Data.GADT.Compare.TH (deriveGCompare, deriveGEq)
+import Data.GADT.Show.TH (deriveGShow)
+import Data.Some (Some (..))
 import GH.Auth.Status (AuthStatus)
 import TOML (TOMLError)
 
@@ -22,6 +26,7 @@ data Tool info where
 
 $(deriveGEq ''Tool)
 $(deriveGCompare ''Tool)
+$(deriveGShow ''Tool)
 
 -- | Tool data combining metadata and runtime info
 data ToolData info = ToolData
@@ -31,3 +36,8 @@ data ToolData info = ToolData
   , binPaths :: NonEmpty Text
   , info :: info
   }
+
+-- | Tool-related errors with the tool that caused them
+data ToolError = ToolError (Some Tool) Text
+
+deriving stock instance Show ToolError
