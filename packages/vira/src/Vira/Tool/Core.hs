@@ -8,22 +8,18 @@ module Vira.Tool.Core (
   refreshTools,
 ) where
 
-import Attic qualified
-import Attic.Config qualified
 import Control.Concurrent.STM qualified as STM
 import Data.Dependent.Map (DMap)
 import Data.Dependent.Map qualified as DMap
 import Data.Dependent.Sum (DSum ((:=>)))
-import Data.Some (Some (..))
 import Effectful (Eff, IOE, (:>))
-import Effectful.Git qualified as Git
 import Effectful.Reader.Dynamic qualified as Reader
-import GH.Auth.Status qualified as GH
-import GH.Core qualified as GH
-import GH.Signoff qualified as GH
 import Vira.App.Stack (AppState (..))
-import Vira.Lib.Cachix qualified as Cachix
-import Vira.Lib.Omnix qualified as Omnix
+import Vira.Tool.Tools.Attic qualified as AtticTool
+import Vira.Tool.Tools.Cachix qualified as CachixTool
+import Vira.Tool.Tools.Git qualified as GitTool
+import Vira.Tool.Tools.GitHub qualified as GitHubTool
+import Vira.Tool.Tools.Omnix qualified as OmnixTool
 import Vira.Tool.Type
 import Prelude hiding (Reader)
 
@@ -49,56 +45,17 @@ refreshTools = do
 
 -- | Read all tools with metadata and runtime info
 getAllToolData :: (IOE :> es) => Eff es (DMap Tool ToolData)
-getAllToolData =
-  DMap.fromList <$> forM allTools (\(Some tool) -> (tool :=>) <$> getToolData tool)
-  where
-    -- All tools to display (in desired order)
-    allTools :: [Some Tool]
-    allTools =
-      [ Some Omnix
-      , Some Git
-      , Some Attic
-      , Some Cachix
-      , Some GitHub
+getAllToolData = do
+  omnix <- OmnixTool.getToolData
+  git <- GitTool.getToolData
+  attic <- AtticTool.getToolData
+  cachix <- CachixTool.getToolData
+  github <- GitHubTool.getToolData
+  pure $
+    DMap.fromList
+      [ Omnix :=> omnix
+      , Git :=> git
+      , Attic :=> attic
+      , Cachix :=> cachix
+      , GitHub :=> github
       ]
-
--- | Get complete tool data (metadata + runtime info)
-getToolData :: (IOE :> es) => Tool info -> Eff es (ToolData info)
-getToolData tool = do
-  info <- readToolInfo
-  pure ToolData {name, description, url, binPaths, info}
-  where
-    name = case tool of
-      Attic -> "Attic"
-      GitHub -> "GitHub CLI"
-      Omnix -> "Omnix"
-      Git -> "Git"
-      Cachix -> "Cachix"
-
-    description = case tool of
-      Attic -> "Self-hosted Nix binary cache server"
-      GitHub -> "GitHub command line tool for various operations"
-      Omnix -> "A tool for building all Nix flake outputs"
-      Git -> "Distributed version control system"
-      Cachix -> "Proprietary Nix binary cache hosting service"
-
-    url = case tool of
-      Attic -> "https://github.com/zhaofengli/attic"
-      GitHub -> "https://cli.github.com"
-      Omnix -> "https://github.com/juspay/omnix"
-      Git -> "https://git-scm.com"
-      Cachix -> "https://cachix.org"
-
-    binPaths = case tool of
-      Attic -> one $ toText Attic.atticBin
-      GitHub -> toText GH.ghBin :| [toText GH.ghSignoffBin]
-      Omnix -> one $ toText Omnix.omnixBin
-      Git -> one $ toText Git.git
-      Cachix -> one $ toText Cachix.cachixBin
-
-    readToolInfo = case tool of
-      Attic -> liftIO Attic.Config.readAtticConfig
-      GitHub -> liftIO GH.checkAuthStatus
-      Omnix -> pass
-      Git -> pass
-      Cachix -> pass

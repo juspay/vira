@@ -71,6 +71,11 @@ library
       Vira.Supervisor.Task
       Vira.Supervisor.Type
       Vira.Tool.Core
+      Vira.Tool.Tools.Attic
+      Vira.Tool.Tools.Cachix
+      Vira.Tool.Tools.Git
+      Vira.Tool.Tools.GitHub
+      Vira.Tool.Tools.Omnix
       Vira.Tool.Type
       Vira.Widgets.Alert
       Vira.Widgets.Button
