@@ -9,9 +9,7 @@ module Vira.Page.ToolsPage.Tool (
   ToolDisplay (..),
   toolMeta,
   toolDisplay,
-  readInfo,
   renderInfo,
-  allTools,
   readAllTools,
 ) where
 
