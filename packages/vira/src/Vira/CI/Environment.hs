@@ -48,8 +48,8 @@ environmentFor ::
 environmentFor repo branch workspacePath = do
   cachixSettings <- App.query St.GetCachixSettingsA
   atticSettings <- App.query St.GetAtticSettingsA
-  -- Get all tools with their runtime info from cache
-  tools <- Tool.getTools
+  -- Refresh all tools with their latest runtime info
+  tools <- Tool.refreshTools
   pure $ ViraEnvironment {..}
 
 -- | Extract ViraContext from ViraEnvironment
