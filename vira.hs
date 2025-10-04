@@ -4,7 +4,7 @@
     isMain = ctx.branch == "main"
     cacheUrl = case isMain of
         True -> Just "https://cache.nixos.asia/oss"
-        False -> Nothing
+        False -> Just "https://cache.nixos.asia/oss"
   in pipeline
     { signoff.enable = True
     , cachix.enable = False
