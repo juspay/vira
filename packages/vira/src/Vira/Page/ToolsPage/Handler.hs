@@ -33,12 +33,12 @@ viewHandler = W.layout [LinkTo.Tools] viewTools
 
 viewTools :: AppHtml ()
 viewTools = do
-  -- Read all tool infos (preserves order)
-  toolInfos <- lift $ liftIO Tool.readAllTools
+  -- Read all tools with metadata and runtime info (preserves order)
+  tools <- lift $ liftIO Tool.readAllTools
 
   W.viraSection_ [] $ do
     W.viraPageHeader_ "Tools" $ do
       p_ [class_ "text-gray-600"] "Command-line tools used by Vira jobs"
     div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
-      forM_ toolInfos $ \(tool :=> Identity info) ->
-        ToolView.viewTool tool info
+      forM_ tools $ \(tool :=> toolData) ->
+        ToolView.viewTool tool toolData

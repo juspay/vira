@@ -10,48 +10,31 @@ import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import GH.Auth.Status (AuthStatus (..))
 import Lucid
-import Vira.Page.ToolsPage.Tool
+import Vira.Page.ToolsPage.Tool (Tool (..), ToolData (..))
 import Vira.Widgets.Alert qualified as W
 import Vira.Widgets.Card qualified as W
 import Web.TablerIcons.Outline qualified as Icon
 
--- | Tool display styling
-data ToolDisplay = ToolDisplay
-  { initial :: Text
-  , bgClass :: Text
-  , textClass :: Text
-  }
-
--- | Get display styling for a tool
-viewToolDisplay :: Tool info -> ToolDisplay
-viewToolDisplay = \case
-  Attic -> ToolDisplay {initial = "A", bgClass = "bg-indigo-100", textClass = "text-indigo-600"}
-  GitHub -> ToolDisplay {initial = "G", bgClass = "bg-green-100", textClass = "text-green-600"}
-  Omnix -> ToolDisplay {initial = "O", bgClass = "bg-purple-100", textClass = "text-purple-600"}
-  Git -> ToolDisplay {initial = "G", bgClass = "bg-orange-100", textClass = "text-orange-600"}
-  Cachix -> ToolDisplay {initial = "C", bgClass = "bg-blue-100", textClass = "text-blue-600"}
-
 -- | View a tool card with its metadata and runtime info
-viewTool :: (Monad m) => Tool info -> info -> HtmlT m ()
-viewTool tool info = do
-  let meta = toolMeta tool
-      disp = viewToolDisplay tool
+viewTool :: (Monad m) => Tool info -> ToolData info -> HtmlT m ()
+viewTool tool toolData = do
+  let disp = viewToolDisplay tool
   W.viraCard_ [class_ "p-6"] $ do
     div_ [class_ "flex items-start mb-4"] $ do
       span_ [class_ $ "h-12 w-12 mr-4 " <> disp.bgClass <> " rounded-lg flex items-center justify-center " <> disp.textClass <> " font-bold text-xl"] $
         toHtml disp.initial
       div_ [class_ "flex-1"] $ do
-        h3_ [class_ "text-xl font-bold text-gray-900 mb-2"] $ toHtml meta.name
-        p_ [class_ "text-gray-600 text-sm mb-3"] $ toHtml meta.description
+        h3_ [class_ "text-xl font-bold text-gray-900 mb-2"] $ toHtml toolData.name
+        p_ [class_ "text-gray-600 text-sm mb-3"] $ toHtml toolData.description
         div_ [class_ "mb-3 space-y-1"] $ do
-          forM_ meta.binPaths $ \binPath ->
+          forM_ toolData.binPaths $ \binPath ->
             code_ [class_ "block text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono"] $ toHtml binPath
 
         -- Render tool-specific info
-        viewToolInfo tool info
+        viewToolInfo tool toolData.info
 
         a_
-          [ href_ meta.url
+          [ href_ toolData.url
           , target_ "_blank"
           , class_ "inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 text-sm font-medium"
           ]
@@ -119,3 +102,19 @@ viewToolInfo GitHub status = do
 viewToolInfo Omnix () = mempty
 viewToolInfo Git () = mempty
 viewToolInfo Cachix () = mempty
+
+-- | Tool display styling
+data ToolDisplay = ToolDisplay
+  { initial :: Text
+  , bgClass :: Text
+  , textClass :: Text
+  }
+
+-- | Get display styling for a tool
+viewToolDisplay :: Tool info -> ToolDisplay
+viewToolDisplay = \case
+  Attic -> ToolDisplay {initial = "A", bgClass = "bg-indigo-100", textClass = "text-indigo-600"}
+  GitHub -> ToolDisplay {initial = "G", bgClass = "bg-green-100", textClass = "text-green-600"}
+  Omnix -> ToolDisplay {initial = "O", bgClass = "bg-purple-100", textClass = "text-purple-600"}
+  Git -> ToolDisplay {initial = "G", bgClass = "bg-orange-100", textClass = "text-orange-600"}
+  Cachix -> ToolDisplay {initial = "C", bgClass = "bg-blue-100", textClass = "text-blue-600"}
