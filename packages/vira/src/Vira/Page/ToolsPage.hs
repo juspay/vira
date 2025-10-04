@@ -7,7 +7,6 @@ module Vira.Page.ToolsPage (
 )
 where
 
-import Data.Dependent.Map qualified as DMap
 import Data.Dependent.Sum (DSum (..))
 import Lucid
 import Servant
@@ -17,7 +16,7 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.Page.ToolsPage.Tool
+import Vira.Page.ToolsPage.Tool qualified as Tool
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Layout qualified as W
 import Web.TablerIcons.Outline qualified as Icon
@@ -38,24 +37,20 @@ viewHandler = W.layout [LinkTo.Tools] viewTools
 
 viewTools :: AppHtml ()
 viewTools = do
-  -- Read ALL tool infos into DMap
-  toolInfos <- lift $ liftIO readAllTools
+  -- Read all tool infos (preserves order)
+  toolInfos <- lift $ liftIO Tool.readAllTools
 
   W.viraSection_ [] $ do
     W.viraPageHeader_ "Tools" $ do
       p_ [class_ "text-gray-600"] "Command-line tools used by Vira jobs"
-
     div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
-      -- Iterate over allTools list to maintain order
-      forM_ allTools $ \(tool :=> _) ->
-        case DMap.lookup tool toolInfos of
-          Just (Identity info) -> toolCard tool info
-          Nothing -> error "Tool info missing" -- shouldn't happen
+      forM_ toolInfos $ \(tool :=> Identity info) ->
+        toolCard tool info
 
-toolCard :: (Monad m) => Tool info -> info -> HtmlT m ()
+toolCard :: (Monad m) => Tool.Tool info -> info -> HtmlT m ()
 toolCard tool info = do
-  let meta = toolMeta tool
-      disp = toolDisplay tool
+  let meta = Tool.toolMeta tool
+      disp = Tool.toolDisplay tool
   W.viraCard_ [class_ "p-6"] $ do
     div_ [class_ "flex items-start mb-4"] $ do
       span_ [class_ $ "h-12 w-12 mr-4 " <> disp.bgClass <> " rounded-lg flex items-center justify-center " <> disp.textClass <> " font-bold text-xl"] $
@@ -65,10 +60,10 @@ toolCard tool info = do
         p_ [class_ "text-gray-600 text-sm mb-3"] $ toHtml meta.description
         div_ [class_ "mb-3 space-y-1"] $ do
           forM_ meta.binPaths $ \binPath ->
-            code_ [class_ "block text-xs bg-gray-100 text-gray-700 text px-2 py-1 rounded font-mono"] $ toHtml binPath
+            code_ [class_ "block text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono"] $ toHtml binPath
 
         -- Render tool-specific info
-        renderInfo tool info
+        Tool.renderInfo tool info
 
         a_
           [ href_ meta.url

@@ -18,8 +18,6 @@ module Vira.Page.ToolsPage.Tool (
 import Attic qualified
 import Attic.Config (AtticConfig (..), AtticServerConfig (..))
 import Attic.Config qualified
-import Data.Dependent.Map (DMap)
-import Data.Dependent.Map qualified as DMap
 import Data.Dependent.Sum (DSum (..))
 import Data.GADT.Compare.TH (deriveGCompare, deriveGEq)
 import Data.Map.Strict qualified as Map
@@ -189,8 +187,8 @@ allTools =
   , GitHub :=> Const ()
   ]
 
--- | Read runtime information for all tools into a DMap
-readAllTools :: IO (DMap Tool Identity)
-readAllTools = fmap DMap.fromList $ forM allTools $ \(tool :=> _) -> do
+-- | Read runtime information for all tools (preserves order)
+readAllTools :: IO [DSum Tool Identity]
+readAllTools = forM allTools $ \(tool :=> _) -> do
   info <- readInfo tool
   pure (tool :=> Identity info)
