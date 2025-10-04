@@ -5,8 +5,6 @@
 module Vira.CI.Pipeline (runPipeline, defaultPipeline) where
 
 import Attic
-import Attic.Config qualified
-import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
@@ -18,7 +16,6 @@ import Optics.Core
 import System.Directory (doesFileExist)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
-import System.IO.Unsafe (unsafePerformIO)
 import System.Info qualified as SysInfo
 import Text.URI qualified as URI
 import Vira.CI.Configuration qualified as Configuration
@@ -104,23 +101,27 @@ cacheProcs :: CacheStage -> [CreateProcess]
 cacheProcs stage = case stage.url of
   Nothing -> []
   Just urlText ->
-    -- Parse URL text to extract server endpoint and cache name using modern-uri
+    -- Parse URL text to extract server info and cache name using modern-uri
     case parseCacheUrl urlText of
-      Left err -> [proc "sh" ["-c", "echo 'Error: " <> err <> "' && exit 1"]]
-      Right (serverEndpoint, cacheName) ->
-        -- Validate attic config exists
-        case validateAtticConfigIO serverEndpoint of
-          Left err -> [proc "sh" ["-c", "echo 'Error: " <> err <> "' && exit 1"]]
-          Right (serverName, _) ->
-            -- Return attic push process
-            [atticPushProcess (AtticServer serverName serverEndpoint) (AtticCache cacheName) "result"]
+      Left err -> [proc "sh" ["-c", "echo 'Error parsing cache URL: " <> err <> "' && exit 1"]]
+      Right (serverName, serverEndpoint, cacheName) ->
+        -- Create attic push process
+        -- The user must have run `attic login <server-name> <server-url> <token>` first
+        -- The attic command uses the server name to look up credentials from ~/.config/attic/config.toml
+        [atticPushProcess (AtticServer serverName serverEndpoint) (AtticCache cacheName) "result"]
   where
-    -- Parse cache URL like "https://cache.nixos.asia/oss" to extract server and cache name
-    parseCacheUrl :: Text -> Either String (Text, Text)
+    -- Parse cache URL like "https://cache.nixos.asia/oss" to extract server info and cache name
+    -- Returns (serverName, serverEndpoint, cacheName)
+    parseCacheUrl :: Text -> Either String (Text, Text, Text)
     parseCacheUrl urlText = do
       -- Parse using modern-uri
       uri <- first show $ URI.mkURI urlText
-      -- Extract path segments
+
+      -- Extract host as server name (e.g., "cache.nixos.asia")
+      auth <- first (const "Cache URL must have authority (host)") $ URI.uriAuthority uri
+      let serverName = URI.unRText $ URI.authHost auth
+
+      -- Extract path segments for cache name
       pathParts <- case URI.uriPath uri of
         Nothing -> Left "Cache URL must have a path"
         Just (_isAbsolute, pathSegments) ->
@@ -130,22 +131,10 @@ cacheProcs stage = case stage.url of
                 Nothing -> Left "Cache URL must have a path segment for the cache name"
                 Just ne -> Right ne
       let cacheName' = last pathParts
+
       -- Render server endpoint without the path
       let serverEndpoint = URI.render $ uri {URI.uriPath = Nothing}
-      Right (serverEndpoint, cacheName')
-
-    -- Validate that attic config exists and has matching server
-    validateAtticConfigIO :: Text -> Either String (Text, Attic.Config.AtticServerConfig)
-    validateAtticConfigIO serverEndpoint = unsafePerformIO $ do
-      atticConfigResult <- Attic.Config.readAtticConfig
-      pure $ case atticConfigResult of
-        Left _tomlErr -> Left "Attic not configured. Please run 'attic login <server-name> <server-url> <token>' first"
-        Right Nothing -> Left "Attic not configured. Please run 'attic login <server-name> <server-url> <token>' first"
-        Right (Just config) ->
-          -- Find matching server by endpoint in the Map
-          case find (\(_name, serverCfg) -> serverCfg.endpoint == serverEndpoint) (Map.toList config.servers) of
-            Nothing -> Left $ "No attic server configured for endpoint: " <> toString serverEndpoint <> ". Please run 'attic login' first"
-            Just (serverName, serverCfg) -> Right (serverName, serverCfg)
+      Right (serverName, serverEndpoint, cacheName')
 
 signoffProcs :: SignoffStage -> [CreateProcess]
 signoffProcs stage =

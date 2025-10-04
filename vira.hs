@@ -1,6 +1,8 @@
 -- Pipeline configuration for Vira
 \ctx pipeline ->
-  let cacheUrl = case ctx.branch == "main" of
+  let 
+    isMain = ctx.branch == "main"
+    cacheUrl = case isMain of
         True -> Just "https://cache.nixos.asia/oss"
         False -> Nothing
   in pipeline
