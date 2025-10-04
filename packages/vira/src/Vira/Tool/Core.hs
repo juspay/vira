@@ -6,7 +6,6 @@ module Vira.Tool.Core (
   newToolsTVar,
   getTools,
   refreshTools,
-  readAllTools,
 ) where
 
 import Attic qualified
@@ -27,23 +26,41 @@ import Vira.Lib.Omnix qualified as Omnix
 import Vira.Tool.Type
 import Prelude hiding (Reader)
 
--- | All tools to display (in desired order)
-toolsOrder :: [DSum Tool (Const ())]
-toolsOrder =
-  [ Omnix :=> Const ()
-  , Git :=> Const ()
-  , Attic :=> Const ()
-  , Cachix :=> Const ()
-  , GitHub :=> Const ()
-  ]
+-- | Create a new TVar with all tools data
+newToolsTVar :: (IOE :> es) => Eff es (STM.TVar (DMap Tool ToolData))
+newToolsTVar = do
+  initialTools <- getAllToolData
+  liftIO $ STM.newTVarIO initialTools
+
+-- | Get cached tools from AppState
+getTools :: (IOE :> es, Reader.Reader AppState :> es) => Eff es (DMap Tool ToolData)
+getTools = do
+  AppState {tools = toolsVar} <- Reader.ask
+  liftIO $ STM.readTVarIO toolsVar
+
+-- | Refresh tools data and update cache in AppState
+refreshTools :: (IOE :> es, Reader.Reader AppState :> es) => Eff es (DMap Tool ToolData)
+refreshTools = do
+  AppState {tools = toolsVar} <- Reader.ask
+  freshTools <- getAllToolData
+  liftIO $ STM.atomically $ STM.writeTVar toolsVar freshTools
+  pure freshTools
 
 -- | Read all tools with metadata and runtime info
-readAllTools :: (IOE :> es) => Eff es (DMap Tool ToolData)
-readAllTools = do
-  toolsList <- forM toolsOrder $ \(tool :=> _) -> do
-    toolData <- getToolData tool
-    pure $ tool :=> toolData
-  pure $ DMap.fromList toolsList
+getAllToolData :: (IOE :> es) => Eff es (DMap Tool ToolData)
+getAllToolData =
+  DMap.traverseWithKey (\tool _ -> getToolData tool) allTools
+  where
+    -- All tools to display (in desired order)
+    allTools :: DMap Tool (Const ())
+    allTools =
+      DMap.fromList
+        [ Omnix :=> Const ()
+        , Git :=> Const ()
+        , Attic :=> Const ()
+        , Cachix :=> Const ()
+        , GitHub :=> Const ()
+        ]
 
 -- | Get complete tool data (metadata + runtime info)
 getToolData :: (IOE :> es) => Tool info -> Eff es (ToolData info)
@@ -85,23 +102,3 @@ getToolData tool = do
       Omnix -> pass
       Git -> pass
       Cachix -> pass
-
--- | Create a new TVar with all tools data
-newToolsTVar :: (IOE :> es) => Eff es (STM.TVar (DMap Tool ToolData))
-newToolsTVar = do
-  initialTools <- readAllTools
-  liftIO $ STM.newTVarIO initialTools
-
--- | Get cached tools from AppState
-getTools :: (IOE :> es, Reader.Reader AppState :> es) => Eff es (DMap Tool ToolData)
-getTools = do
-  AppState {tools = toolsVar} <- Reader.ask
-  liftIO $ STM.readTVarIO toolsVar
-
--- | Refresh tools data and update cache in AppState
-refreshTools :: (IOE :> es, Reader.Reader AppState :> es) => Eff es (DMap Tool ToolData)
-refreshTools = do
-  AppState {tools = toolsVar} <- Reader.ask
-  freshTools <- readAllTools
-  liftIO $ STM.atomically $ STM.writeTVar toolsVar freshTools
-  pure freshTools
