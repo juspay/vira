@@ -34,6 +34,7 @@ import Vira.Tool.Type qualified as Tool
 data PipelineError
   = PipelineConfigurationError InterpreterError
   | PipelineToolError Tool.ToolError
+  | PipelineEmpty
   deriving stock (Show)
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
@@ -52,9 +53,9 @@ runPipeline env = do
       -- 2. Configure and run pipeline
       Task.logToWorkspaceOutput "Setting up pipeline..."
       runErrorNoCallStack @InterpreterError (pipelineForProject env Task.logToWorkspaceOutput) >>= \case
-        Left interpreterError -> do
-          Task.logToWorkspaceOutput $ "Pipeline configuration failed: " <> show interpreterError
-          pure $ Left $ TaskFailed $ "Pipeline configuration failed: " <> show interpreterError
+        Left (PipelineConfigurationError -> err) -> do
+          Task.logToWorkspaceOutput $ "Pipeline configuration failed: " <> show err
+          pure $ Left $ TaskFailed $ "Pipeline configuration failed: " <> show err
         Right pipeline -> do
           Task.logToWorkspaceOutput $ "Pipeline: " <> show pipeline
           case pipelineToProcesses env pipeline of
@@ -68,11 +69,11 @@ runPipeline env = do
       pure setupResult
 
 -- | Convert pipeline configuration to CreateProcess list
-pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> Either Tool.ToolError (NonEmpty CreateProcess)
+pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> Either PipelineError (NonEmpty CreateProcess)
 pipelineToProcesses env pipeline = do
-  procs <- pipelineToProcesses' env pipeline
+  procs <- pipelineToProcesses' env pipeline & first PipelineToolError
   case procs of
-    [] -> Left $ Tool.ToolError (Some Attic) "No pipeline stages enabled"
+    [] -> Left PipelineEmpty
     (x : xs) -> Right $ (x :| xs) <&> \p -> p {cwd = Just (projectDir env)}
 
 pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> Either Tool.ToolError [CreateProcess]
