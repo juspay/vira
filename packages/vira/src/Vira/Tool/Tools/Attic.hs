@@ -34,17 +34,17 @@ data AtticError
   deriving stock (Show, Eq)
 
 -- | Get Attic tool data with metadata and runtime info
-getToolData :: (IOE :> es) => Eff es (ToolData, Either TOMLError (Maybe Attic.Config.AtticConfig))
+getToolData :: (IOE :> es) => Eff es (ToolData (Either TOMLError (Maybe Attic.Config.AtticConfig)))
 getToolData = do
   info <- liftIO Attic.Config.readAtticConfig
-  let metadata =
-        ToolData
-          { name = "Attic"
-          , description = "Self-hosted Nix binary cache server"
-          , url = "https://github.com/zhaofengli/attic"
-          , binPaths = one $ toText Attic.atticBin
-          }
-  pure (metadata, info)
+  pure
+    ToolData
+      { name = "Attic"
+      , description = "Self-hosted Nix binary cache server"
+      , url = "https://github.com/zhaofengli/attic"
+      , binPaths = one $ toText Attic.atticBin
+      , status = info
+      }
 
 {- | Create attic push process from cache URL and config
 

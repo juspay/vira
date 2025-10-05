@@ -34,20 +34,47 @@ testBranchStaging =
 testTools :: Tool.Tools
 testTools =
   Tool.Tools
-    { Tool.attic = (emptyToolData "Attic", Right Nothing)
-    , Tool.github = (emptyToolData "GitHub", NotAuthenticated)
-    , Tool.omnix = (emptyToolData "Omnix", ())
-    , Tool.git = (emptyToolData "Git", ())
-    , Tool.cachix = (emptyToolData "Cachix", ())
+    { Tool.attic =
+        Tool.ToolData
+          { Tool.name = "Attic"
+          , Tool.description = "Test tool"
+          , Tool.url = "https://example.com"
+          , Tool.binPaths = one "test-bin"
+          , Tool.status = Right Nothing
+          }
+    , Tool.github =
+        Tool.ToolData
+          { Tool.name = "GitHub"
+          , Tool.description = "Test tool"
+          , Tool.url = "https://example.com"
+          , Tool.binPaths = one "test-bin"
+          , Tool.status = NotAuthenticated
+          }
+    , Tool.omnix =
+        Tool.ToolData
+          { Tool.name = "Omnix"
+          , Tool.description = "Test tool"
+          , Tool.url = "https://example.com"
+          , Tool.binPaths = one "test-bin"
+          , Tool.status = ()
+          }
+    , Tool.git =
+        Tool.ToolData
+          { Tool.name = "Git"
+          , Tool.description = "Test tool"
+          , Tool.url = "https://example.com"
+          , Tool.binPaths = one "test-bin"
+          , Tool.status = ()
+          }
+    , Tool.cachix =
+        Tool.ToolData
+          { Tool.name = "Cachix"
+          , Tool.description = "Test tool"
+          , Tool.url = "https://example.com"
+          , Tool.binPaths = one "test-bin"
+          , Tool.status = ()
+          }
     }
-  where
-    emptyToolData nm =
-      Tool.ToolData
-        { Tool.name = nm
-        , Tool.description = "Test tool"
-        , Tool.url = "https://example.com"
-        , Tool.binPaths = one "test-bin"
-        }
 
 testEnvStaging :: ViraEnvironment
 testEnvStaging =

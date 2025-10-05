@@ -117,7 +117,7 @@ cacheProcs :: ViraEnvironment -> CacheStage -> Either ToolError [CreateProcess]
 cacheProcs env stage = case stage.url of
   Nothing -> pure []
   Just urlText -> do
-    let (_metadata, atticConfigResult) = env.tools.attic
+    let atticConfigResult = env.tools.attic.status
     pushProc <- first (ToolError . show) $ AtticTool.createPushProcess atticConfigResult urlText "result"
     pure $ one pushProc
 

@@ -49,14 +49,14 @@ viewTools = do
         span_ [class_ "text-indigo-800 dark:text-indigo-300 font-semibold"] User.viewUserInfo
 
     div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
-      viewToolCard "Attic" (fst tools.attic) (AtticTool.viewToolStatus $ snd tools.attic)
-      viewToolCard "GitHub" (fst tools.github) (GitHubTool.viewToolStatus $ snd tools.github)
-      viewToolCard "Omnix" (fst tools.omnix) mempty
-      viewToolCard "Git" (fst tools.git) mempty
-      viewToolCard "Cachix" (fst tools.cachix) mempty
+      viewToolCard "Attic" tools.attic (AtticTool.viewToolStatus tools.attic.status)
+      viewToolCard "GitHub" tools.github (GitHubTool.viewToolStatus tools.github.status)
+      viewToolCard "Omnix" tools.omnix mempty
+      viewToolCard "Git" tools.git mempty
+      viewToolCard "Cachix" tools.cachix mempty
 
 -- | View a tool card with its metadata and runtime info
-viewToolCard :: (Monad m) => Text -> ToolData -> HtmlT m () -> HtmlT m ()
+viewToolCard :: (Monad m) => Text -> ToolData statusType -> HtmlT m () -> HtmlT m ()
 viewToolCard toolName toolData infoHtml = do
   let disp = viewToolDisplay toolName
   W.viraCard_ [class_ "p-6"] $ do

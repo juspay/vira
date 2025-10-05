@@ -15,17 +15,17 @@ import Vira.Tool.Type (ToolData (..))
 import Vira.Widgets.Alert (AlertType (..), viraAlert_)
 
 -- | Get GitHub tool data with metadata and runtime info
-getToolData :: (IOE :> es) => Eff es (ToolData, GH.AuthStatus)
+getToolData :: (IOE :> es) => Eff es (ToolData GH.AuthStatus)
 getToolData = do
   info <- liftIO GH.checkAuthStatus
-  let metadata =
-        ToolData
-          { name = "GitHub CLI"
-          , description = "GitHub command line tool for various operations"
-          , url = "https://cli.github.com"
-          , binPaths = toText GH.ghBin :| [toText GH.ghSignoffBin]
-          }
-  pure (metadata, info)
+  pure
+    ToolData
+      { name = "GitHub CLI"
+      , description = "GitHub command line tool for various operations"
+      , url = "https://cli.github.com"
+      , binPaths = toText GH.ghBin :| [toText GH.ghSignoffBin]
+      , status = info
+      }
 
 -- | View GitHub tool status
 viewToolStatus :: (Monad m) => AuthStatus -> HtmlT m ()
