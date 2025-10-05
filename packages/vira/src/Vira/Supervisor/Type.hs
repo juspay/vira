@@ -44,12 +44,13 @@ data TaskInfo = TaskInfo
   }
   deriving stock (Generic)
 
--- | Exceptions that occurred during a task
+{- | Exceptions (not errors!) that occurred during a task
+
+For anything caller specific, define your own error type.
+-}
 data TaskException
   = KilledByUser
-  | TaskFailed Text
   deriving stock (Show)
 
 instance Exception TaskException where
   displayException KilledByUser = "Task was killed by user"
-  displayException (TaskFailed msg) = "Task failed: " <> toString msg

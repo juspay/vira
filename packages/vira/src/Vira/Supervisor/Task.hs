@@ -29,7 +29,7 @@ import System.FilePath ((</>))
 import System.Tail qualified as Tail
 import Vira.Lib.Logging (log, tagCurrentThread)
 import Vira.Lib.Process qualified as Process
-import Vira.Supervisor.Type (Task (..), TaskException (KilledByUser, TaskFailed), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..))
+import Vira.Supervisor.Type (Task (..), TaskException (KilledByUser), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..))
 import Prelude hiding (Reader, readMVar, runReader)
 
 type AppTaskStack es =
@@ -56,7 +56,7 @@ type AppTaskStack es =
   Note: This function assumes that the caller has ensured that no other task with the same `TaskId` is running.
 -}
 startTask ::
-  forall es.
+  forall es err.
   ( Concurrent :> es
   , Process :> es
   , Log Message :> es
@@ -70,11 +70,11 @@ startTask ::
   ( forall es1.
     ( AppTaskStack es1
     ) =>
-    Eff es1 (Either TaskException ExitCode)
+    Eff es1 (Either err ExitCode)
   ) ->
   -- Handler to call after the task finishes
   ( -- Exit code
-    Either TaskException ExitCode ->
+    Either err ExitCode ->
     Eff es ()
   ) ->
   Eff es ()
@@ -161,9 +161,6 @@ runProcesses procs = do
                     log Error $ "Failed to terminate process: " <> show e
                   _ <- waitForProcess ph -- Reap to prevent zombies
                   pure $ Left KilledByUser
-                TaskFailed err -> do
-                  log Error $ "Task failed: " <> err
-                  pure $ Left (TaskFailed err)
         log Debug $ "Task finished: " <> show (cmdspec process)
         logToWorkspaceOutput $
           "A task (pid=" <> show pid <> ") finished with " <> either (("exception: " <>) . toText . displayException) (("exitcode: " <>) . show) result

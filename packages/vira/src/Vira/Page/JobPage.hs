@@ -28,7 +28,7 @@ import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (JobId, jobWorkingDir)
 import Vira.Supervisor.Task qualified as Supervisor
-import Vira.Supervisor.Type (TaskException (KilledByUser, TaskFailed))
+import Vira.Supervisor.Type (TaskException (KilledByUser))
 import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Code qualified as W
@@ -172,8 +172,8 @@ triggerNewBuild repoName branchName = do
       let status = case result of
             Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
             Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
-            Left KilledByUser -> St.JobFinished St.JobKilled endTime
-            Left (TaskFailed _) -> St.JobFinished St.JobFailure endTime
+            Left (Pipeline.PipelineTaskException KilledByUser) -> St.JobFinished St.JobKilled endTime
+            Left _ -> St.JobFinished St.JobFailure endTime
       App.update $ St.JobUpdateStatusA job.jobId status
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info $ "Started task " <> show job.jobId

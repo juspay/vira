@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-module Vira.CI.Pipeline (runPipeline, defaultPipeline) where
+module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
 
 import Attic
 import Data.Dependent.Map qualified as DMap
@@ -25,7 +25,7 @@ import Vira.Lib.Cachix
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.State.Type
 import Vira.Supervisor.Task qualified as Task
-import Vira.Supervisor.Type (TaskException (TaskFailed))
+import Vira.Supervisor.Type (TaskException)
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type (Tool (..), ToolData (..))
 import Vira.Tool.Type qualified as Tool
@@ -35,13 +35,14 @@ data PipelineError
   = PipelineConfigurationError InterpreterError
   | PipelineToolError Tool.ToolError
   | PipelineEmpty
+  | PipelineTaskException TaskException
   deriving stock (Show)
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
   (Task.AppTaskStack es) =>
   ViraEnvironment ->
-  Eff es (Either TaskException ExitCode)
+  Eff es (Either PipelineError ExitCode)
 runPipeline env = do
   -- 1. Setup workspace and clone
   -- HACK: We hardcoding "project" (see projectDir function in Environment.hs)
@@ -55,18 +56,18 @@ runPipeline env = do
       runErrorNoCallStack @InterpreterError (pipelineForProject env Task.logToWorkspaceOutput) >>= \case
         Left (PipelineConfigurationError -> err) -> do
           Task.logToWorkspaceOutput $ "Pipeline configuration failed: " <> show err
-          pure $ Left $ TaskFailed $ "Pipeline configuration failed: " <> show err
+          pure $ Left err
         Right pipeline -> do
           Task.logToWorkspaceOutput $ "Pipeline: " <> show pipeline
           case pipelineToProcesses env pipeline of
             Left err -> do
               Task.logToWorkspaceOutput $ "Failed to create pipeline processes: " <> show err
-              pure $ Left $ TaskFailed $ "Failed to create pipeline processes: " <> show err
+              pure $ Left err
             Right pipelineProcs -> do
               Task.logToWorkspaceOutput $ "Running " <> show (length pipelineProcs) <> " pipeline stages..."
-              Task.runProcesses pipelineProcs
+              Task.runProcesses pipelineProcs <&> first PipelineTaskException
     _ -> do
-      pure setupResult
+      pure $ setupResult & first PipelineTaskException
 
 -- | Convert pipeline configuration to CreateProcess list
 pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> Either PipelineError (NonEmpty CreateProcess)
