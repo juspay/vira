@@ -40,7 +40,7 @@ testTools =
           , Tool.description = "Test tool"
           , Tool.url = "https://example.com"
           , Tool.binPaths = one "test-bin"
-          , Tool.status = Right Nothing
+          , Tool.status = Left Tool.NotConfigured
           }
     , Tool.github =
         Tool.ToolData
