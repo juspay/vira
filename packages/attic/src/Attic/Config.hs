@@ -20,8 +20,9 @@ data AtticServerConfig = AtticServerConfig
 
 instance DecodeTOML AtticServerConfig where
   tomlDecoder =
-    (AtticServerConfig . AtticServerEndpoint <$> getField "endpoint")
-      <*> (fmap AtticToken <$> getFields ["token"] <|> pure Nothing)
+    AtticServerConfig
+      <$> getField "endpoint"
+      <*> (getFields ["token"] <|> pure Nothing)
 
 -- | Attic configuration from ~/.config/attic/config.toml
 data AtticConfig = AtticConfig

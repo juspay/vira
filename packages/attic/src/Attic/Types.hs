@@ -12,6 +12,7 @@ module Attic.Types (
 import Data.Aeson (FromJSON, ToJSON)
 import Data.SafeCopy
 import Servant.API (FromHttpApiData, ToHttpApiData)
+import TOML (DecodeTOML)
 import Web.FormUrlEncoded (FromForm)
 
 -- | Attic server endpoint URL
@@ -25,6 +26,7 @@ newtype AtticServerEndpoint = AtticServerEndpoint {unAtticServerEndpoint :: Text
     , FromHttpApiData
     , ToJSON
     , FromJSON
+    , DecodeTOML
     )
 
 $(deriveSafeCopy 0 'base ''AtticServerEndpoint)
@@ -47,6 +49,7 @@ newtype AtticToken = AtticToken {unAtticToken :: Text}
     , FromHttpApiData
     , ToJSON
     , FromJSON
+    , DecodeTOML
     )
 
 -- | An attic cache name
