@@ -71,6 +71,7 @@ library
       Vira.Supervisor.Task
       Vira.Supervisor.Type
       Vira.Tool.Core
+      Vira.Tool.Status
       Vira.Tool.Tools.Attic
       Vira.Tool.Tools.Cachix
       Vira.Tool.Tools.Git

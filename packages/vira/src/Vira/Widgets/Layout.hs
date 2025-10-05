@@ -47,6 +47,7 @@ import Vira.App.Lucid (AppHtml)
 import Vira.App.Stack (AppState)
 import Vira.Page.Common.User qualified as User
 import Vira.Stream.Refresh qualified as Refresh
+import Vira.Tool.Status qualified as ToolStatus
 import Vira.Widgets.Modal qualified as W
 import Vira.Widgets.Status qualified as Status
 import Web.TablerIcons.Outline qualified as Icon
@@ -161,7 +162,9 @@ breadcrumbs rs' = do
         a_ [href_ basePath, class_ "font-semibold text-white px-2 py-1 rounded-lg hover:bg-white/30 transition-smooth"] logo
       -- Render breadcrumb links
       renderCrumbs rs'
-    Status.viewAllJobStatus
+    div_ [class_ "flex items-center space-x-4"] $ do
+      ToolStatus.viewToolsStatus
+      Status.viewAllJobStatus
   where
     renderCrumbs :: [LinkTo] -> AppHtml ()
     renderCrumbs = \case
