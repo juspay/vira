@@ -12,8 +12,7 @@ See README.md for general project information.
 
 ### Build instructions
 
-- **Before building**, run: `just hpack pc` and fix hlint warnings
-- **For building**: Prefer `nix develop -c cabal build vira` over `nix build`, and fix _all_ GHC warnings and hlint warnings. For full build, you can do `just ci` in devShell.
+**IMPORTANT**: Do not run build commands yourself. The human runs ghcid on the terminal, which then updates `ghcid.log` with its output. You should read `ghcid.log` after making code changes; this file updates in a second or so.
 
 ## Git
 
