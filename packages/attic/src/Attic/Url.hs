@@ -4,7 +4,6 @@ module Attic.Url (
   ParseError (..),
 ) where
 
-import Data.Text qualified as T
 import Text.Megaparsec (parse)
 import Text.URI qualified as URI
 
@@ -14,8 +13,6 @@ data ParseError
     InvalidURI URI.ParseException
   | -- | The URL has no path component
     MissingPath
-  | -- | The URL path is empty (no cache name)
-    MissingCacheName
   | -- | The URL has multiple path segments (must have exactly one for cache name)
     MultiplePath (NonEmpty Text)
   deriving stock (Show, Eq)
@@ -35,12 +32,9 @@ parseCacheUrl urlText = do
   cacheName <- case URI.uriPath uri of
     Nothing -> Left MissingPath
     Just (_isAbsolute, pathSegments) ->
-      let segments = map URI.unRText (toList pathSegments)
-          nonEmptySegments = filter (not . T.null) segments
-       in case nonEmptySegments of
-            [] -> Left MissingCacheName
-            [single] -> Right single
-            (h : t) -> Left $ MultiplePath (h :| t)
+      case fmap URI.unRText pathSegments of
+        single :| [] -> Right single
+        segments' -> Left $ MultiplePath segments'
 
   -- Render server endpoint without the path
   let serverEndpoint = URI.render $ uri {URI.uriPath = Nothing}
