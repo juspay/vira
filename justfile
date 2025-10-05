@@ -10,7 +10,7 @@ docs:
 # Run the application, re-compiling if necessary.
 [group('1. vira')]
 run:
-    vira-dev --no-server --tui=false
+    nix run .#vira-dev -- --no-server --tui=false
 
 # Run cabal tests (Pass, for example, `tail-test` to run for different component)
 [group('2. haskell')]
