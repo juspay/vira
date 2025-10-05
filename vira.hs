@@ -7,7 +7,5 @@
         False -> Just "https://cache.nixos.asia/oss"
   in pipeline
     { signoff.enable = True
-    , cachix.enable = False
-    , attic.enable = False
     , cache.url = cacheUrl
     }

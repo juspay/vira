@@ -6,12 +6,6 @@ module Vira.Page.ToolsPage (
   handlers,
 ) where
 
-import Attic.Config (AtticConfig (..), AtticServerConfig (..))
-import Data.Dependent.Map qualified as DMap
-import Data.Dependent.Sum (DSum (..))
-import Data.Map.Strict qualified as Map
-import Data.Text qualified as T
-import GH.Auth.Status (AuthStatus (..))
 import Lucid
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -21,9 +15,10 @@ import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Page.Common.User qualified as User
-import Vira.Tool.Core (Tool (..), ToolData (..))
+import Vira.Tool.Core (ToolData (..), Tools (..))
 import Vira.Tool.Core qualified as Tool
-import Vira.Widgets.Alert qualified as W
+import Vira.Tool.Tools.Attic qualified as AtticTool
+import Vira.Tool.Tools.GitHub qualified as GitHubTool
 import Vira.Widgets.Card qualified as W
 import Vira.Widgets.Layout qualified as W
 import Web.TablerIcons.Outline qualified as Icon
@@ -45,8 +40,7 @@ viewHandler = W.layout [LinkTo.Tools] viewTools
 viewTools :: AppHtml ()
 viewTools = do
   -- Refresh tools data every time the page is loaded
-  toolsMap <- lift Tool.refreshTools
-  let tools = DMap.toList toolsMap
+  tools <- lift Tool.refreshTools
 
   W.viraSection_ [] $ do
     W.viraPageHeaderWithIcon_ (toHtmlRaw Icon.tool) "Tools" $ do
@@ -55,13 +49,16 @@ viewTools = do
         span_ [class_ "text-indigo-800 dark:text-indigo-300 font-semibold"] User.viewUserInfo
 
     div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
-      forM_ tools $ \(tool :=> toolData) ->
-        viewTool tool toolData
+      viewToolCard "Attic" (fst tools.attic) (AtticTool.viewToolStatus $ snd tools.attic)
+      viewToolCard "GitHub" (fst tools.github) (GitHubTool.viewToolStatus $ snd tools.github)
+      viewToolCard "Omnix" (fst tools.omnix) mempty
+      viewToolCard "Git" (fst tools.git) mempty
+      viewToolCard "Cachix" (fst tools.cachix) mempty
 
 -- | View a tool card with its metadata and runtime info
-viewTool :: (Monad m) => Tool info -> ToolData info -> HtmlT m ()
-viewTool tool toolData = do
-  let disp = viewToolDisplay tool
+viewToolCard :: (Monad m) => Text -> ToolData -> HtmlT m () -> HtmlT m ()
+viewToolCard toolName toolData infoHtml = do
+  let disp = viewToolDisplay toolName
   W.viraCard_ [class_ "p-6"] $ do
     div_ [class_ "flex items-start mb-4"] $ do
       span_ [class_ $ "h-12 w-12 mr-4 " <> disp.bgClass <> " rounded-lg flex items-center justify-center " <> disp.textClass <> " font-bold text-xl"] $
@@ -74,7 +71,7 @@ viewTool tool toolData = do
             code_ [class_ "block text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded font-mono"] $ toHtml binPath
 
         -- Render tool-specific info
-        viewToolInfo tool toolData.info
+        infoHtml
 
         a_
           [ href_ toolData.url
@@ -85,67 +82,6 @@ viewTool tool toolData = do
             span_ "Learn more"
             span_ [class_ "w-4 h-4 flex items-center"] $ toHtmlRaw Icon.external_link
 
--- | View tool-specific runtime information
-viewToolInfo :: (Monad m) => Tool info -> info -> HtmlT m ()
-viewToolInfo Attic cfg = do
-  div_ [class_ "mb-3"] $ do
-    case cfg of
-      Left err -> do
-        W.viraAlert_ W.AlertError $ do
-          p_ [class_ "text-red-800 font-semibold mb-1"] "✗ Parse error"
-          p_ [class_ "text-red-700 text-sm"] $ toHtml (show err :: String)
-      Right Nothing -> do
-        W.viraAlert_ W.AlertWarning $ do
-          p_ [class_ "text-yellow-800 mb-1"] "⚠ Not configured"
-          p_ [class_ "text-yellow-700 text-sm"] $ do
-            "Config file not found at "
-            code_ [class_ "bg-yellow-100 px-1 rounded"] "~/.config/attic/config.toml"
-      Right (Just atticCfg) -> do
-        W.viraAlert_ W.AlertSuccess $ do
-          case atticCfg.defaultServer of
-            Just defServer -> do
-              p_ [class_ "text-green-800 font-semibold mb-1"] $ do
-                "✓ Default server: "
-                strong_ $ toHtml defServer
-            Nothing -> do
-              p_ [class_ "text-green-800 font-semibold mb-1"] "✓ Configured"
-
-          -- Display all configured servers
-          unless (Map.null atticCfg.servers) $ do
-            p_ [class_ "text-green-700 text-xs mt-2 mb-1"] "Configured servers:"
-            div_ [class_ "space-y-1"] $ do
-              forM_ (Map.toList atticCfg.servers) $ \(serverName, serverCfg) -> do
-                div_ [class_ "text-green-700 text-xs pl-2"] $ do
-                  strong_ $ toHtml serverName
-                  ": "
-                  code_ [class_ "bg-green-100 px-1 rounded"] $ toHtml serverCfg.endpoint
-                  case serverCfg.token of
-                    Just _ -> span_ [class_ "ml-2 text-green-600"] "🔑"
-                    Nothing -> span_ [class_ "ml-2 text-yellow-600"] "⚠ No token"
-viewToolInfo GitHub status = do
-  div_ [class_ "mb-3"] $ do
-    case status of
-      Authenticated {host, login, scopes} -> do
-        W.viraAlert_ W.AlertSuccess $ do
-          p_ [class_ "text-green-800 font-semibold mb-1"] $ do
-            "✓ Authenticated as "
-            strong_ $ toHtml login
-            " on "
-            strong_ $ toHtml host
-          p_ [class_ "text-green-700 text-xs"] $ do
-            "Scopes: "
-            toHtml $ T.intercalate ", " scopes
-      NotAuthenticated -> do
-        W.viraAlert_ W.AlertError $ do
-          p_ [class_ "text-red-800 mb-1"] "✗ Not authenticated"
-          p_ [class_ "text-red-700 text-sm"] $ do
-            "Run "
-            code_ [class_ "bg-red-100 px-1 rounded"] "gh auth login"
-            " to authenticate."
-viewToolInfo Omnix () = mempty
-viewToolInfo Git () = mempty
-viewToolInfo Cachix () = mempty
-
 -- | Tool display styling
 data ToolDisplay = ToolDisplay
   { initial :: Text
@@ -154,10 +90,11 @@ data ToolDisplay = ToolDisplay
   }
 
 -- | Get display styling for a tool
-viewToolDisplay :: Tool info -> ToolDisplay
+viewToolDisplay :: Text -> ToolDisplay
 viewToolDisplay = \case
-  Attic -> ToolDisplay {initial = "A", bgClass = "bg-indigo-100", textClass = "text-indigo-600"}
-  GitHub -> ToolDisplay {initial = "G", bgClass = "bg-green-100", textClass = "text-green-600"}
-  Omnix -> ToolDisplay {initial = "O", bgClass = "bg-purple-100", textClass = "text-purple-600"}
-  Git -> ToolDisplay {initial = "G", bgClass = "bg-orange-100", textClass = "text-orange-600"}
-  Cachix -> ToolDisplay {initial = "C", bgClass = "bg-blue-100", textClass = "text-blue-600"}
+  "Attic" -> ToolDisplay {initial = "A", bgClass = "bg-indigo-100", textClass = "text-indigo-600"}
+  "GitHub" -> ToolDisplay {initial = "G", bgClass = "bg-green-100", textClass = "text-green-600"}
+  "Omnix" -> ToolDisplay {initial = "O", bgClass = "bg-purple-100", textClass = "text-purple-600"}
+  "Git" -> ToolDisplay {initial = "G", bgClass = "bg-orange-100", textClass = "text-orange-600"}
+  "Cachix" -> ToolDisplay {initial = "C", bgClass = "bg-blue-100", textClass = "text-blue-600"}
+  _ -> ToolDisplay {initial = "?", bgClass = "bg-gray-100", textClass = "text-gray-600"}

@@ -8,7 +8,6 @@ module Vira.CI.Environment (
   viraContext,
 ) where
 
-import Data.Dependent.Map (DMap)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Reader.Dynamic qualified as Reader
 import System.FilePath ((</>))
@@ -18,7 +17,7 @@ import Vira.CI.Context (ViraContext (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (AtticSettings, Branch (..), CachixSettings, Repo)
 import Vira.Tool.Core qualified as Tool
-import Vira.Tool.Type (Tool, ToolData)
+import Vira.Tool.Type (Tools)
 
 -- | The full context in which the CI pipeline is executed.
 data ViraEnvironment = ViraEnvironment
@@ -26,7 +25,7 @@ data ViraEnvironment = ViraEnvironment
   , branch :: Branch
   , cachixSettings :: Maybe CachixSettings
   , atticSettings :: Maybe AtticSettings
-  , tools :: DMap Tool ToolData
+  , tools :: Tools
   -- ^ All tools with their runtime info (configs, auth status, etc.)
   , workspacePath :: FilePath
   -- ^ Workspace directory path

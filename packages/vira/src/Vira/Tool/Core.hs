@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+
 -- | Tool definitions and data operations
 module Vira.Tool.Core (
   -- Re-export types
@@ -9,9 +11,6 @@ module Vira.Tool.Core (
 ) where
 
 import Control.Concurrent.STM qualified as STM
-import Data.Dependent.Map (DMap)
-import Data.Dependent.Map qualified as DMap
-import Data.Dependent.Sum (DSum ((:=>)))
 import Effectful (Eff, IOE, (:>))
 import Effectful.Reader.Dynamic qualified as Reader
 import Vira.App.Stack (AppState (..))
@@ -24,38 +23,31 @@ import Vira.Tool.Type
 import Prelude hiding (Reader)
 
 -- | Create a new TVar with all tools data
-newToolsTVar :: (IOE :> es) => Eff es (STM.TVar (DMap Tool ToolData))
+newToolsTVar :: (IOE :> es) => Eff es (STM.TVar Tools)
 newToolsTVar = do
-  initialTools <- getAllToolData
+  initialTools <- getAllTools
   liftIO $ STM.newTVarIO initialTools
 
 -- | Get cached tools from AppState
-getTools :: (IOE :> es, Reader.Reader AppState :> es) => Eff es (DMap Tool ToolData)
+getTools :: (IOE :> es, Reader.Reader AppState :> es) => Eff es Tools
 getTools = do
   AppState {tools = toolsVar} <- Reader.ask
   liftIO $ STM.readTVarIO toolsVar
 
 -- | Refresh tools data and update cache in AppState
-refreshTools :: (IOE :> es, Reader.Reader AppState :> es) => Eff es (DMap Tool ToolData)
+refreshTools :: (IOE :> es, Reader.Reader AppState :> es) => Eff es Tools
 refreshTools = do
   AppState {tools = toolsVar} <- Reader.ask
-  freshTools <- getAllToolData
+  freshTools <- getAllTools
   liftIO $ STM.atomically $ STM.writeTVar toolsVar freshTools
   pure freshTools
 
 -- | Read all tools with metadata and runtime info
-getAllToolData :: (IOE :> es) => Eff es (DMap Tool ToolData)
-getAllToolData = do
+getAllTools :: (IOE :> es) => Eff es Tools
+getAllTools = do
+  attic <- AtticTool.getToolData
+  github <- GitHubTool.getToolData
   omnix <- OmnixTool.getToolData
   git <- GitTool.getToolData
-  attic <- AtticTool.getToolData
   cachix <- CachixTool.getToolData
-  github <- GitHubTool.getToolData
-  pure $
-    DMap.fromList
-      [ Omnix :=> omnix
-      , Git :=> git
-      , Attic :=> attic
-      , Cachix :=> cachix
-      , GitHub :=> github
-      ]
+  pure Tools {..}

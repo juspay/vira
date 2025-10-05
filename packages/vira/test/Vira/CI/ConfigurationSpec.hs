@@ -3,8 +3,8 @@
 
 module Vira.CI.ConfigurationSpec (spec) where
 
-import Data.Dependent.Map qualified as DMap
 import Effectful.Git (BranchName (..), CommitID (..), RepoName (..))
+import GH.Auth.Status (AuthStatus (..))
 import Paths_vira (getDataFileName)
 import Test.Hspec
 import Vira.CI.Configuration
@@ -12,6 +12,7 @@ import Vira.CI.Environment (ViraEnvironment (..), viraContext)
 import Vira.CI.Pipeline (defaultPipeline)
 import Vira.CI.Pipeline.Type (AtticStage (..), BuildStage (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), CachixSettings (..), Repo (..))
+import Vira.Tool.Type qualified as Tool
 
 -- Test data
 testRepo :: Repo
@@ -29,6 +30,25 @@ testBranchStaging =
     , headCommit = CommitID "abc123"
     }
 
+-- Empty test tools
+testTools :: Tool.Tools
+testTools =
+  Tool.Tools
+    { Tool.attic = (emptyToolData "Attic", Right Nothing)
+    , Tool.github = (emptyToolData "GitHub", NotAuthenticated)
+    , Tool.omnix = (emptyToolData "Omnix", ())
+    , Tool.git = (emptyToolData "Git", ())
+    , Tool.cachix = (emptyToolData "Cachix", ())
+    }
+  where
+    emptyToolData nm =
+      Tool.ToolData
+        { Tool.name = nm
+        , Tool.description = "Test tool"
+        , Tool.url = "https://example.com"
+        , Tool.binPaths = one "test-bin"
+        }
+
 testEnvStaging :: ViraEnvironment
 testEnvStaging =
   ViraEnvironment
@@ -36,7 +56,7 @@ testEnvStaging =
     , branch = testBranchStaging
     , cachixSettings = Just $ CachixSettings "test-cache" "token123"
     , atticSettings = Nothing
-    , tools = DMap.empty -- Empty tools for test
+    , tools = testTools
     , workspacePath = "/tmp/test-workspace"
     }
 

@@ -5,8 +5,6 @@
 module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
 
 import Attic
-import Data.Dependent.Map qualified as DMap
-import Data.Some (Some (Some))
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Git qualified as Git
@@ -27,13 +25,13 @@ import Vira.State.Type
 import Vira.Supervisor.Task qualified as Task
 import Vira.Supervisor.Type (TaskException)
 import Vira.Tool.Tools.Attic qualified as AtticTool
-import Vira.Tool.Type (Tool (..), ToolData (..))
+import Vira.Tool.Type (ToolError (..))
 import Vira.Tool.Type qualified as Tool
 
 -- | Pipeline-specific errors
 data PipelineError
   = PipelineConfigurationError InterpreterError
-  | PipelineToolError Tool.ToolError
+  | PipelineToolError ToolError
   | PipelineEmpty
   | PipelineTaskException TaskException
   deriving stock (Show)
@@ -76,7 +74,7 @@ pipelineToProcesses env pipeline = do
   procs <- nonEmpty procs' & maybeToRight PipelineEmpty
   pure $ procs <&> \p -> p {cwd = Just (projectDir env)}
 
-pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> Either Tool.ToolError [CreateProcess]
+pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> Either ToolError [CreateProcess]
 pipelineToProcesses' env pipeline = do
   cachePs <- cacheProcs env pipeline.cache
   pure $
@@ -115,12 +113,12 @@ cachixProcs env stage =
       ]
     else []
 
-cacheProcs :: ViraEnvironment -> CacheStage -> Either Tool.ToolError [CreateProcess]
+cacheProcs :: ViraEnvironment -> CacheStage -> Either ToolError [CreateProcess]
 cacheProcs env stage = case stage.url of
   Nothing -> pure []
   Just urlText -> do
-    ToolData {info = atticConfigResult} <- DMap.lookup Attic env.tools & maybeToRight (Tool.ToolError (Some Attic) "Attic tool not found in cache")
-    pushProc <- first (Tool.ToolError (Some Attic) . show) $ AtticTool.createPushProcess atticConfigResult urlText "result"
+    let (_metadata, atticConfigResult) = env.tools.attic
+    pushProc <- first (ToolError . show) $ AtticTool.createPushProcess atticConfigResult urlText "result"
     pure $ one pushProc
 
 signoffProcs :: SignoffStage -> [CreateProcess]
