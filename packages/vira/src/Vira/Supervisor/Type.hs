@@ -1,11 +1,9 @@
 module Vira.Supervisor.Type where
 
 import Effectful.Concurrent.Async (Async)
-import Language.Haskell.Interpreter (InterpreterError)
 import System.Exit (ExitCode)
 import System.Tail (Tail)
 import Vira.State.Type (JobId)
-import Vira.Tool.Type qualified
 
 type TaskId = JobId
 
@@ -49,11 +47,9 @@ data TaskInfo = TaskInfo
 -- | Exceptions that occurred during a task
 data TaskException
   = KilledByUser
-  | ConfigurationError InterpreterError
-  | ToolError Vira.Tool.Type.ToolError
+  | TaskFailed Text
   deriving stock (Show)
 
 instance Exception TaskException where
   displayException KilledByUser = "Task was killed by user"
-  displayException (ConfigurationError err) = "Configuration error: " <> show err
-  displayException (ToolError err) = "Tool error: " <> show err
+  displayException (TaskFailed msg) = "Task failed: " <> toString msg

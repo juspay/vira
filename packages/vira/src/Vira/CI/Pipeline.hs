@@ -25,10 +25,16 @@ import Vira.Lib.Cachix
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.State.Type
 import Vira.Supervisor.Task qualified as Task
-import Vira.Supervisor.Type (TaskException (ConfigurationError, ToolError))
+import Vira.Supervisor.Type (TaskException (TaskFailed))
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type (Tool (..), ToolData (..))
 import Vira.Tool.Type qualified as Tool
+
+-- | Pipeline-specific errors
+data PipelineError
+  = PipelineConfigurationError InterpreterError
+  | PipelineToolError Tool.ToolError
+  deriving stock (Show)
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
@@ -48,13 +54,13 @@ runPipeline env = do
       runErrorNoCallStack @InterpreterError (pipelineForProject env Task.logToWorkspaceOutput) >>= \case
         Left interpreterError -> do
           Task.logToWorkspaceOutput $ "Pipeline configuration failed: " <> show interpreterError
-          pure $ Left $ ConfigurationError interpreterError
+          pure $ Left $ TaskFailed $ "Pipeline configuration failed: " <> show interpreterError
         Right pipeline -> do
           Task.logToWorkspaceOutput $ "Pipeline: " <> show pipeline
           case pipelineToProcesses env pipeline of
             Left err -> do
               Task.logToWorkspaceOutput $ "Failed to create pipeline processes: " <> show err
-              pure $ Left $ ToolError err
+              pure $ Left $ TaskFailed $ "Failed to create pipeline processes: " <> show err
             Right pipelineProcs -> do
               Task.logToWorkspaceOutput $ "Running " <> show (length pipelineProcs) <> " pipeline stages..."
               Task.runProcesses pipelineProcs
