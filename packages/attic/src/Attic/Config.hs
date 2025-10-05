@@ -6,22 +6,22 @@ module Attic.Config (
   TOML.TOMLError,
 ) where
 
+import Attic.Types (AtticServerEndpoint (..), AtticToken (..))
 import System.Directory (XdgDirectory (..), doesFileExist, getXdgDirectory)
 import TOML (DecodeTOML, TOMLError, getField, getFields)
 import TOML qualified
 
 -- | Attic server configuration from config.toml
 data AtticServerConfig = AtticServerConfig
-  { endpoint :: Text
-  , token :: Maybe Text
+  { endpoint :: AtticServerEndpoint
+  , token :: Maybe AtticToken
   }
   deriving stock (Eq, Show, Generic)
 
 instance DecodeTOML AtticServerConfig where
   tomlDecoder =
-    AtticServerConfig
-      <$> getField "endpoint"
-      <*> (getFields ["token"] <|> pure Nothing)
+    (AtticServerConfig . AtticServerEndpoint <$> getField "endpoint")
+      <*> (fmap AtticToken <$> getFields ["token"] <|> pure Nothing)
 
 -- | Attic configuration from ~/.config/attic/config.toml
 data AtticConfig = AtticConfig

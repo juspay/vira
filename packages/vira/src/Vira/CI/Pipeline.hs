@@ -4,7 +4,7 @@
 
 module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
 
-import Attic
+import Attic qualified
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Git qualified as Git
@@ -99,8 +99,8 @@ atticProcs :: ViraEnvironment -> AtticStage -> [CreateProcess]
 atticProcs env stage =
   if stage.enable
     then flip concatMap env.atticSettings $ \attic ->
-      [ atticLoginProcess attic.atticServer attic.atticToken
-      , atticPushProcess attic.atticServer attic.atticCacheName "result"
+      [ Attic.atticLoginProcess attic.atticServer attic.atticToken
+      , Attic.atticPushProcess attic.atticServer attic.atticCacheName "result"
       ]
     else []
 

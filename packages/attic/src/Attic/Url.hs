@@ -4,6 +4,7 @@ module Attic.Url (
   ParseError (..),
 ) where
 
+import Attic.Types (AtticCache (..), AtticServerEndpoint (..))
 import Text.Megaparsec (parse)
 import Text.URI qualified as URI
 
@@ -23,7 +24,7 @@ Returns (serverEndpoint, cacheName) where:
 - serverEndpoint is the base URL without path (e.g., "https://cache.nixos.asia")
 - cacheName is the last path segment (e.g., "oss")
 -}
-parseCacheUrl :: Text -> Either ParseError (Text, Text)
+parseCacheUrl :: Text -> Either ParseError (AtticServerEndpoint, AtticCache)
 parseCacheUrl urlText = do
   -- Parse using modern-uri's parser directly via megaparsec
   uri <- first (InvalidURI . URI.ParseException) $ parse URI.parser "" urlText
@@ -33,9 +34,9 @@ parseCacheUrl urlText = do
     Nothing -> Left MissingPath
     Just (_isAbsolute, pathSegments) ->
       case fmap URI.unRText pathSegments of
-        single :| [] -> Right single
+        single :| [] -> Right $ AtticCache single
         segments' -> Left $ MultiplePath segments'
 
   -- Render server endpoint without the path
-  let serverEndpoint = URI.render $ uri {URI.uriPath = Nothing}
+  let serverEndpoint = AtticServerEndpoint $ URI.render $ uri {URI.uriPath = Nothing}
   Right (serverEndpoint, cacheName)

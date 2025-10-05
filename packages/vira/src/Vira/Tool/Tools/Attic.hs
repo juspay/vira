@@ -8,10 +8,10 @@ module Vira.Tool.Tools.Attic (
   AtticError (..),
 ) where
 
-import Attic (AtticCache (..), AtticServer (..))
 import Attic qualified
 import Attic.Config (AtticConfig (..), AtticServerConfig (..))
 import Attic.Config qualified
+import Attic.Types (AtticServer (..))
 import Attic.Url qualified as Url
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
@@ -77,7 +77,7 @@ createPushProcess configResult cacheUrl path = do
       & maybeToRight (SetupError (NoServerForEndpoint serverEndpoint))
 
   -- Create the push process (token validation already done in getToolData)
-  pure $ Attic.atticPushProcess (AtticServer serverName serverEndpoint) (AtticCache cacheName) path
+  pure $ Attic.atticPushProcess (AtticServer serverName serverEndpoint) cacheName path
 
 -- | View Attic tool status
 viewToolStatus :: (Monad m) => Either SetupError AtticConfig -> HtmlT m ()
@@ -100,7 +100,7 @@ viewToolStatus result = do
             p_ [class_ "text-yellow-800 font-semibold mb-1"] "⚠ No server configured"
             p_ [class_ "text-yellow-700 text-sm"] $ do
               "No server found for endpoint: "
-              code_ [class_ "bg-yellow-100 px-1 rounded"] $ toHtml endpoint
+              code_ [class_ "bg-yellow-100 px-1 rounded"] $ toHtml (toText endpoint)
         NoToken serverName -> do
           viraAlert_ AlertWarning $ do
             p_ [class_ "text-yellow-800 font-semibold mb-1"] "⚠ Missing authentication token"
@@ -126,5 +126,5 @@ viewToolStatus result = do
                 div_ [class_ "text-green-700 text-xs pl-2"] $ do
                   strong_ $ toHtml serverName
                   ": "
-                  code_ [class_ "bg-green-100 px-1 rounded"] $ toHtml serverCfg.endpoint
+                  code_ [class_ "bg-green-100 px-1 rounded"] $ toHtml (toText serverCfg.endpoint)
                   span_ [class_ "ml-2 text-green-600"] "🔑"

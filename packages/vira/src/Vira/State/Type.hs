@@ -4,7 +4,7 @@
 
 module Vira.State.Type where
 
-import Attic
+import Attic.Types (AtticCache, AtticServer, AtticToken)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Data)
 import Data.IxSet.Typed

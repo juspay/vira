@@ -8,7 +8,7 @@ module Vira.Page.SettingsPage (
 )
 where
 
-import Attic (AtticServer (..))
+import Attic.Types (AtticServer (..))
 import Colog (Severity (..))
 import Effectful (Eff)
 import GHC.Records (HasField)
@@ -198,14 +198,14 @@ viewSettings = do
             )
 
           W.viraFormGroup_
-            ( withFieldName @AtticServer @"serverUrl" $ \name ->
+            ( withFieldName @AtticServer @"serverEndpoint" $ \name ->
                 W.viraLabel_ [for_ name] "Server URL"
             )
-            ( withFieldName @AtticServer @"serverUrl" $ \name ->
+            ( withFieldName @AtticServer @"serverEndpoint" $ \name ->
                 W.viraInput_
                   [ type_ "url"
                   , name_ name
-                  , value_ $ maybe "" ((.serverUrl) . (.atticServer)) mAtticSettings
+                  , value_ $ maybe "" (toText . (.serverEndpoint) . (.atticServer)) mAtticSettings
                   , placeholder_ "https://attic.example.com"
                   ]
             )

@@ -7,6 +7,7 @@ module Vira.Tool.Type (
 ) where
 
 import Attic.Config (AtticConfig)
+import Attic.Types (AtticServerEndpoint)
 import GH.Auth.Status (AuthStatus)
 import TOML (TOMLError)
 
@@ -17,7 +18,7 @@ data SetupError
   | -- | Attic is not configured
     NotConfigured
   | -- | No server configured for endpoint
-    NoServerForEndpoint Text
+    NoServerForEndpoint AtticServerEndpoint
   | -- | Server configured but no authentication token
     NoToken Text
   deriving stock (Show, Eq)

@@ -13,6 +13,9 @@ homepage: https://github.com/juspay/vira
 synopsis: Haskell bindings for Nix attic cache
 description: Haskell types and functions for working with NIx attic cache servers
 
+extra-source-files:
+  - CHANGELOG.md
+
 dependencies:
   - aeson
   - directory

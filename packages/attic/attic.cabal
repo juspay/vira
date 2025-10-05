@@ -15,11 +15,14 @@ maintainer:     srid@srid.ca
 copyright:      2025 Juspay
 license:        MIT
 build-type:     Simple
+extra-source-files:
+    CHANGELOG.md
 
 library
   exposed-modules:
       Attic
       Attic.Config
+      Attic.Types
       Attic.Url
   other-modules:
       Paths_attic
