@@ -3,11 +3,24 @@ module Vira.Tool.Type (
   Tools (..),
   ToolData (..),
   ToolError (..),
+  SetupError (..),
 ) where
 
 import Attic.Config (AtticConfig)
 import GH.Auth.Status (AuthStatus)
 import TOML (TOMLError)
+
+-- | Configuration and setup errors
+data SetupError
+  = -- | TOML configuration parse error
+    ParseError TOMLError
+  | -- | Attic is not configured
+    NotConfigured
+  | -- | No server configured for endpoint
+    NoServerForEndpoint Text
+  | -- | Server configured but no authentication token
+    NoToken Text
+  deriving stock (Show, Eq)
 
 -- | Tool metadata combined with runtime status
 data ToolData statusType = ToolData
@@ -26,7 +39,7 @@ data ToolData statusType = ToolData
 
 -- | All tools with their metadata and runtime status
 data Tools = Tools
-  { attic :: ToolData (Either TOMLError (Maybe AtticConfig))
+  { attic :: ToolData (Either SetupError AtticConfig)
   , github :: ToolData AuthStatus
   , omnix :: ToolData ()
   , git :: ToolData ()

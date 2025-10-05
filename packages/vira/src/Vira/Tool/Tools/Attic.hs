@@ -18,33 +18,41 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Process (CreateProcess)
 import Lucid (HtmlT, class_, code_, div_, p_, span_, strong_, toHtml)
 import TOML (TOMLError)
-import Vira.Tool.Type (ToolData (..))
+import Vira.Tool.Type (SetupError (..), ToolData (..))
 import Vira.Widgets.Alert (AlertType (..), viraAlert_)
 
 -- | All errors that can occur when working with Attic
 data AtticError
   = -- | URL parsing failed
     UrlParseError Url.ParseError
-  | -- | TOML configuration error
-    ConfigError TOMLError
-  | -- | Attic is not configured
-    NotConfigured
-  | -- | No server configured for endpoint
-    NoServerForEndpoint Text
+  | -- | Configuration/setup error
+    SetupError SetupError
   deriving stock (Show, Eq)
 
 -- | Get Attic tool data with metadata and runtime info
-getToolData :: (IOE :> es) => Eff es (ToolData (Either TOMLError (Maybe Attic.Config.AtticConfig)))
+getToolData :: (IOE :> es) => Eff es (ToolData (Either SetupError AtticConfig))
 getToolData = do
-  info <- liftIO Attic.Config.readAtticConfig
+  configResult <- liftIO Attic.Config.readAtticConfig
+  let status = validateConfig configResult
   pure
     ToolData
       { name = "Attic"
       , description = "Self-hosted Nix binary cache server"
       , url = "https://github.com/zhaofengli/attic"
       , binPaths = one $ toText Attic.atticBin
-      , status = info
+      , status = status
       }
+
+-- | Validate attic config and check for missing tokens
+validateConfig :: Either TOMLError (Maybe AtticConfig) -> Either SetupError AtticConfig
+validateConfig configResult = do
+  mConfig <- first ParseError configResult
+  config <- mConfig & maybeToRight NotConfigured
+
+  -- Check if any server is missing a token
+  case find (isNothing . (.token) . snd) (Map.toList config.servers) of
+    Just (serverName, _) -> Left (NoToken serverName)
+    Nothing -> Right config
 
 {- | Create attic push process from cache URL and config
 
@@ -52,42 +60,55 @@ Takes the attic config result, cache URL, and path to push.
 Returns either an AtticError or the CreateProcess for pushing.
 -}
 createPushProcess ::
-  Either TOMLError (Maybe AtticConfig) ->
+  Either SetupError AtticConfig ->
   Text ->
   FilePath ->
   Either AtticError CreateProcess
-createPushProcess atticConfigResult cacheUrl path = do
+createPushProcess configResult cacheUrl path = do
   -- Parse cache URL to extract server endpoint and cache name
   (serverEndpoint, cacheName) <- first UrlParseError $ Url.parseCacheUrl cacheUrl
 
-  -- Validate and extract config
-  mConfig <- first ConfigError atticConfigResult
-  config <- mConfig & maybeToRight NotConfigured
+  -- Extract config
+  config <- first SetupError configResult
 
   -- Find server config that matches the endpoint
-  (serverName, _) <-
+  (serverName, _serverCfg) <-
     find (\(_name, serverCfg) -> serverCfg.endpoint == serverEndpoint) (Map.toList config.servers)
-      & maybeToRight (NoServerForEndpoint serverEndpoint)
+      & maybeToRight (SetupError (NoServerForEndpoint serverEndpoint))
 
-  -- Create the push process
+  -- Create the push process (token validation already done in getToolData)
   pure $ Attic.atticPushProcess (AtticServer serverName serverEndpoint) (AtticCache cacheName) path
 
 -- | View Attic tool status
-viewToolStatus :: (Monad m) => Either TOMLError (Maybe AtticConfig) -> HtmlT m ()
-viewToolStatus cfg = do
+viewToolStatus :: (Monad m) => Either SetupError AtticConfig -> HtmlT m ()
+viewToolStatus result = do
   div_ [class_ "mb-3"] $ do
-    case cfg of
-      Left err -> do
-        viraAlert_ AlertError $ do
-          p_ [class_ "text-red-800 font-semibold mb-1"] "✗ Parse error"
-          p_ [class_ "text-red-700 text-sm"] $ toHtml (show err :: String)
-      Right Nothing -> do
-        viraAlert_ AlertWarning $ do
-          p_ [class_ "text-yellow-800 mb-1"] "⚠ Not configured"
-          p_ [class_ "text-yellow-700 text-sm"] $ do
-            "Config file not found at "
-            code_ [class_ "bg-yellow-100 px-1 rounded"] "~/.config/attic/config.toml"
-      Right (Just atticCfg) -> do
+    case result of
+      Left setupErr -> case setupErr of
+        ParseError err -> do
+          viraAlert_ AlertError $ do
+            p_ [class_ "text-red-800 font-semibold mb-1"] "✗ Parse error"
+            p_ [class_ "text-red-700 text-sm"] $ toHtml (show err :: String)
+        NotConfigured -> do
+          viraAlert_ AlertWarning $ do
+            p_ [class_ "text-yellow-800 mb-1"] "⚠ Not configured"
+            p_ [class_ "text-yellow-700 text-sm"] $ do
+              "Config file not found at "
+              code_ [class_ "bg-yellow-100 px-1 rounded"] "~/.config/attic/config.toml"
+        NoServerForEndpoint endpoint -> do
+          viraAlert_ AlertWarning $ do
+            p_ [class_ "text-yellow-800 font-semibold mb-1"] "⚠ No server configured"
+            p_ [class_ "text-yellow-700 text-sm"] $ do
+              "No server found for endpoint: "
+              code_ [class_ "bg-yellow-100 px-1 rounded"] $ toHtml endpoint
+        NoToken serverName -> do
+          viraAlert_ AlertWarning $ do
+            p_ [class_ "text-yellow-800 font-semibold mb-1"] "⚠ Missing authentication token"
+            p_ [class_ "text-yellow-700 text-sm"] $ do
+              "Server "
+              strong_ $ toHtml serverName
+              " is configured but has no authentication token"
+      Right atticCfg -> do
         viraAlert_ AlertSuccess $ do
           case atticCfg.defaultServer of
             Just defServer -> do
@@ -106,6 +127,4 @@ viewToolStatus cfg = do
                   strong_ $ toHtml serverName
                   ": "
                   code_ [class_ "bg-green-100 px-1 rounded"] $ toHtml serverCfg.endpoint
-                  case serverCfg.token of
-                    Just _ -> span_ [class_ "ml-2 text-green-600"] "🔑"
-                    Nothing -> span_ [class_ "ml-2 text-yellow-600"] "⚠ No token"
+                  span_ [class_ "ml-2 text-green-600"] "🔑"
