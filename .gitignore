@@ -22,3 +22,5 @@ result-*
 
 # Claude
 .claude/settings.local.json
+
+/ghcid.log
