@@ -20,7 +20,7 @@ test COMPONENT='vira-tests':
 # Run ghcid, whilst writing output to ghcid.log (useful for LLM)
 [group('2. haskell')]
 ghcid COMPONENT='vira':
-    ghcid --outputfile=ghcid.log --warnings -c "./cabal-repl {{ COMPONENT }}"
+    ghcid --outputfile=ghcid.log -c "./cabal-repl {{ COMPONENT }}"
 
 # Delete and recreate vira.db
 [group('1. vira')]

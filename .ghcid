@@ -1,0 +1,8 @@
+--warnings
+--restart=packages/vira/vira.cabal
+--restart=packages/vira-ci-types/vira-ci-types.cabal
+--restart=packages/attic/attic.cabal
+--restart=packages/tail/tail.cabal
+--restart=packages/htmx-lucid-contrib/htmx-lucid-contrib.cabal
+--restart=packages/git-effectful/git-effectful.cabal
+--restart=packages/gh/gh.cabal
