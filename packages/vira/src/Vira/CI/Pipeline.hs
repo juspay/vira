@@ -72,19 +72,17 @@ runPipeline env = do
 -- | Convert pipeline configuration to CreateProcess list
 pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> Either PipelineError (NonEmpty CreateProcess)
 pipelineToProcesses env pipeline = do
-  procs <- pipelineToProcesses' env pipeline & first PipelineToolError
-  case procs of
-    [] -> Left PipelineEmpty
-    (x : xs) -> Right $ (x :| xs) <&> \p -> p {cwd = Just (projectDir env)}
+  procs' <- pipelineToProcesses' env pipeline & first PipelineToolError
+  procs <- nonEmpty procs' & maybeToRight PipelineEmpty
+  pure $ procs <&> \p -> p {cwd = Just (projectDir env)}
 
 pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> Either Tool.ToolError [CreateProcess]
 pipelineToProcesses' env pipeline = do
-  atticPs <- atticProcs env pipeline.attic
   cachePs <- cacheProcs env pipeline.cache
   pure $
     concat
       [ buildProcs pipeline.build
-      , atticPs
+      , atticProcs env pipeline.attic
       , cachixProcs env pipeline.cachix
       , cachePs
       , signoffProcs pipeline.signoff
@@ -99,15 +97,14 @@ buildProcs stage =
     overrideInputsToArgs =
       concatMap (\(key, value) -> ["--override-input", toString key, toString value])
 
-atticProcs :: ViraEnvironment -> AtticStage -> Either Tool.ToolError [CreateProcess]
+atticProcs :: ViraEnvironment -> AtticStage -> [CreateProcess]
 atticProcs env stage =
-  pure $
-    if stage.enable
-      then flip concatMap env.atticSettings $ \attic ->
-        [ atticLoginProcess attic.atticServer attic.atticToken
-        , atticPushProcess attic.atticServer attic.atticCacheName "result"
-        ]
-      else []
+  if stage.enable
+    then flip concatMap env.atticSettings $ \attic ->
+      [ atticLoginProcess attic.atticServer attic.atticToken
+      , atticPushProcess attic.atticServer attic.atticCacheName "result"
+      ]
+    else []
 
 cachixProcs :: ViraEnvironment -> CachixStage -> [CreateProcess]
 cachixProcs env stage =
@@ -120,7 +117,7 @@ cachixProcs env stage =
 
 cacheProcs :: ViraEnvironment -> CacheStage -> Either Tool.ToolError [CreateProcess]
 cacheProcs env stage = case stage.url of
-  Nothing -> Right []
+  Nothing -> pure []
   Just urlText -> do
     ToolData {info = atticConfigResult} <- DMap.lookup Attic env.tools & maybeToRight (Tool.ToolError (Some Attic) "Attic tool not found in cache")
     pushProc <- first (Tool.ToolError (Some Attic) . show) $ AtticTool.createPushProcess atticConfigResult urlText "result"
