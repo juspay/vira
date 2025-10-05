@@ -1,13 +1,16 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-module Vira.CI.Pipeline (runPipeline, defaultPipeline) where
+module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
 
 import Attic
+import Data.Dependent.Map qualified as DMap
+import Data.Some (Some (Some))
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Git qualified as Git
-import Effectful.Process (CreateProcess (cwd), env, proc)
+import Effectful.Process (CreateProcess (cwd), env)
 import GH.Signoff qualified as Signoff
 import Language.Haskell.Interpreter (InterpreterError)
 import Optics.Core
@@ -22,14 +25,24 @@ import Vira.Lib.Cachix
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.State.Type
 import Vira.Supervisor.Task qualified as Task
-import Vira.Supervisor.Type (TaskException (ConfigurationError))
-import Prelude hiding (Reader)
+import Vira.Supervisor.Type (TaskException)
+import Vira.Tool.Tools.Attic qualified as AtticTool
+import Vira.Tool.Type (Tool (..), ToolData (..))
+import Vira.Tool.Type qualified as Tool
+
+-- | Pipeline-specific errors
+data PipelineError
+  = PipelineConfigurationError InterpreterError
+  | PipelineToolError Tool.ToolError
+  | PipelineEmpty
+  | PipelineTaskException TaskException
+  deriving stock (Show)
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
   (Task.AppTaskStack es) =>
   ViraEnvironment ->
-  Eff es (Either TaskException ExitCode)
+  Eff es (Either PipelineError ExitCode)
 runPipeline env = do
   -- 1. Setup workspace and clone
   -- HACK: We hardcoding "project" (see projectDir function in Environment.hs)
@@ -41,31 +54,39 @@ runPipeline env = do
       -- 2. Configure and run pipeline
       Task.logToWorkspaceOutput "Setting up pipeline..."
       runErrorNoCallStack @InterpreterError (pipelineForProject env Task.logToWorkspaceOutput) >>= \case
-        Left interpreterError -> do
-          Task.logToWorkspaceOutput $ "Pipeline configuration failed: " <> show interpreterError
-          pure $ Left $ ConfigurationError interpreterError
+        Left (PipelineConfigurationError -> err) -> do
+          Task.logToWorkspaceOutput $ "Pipeline configuration failed: " <> show err
+          pure $ Left err
         Right pipeline -> do
           Task.logToWorkspaceOutput $ "Pipeline: " <> show pipeline
-          let pipelineProcs = pipelineToProcesses env pipeline
-          Task.runProcesses pipelineProcs
+          case pipelineToProcesses env pipeline of
+            Left err -> do
+              Task.logToWorkspaceOutput $ "Failed to create pipeline processes: " <> show err
+              pure $ Left err
+            Right pipelineProcs -> do
+              Task.logToWorkspaceOutput $ "Running " <> show (length pipelineProcs) <> " pipeline stages..."
+              Task.runProcesses pipelineProcs <&> first PipelineTaskException
     _ -> do
-      pure setupResult
+      pure $ setupResult & first PipelineTaskException
 
 -- | Convert pipeline configuration to CreateProcess list
-pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> NonEmpty CreateProcess
-pipelineToProcesses env pipeline =
-  case pipelineToProcesses' env pipeline of
-    [] -> proc "echo" ["No pipeline stages enabled"] :| []
-    (x : xs) -> (x :| xs) <&> \p -> p {cwd = Just (projectDir env)}
+pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> Either PipelineError (NonEmpty CreateProcess)
+pipelineToProcesses env pipeline = do
+  procs' <- pipelineToProcesses' env pipeline & first PipelineToolError
+  procs <- nonEmpty procs' & maybeToRight PipelineEmpty
+  pure $ procs <&> \p -> p {cwd = Just (projectDir env)}
 
-pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> [CreateProcess]
-pipelineToProcesses' env pipeline =
-  concat
-    [ buildProcs pipeline.build
-    , atticProcs env pipeline.attic
-    , cachixProcs env pipeline.cachix
-    , signoffProcs pipeline.signoff
-    ]
+pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> Either Tool.ToolError [CreateProcess]
+pipelineToProcesses' env pipeline = do
+  cachePs <- cacheProcs env pipeline.cache
+  pure $
+    concat
+      [ buildProcs pipeline.build
+      , atticProcs env pipeline.attic
+      , cachixProcs env pipeline.cachix
+      , cachePs
+      , signoffProcs pipeline.signoff
+      ]
 
 buildProcs :: BuildStage -> [CreateProcess]
 buildProcs stage =
@@ -93,6 +114,14 @@ cachixProcs env stage =
           p {env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]}
       ]
     else []
+
+cacheProcs :: ViraEnvironment -> CacheStage -> Either Tool.ToolError [CreateProcess]
+cacheProcs env stage = case stage.url of
+  Nothing -> pure []
+  Just urlText -> do
+    ToolData {info = atticConfigResult} <- DMap.lookup Attic env.tools & maybeToRight (Tool.ToolError (Some Attic) "Attic tool not found in cache")
+    pushProc <- first (Tool.ToolError (Some Attic) . show) $ AtticTool.createPushProcess atticConfigResult urlText "result"
+    pure $ one pushProc
 
 signoffProcs :: SignoffStage -> [CreateProcess]
 signoffProcs stage =
@@ -156,5 +185,6 @@ defaultPipeline env =
     { build = BuildStage True mempty
     , attic = AtticStage (isJust env.atticSettings)
     , cachix = CachixStage (isJust env.cachixSettings)
+    , cache = CacheStage Nothing
     , signoff = SignoffStage False
     }

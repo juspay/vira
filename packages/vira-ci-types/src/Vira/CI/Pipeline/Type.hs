@@ -14,13 +14,14 @@
 module Vira.CI.Pipeline.Type where
 
 import GHC.Records.Compat
-import Relude (Bool (..), Generic, Show, Text)
+import Relude (Bool (..), Generic, Maybe, Show, Text)
 
 -- | CI Pipeline configuration types
 data ViraPipeline = ViraPipeline
   { build :: BuildStage
   , attic :: AtticStage
   , cachix :: CachixStage
+  , cache :: CacheStage
   , signoff :: SignoffStage
   }
   deriving stock (Generic, Show)
@@ -46,6 +47,12 @@ newtype SignoffStage = SignoffStage
   }
   deriving stock (Generic, Show)
 
+-- TODO: Switch url type to URI from modern-uri for better type safety
+newtype CacheStage = CacheStage
+  { url :: Maybe Text
+  }
+  deriving stock (Generic, Show)
+
 -- HasField instances for enabling OverloadedRecordUpdate syntax (see vira.hs)
 -- NOTE: Do not forgot to fill in these instances if the types above change.
 -- In future, we could generically derive them using generics-sop and the like.
@@ -65,14 +72,20 @@ instance HasField "enable" CachixStage Bool where
 instance HasField "enable" SignoffStage Bool where
   hasField (SignoffStage enable) = (SignoffStage, enable)
 
+instance HasField "url" CacheStage (Maybe Text) where
+  hasField (CacheStage url) = (CacheStage, url)
+
 instance HasField "build" ViraPipeline BuildStage where
-  hasField (ViraPipeline build attic cachix signoff) = (\x -> ViraPipeline x attic cachix signoff, build)
+  hasField (ViraPipeline build attic cachix cache signoff) = (\x -> ViraPipeline x attic cachix cache signoff, build)
 
 instance HasField "attic" ViraPipeline AtticStage where
-  hasField (ViraPipeline build attic cachix signoff) = (\x -> ViraPipeline build x cachix signoff, attic)
+  hasField (ViraPipeline build attic cachix cache signoff) = (\x -> ViraPipeline build x cachix cache signoff, attic)
 
 instance HasField "cachix" ViraPipeline CachixStage where
-  hasField (ViraPipeline build attic cachix signoff) = (\x -> ViraPipeline build attic x signoff, cachix)
+  hasField (ViraPipeline build attic cachix cache signoff) = (\x -> ViraPipeline build attic x cache signoff, cachix)
+
+instance HasField "cache" ViraPipeline CacheStage where
+  hasField (ViraPipeline build attic cachix cache signoff) = (\x -> ViraPipeline build attic cachix x signoff, cache)
 
 instance HasField "signoff" ViraPipeline SignoffStage where
-  hasField (ViraPipeline build attic cachix signoff) = (ViraPipeline build attic cachix, signoff)
+  hasField (ViraPipeline build attic cachix cache signoff) = (ViraPipeline build attic cachix cache, signoff)

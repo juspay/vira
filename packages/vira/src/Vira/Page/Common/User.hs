@@ -1,5 +1,5 @@
 -- | User information utilities
-module Vira.Page.ToolsPage.User (
+module Vira.Page.Common.User (
   viewUserInfo,
 ) where
 

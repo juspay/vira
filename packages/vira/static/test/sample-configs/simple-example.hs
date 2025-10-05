@@ -7,4 +7,5 @@
      { signoff.enable = not isMain
      , build.overrideInputs = cabalLocal
      , attic.enable = isMain || isRelease
+     , cache.url = Just "https://cache.example.com/test"
      }

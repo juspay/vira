@@ -27,6 +27,7 @@ dependencies:
   - git-effectful
   - http-api-data
   - ixset-typed
+  - modern-uri
   - optics-core
   - optics-th
   - safecopy

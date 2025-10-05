@@ -45,7 +45,7 @@ import Vira.App.InstanceInfo (InstanceInfo (..), platform)
 import Vira.App.LinkTo.Type (LinkTo (..), linkShortTitle, linkTitle)
 import Vira.App.Lucid (AppHtml)
 import Vira.App.Stack (AppState)
-import Vira.Page.ToolsPage.User qualified as User
+import Vira.Page.Common.User qualified as User
 import Vira.Stream.Refresh qualified as Refresh
 import Vira.Widgets.Modal qualified as W
 import Vira.Widgets.Status qualified as Status
