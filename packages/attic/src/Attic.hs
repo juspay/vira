@@ -23,8 +23,8 @@ atticBin = $(staticWhich "attic")
 NOTE: `atticLoginProcess` should be run before this to set the access token
 -}
 atticPushProcess :: AtticServer -> AtticCache -> FilePath -> CreateProcess
-atticPushProcess AtticServer {serverName} cacheName path =
-  proc atticBin ["push", toString serverName <> ":" <> toString cacheName, path]
+atticPushProcess AtticServer {name} cacheName path =
+  proc atticBin ["push", toString name <> ":" <> toString cacheName, path]
 
 {- | Saves the access token for the attic server
 
@@ -33,5 +33,5 @@ Run this process before other attic processes.
 TODO: Remove after https://github.com/zhaofengli/attic/issues/243 is resolved to provide stateless access
 -}
 atticLoginProcess :: AtticServer -> AtticToken -> CreateProcess
-atticLoginProcess AtticServer {serverName, serverEndpoint} token =
-  proc atticBin ["login", toString serverName, toString serverEndpoint, toString token]
+atticLoginProcess AtticServer {name, endpoint} token =
+  proc atticBin ["login", toString name, toString endpoint, toString token]

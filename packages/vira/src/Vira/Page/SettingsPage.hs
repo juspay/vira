@@ -76,7 +76,7 @@ deleteCachixHandler = do
 updateAtticHandler :: AtticSettings -> Eff App.AppServantStack FormResp
 updateAtticHandler settings = do
   App.update $ St.SetAtticSettingsA (Just settings)
-  log Info $ "Updated attic settings for " <> settings.atticServer.serverName <> ":" <> toText settings.atticCacheName
+  log Info $ "Updated attic settings for " <> settings.server.name <> ":" <> toText settings.cacheName
   pure $ addHeader True "Ok"
 
 deleteAtticHandler :: Eff App.AppServantStack FormResp
@@ -125,9 +125,9 @@ viewSettings = do
             W.viraAlert_ W.AlertSuccess $ do
               p_ [class_ "text-green-800"] $ do
                 "Connected to "
-                strong_ $ toHtml attic.atticServer.serverName
+                strong_ $ toHtml attic.server.name
                 " ("
-                toHtml $ toText attic.atticCacheName
+                toHtml $ toText attic.cacheName
                 ")"
             W.viraDivider_
           Nothing -> do
@@ -185,50 +185,50 @@ viewSettings = do
       form_ [id_ "attic-update", hxPostSafe_ updateAtticLink, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do
         div_ [class_ "grid gap-4 lg:grid-cols-2"] $ do
           W.viraFormGroup_
-            ( withFieldName @AtticServer @"serverName" $ \name ->
+            ( withFieldName @AtticServer @"name" $ \name ->
                 W.viraLabel_ [for_ name] "Server Name"
             )
-            ( withFieldName @AtticServer @"serverName" $ \name ->
+            ( withFieldName @AtticServer @"name" $ \name ->
                 W.viraInput_
                   [ type_ "text"
                   , name_ name
-                  , value_ $ maybe "" ((.serverName) . (.atticServer)) mAtticSettings
+                  , value_ $ maybe "" ((.name) . (.server)) mAtticSettings
                   , placeholder_ "my-attic"
                   ]
             )
 
           W.viraFormGroup_
-            ( withFieldName @AtticServer @"serverEndpoint" $ \name ->
+            ( withFieldName @AtticServer @"endpoint" $ \name ->
                 W.viraLabel_ [for_ name] "Server URL"
             )
-            ( withFieldName @AtticServer @"serverEndpoint" $ \name ->
+            ( withFieldName @AtticServer @"endpoint" $ \name ->
                 W.viraInput_
                   [ type_ "url"
                   , name_ name
-                  , value_ $ maybe "" (toText . (.serverEndpoint) . (.atticServer)) mAtticSettings
+                  , value_ $ maybe "" (toText . (.endpoint) . (.server)) mAtticSettings
                   , placeholder_ "https://attic.example.com"
                   ]
             )
 
         div_ [class_ "grid gap-4 lg:grid-cols-2"] $ do
           W.viraFormGroup_
-            ( withFieldName @AtticSettings @"atticCacheName" $ \name ->
+            ( withFieldName @AtticSettings @"cacheName" $ \name ->
                 W.viraLabel_ [for_ name] "Cache Name"
             )
-            ( withFieldName @AtticSettings @"atticCacheName" $ \name ->
+            ( withFieldName @AtticSettings @"cacheName" $ \name ->
                 W.viraInput_
                   [ type_ "text"
                   , name_ name
-                  , value_ $ maybe "" (toText . (.atticCacheName)) mAtticSettings
+                  , value_ $ maybe "" (toText . (.cacheName)) mAtticSettings
                   , placeholder_ "cache-name"
                   ]
             )
 
           W.viraFormGroup_
-            ( withFieldName @AtticSettings @"atticToken" $ \name ->
+            ( withFieldName @AtticSettings @"token" $ \name ->
                 W.viraLabel_ [for_ name] "Token"
             )
-            ( withFieldName @AtticSettings @"atticToken" $ \name ->
+            ( withFieldName @AtticSettings @"token" $ \name ->
                 W.viraInput_ $
                   [ type_ "password"
                   , name_ name

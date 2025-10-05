@@ -33,8 +33,8 @@ $(deriveSafeCopy 0 'base ''AtticServerEndpoint)
 
 -- | Reference to a self-hosted attic server
 data AtticServer = AtticServer
-  { serverName :: Text
-  , serverEndpoint :: AtticServerEndpoint
+  { name :: Text
+  , endpoint :: AtticServerEndpoint
   }
   deriving stock (Eq, Show, Generic)
   deriving anyclass (FromForm, ToJSON, FromJSON)

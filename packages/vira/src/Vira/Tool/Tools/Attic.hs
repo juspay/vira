@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 -- | Attic tool-specific logic
@@ -18,7 +19,8 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Process (CreateProcess)
 import Lucid (HtmlT, class_, code_, div_, p_, span_, strong_, toHtml)
 import TOML (TOMLError)
-import Vira.Tool.Type (SetupError (..), ToolData (..))
+import Vira.Tool.Type (SetupError (..))
+import Vira.Tool.Type qualified as Tool
 import Vira.Widgets.Alert (AlertType (..), viraAlert_)
 
 -- | All errors that can occur when working with Attic
@@ -30,12 +32,12 @@ data AtticError
   deriving stock (Show, Eq)
 
 -- | Get Attic tool data with metadata and runtime info
-getToolData :: (IOE :> es) => Eff es (ToolData (Either SetupError AtticConfig))
+getToolData :: (IOE :> es) => Eff es (Tool.ToolData (Either SetupError AtticConfig))
 getToolData = do
   configResult <- liftIO Attic.Config.readAtticConfig
   let status = validateConfig configResult
   pure
-    ToolData
+    Tool.ToolData
       { name = "Attic"
       , description = "Self-hosted Nix binary cache server"
       , url = "https://github.com/zhaofengli/attic"

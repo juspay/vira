@@ -8,6 +8,11 @@ See README.md for general project information.
 - Use `relude` over Prelude
 - Use `staticWhich` for runtime dependencies (see `Vira.Lib.*`)
 - Use OverloadedRecordDot syntax for field access (e.g., `record.field`) - requires `{-# LANGUAGE OverloadedRecordDot #-}` extension
+- **Record field naming**: Use short, descriptive names WITHOUT type prefixes
+  - ✓ Good: `data User = User { name :: Text, email :: Text }`
+  - ✗ Bad: `data User = User { userName :: Text, userEmail :: Text }`
+  - The type provides context; OverloadedRecordDot makes prefixes redundant
+  - Enable `{-# LANGUAGE DuplicateRecordFields #-}` when field name conflicts occur
 - Sync code changes with DESIGN.md
 
 ### Build instructions

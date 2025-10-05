@@ -99,8 +99,8 @@ atticProcs :: ViraEnvironment -> AtticStage -> [CreateProcess]
 atticProcs env stage =
   if stage.enable
     then flip concatMap env.atticSettings $ \attic ->
-      [ Attic.atticLoginProcess attic.atticServer attic.atticToken
-      , Attic.atticPushProcess attic.atticServer attic.atticCacheName "result"
+      [ Attic.atticLoginProcess attic.server attic.token
+      , Attic.atticPushProcess attic.server attic.cacheName "result"
       ]
     else []
 
