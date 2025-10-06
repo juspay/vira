@@ -17,7 +17,7 @@ import Vira.State.Acid (AddNewRepoA (AddNewRepoA), GetAllReposA (GetAllReposA), 
 import Vira.State.Type (Repo (..))
 
 -- | Subset of ViraState that can be exported/imported
-data ViraExportData = ViraExportData
+newtype ViraExportData = ViraExportData
   { repositories :: Map RepoName Text
   -- ^ Map of repository names to clone URLs
   }
