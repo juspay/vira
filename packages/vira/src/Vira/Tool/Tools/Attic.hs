@@ -40,19 +40,16 @@ getToolData = do
 
 {- | Create attic push process from parsed cache info and config
 
-Takes the attic config result, server endpoint, cache name, and path to push.
+Takes the attic config, server endpoint, cache name, and path to push.
 Returns either a ConfigError or the CreateProcess for pushing.
 -}
 createPushProcess ::
-  Either ConfigError AtticConfig ->
+  AtticConfig ->
   AtticServerEndpoint ->
   AtticCache ->
   FilePath ->
   Either ConfigError CreateProcess
-createPushProcess configResult serverEndpoint cacheName path = do
-  -- Extract config
-  config <- configResult
-
+createPushProcess config serverEndpoint cacheName path = do
   -- Get server name for endpoint
   serverName <-
     Attic.Config.lookupEndpoint config serverEndpoint

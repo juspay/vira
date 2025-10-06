@@ -115,16 +115,16 @@ cacheProcs env stage = case stage.url of
     -- Parse cache URL once
     (serverEndpoint, cacheName) <-
       Attic.Url.parseCacheUrl urlText
-        & first (urlParseError urlText)
+        & first (parseErrorToPipelineError urlText)
 
-    -- Create push process with parsed values
-    pushProc <-
-      AtticTool.createPushProcess env.tools.attic.status serverEndpoint cacheName "result"
-        & first (atticErrorToPipelineError urlText serverEndpoint)
+    -- Get attic config and create push process
+    pushProc <- first (atticErrorToPipelineError urlText serverEndpoint) $ do
+      atticConfig <- env.tools.attic.status
+      AtticTool.createPushProcess atticConfig serverEndpoint cacheName "result"
     pure $ one pushProc
   where
-    urlParseError :: Text -> Attic.Url.ParseError -> PipelineError
-    urlParseError cacheUrl parseErr =
+    parseErrorToPipelineError :: Text -> Attic.Url.ParseError -> PipelineError
+    parseErrorToPipelineError cacheUrl parseErr =
       PipelineConfigurationError $
         MalformedConfig $
           "Invalid cache URL '" <> cacheUrl <> "': " <> show parseErr
