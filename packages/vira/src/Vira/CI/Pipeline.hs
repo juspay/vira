@@ -61,8 +61,9 @@ runPipeline env = do
   -- HACK: We hardcoding "project" (see projectDir function in Environment.hs)
   let setupProcs =
         one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit "project"
-  setupResult <- Task.runProcesses setupProcs
-  case setupResult of
+  Task.runProcesses setupProcs >>= \case
+    Left err ->
+      pure $ Left $ PipelineTaskException err
     Right ExitSuccess -> do
       -- 2. Configure and run pipeline
       Task.logToWorkspaceOutput "Setting up pipeline..."
@@ -79,8 +80,8 @@ runPipeline env = do
             Right pipelineProcs -> do
               Task.logToWorkspaceOutput $ "Running " <> show (length pipelineProcs) <> " pipeline stages..."
               Task.runProcesses pipelineProcs <&> first PipelineTaskException
-    _ -> do
-      pure $ setupResult & first PipelineTaskException
+    Right exitCode -> do
+      pure $ Right exitCode
 
 -- | Convert pipeline configuration to CreateProcess list
 pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> Either PipelineError (NonEmpty CreateProcess)
