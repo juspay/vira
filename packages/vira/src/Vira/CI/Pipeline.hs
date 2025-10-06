@@ -110,10 +110,10 @@ buildProcs stage =
 
 cacheProcs :: ViraEnvironment -> CacheStage -> Either PipelineError [CreateProcess]
 cacheProcs env stage =
-  go stage.url
+  go env.tools.attic stage.url
   where
-    go Nothing = pure []
-    go (Just urlText) = do
+    go _ Nothing = pure []
+    go attic (Just urlText) = do
       -- Parse cache URL once
       (serverEndpoint, cacheName) <-
         Attic.Url.parseCacheUrl urlText
@@ -121,7 +121,7 @@ cacheProcs env stage =
 
       -- Get attic config and create push process
       pushProc <- first (atticErrorToPipelineError urlText serverEndpoint) $ do
-        atticConfig <- env.tools.attic.status
+        atticConfig <- attic.status
         AtticTool.createPushProcess atticConfig serverEndpoint cacheName "result"
       pure $ one pushProc
 
@@ -180,7 +180,7 @@ pipelineForProject ::
   Eff es ViraPipeline
 pipelineForProject env logger = do
   let
-    pipeline = defaultPipeline env & hardcodePerRepoConfig env
+    pipeline = defaultPipeline & hardcodePerRepoConfig env
     viraConfigPath = projectDir env </> "vira.hs"
   configExists <- liftIO $ doesFileExist viraConfigPath
 
@@ -200,8 +200,8 @@ pipelineForProject env logger = do
       pure pipeline
 
 -- | Create a default pipeline configuration
-defaultPipeline :: ViraEnvironment -> ViraPipeline
-defaultPipeline _env =
+defaultPipeline :: ViraPipeline
+defaultPipeline =
   ViraPipeline
     { build = BuildStage True mempty
     , cache = CacheStage Nothing

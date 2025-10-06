@@ -93,7 +93,7 @@ spec = describe "Vira.CI.Configuration" $ do
     it "applies valid config correctly" $ do
       configPath <- getDataFileName "test/sample-configs/simple-example.hs"
       configCode <- decodeUtf8 <$> readFileBS configPath
-      result <- applyConfig configCode (viraContext testEnvStaging) (defaultPipeline testEnvStaging)
+      result <- applyConfig configCode (viraContext testEnvStaging) defaultPipeline
       case result of
         Right pipeline -> do
           pipeline.signoff.enable `shouldBe` True
