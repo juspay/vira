@@ -109,38 +109,40 @@ buildProcs stage =
       concatMap (\(key, value) -> ["--override-input", toString key, toString value])
 
 cacheProcs :: ViraEnvironment -> CacheStage -> Either PipelineError [CreateProcess]
-cacheProcs env stage = case stage.url of
-  Nothing -> pure []
-  Just urlText -> do
-    -- Parse cache URL once
-    (serverEndpoint, cacheName) <-
-      Attic.Url.parseCacheUrl urlText
-        & first (parseErrorToPipelineError urlText)
-
-    -- Get attic config and create push process
-    pushProc <- first (atticErrorToPipelineError urlText serverEndpoint) $ do
-      atticConfig <- env.tools.attic.status
-      AtticTool.createPushProcess atticConfig serverEndpoint cacheName "result"
-    pure $ one pushProc
+cacheProcs env stage =
+  go stage.url
   where
+    go Nothing = pure []
+    go (Just urlText) = do
+      -- Parse cache URL once
+      (serverEndpoint, cacheName) <-
+        Attic.Url.parseCacheUrl urlText
+          & first (parseErrorToPipelineError urlText)
+
+      -- Get attic config and create push process
+      pushProc <- first (atticErrorToPipelineError urlText serverEndpoint) $ do
+        atticConfig <- env.tools.attic.status
+        AtticTool.createPushProcess atticConfig serverEndpoint cacheName "result"
+      pure $ one pushProc
+
     parseErrorToPipelineError :: Text -> Attic.Url.ParseError -> PipelineError
-    parseErrorToPipelineError cacheUrl parseErr =
+    parseErrorToPipelineError url err =
       PipelineConfigurationError $
         MalformedConfig $
-          "Invalid cache URL '" <> cacheUrl <> "': " <> show parseErr
+          "Invalid cache URL '" <> url <> "': " <> show err
 
     atticErrorToPipelineError :: Text -> AtticServerEndpoint -> ConfigError -> PipelineError
-    atticErrorToPipelineError cacheUrl serverEndpoint configErr =
-      PipelineToolError $ case AtticTool.configErrorToSuggestion (Just serverEndpoint) configErr of
+    atticErrorToPipelineError url endpoint err =
+      PipelineToolError $ case AtticTool.configErrorToSuggestion (Just endpoint) err of
         Just suggestion ->
           ToolError $
             "Attic configuration error for cache URL '"
-              <> cacheUrl
+              <> url
               <> "': "
-              <> show configErr
+              <> show err
               <> "\n\nSuggestion: Run the following in your terminal\n\n"
               <> AtticTool.suggestionToText suggestion
-        Nothing -> ToolError $ "Attic configuration error: " <> show configErr
+        Nothing -> ToolError $ "Attic configuration error: " <> show err
 
 signoffProcs :: SignoffStage -> [CreateProcess]
 signoffProcs stage =
