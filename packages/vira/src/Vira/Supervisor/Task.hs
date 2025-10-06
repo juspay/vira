@@ -63,6 +63,7 @@ startTask ::
   , IOE :> es
   , FileSystem :> es
   , HasCallStack
+  , Show err
   ) =>
   TaskSupervisor ->
   TaskId ->
@@ -95,6 +96,9 @@ startTask supervisor taskId workDir orchestrator onFinish = do
         Reader.runReader info $ logToWorkspaceOutput msg
         asyncHandle <- async $ do
           result <- Reader.runReader info orchestrator
+          -- Log the errors if any
+          whenLeft_ result $ \err -> do
+            Reader.runReader info $ logToWorkspaceOutput $ "❌ ERROR: " <> show err
           -- Stop the tail when task finishes for any reason
           liftIO $ Tail.tailStop tailHandle
           -- Then call the original handler

@@ -14,6 +14,7 @@ import Effectful.Process (CreateProcess (cwd))
 import GH.Signoff qualified as Signoff
 import Language.Haskell.Interpreter (InterpreterError)
 import Optics.Core
+import Shower qualified
 import System.Directory (doesFileExist)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
@@ -45,10 +46,14 @@ data PipelineError
   | PipelineTaskException TaskException
 
 instance TS.Show PipelineError where
-  show (PipelineToolError (ToolError msg)) = toString msg
-  show (PipelineConfigurationError (InterpreterError err)) = TS.show err
-  show (PipelineConfigurationError (MalformedConfig msg)) = toString msg
-  show PipelineEmpty = "Pipeline is empty - no stages to run"
+  show (PipelineToolError (ToolError msg)) =
+    "Tool: " <> toString msg
+  show (PipelineConfigurationError (InterpreterError err)) =
+    "vira.hs error: " <> TS.show err
+  show (PipelineConfigurationError (MalformedConfig msg)) =
+    "vira.hs has malformed config: " <> toString msg
+  show PipelineEmpty =
+    "Pipeline is empty - no stages to run"
   show (PipelineTaskException err) = TS.show err
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
@@ -66,19 +71,15 @@ runPipeline env = do
       pure $ Left $ PipelineTaskException err
     Right ExitSuccess -> do
       -- 2. Configure and run pipeline
-      Task.logToWorkspaceOutput "Setting up pipeline..."
       runErrorNoCallStack @InterpreterError (pipelineForProject env Task.logToWorkspaceOutput) >>= \case
         Left err -> do
-          Task.logToWorkspaceOutput $ "Pipeline configuration failed: " <> show err
           pure $ Left $ PipelineConfigurationError $ InterpreterError err
         Right pipeline -> do
-          Task.logToWorkspaceOutput $ "Pipeline: " <> show pipeline
+          Task.logToWorkspaceOutput $ toText $ "ℹ️ Pipeline configuration:\n" <> Shower.shower pipeline
           case pipelineToProcesses env pipeline of
             Left err -> do
-              Task.logToWorkspaceOutput $ "Failed to create pipeline processes: " <> toText (TS.show err :: String)
               pure $ Left err
             Right pipelineProcs -> do
-              Task.logToWorkspaceOutput $ "Running " <> show (length pipelineProcs) <> " pipeline stages..."
               Task.runProcesses pipelineProcs <&> first PipelineTaskException
     Right exitCode -> do
       pure $ Right exitCode
@@ -191,7 +192,6 @@ pipelineForProject env logger = do
       content <- liftIO $ readFileBS viraConfigPath
       liftIO (Configuration.applyConfig (decodeUtf8 content) (viraContext env) pipeline) >>= \case
         Left err -> do
-          logger $ "Failed to parse vira.hs: " <> show err
           throwError err
         Right customPipeline -> do
           logger "Successfully applied vira.hs configuration"
