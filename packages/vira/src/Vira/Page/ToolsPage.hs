@@ -63,23 +63,26 @@ viewToolCard toolData infoHtml = do
     div_ [class_ "flex items-start mb-4"] $ do
       viewToolIcon $ mkToolDisplay toolData.name
       div_ [class_ "flex-1"] $ do
-        h3_ [class_ "text-xl font-bold text-gray-900 dark:text-gray-100 mb-2"] $ toHtml toolData.name
+        h3_ [class_ "text-xl font-bold text-gray-900 dark:text-gray-100 mb-2"] $ do
+          a_
+            [ href_ toolData.url
+            , target_ "_blank"
+            , class_ "inline-flex items-center gap-1 hover:text-indigo-600 dark:hover:text-indigo-400"
+            ]
+            $ do
+              toHtml toolData.name
+              span_ [class_ "w-4 h-4 flex items-center"] $ toHtmlRaw Icon.external_link
         p_ [class_ "text-gray-600 dark:text-gray-300 text-sm mb-3"] $ toHtml toolData.description
-        div_ [class_ "mb-3 space-y-1"] $ do
-          forM_ toolData.binPaths $ \binPath ->
-            code_ [class_ "block text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded font-mono"] $ toHtml binPath
 
         -- Render tool-specific info
         infoHtml
 
-        a_
-          [ href_ toolData.url
-          , target_ "_blank"
-          , class_ "inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 text-sm font-medium"
-          ]
-          $ do
-            span_ "Learn more"
-            span_ [class_ "w-4 h-4 flex items-center"] $ toHtmlRaw Icon.external_link
+        -- Collapsible bin paths (debug info)
+        details_ [class_ "mt-3"] $ do
+          summary_ [class_ "text-xs text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"] "Show binary paths"
+          div_ [class_ "mt-2 space-y-1"] $ do
+            forM_ toolData.binPaths $ \binPath ->
+              code_ [class_ "block text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded font-mono"] $ toHtml binPath
 
 -- | Tool display styling
 data ToolDisplay = ToolDisplay

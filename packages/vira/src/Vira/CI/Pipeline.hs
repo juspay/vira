@@ -158,7 +158,7 @@ cacheProcs env stage = case stage.url of
               <> cacheUrl
               <> "': "
               <> show configErr
-              <> "\n\nSuggestion:\n"
+              <> "\n\nSuggestion: Run the following in your terminal\n\n"
               <> AtticTool.suggestionToText suggestion
         Nothing -> ToolError $ "Attic configuration error: " <> show configErr
 

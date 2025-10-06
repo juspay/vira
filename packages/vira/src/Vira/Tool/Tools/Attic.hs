@@ -105,8 +105,16 @@ configErrorToSuggestion mEndpoint = \case
 
 -- | Convert suggestion to text for CI logs
 suggestionToText :: AtticSuggestion -> Text
-suggestionToText AtticLoginSuggestion {bin, endpoint, token} =
-  "ATTIC=" <> toText bin <> "\n$ATTIC login " <> endpointToServerName endpoint <> " " <> toText endpoint <> " " <> maybe "<token>" (toText . unAtticToken) token
+suggestionToText suggestion =
+  T.intercalate
+    "\n"
+    [ "ATTIC=" <> toText suggestion.bin
+    , "TOKEN=" <> tokenText
+    , "$ATTIC login " <> serverName <> " " <> toText suggestion.endpoint <> " $TOKEN"
+    ]
+  where
+    serverName = endpointToServerName suggestion.endpoint
+    tokenText = maybe "YOUR-TOKEN-HERE" (toText . unAtticToken) suggestion.token
 
 -- | ToHtml instance for rendering suggestions in the Tools Page
 instance ToHtml AtticSuggestion where
@@ -124,26 +132,26 @@ viewToolStatus result = do
       Left setupErr -> case setupErr of
         ParseError err -> do
           viraAlert_ AlertError $ do
-            p_ [class_ "text-red-800 font-semibold mb-1"] "✗ Parse error"
-            p_ [class_ "text-red-700 text-sm"] $ toHtml (show err :: String)
+            p_ [class_ "text-red-800 dark:text-red-200 font-semibold mb-1"] "Parse error"
+            p_ [class_ "text-red-700 dark:text-red-300 text-sm"] $ toHtml (show err :: String)
         NotConfigured -> do
           viraAlert_ AlertWarning $ do
-            p_ [class_ "text-yellow-800 mb-1"] "⚠ Not configured"
-            p_ [class_ "text-yellow-700 text-sm"] $ do
+            p_ [class_ "text-yellow-800 dark:text-yellow-200 mb-1"] "Not configured"
+            p_ [class_ "text-yellow-700 dark:text-yellow-300 text-sm"] $ do
               "Config file not found at "
-              code_ [class_ "bg-yellow-100 px-1 rounded"] "~/.config/attic/config.toml"
+              code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] "~/.config/attic/config.toml"
             forM_ (configErrorToSuggestion Nothing NotConfigured) toHtml
         NoServerForEndpoint endpoint -> do
           viraAlert_ AlertWarning $ do
-            p_ [class_ "text-yellow-800 font-semibold mb-1"] "⚠ No server configured"
-            p_ [class_ "text-yellow-700 text-sm"] $ do
+            p_ [class_ "text-yellow-800 dark:text-yellow-200 font-semibold mb-1"] "No server configured"
+            p_ [class_ "text-yellow-700 dark:text-yellow-300 text-sm"] $ do
               "No server found for endpoint: "
-              code_ [class_ "bg-yellow-100 px-1 rounded"] $ toHtml (toText endpoint)
+              code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] $ toHtml (toText endpoint)
             forM_ (configErrorToSuggestion Nothing (NoServerForEndpoint endpoint)) toHtml
         NoToken serverName -> do
           viraAlert_ AlertWarning $ do
-            p_ [class_ "text-yellow-800 font-semibold mb-1"] "⚠ Missing authentication token"
-            p_ [class_ "text-yellow-700 text-sm"] $ do
+            p_ [class_ "text-yellow-800 dark:text-yellow-200 font-semibold mb-1"] "Missing authentication token"
+            p_ [class_ "text-yellow-700 dark:text-yellow-300 text-sm"] $ do
               "Server "
               strong_ $ toHtml serverName
               " is configured but has no authentication token"
@@ -152,11 +160,11 @@ viewToolStatus result = do
         viraAlert_ AlertSuccess $ do
           case atticCfg.defaultServer of
             Just defServer -> do
-              p_ [class_ "text-green-800 font-semibold mb-1"] $ do
-                "✓ Default server: "
+              p_ [class_ "text-green-800 dark:text-green-200 font-semibold mb-1"] $ do
+                "Default server: "
                 strong_ $ toHtml defServer
             Nothing -> do
-              p_ [class_ "text-green-800 font-semibold mb-1"] "✓ Configured"
+              p_ [class_ "text-green-800 dark:text-green-200 font-semibold mb-1"] "Configured"
 
           -- Display all configured servers
           unless (Map.null atticCfg.servers) $ do

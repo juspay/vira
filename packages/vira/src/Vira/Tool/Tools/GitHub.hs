@@ -69,16 +69,16 @@ viewToolStatus status = do
     case status of
       Authenticated {host, login, scopes} -> do
         viraAlert_ AlertSuccess $ do
-          p_ [class_ "text-green-800 font-semibold mb-1"] $ do
-            "✓ Authenticated as "
+          p_ [class_ "text-green-800 dark:text-green-200 font-semibold mb-1"] $ do
+            "Authenticated as "
             strong_ $ toHtml login
             " on "
             strong_ $ toHtml host
-          p_ [class_ "text-green-700 text-xs"] $ do
+          p_ [class_ "text-green-700 dark:text-green-300 text-xs"] $ do
             "Scopes: "
             toHtml $ T.intercalate ", " scopes
       NotAuthenticated -> do
         viraAlert_ AlertError $ do
-          p_ [class_ "text-red-800 mb-1"] "✗ Not authenticated"
-          p_ [class_ "text-red-700 text-sm"] "Please authenticate to use GitHub CLI."
+          p_ [class_ "text-red-800 dark:text-red-200 mb-1"] "Not authenticated"
+          p_ [class_ "text-red-700 dark:text-red-300 text-sm"] "Please authenticate to use GitHub CLI."
           forM_ (authStatusToSuggestion NotAuthenticated) toHtml
