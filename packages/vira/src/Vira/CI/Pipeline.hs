@@ -16,6 +16,7 @@ import System.Directory (doesFileExist)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Info qualified as SysInfo
+import Text.Show qualified as TS
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Environment (ViraEnvironment (..), projectDir, viraContext)
 import Vira.CI.Pipeline.Type
@@ -33,7 +34,12 @@ data PipelineError
   | PipelineToolError ToolError
   | PipelineEmpty
   | PipelineTaskException TaskException
-  deriving stock (Show)
+
+instance TS.Show PipelineError where
+  show (PipelineToolError (ToolError msg)) = toString msg
+  show (PipelineConfigurationError err) = TS.show err
+  show PipelineEmpty = "Pipeline is empty - no stages to run"
+  show (PipelineTaskException err) = TS.show err
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
@@ -58,7 +64,7 @@ runPipeline env = do
           Task.logToWorkspaceOutput $ "Pipeline: " <> show pipeline
           case pipelineToProcesses env pipeline of
             Left err -> do
-              Task.logToWorkspaceOutput $ "Failed to create pipeline processes: " <> show err
+              Task.logToWorkspaceOutput $ "Failed to create pipeline processes: " <> toText (TS.show err :: String)
               pure $ Left err
             Right pipelineProcs -> do
               Task.logToWorkspaceOutput $ "Running " <> show (length pipelineProcs) <> " pipeline stages..."
@@ -130,7 +136,7 @@ cacheProcs env stage = case stage.url of
                 <> cacheUrl
                 <> "': "
                 <> show configErr
-                <> "\n\nSuggestion: "
+                <> "\n\nSuggestion:\n"
                 <> AtticTool.suggestionToText suggestion
           Nothing -> ToolError $ "Attic configuration error: " <> show configErr
       AtticTool.UrlParseError parseErr ->

@@ -400,9 +400,6 @@
   .grid {
     display: grid;
   }
-  .inline {
-    display: inline;
-  }
   .inline-flex {
     display: inline-flex;
   }
@@ -701,10 +698,6 @@
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: 0px;
   }
-  .border-none {
-    --tw-border-style: none;
-    border-style: none;
-  }
   .border-blue-200 {
     border-color: var(--color-blue-200);
   }
@@ -869,9 +862,6 @@
   }
   .text-center {
     text-align: center;
-  }
-  .text-left {
-    text-align: left;
   }
   .font-mono {
     font-family: var(--font-mono);
