@@ -7,6 +7,7 @@ module Attic.Config (
   ConfigError (..),
   getAtticConfig,
   readAtticConfig,
+  lookupEndpoint,
   TOML.TOMLError,
 ) where
 
@@ -92,3 +93,16 @@ readAtticConfig = do
       case TOML.decode contents of
         Left err -> pure $ Left err
         Right config -> pure $ Right $ Just config
+
+{- | Get server name from endpoint in config
+
+Searches the config for a server with matching endpoint and returns the server name.
+-}
+lookupEndpoint ::
+  AtticConfig ->
+  AtticServerEndpoint ->
+  Maybe Text
+lookupEndpoint config serverEndpoint =
+  fst <$> find matchesEndpoint (Map.toList config.servers)
+  where
+    matchesEndpoint (_name, serverCfg) = serverCfg.endpoint == serverEndpoint

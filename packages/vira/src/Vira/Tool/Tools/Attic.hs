@@ -53,9 +53,9 @@ createPushProcess configResult serverEndpoint cacheName path = do
   -- Extract config
   config <- configResult
 
-  -- Find server config that matches the endpoint
-  (serverName, _serverCfg) <-
-    find (\(_name, serverCfg) -> serverCfg.endpoint == serverEndpoint) (Map.toList config.servers)
+  -- Get server name for endpoint
+  serverName <-
+    Attic.Config.lookupEndpoint config serverEndpoint
       & maybeToRight (NoServerForEndpoint serverEndpoint)
 
   -- Create the push process (token validation already done in getToolData)
