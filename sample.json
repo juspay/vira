@@ -2,7 +2,7 @@
   "atticSettings": null,
   "cachixSettings": {
     "authToken": "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI5NDI4ZjhkZi1mZWM5LTQ1ZjctYjMzYi01MTFiZTljNTNkNjciLCJzY29wZXMiOiJjYWNoZSJ9.WgPWUSYIie2rUdfuPqHS5mxrkT0lc7KIN7QPBPH4H-U",
-    "cachixName": "scratch-vira-dev"
+    "name": "scratch-vira-dev"
   },
   "repositories": {
     "nixos-unified-template": "https://github.com/juspay/nixos-unified-template.git",
