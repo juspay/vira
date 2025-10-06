@@ -39,11 +39,14 @@ applyConfig configContent ctx pipeline = do
       , "Vira.CI.Pipeline.Type"
       , "Effectful.Git"
       , "GHC.Records.Compat"
-      , "GHC.Base" -- For ifThenElse with RebindableSyntax
       ]
 
+    -- Wrap the config content with ifThenElse definition for RebindableSyntax
+    -- RebindableSyntax requires ifThenElse to be in scope
+    let wrappedContent = "let ifThenElse :: Bool -> a -> a -> a; ifThenElse True t _ = t; ifThenElse False _ f = f in " <> configContent
+
     -- Interpret the configuration code directly as a function
-    configFn <- Hint.interpret (toString configContent) (Hint.as :: ViraContext -> ViraPipeline -> ViraPipeline)
+    configFn <- Hint.interpret (toString wrappedContent) (Hint.as :: ViraContext -> ViraPipeline -> ViraPipeline)
 
     -- Apply the configuration function
     return $ configFn ctx pipeline
