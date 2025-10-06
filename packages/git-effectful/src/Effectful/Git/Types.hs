@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -25,15 +26,15 @@ import Servant (FromHttpApiData, ToHttpApiData)
 
 -- A git commit object.
 data Commit = Commit
-  { commitId :: CommitID
+  { id :: CommitID
   -- ^ The unique identifier of the commit
-  , commitMessage :: Text
+  , message :: Text
   -- ^ The commit message
-  , commitDate :: UTCTime
+  , date :: UTCTime
   -- ^ The commit date
-  , commitAuthor :: Text
+  , author :: Text
   -- ^ The commit author name
-  , commitAuthorEmail :: Text
+  , authorEmail :: Text
   -- ^ The commit author email
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
@@ -90,4 +91,4 @@ type CommitIxs = '[CommitID]
 type IxCommit = IxSet CommitIxs Commit
 
 instance Indexable CommitIxs Commit where
-  indices = ixList (ixFun $ \commit -> [commit.commitId])
+  indices = ixList (ixFun $ \commit -> [commit.id])

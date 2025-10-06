@@ -69,8 +69,8 @@ viewHandler jobId = do
   job <- lift $ App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
   let crumbs =
         [ LinkTo.RepoListing
-        , LinkTo.Repo job.jobRepo
-        , LinkTo.RepoBranch job.jobRepo job.jobBranch
+        , LinkTo.Repo job.repo
+        , LinkTo.RepoBranch job.repo job.branch
         , LinkTo.Job jobId
         ]
   W.layout crumbs $ viewJob job
@@ -92,7 +92,7 @@ viewJob job = do
         div_ [class_ "flex items-center justify-between"] $ do
           div_ [class_ "flex items-center space-x-4"] $ do
             span_ "Commit:"
-            W.viraCommitInfo_ job.jobCommit
+            W.viraCommitInfo_ job.commit
           div_ [class_ "flex items-center space-x-4"] $ do
             viewJobStatus job.jobStatus
             when jobActive $ do
@@ -146,7 +146,7 @@ viewJobHeader job = do
         div_ [class_ "flex-shrink-0"] $ do
           span_ [class_ "inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"] $ do
             "Job #" <> toHtml (show @Text job.jobId)
-        W.viraCommitInfo_ job.jobCommit
+        W.viraCommitInfo_ job.commit
       viewJobStatus job.jobStatus
 
 viewJobStatus :: (Monad m) => St.JobStatus -> HtmlT m ()

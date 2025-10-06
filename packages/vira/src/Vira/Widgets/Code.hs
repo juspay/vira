@@ -106,16 +106,16 @@ viraCommitInfo_ commitId = do
     viraCommitHash_ commitId
     case maybeCommit of
       Just commit -> do
-        unless (T.null commit.commitMessage) $ do
-          span_ [class_ "text-sm text-gray-600 dark:text-gray-300 truncate min-w-0 max-w-sm"] $ toHtml commit.commitMessage
-        unless (T.null commit.commitAuthor) $ do
+        unless (T.null commit.message) $ do
+          span_ [class_ "text-sm text-gray-600 dark:text-gray-300 truncate min-w-0 max-w-sm"] $ toHtml commit.message
+        unless (T.null commit.author) $ do
           span_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $ do
-            "by " <> toHtml commit.commitAuthor
-            unless (T.null commit.commitAuthorEmail) $ do
-              " <" <> toHtml commit.commitAuthorEmail <> ">"
+            "by " <> toHtml commit.author
+            unless (T.null commit.authorEmail) $ do
+              " <" <> toHtml commit.authorEmail <> ">"
         div_ [class_ "text-xs text-gray-400 dark:text-gray-500"] $
           toHtml $
-            formatTime defaultTimeLocale "%b %d, %Y" commit.commitDate
+            formatTime defaultTimeLocale "%b %d, %Y" commit.date
       Nothing -> do
         span_ [class_ "text-xs text-red-600 dark:text-red-400"] "Commit not found"
 
@@ -133,11 +133,11 @@ viraCommitInfoCompact_ commitId = do
     viraCommitHash_ commitId
     case maybeCommit of
       Just commit -> do
-        unless (T.null commit.commitMessage) $ do
-          span_ [class_ "text-sm text-gray-700 dark:text-gray-300 truncate max-w-xs"] $ toHtml commit.commitMessage
+        unless (T.null commit.message) $ do
+          span_ [class_ "text-sm text-gray-700 dark:text-gray-300 truncate max-w-xs"] $ toHtml commit.message
         div_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $
           toHtml $
-            formatRelativeTime now commit.commitDate
+            formatRelativeTime now commit.date
       Nothing -> do
         span_ [class_ "text-xs text-red-600 dark:text-red-400"] "Commit not found"
 

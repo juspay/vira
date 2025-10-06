@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Vira.CI.ConfigurationSpec (spec) where
 
@@ -19,10 +20,9 @@ import Vira.Tool.Type.Tools qualified as Tool
 -- Test data
 testRepo :: Repo
 testRepo =
-  Repo
-    { name = RepoName "test-repo"
-    , cloneUrl = "https://github.com/test/repo.git"
-    }
+  let name = RepoName "test-repo"
+      cloneUrl = "https://github.com/test/repo.git"
+   in Repo {..}
 
 testBranchStaging :: Branch
 testBranchStaging =

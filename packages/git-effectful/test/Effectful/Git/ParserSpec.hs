@@ -16,7 +16,7 @@ spec = do
         Left err -> expectationFailure $ "Parse failed: " <> show err
         Right (branchName, commit) -> do
           branchName `shouldBe` BranchName "main"
-          commit.commitId `shouldBe` CommitID "abc123def456"
-          commit.commitAuthor `shouldBe` "John Doe"
-          commit.commitAuthorEmail `shouldBe` "john@example.com"
-          commit.commitMessage `shouldBe` "Initial commit"
+          commit.id `shouldBe` CommitID "abc123def456"
+          commit.author `shouldBe` "John Doe"
+          commit.authorEmail `shouldBe` "john@example.com"
+          commit.message `shouldBe` "Initial commit"

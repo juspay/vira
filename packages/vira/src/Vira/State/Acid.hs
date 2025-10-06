@@ -124,7 +124,7 @@ setRepoA :: Repo -> Update ViraState ()
 setRepoA repo = do
   modify $ \s ->
     s
-      { repos = Ix.updateIx (name repo) repo s.repos
+      { repos = Ix.updateIx repo.name repo s.repos
       }
 
 -- | Set a repository's branches
@@ -132,7 +132,7 @@ setRepoBranchesA :: RepoName -> Map BranchName Commit -> Update ViraState ()
 setRepoBranchesA repo branches = do
   modify $ \s ->
     let
-      repoBranches = Map.toList branches <&> \(branchName, commit) -> Branch repo branchName commit.commitId
+      repoBranches = Map.toList branches <&> \(branchName, commit) -> Branch repo branchName commit.id
       commits = Map.elems branches
      in
       s
@@ -151,7 +151,7 @@ storeCommitA :: Commit -> Update ViraState ()
 storeCommitA commit = do
   modify $ \s ->
     s
-      { commits = Ix.updateIx commit.commitId commit s.commits
+      { commits = Ix.updateIx commit.id commit s.commits
       }
 
 -- | Get all jobs of a repo's branch in descending order
@@ -180,7 +180,7 @@ getJobA jobId = do
 
 -- | Create a new job returning it.
 addNewJobA :: RepoName -> BranchName -> CommitID -> FilePath -> UTCTime -> Update ViraState Job
-addNewJobA jobRepo jobBranch jobCommit baseDir jobCreatedTime = do
+addNewJobA repo branch commit baseDir jobCreatedTime = do
   jobs <- Ix.toList <$> gets jobs
   let
     jobId =

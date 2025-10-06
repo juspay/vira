@@ -107,7 +107,7 @@ cachixProcs :: ViraEnvironment -> CachixStage -> [CreateProcess]
 cachixProcs env stage =
   if stage.enable
     then flip concatMap env.cachixSettings $ \cachix ->
-      [ cachixPushProcess cachix.cachixName "result" & \p ->
+      [ cachixPushProcess cachix.name "result" & \p ->
           p {env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]}
       ]
     else []

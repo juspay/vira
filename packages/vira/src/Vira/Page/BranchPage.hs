@@ -104,7 +104,7 @@ viewCommitTimeline branch jobs = do
 
           -- Column 2: Commit info (6 columns)
           div_ [class_ "col-span-6 min-w-0"] $ do
-            W.viraCommitInfoCompact_ job.jobCommit
+            W.viraCommitInfoCompact_ job.commit
 
           -- Column 3: Build duration and status (4 columns)
           div_ [class_ "col-span-4 flex items-center justify-end space-x-2"] $ do

@@ -64,7 +64,7 @@ viewHandler = do
 updateCachixHandler :: CachixSettings -> Eff App.AppServantStack FormResp
 updateCachixHandler settings = do
   App.update $ St.SetCachixSettingsA (Just settings)
-  log Info $ "Updated cachix settings for " <> settings.cachixName
+  log Info $ "Updated cachix settings for " <> settings.name
   pure $ addHeader True "Ok"
 
 deleteCachixHandler :: Eff App.AppServantStack FormResp
@@ -105,7 +105,7 @@ viewSettings = do
             W.viraAlert_ W.AlertSuccess $ do
               p_ [class_ "text-green-800"] $ do
                 "Connected to cache: "
-                strong_ $ toHtml cachix.cachixName
+                strong_ $ toHtml cachix.name
             W.viraDivider_
           Nothing -> do
             W.viraAlert_ W.AlertInfo $ do
@@ -142,14 +142,14 @@ viewSettings = do
       updateCachixLink <- lift $ App.getLink LinkTo.SettingsUpdateCachix
       form_ [id_ "cachix-update", hxPostSafe_ updateCachixLink, hxSwapS_ InnerHTML, class_ "space-y-6"] $ do
         W.viraFormGroup_
-          ( withFieldName @CachixSettings @"cachixName" $ \name ->
+          ( withFieldName @CachixSettings @"name" $ \name ->
               W.viraLabel_ [for_ name] "Cache Name"
           )
-          ( withFieldName @CachixSettings @"cachixName" $ \name ->
+          ( withFieldName @CachixSettings @"name" $ \name ->
               W.viraInput_
                 [ type_ "text"
                 , name_ name
-                , value_ $ maybe "" (.cachixName) mCachixSettings
+                , value_ $ maybe "" (.name) mCachixSettings
                 , placeholder_ "my-cache"
                 ]
           )

@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -34,7 +35,7 @@ instance FromForm AtticSettings where
       <*> parseUnique "token" f
 
 data CachixSettings = CachixSettings
-  { cachixName :: Text
+  { name :: Text
   -- ^ Name of the cachix cache
   , authToken :: Text
   -- ^ Auth token for the cachix cache
@@ -96,11 +97,11 @@ newtype JobId = JobId {unJobId :: Natural}
     )
 
 data Job = Job
-  { jobRepo :: RepoName
+  { repo :: RepoName
   -- ^ The name of the repository this job belongs to
-  , jobBranch :: BranchName
+  , branch :: BranchName
   -- ^ The name of the branch this job is running on
-  , jobCommit :: CommitID
+  , commit :: CommitID
   -- ^ The commit this job is running on
   , jobId :: JobId
   -- ^ The unique identifier of the job
@@ -119,9 +120,9 @@ type IxJob = IxSet JobIxs Job
 instance Indexable JobIxs Job where
   indices =
     ixList
-      (ixFun $ \Job {jobRepo} -> [jobRepo])
-      (ixFun $ \Job {jobBranch} -> [jobBranch])
-      (ixFun $ \Job {jobCommit} -> [jobCommit])
+      (ixFun $ \Job {repo} -> [repo])
+      (ixFun $ \Job {branch} -> [branch])
+      (ixFun $ \Job {commit} -> [commit])
       (ixFun $ \Job {jobId} -> [jobId])
       (ixFun $ \Job {jobStatus} -> [jobStatus])
 

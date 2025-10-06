@@ -104,7 +104,7 @@ viewAllJobStatus :: AppHtml ()
 viewAllJobStatus = do
   -- Compute running jobs directly
   jobsData <- lift $ App.query Acid.GetRunningJobs
-  let jobs = jobsData <&> \job -> (job.jobRepo, job.jobId)
+  let jobs = jobsData <&> \job -> (job.repo, job.jobId)
   div_ [class_ "flex items-center space-x-2", title_ "Build Status"] $ do
     indicator $ not $ null jobs
     forM_ jobs $ \(repo, jobId) -> do
