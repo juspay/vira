@@ -4,14 +4,13 @@
 
 module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
 
-import Attic qualified
 import Attic.Config (ConfigError)
 import Attic.Types (AtticServerEndpoint)
 import Attic.Url qualified
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Git qualified as Git
-import Effectful.Process (CreateProcess (cwd), env)
+import Effectful.Process (CreateProcess (cwd))
 import GH.Signoff qualified as Signoff
 import Language.Haskell.Interpreter (InterpreterError)
 import Optics.Core
@@ -23,13 +22,14 @@ import Text.Show qualified as TS
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Environment (ViraEnvironment (..), projectDir, viraContext)
 import Vira.CI.Pipeline.Type
-import Vira.Lib.Cachix
 import Vira.Lib.Omnix qualified as Omnix
-import Vira.State.Type
+import Vira.State.Type (branchName, cloneUrl, headCommit, name)
 import Vira.Supervisor.Task qualified as Task
 import Vira.Supervisor.Type (TaskException)
-import Vira.Tool.Core (ToolData (..), ToolError (..), Tools (..))
+import Vira.Tool.Core (ToolError (..))
 import Vira.Tool.Tools.Attic qualified as AtticTool
+import Vira.Tool.Type.ToolData (status)
+import Vira.Tool.Type.Tools (attic)
 
 -- | Configuration error types
 data ConfigurationError
@@ -95,8 +95,6 @@ pipelineToProcesses' env pipeline = do
   pure $
     concat
       [ buildProcs pipeline.build
-      , atticProcs env pipeline.attic
-      , cachixProcs env pipeline.cachix
       , cachePs
       , signoffProcs pipeline.signoff
       ]
@@ -109,24 +107,6 @@ buildProcs stage =
     overrideInputsToArgs :: [(Text, Text)] -> [String]
     overrideInputsToArgs =
       concatMap (\(key, value) -> ["--override-input", toString key, toString value])
-
-atticProcs :: ViraEnvironment -> AtticStage -> [CreateProcess]
-atticProcs env stage =
-  if stage.enable
-    then flip concatMap env.atticSettings $ \attic ->
-      [ Attic.atticLoginProcess attic.server attic.token
-      , Attic.atticPushProcess attic.server attic.cacheName "result"
-      ]
-    else []
-
-cachixProcs :: ViraEnvironment -> CachixStage -> [CreateProcess]
-cachixProcs env stage =
-  if stage.enable
-    then flip concatMap env.cachixSettings $ \cachix ->
-      [ cachixPushProcess cachix.name "result" & \p ->
-          p {env = Just [("CACHIX_AUTH_TOKEN", toString cachix.authToken)]}
-      ]
-    else []
 
 cacheProcs :: ViraEnvironment -> CacheStage -> Either PipelineError [CreateProcess]
 cacheProcs env stage = case stage.url of
@@ -219,11 +199,9 @@ pipelineForProject env logger = do
 
 -- | Create a default pipeline configuration
 defaultPipeline :: ViraEnvironment -> ViraPipeline
-defaultPipeline env =
+defaultPipeline _env =
   ViraPipeline
     { build = BuildStage True mempty
-    , Vira.CI.Pipeline.Type.attic = AtticStage (isJust env.atticSettings)
-    , Vira.CI.Pipeline.Type.cachix = CachixStage (isJust env.cachixSettings)
     , cache = CacheStage Nothing
     , signoff = SignoffStage False
     }

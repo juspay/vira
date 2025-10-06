@@ -5,8 +5,6 @@
 
 module Vira.State.Type where
 
-import Attic.Types (AtticCache, AtticServer, AtticToken)
-import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Data)
 import Data.IxSet.Typed
 import Data.SafeCopy
@@ -14,34 +12,6 @@ import Data.Time (UTCTime)
 import Effectful.Git (BranchName, CommitID, RepoName (..))
 import Servant.API (FromHttpApiData, ToHttpApiData)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
-
-data AtticSettings = AtticSettings
-  { server :: AtticServer
-  -- ^ Attic server information
-  , cacheName :: AtticCache
-  -- ^ Name of the attic cache
-  , token :: AtticToken
-  -- ^ Access token for `atticServerUrl`
-  }
-  deriving stock (Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
-
--- TODO: type-check field names during compile-time
-instance FromForm AtticSettings where
-  fromForm f =
-    AtticSettings
-      <$> fromForm f
-      <*> parseUnique "cacheName" f
-      <*> parseUnique "token" f
-
-data CachixSettings = CachixSettings
-  { name :: Text
-  -- ^ Name of the cachix cache
-  , authToken :: Text
-  -- ^ Auth token for the cachix cache
-  }
-  deriving stock (Show, Generic)
-  deriving anyclass (FromForm, ToJSON, FromJSON)
 
 -- | A project's git repository
 data Repo = Repo
@@ -138,7 +108,7 @@ data JobResult = JobSuccess | JobFailure | JobKilled
 
 -- | Check if a job is currently active (pending or running)
 jobIsActive :: Job -> Bool
-jobIsActive job = case jobStatus job of
+jobIsActive job = case job.jobStatus of
   JobPending -> True
   JobRunning -> True
   JobFinished _ _ -> False
@@ -146,7 +116,7 @@ jobIsActive job = case jobStatus job of
 
 -- | Get the end time for finished jobs only
 jobEndTime :: Job -> Maybe UTCTime
-jobEndTime job = case jobStatus job of
+jobEndTime job = case job.jobStatus of
   JobFinished _ endTime -> Just endTime
   _ -> Nothing
 
@@ -156,5 +126,3 @@ $(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
 $(deriveSafeCopy 0 'base ''Branch)
 $(deriveSafeCopy 0 'base ''Repo)
-$(deriveSafeCopy 0 'base ''CachixSettings)
-$(deriveSafeCopy 0 'base ''AtticSettings)

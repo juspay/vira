@@ -13,17 +13,13 @@ import Data.Aeson (FromJSON (..), ToJSON (..), decode)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Map qualified as Map
 import Effectful.Git (RepoName)
-import Vira.State.Acid (AddNewRepoA (AddNewRepoA), GetAllReposA (GetAllReposA), GetAtticSettingsA (GetAtticSettingsA), GetCachixSettingsA (GetCachixSettingsA), GetRepoByNameA (GetRepoByNameA), SetAtticSettingsA (SetAtticSettingsA), SetCachixSettingsA (SetCachixSettingsA), ViraState)
-import Vira.State.Type (AtticSettings, CachixSettings, Repo (..))
+import Vira.State.Acid (AddNewRepoA (AddNewRepoA), GetAllReposA (GetAllReposA), GetRepoByNameA (GetRepoByNameA), ViraState)
+import Vira.State.Type (Repo (..))
 
 -- | Subset of ViraState that can be exported/imported
 data ViraExportData = ViraExportData
   { repositories :: Map RepoName Text
   -- ^ Map of repository names to clone URLs
-  , cachixSettings :: Maybe CachixSettings
-  -- ^ Global Cachix settings
-  , atticSettings :: Maybe AtticSettings
-  -- ^ Global Attic settings
   }
   deriving stock (Generic, Show)
   deriving anyclass (ToJSON, FromJSON)
@@ -32,13 +28,9 @@ data ViraExportData = ViraExportData
 getExportData :: AcidState ViraState -> IO ViraExportData
 getExportData acid = do
   repos <- query acid GetAllReposA
-  cachix <- query acid GetCachixSettingsA
-  attic <- query acid GetAtticSettingsA
   pure $
     ViraExportData
       { repositories = Map.fromList [(r.name, r.cloneUrl) | r <- repos]
-      , cachixSettings = cachix
-      , atticSettings = attic
       }
 
 -- | Import Vira state from JSON data
@@ -46,16 +38,9 @@ importViraState :: AcidState ViraState -> LBS.ByteString -> IO (Either String ()
 importViraState acid jsonData =
   case decode jsonData :: Maybe ViraExportData of
     Nothing -> pure $ Left "Invalid JSON format"
-    Just (ViraExportData repos cachix attic) -> do
+    Just (ViraExportData repos) -> do
       -- Process repositories individually
-      result <- importRepositories acid repos
-      case result of
-        Left err -> pure $ Left err
-        Right () -> do
-          -- Update settings only if repository import succeeded
-          update acid (SetCachixSettingsA cachix)
-          update acid (SetAtticSettingsA attic)
-          pure $ Right ()
+      importRepositories acid repos
 
 -- | Import repositories, checking for conflicts
 importRepositories :: AcidState ViraState -> Map RepoName Text -> IO (Either String ())

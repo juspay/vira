@@ -60,7 +60,6 @@ library
       Vira.Page.NotFoundPage
       Vira.Page.RegistryPage
       Vira.Page.RepoPage
-      Vira.Page.SettingsPage
       Vira.Page.ToolsPage
       Vira.State.Acid
       Vira.State.Core
@@ -171,6 +170,7 @@ library
     , optparse-applicative
     , process
     , profunctors
+    , record-hasfield
     , relude >=1.0
     , safecopy
     , servant
@@ -283,6 +283,7 @@ executable vira
     , optparse-applicative
     , process
     , profunctors
+    , record-hasfield
     , relude >=1.0
     , safecopy
     , servant
@@ -397,6 +398,7 @@ executable vira-tests
     , optparse-applicative
     , process
     , profunctors
+    , record-hasfield
     , relude >=1.0
     , safecopy
     , servant
