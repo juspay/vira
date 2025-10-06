@@ -8,7 +8,7 @@ let
   # Generate initial state JSON from configuration
   initialStateJson = pkgs.writeText "vira-initial-state.json" (builtins.toJSON cfg.initialState);
 
-  hasInitialState = cfg.initialState.repositories != { } || cfg.initialState.cachixSettings != null || cfg.initialState.atticSettings != null;
+  hasInitialState = cfg.initialState.repositories != { };
 in
 {
   options = {
@@ -63,33 +63,6 @@ in
             description = "Map of repository names to clone URLs";
             default = { };
             type = types.attrsOf types.str;
-          };
-
-          cachixSettings = mkOption {
-            description = "Cachix configuration";
-            default = null;
-            type = types.nullOr (types.submodule {
-              options = {
-                cachixName = mkOption {
-                  type = types.str;
-                  description = "Cachix cache name";
-                };
-                authToken = mkOption {
-                  type = types.str;
-                  description = "Cachix authentication token";
-                };
-              };
-            });
-          };
-
-          atticSettings = mkOption {
-            description = "Attic configuration";
-            default = null;
-            type = types.nullOr (types.submodule {
-              options = {
-                # Add attic-specific options here when needed
-              };
-            });
           };
         };
       };
