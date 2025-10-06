@@ -15,7 +15,7 @@ import Vira.App.Lucid (AppHtml)
 import Vira.App.Servant (mapSourceT)
 import Vira.App.Stack (runApp)
 import Vira.State.Acid qualified as St
-import Vira.State.Type (Job, JobId, jobWorkingDir)
+import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
 import Vira.Stream.Log qualified as Log
 import Prelude hiding (ask, asks)

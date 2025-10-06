@@ -36,11 +36,6 @@
                   omnix = "https://github.com/juspay/omnix.git";
                   vira = "https://github.com/juspay/vira.git";
                 };
-
-                cachixSettings = {
-                  cachixName = "my-cache";
-                  authToken = "your-cachix-token-here";
-                };
               };
             };
 

@@ -19,7 +19,6 @@ import Data.Time (UTCTime)
 import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit, RepoName)
 import System.FilePath ((</>))
 import Vira.State.Type
-import Vira.State.Type qualified as T
 
 {- | Application that gets persisted to disk through acid-state
 
@@ -34,42 +33,10 @@ data ViraState = ViraState
   , branches :: IxBranch
   , commits :: IxCommit
   , jobs :: IxJob
-  , cachix :: Maybe CachixSettings
-  -- ^ Global Cachix settings, i.e for all the `repos`
-  , attic :: Maybe AtticSettings
-  -- ^ Global Attic settings, i.e for all the `repos`
   }
   deriving stock (Generic, Typeable)
 
 $(deriveSafeCopy 0 'base ''ViraState)
-
--- | Get the cachix settings
-getCachixSettingsA :: Query ViraState (Maybe CachixSettings)
-getCachixSettingsA = do
-  ViraState {cachix} <- ask
-  pure cachix
-
--- | Get the attic settings
-getAtticSettingsA :: Query ViraState (Maybe AtticSettings)
-getAtticSettingsA = do
-  ViraState {attic} <- ask
-  pure attic
-
--- | Set the cachix settings
-setCachixSettingsA :: Maybe CachixSettings -> Update ViraState ()
-setCachixSettingsA mCachix = do
-  modify $ \s ->
-    s
-      { cachix = mCachix
-      }
-
--- | Set the attic settings
-setAtticSettingsA :: Maybe AtticSettings -> Update ViraState ()
-setAtticSettingsA mAttic = do
-  modify $ \s ->
-    s
-      { attic = mAttic
-      }
 
 -- | Set all repositories, replacing existing ones
 setAllReposA :: [Repo] -> Update ViraState ()
@@ -184,7 +151,7 @@ addNewJobA repo branch commit baseDir jobCreatedTime = do
   jobs <- Ix.toList <$> gets jobs
   let
     jobId =
-      let ids = T.jobId <$> jobs
+      let ids = (.jobId) <$> jobs
        in if Prelude.null ids then JobId 1 else JobId 1 + maximum ids
     jobStatus = JobPending
     jobWorkingDir = baseDir </> show jobId
@@ -250,10 +217,6 @@ $( makeAcidic
     , 'addNewJobA
     , 'jobUpdateStatusA
     , 'markUnfinishedJobsAsStaleA
-    , 'getCachixSettingsA
-    , 'setCachixSettingsA
-    , 'getAtticSettingsA
-    , 'setAtticSettingsA
     , 'addNewRepoA
     , 'deleteRepoByNameA
     ]

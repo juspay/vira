@@ -12,8 +12,8 @@ import Test.Hspec
 import Vira.CI.Configuration
 import Vira.CI.Environment (ViraEnvironment (..), viraContext)
 import Vira.CI.Pipeline (defaultPipeline)
-import Vira.CI.Pipeline.Type (AtticStage (..), BuildStage (..), SignoffStage (..), ViraPipeline (..))
-import Vira.State.Type (Branch (..), CachixSettings (..), Repo (..))
+import Vira.CI.Pipeline.Type (BuildStage (..), SignoffStage (..), ViraPipeline (..))
+import Vira.State.Type (Branch (..), Repo (..))
 import Vira.Tool.Type.ToolData qualified as Tool
 import Vira.Tool.Type.Tools qualified as Tool
 
@@ -83,8 +83,6 @@ testEnvStaging =
   ViraEnvironment
     { repo = testRepo
     , branch = testBranchStaging
-    , cachixSettings = Just $ CachixSettings "test-cache" "token123"
-    , atticSettings = Nothing
     , tools = testTools
     , workspacePath = "/tmp/test-workspace"
     }
@@ -98,7 +96,6 @@ spec = describe "Vira.CI.Configuration" $ do
       result <- applyConfig configCode (viraContext testEnvStaging) (defaultPipeline testEnvStaging)
       case result of
         Right pipeline -> do
-          pipeline.attic.enable `shouldBe` False
           pipeline.signoff.enable `shouldBe` True
           pipeline.build.overrideInputs `shouldBe` [("local", "github:boolean-option/false")]
         Left err -> expectationFailure $ "Config application failed: " <> show err

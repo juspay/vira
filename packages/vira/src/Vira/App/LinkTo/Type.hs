@@ -21,11 +21,6 @@ data LinkTo
   | JobLog JobId
   | JobLogStream JobId
   | Kill JobId
-  | Settings
-  | SettingsUpdateCachix
-  | SettingsDeleteCachix
-  | SettingsUpdateAttic
-  | SettingsDeleteAttic
   | Tools
   | Refresh
 
@@ -43,11 +38,6 @@ linkShortTitle = \case
   JobLog jobId -> "Job Log " <> show jobId
   JobLogStream jobId -> "Job Log Stream " <> show jobId
   Kill _ -> "Kill" -- unused
-  Settings -> "Settings"
-  SettingsUpdateCachix -> "Cachix Settings" -- unused
-  SettingsDeleteCachix -> "Delete Cachix Settings" -- unused
-  SettingsUpdateAttic -> "Attic Settings" -- unused
-  SettingsDeleteAttic -> "Delete Attic Settings" -- unused
   Tools -> "Tools"
   Refresh -> "Refresh"
 

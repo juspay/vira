@@ -3,9 +3,11 @@
       isStaging = ctx.branch == "staging"
       isRelease = ctx.branch == "release"
       cabalLocal = [("local", "github:boolean-option/false") | isStaging || isRelease]
+      cacheUrl = case ctx.branch of
+        "main" -> Just "https://cache.example.com/test"
+        _ -> Nothing
   in pipeline
-     { signoff.enable = not isMain
+     { signoff.enable = True
      , build.overrideInputs = cabalLocal
-     , attic.enable = isMain || isRelease
-     , cache.url = Just "https://cache.example.com/test"
+     , cache.url = cacheUrl
      }

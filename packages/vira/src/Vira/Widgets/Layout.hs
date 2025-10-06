@@ -155,7 +155,6 @@ linkToIcon = \case
   Repo _ -> toHtmlRaw Icon.book_2
   RepoBranch _ _ -> toHtmlRaw Icon.git_branch
   Job _ -> toHtmlRaw Icon.player_play
-  Settings -> toHtmlRaw Icon.settings_2
   Tools -> toHtmlRaw Icon.tool
   _ -> toHtmlRaw Icon.circle -- fallback for other types
 

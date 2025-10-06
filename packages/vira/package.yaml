@@ -76,6 +76,7 @@ dependencies:
   - process
   - profunctors
   - QuickCheck
+  - record-hasfield
   - safecopy
   - servant
   - servant-event-stream
