@@ -41,6 +41,7 @@ import Effectful.Reader.Dynamic (asks)
 import Lucid
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings (..))
+import Vira.App.GitRev qualified as GitRev
 import Vira.App.InstanceInfo (InstanceInfo (..), platform)
 import Vira.App.LinkTo.Type (LinkTo (..), linkShortTitle, linkTitle)
 import Vira.App.Lucid (AppHtml)
@@ -134,8 +135,17 @@ layout crumbs content = do
               span_ [title_ "Hostname", class_ "cursor-help"] $ toHtml instanceInfo.hostname
               span_ [class_ "text-gray-400 dark:text-gray-500"] "•"
               span_ [title_ "Platform", class_ "cursor-help"] $ toHtml (platform instanceInfo)
-            div_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $ do
-              a_ [href_ "https://github.com/juspay/vira", target_ "_blank", class_ "hover:text-gray-700 dark:hover:text-gray-200 transition-colors"] "Vira"
+            div_
+              [class_ "text-xs text-gray-500 dark:text-gray-400"]
+              viraVersionLink
+
+-- | Display Vira version with git commit hash
+viraVersionLink :: (Monad m) => HtmlT m ()
+viraVersionLink = do
+  let commitUrl = "https://github.com/juspay/vira/commit/" <> GitRev.gitHashFull
+  a_ [href_ "https://github.com/juspay/vira", target_ "_blank", class_ "hover:text-gray-700 dark:hover:text-gray-200 transition-colors"] "Vira"
+  span_ [class_ "text-gray-400 dark:text-gray-500 mx-1"] "@"
+  a_ [href_ commitUrl, target_ "_blank", class_ "hover:text-gray-700 dark:hover:text-gray-200 transition-colors font-mono", title_ GitRev.gitHashFull] $ toHtml GitRev.gitHashShort
 
 -- | Get icon for a LinkTo type
 linkToIcon :: (Monad m) => LinkTo -> HtmlT m ()
