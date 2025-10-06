@@ -7,7 +7,6 @@ module Vira.Tool.Tools.Attic (
   createPushProcess,
   viewToolStatus,
   ConfigError (..),
-  AtticError (..),
   AtticSuggestion (..),
   configErrorToSuggestion,
   suggestionToText,
@@ -16,8 +15,7 @@ module Vira.Tool.Tools.Attic (
 import Attic qualified
 import Attic.Config (AtticConfig (..), AtticServerConfig (..), ConfigError (..))
 import Attic.Config qualified
-import Attic.Types (AtticServer (..), AtticServerEndpoint (..))
-import Attic.Url qualified as Url
+import Attic.Types (AtticCache (..), AtticServer (..), AtticServerEndpoint (..))
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Process (CreateProcess)
@@ -25,14 +23,6 @@ import Lucid (HtmlT, ToHtml (..), class_, code_, div_, p_, span_, strong_, toHtm
 import Vira.Tool.Type.ToolData (ToolData (..))
 import Vira.Widgets.Alert (AlertType (..), viraAlert_)
 import Vira.Widgets.Code qualified as W
-
--- | All errors that can occur when working with Attic
-data AtticError
-  = -- | URL parsing failed
-    UrlParseError Url.ParseError
-  | -- | Configuration/setup error
-    ConfigError ConfigError
-  deriving stock (Show, Eq)
 
 -- | Suggestions for fixing Attic configuration issues
 data AtticSuggestion = AtticLoginSuggestion
@@ -56,41 +46,39 @@ getToolData = do
       , status = status
       }
 
-{- | Create attic push process from cache URL and config
+{- | Create attic push process from parsed cache info and config
 
-Takes the attic config result, cache URL, and path to push.
-Returns either an AtticError or the CreateProcess for pushing.
+Takes the attic config result, server endpoint, cache name, and path to push.
+Returns either a ConfigError or the CreateProcess for pushing.
 -}
 createPushProcess ::
   Either ConfigError AtticConfig ->
-  Text ->
+  AtticServerEndpoint ->
+  AtticCache ->
   FilePath ->
-  Either AtticError CreateProcess
-createPushProcess configResult cacheUrl path = do
-  -- Parse cache URL to extract server endpoint and cache name
-  (serverEndpoint, cacheName) <- first UrlParseError $ Url.parseCacheUrl cacheUrl
-
+  Either ConfigError CreateProcess
+createPushProcess configResult serverEndpoint cacheName path = do
   -- Extract config
-  config <- first ConfigError configResult
+  config <- configResult
 
   -- Find server config that matches the endpoint
   (serverName, _serverCfg) <-
     find (\(_name, serverCfg) -> serverCfg.endpoint == serverEndpoint) (Map.toList config.servers)
-      & maybeToRight (ConfigError (NoServerForEndpoint serverEndpoint))
+      & maybeToRight (NoServerForEndpoint serverEndpoint)
 
   -- Create the push process (token validation already done in getToolData)
   pure $ Attic.atticPushProcess (AtticServer serverName serverEndpoint) cacheName path
 
 -- | Convert a ConfigError to a suggestion for fixing it
-configErrorToSuggestion :: ConfigError -> Maybe AtticSuggestion
-configErrorToSuggestion = \case
+configErrorToSuggestion :: Maybe AtticServerEndpoint -> ConfigError -> Maybe AtticSuggestion
+configErrorToSuggestion mEndpoint = \case
   ParseError _ -> Nothing -- Parse errors need manual TOML fixing
   NotConfigured ->
     Just $
       AtticLoginSuggestion
         { bin = Attic.atticBin
         , serverName = "myserver"
-        , endpoint = "https://cache.example.com"
+        , endpoint = fromMaybe "https://cache.example.com" mEndpoint
         , tokenPlaceholder = "<token>"
         }
   NoServerForEndpoint endpoint ->
@@ -106,7 +94,7 @@ configErrorToSuggestion = \case
       AtticLoginSuggestion
         { bin = Attic.atticBin
         , serverName = serverName
-        , endpoint = "https://cache.example.com"
+        , endpoint = fromMaybe "https://cache.example.com" mEndpoint
         , tokenPlaceholder = "<token>"
         }
 
@@ -139,14 +127,14 @@ viewToolStatus result = do
             p_ [class_ "text-yellow-700 text-sm"] $ do
               "Config file not found at "
               code_ [class_ "bg-yellow-100 px-1 rounded"] "~/.config/attic/config.toml"
-            forM_ (configErrorToSuggestion NotConfigured) toHtml
+            forM_ (configErrorToSuggestion Nothing NotConfigured) toHtml
         NoServerForEndpoint endpoint -> do
           viraAlert_ AlertWarning $ do
             p_ [class_ "text-yellow-800 font-semibold mb-1"] "⚠ No server configured"
             p_ [class_ "text-yellow-700 text-sm"] $ do
               "No server found for endpoint: "
               code_ [class_ "bg-yellow-100 px-1 rounded"] $ toHtml (toText endpoint)
-            forM_ (configErrorToSuggestion (NoServerForEndpoint endpoint)) toHtml
+            forM_ (configErrorToSuggestion Nothing (NoServerForEndpoint endpoint)) toHtml
         NoToken serverName -> do
           viraAlert_ AlertWarning $ do
             p_ [class_ "text-yellow-800 font-semibold mb-1"] "⚠ Missing authentication token"
@@ -154,7 +142,7 @@ viewToolStatus result = do
               "Server "
               strong_ $ toHtml serverName
               " is configured but has no authentication token"
-            forM_ (configErrorToSuggestion (NoToken serverName)) toHtml
+            forM_ (configErrorToSuggestion Nothing (NoToken serverName)) toHtml
       Right atticCfg -> do
         viraAlert_ AlertSuccess $ do
           case atticCfg.defaultServer of
