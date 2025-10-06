@@ -4,7 +4,7 @@
   imports = [
     inputs.process-compose-flake.flakeModule
   ];
-  perSystem = { self', lib, config, pkgs, ... }: {
+  perSystem = { self', lib, pkgs, ... }: {
     haskellProjects.default.devShell.tools = _: {
       inherit (self'.packages) vira-dev;
     };
@@ -18,7 +18,7 @@
                 # Workaround cabal/ghcid bug with $PATH mangling.
                 export PATH=$(echo "$PATH" | tr ':' '\n' | grep '^/nix/store' | tr '\n' ':' | sed 's/:$//')
                 # Vira now auto-generates TLS certificates as needed
-                ghcid --outputfile=ghcid.log -T Main.main -c '${root}/cabal-repl vira:exe:vira' \
+                ghcid -T Main.main -c '${root}/cabal-repl vira:exe:vira' \
                     --setup ":set args --state-dir ./state web --host ${host} --base-path ''${BASE_PATH:-/} --import ./sample.json"
               '';
             depends_on.tailwind.condition = "process_started";

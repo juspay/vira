@@ -400,9 +400,6 @@
   .grid {
     display: grid;
   }
-  .inline {
-    display: inline;
-  }
   .inline-flex {
     display: inline-flex;
   }
@@ -700,10 +697,6 @@
   .border-b-0 {
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: 0px;
-  }
-  .border-none {
-    --tw-border-style: none;
-    border-style: none;
   }
   .border-blue-200 {
     border-color: var(--color-blue-200);
@@ -1208,13 +1201,6 @@
       }
     }
   }
-  .hover\:text-indigo-800 {
-    &:hover {
-      @media (hover: hover) {
-        color: var(--color-indigo-800);
-      }
-    }
-  }
   .hover\:text-red-800 {
     &:hover {
       @media (hover: hover) {
@@ -1457,6 +1443,11 @@
       }
     }
   }
+  .dark\:bg-yellow-800 {
+    @media (prefers-color-scheme: dark) {
+      background-color: var(--color-yellow-800);
+    }
+  }
   .dark\:bg-yellow-900\/20 {
     @media (prefers-color-scheme: dark) {
       background-color: color-mix(in srgb, oklch(42.1% 0.095 57.708) 20%, transparent);
@@ -1508,6 +1499,11 @@
       color: var(--color-gray-500);
     }
   }
+  .dark\:text-green-200 {
+    @media (prefers-color-scheme: dark) {
+      color: var(--color-green-200);
+    }
+  }
   .dark\:text-green-300 {
     @media (prefers-color-scheme: dark) {
       color: var(--color-green-300);
@@ -1528,11 +1524,6 @@
       color: var(--color-indigo-300);
     }
   }
-  .dark\:text-indigo-400 {
-    @media (prefers-color-scheme: dark) {
-      color: var(--color-indigo-400);
-    }
-  }
   .dark\:text-orange-300 {
     @media (prefers-color-scheme: dark) {
       color: var(--color-orange-300);
@@ -1551,6 +1542,11 @@
   .dark\:text-red-400 {
     @media (prefers-color-scheme: dark) {
       color: var(--color-red-400);
+    }
+  }
+  .dark\:text-yellow-200 {
+    @media (prefers-color-scheme: dark) {
+      color: var(--color-yellow-200);
     }
   }
   .dark\:text-yellow-300 {
@@ -1633,11 +1629,11 @@
       }
     }
   }
-  .dark\:hover\:text-indigo-300 {
+  .dark\:hover\:text-indigo-400 {
     @media (prefers-color-scheme: dark) {
       &:hover {
         @media (hover: hover) {
-          color: var(--color-indigo-300);
+          color: var(--color-indigo-400);
         }
       }
     }

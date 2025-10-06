@@ -10,7 +10,7 @@ module Attic.Config (
   TOML.TOMLError,
 ) where
 
-import Attic.Types (AtticServerEndpoint (..), AtticToken (..))
+import Attic.Types (AtticServer (AtticServer), AtticServerEndpoint (..), AtticToken (..))
 import Data.Map.Strict qualified as Map
 import System.Directory (XdgDirectory (..), doesFileExist, getXdgDirectory)
 import TOML (DecodeTOML, TOMLError, getField, getFields)
@@ -51,7 +51,7 @@ data ConfigError
   | -- | No server configured for endpoint
     NoServerForEndpoint AtticServerEndpoint
   | -- | Server configured but no authentication token
-    NoToken Text
+    NoToken AtticServer
   deriving stock (Show, Eq)
 
 {- | Get validated Attic configuration
@@ -70,8 +70,8 @@ getAtticConfig = validateConfig <$> readAtticConfig
       config <- mConfig & maybeToRight NotConfigured
 
       -- Check if any server is missing a token
-      case find (\(_, serverCfg) -> isNothing serverCfg.token) (Map.toList config.servers) of
-        Just (serverName, _) -> Left (NoToken serverName)
+      case find (\(_server, serverCfg) -> isNothing serverCfg.token) (Map.toList config.servers) of
+        Just (serverName, cfg) -> Left $ NoToken $ AtticServer serverName cfg.endpoint
         Nothing -> Right config
 
 {- | Read Attic configuration from ~/.config/attic/config.toml

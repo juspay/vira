@@ -5,6 +5,9 @@
 module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
 
 import Attic qualified
+import Attic.Config (ConfigError)
+import Attic.Types (AtticServerEndpoint)
+import Attic.Url qualified
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Git qualified as Git
@@ -16,6 +19,7 @@ import System.Directory (doesFileExist)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Info qualified as SysInfo
+import Text.Show qualified as TS
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Environment (ViraEnvironment (..), projectDir, viraContext)
 import Vira.CI.Pipeline.Type
@@ -27,13 +31,25 @@ import Vira.Supervisor.Type (TaskException)
 import Vira.Tool.Core (ToolData (..), ToolError (..), Tools (..))
 import Vira.Tool.Tools.Attic qualified as AtticTool
 
+-- | Configuration error types
+data ConfigurationError
+  = InterpreterError InterpreterError
+  | MalformedConfig Text
+  deriving stock (Show)
+
 -- | Pipeline-specific errors
 data PipelineError
-  = PipelineConfigurationError InterpreterError
+  = PipelineConfigurationError ConfigurationError
   | PipelineToolError ToolError
   | PipelineEmpty
   | PipelineTaskException TaskException
-  deriving stock (Show)
+
+instance TS.Show PipelineError where
+  show (PipelineToolError (ToolError msg)) = toString msg
+  show (PipelineConfigurationError (InterpreterError err)) = TS.show err
+  show (PipelineConfigurationError (MalformedConfig msg)) = toString msg
+  show PipelineEmpty = "Pipeline is empty - no stages to run"
+  show (PipelineTaskException err) = TS.show err
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
@@ -51,14 +67,14 @@ runPipeline env = do
       -- 2. Configure and run pipeline
       Task.logToWorkspaceOutput "Setting up pipeline..."
       runErrorNoCallStack @InterpreterError (pipelineForProject env Task.logToWorkspaceOutput) >>= \case
-        Left (PipelineConfigurationError -> err) -> do
+        Left err -> do
           Task.logToWorkspaceOutput $ "Pipeline configuration failed: " <> show err
-          pure $ Left err
+          pure $ Left $ PipelineConfigurationError $ InterpreterError err
         Right pipeline -> do
           Task.logToWorkspaceOutput $ "Pipeline: " <> show pipeline
           case pipelineToProcesses env pipeline of
             Left err -> do
-              Task.logToWorkspaceOutput $ "Failed to create pipeline processes: " <> show err
+              Task.logToWorkspaceOutput $ "Failed to create pipeline processes: " <> toText (TS.show err :: String)
               pure $ Left err
             Right pipelineProcs -> do
               Task.logToWorkspaceOutput $ "Running " <> show (length pipelineProcs) <> " pipeline stages..."
@@ -69,11 +85,11 @@ runPipeline env = do
 -- | Convert pipeline configuration to CreateProcess list
 pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> Either PipelineError (NonEmpty CreateProcess)
 pipelineToProcesses env pipeline = do
-  procs' <- pipelineToProcesses' env pipeline & first PipelineToolError
+  procs' <- pipelineToProcesses' env pipeline
   procs <- nonEmpty procs' & maybeToRight PipelineEmpty
   pure $ procs <&> \p -> p {cwd = Just (projectDir env)}
 
-pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> Either ToolError [CreateProcess]
+pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> Either PipelineError [CreateProcess]
 pipelineToProcesses' env pipeline = do
   cachePs <- cacheProcs env pipeline.cache
   pure $
@@ -112,13 +128,39 @@ cachixProcs env stage =
       ]
     else []
 
-cacheProcs :: ViraEnvironment -> CacheStage -> Either ToolError [CreateProcess]
+cacheProcs :: ViraEnvironment -> CacheStage -> Either PipelineError [CreateProcess]
 cacheProcs env stage = case stage.url of
   Nothing -> pure []
   Just urlText -> do
-    let atticConfigResult = env.tools.attic.status
-    pushProc <- first (ToolError . show) $ AtticTool.createPushProcess atticConfigResult urlText "result"
+    -- Parse cache URL once
+    (serverEndpoint, cacheName) <-
+      Attic.Url.parseCacheUrl urlText
+        & first (urlParseError urlText)
+
+    -- Create push process with parsed values
+    pushProc <-
+      AtticTool.createPushProcess env.tools.attic.status serverEndpoint cacheName "result"
+        & first (atticErrorToPipelineError urlText serverEndpoint)
     pure $ one pushProc
+  where
+    urlParseError :: Text -> Attic.Url.ParseError -> PipelineError
+    urlParseError cacheUrl parseErr =
+      PipelineConfigurationError $
+        MalformedConfig $
+          "Invalid cache URL '" <> cacheUrl <> "': " <> show parseErr
+
+    atticErrorToPipelineError :: Text -> AtticServerEndpoint -> ConfigError -> PipelineError
+    atticErrorToPipelineError cacheUrl serverEndpoint configErr =
+      PipelineToolError $ case AtticTool.configErrorToSuggestion (Just serverEndpoint) configErr of
+        Just suggestion ->
+          ToolError $
+            "Attic configuration error for cache URL '"
+              <> cacheUrl
+              <> "': "
+              <> show configErr
+              <> "\n\nSuggestion: Run the following in your terminal\n\n"
+              <> AtticTool.suggestionToText suggestion
+        Nothing -> ToolError $ "Attic configuration error: " <> show configErr
 
 signoffProcs :: SignoffStage -> [CreateProcess]
 signoffProcs stage =
