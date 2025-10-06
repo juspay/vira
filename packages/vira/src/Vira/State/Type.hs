@@ -4,7 +4,7 @@
 
 module Vira.State.Type where
 
-import Attic
+import Attic.Types (AtticCache, AtticServer, AtticToken)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Data)
 import Data.IxSet.Typed
@@ -15,11 +15,11 @@ import Servant.API (FromHttpApiData, ToHttpApiData)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
 
 data AtticSettings = AtticSettings
-  { atticServer :: AtticServer
+  { server :: AtticServer
   -- ^ Attic server information
-  , atticCacheName :: AtticCache
+  , cacheName :: AtticCache
   -- ^ Name of the attic cache
-  , atticToken :: AtticToken
+  , token :: AtticToken
   -- ^ Access token for `atticServerUrl`
   }
   deriving stock (Show, Generic)
@@ -30,8 +30,8 @@ instance FromForm AtticSettings where
   fromForm f =
     AtticSettings
       <$> fromForm f
-      <*> parseUnique "atticCacheName" f
-      <*> parseUnique "atticToken" f
+      <*> parseUnique "cacheName" f
+      <*> parseUnique "token" f
 
 data CachixSettings = CachixSettings
   { cachixName :: Text

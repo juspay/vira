@@ -8,17 +8,21 @@ See README.md for general project information.
 - Use `relude` over Prelude
 - Use `staticWhich` for runtime dependencies (see `Vira.Lib.*`)
 - Use OverloadedRecordDot syntax for field access (e.g., `record.field`) - requires `{-# LANGUAGE OverloadedRecordDot #-}` extension
+- **Record field naming**: Use short, descriptive names WITHOUT type prefixes
+  - ✓ Good: `data User = User { name :: Text, email :: Text }`
+  - ✗ Bad: `data User = User { userName :: Text, userEmail :: Text }`
+  - The type provides context; OverloadedRecordDot makes prefixes redundant
+  - Enable `{-# LANGUAGE DuplicateRecordFields #-}` when field name conflicts occur
 - Sync code changes with DESIGN.md
 
 ### Build instructions
 
-- **Before building**, run: `just hpack pc` and fix hlint warnings
-- **For building**: Prefer `nix develop -c cabal build vira` over `nix build`, and fix _all_ GHC warnings and hlint warnings. For full build, you can do `just ci` in devShell.
+**IMPORTANT**: Do not run build commands yourself. The human runs ghcid on the terminal, which then updates `ghcid.log` with its output. You should read `ghcid.log` after making code changes; this file updates in a second or so.
 
 ## Git
 
 - DO NOT AUTOCOMMIT
-- You must `git add` newly added files, otherwise `nix` won't recognize them.
+- Do not run any `git` commands.
 
 ## Design System
 
@@ -28,4 +32,4 @@ See README.md for general project information.
 
 ## Reporting
 
-Be concise in explanations. Stop saying "absolutely right", this is insulting. Treat me like an adult. Be direct and candid; avoid fluff.
+Be concise in explanations. Stop saying "absolutely right", this is insulting. Treat me like an adult. Speak like Grok would. Be direct and candid; avoid fluff.

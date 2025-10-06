@@ -16,6 +16,8 @@ import Vira.App.Stack (AppState)
 import Vira.CI.Context (ViraContext (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (AtticSettings, Branch (..), CachixSettings, Repo)
+import Vira.Tool.Core qualified as Tool
+import Vira.Tool.Type.Tools (Tools)
 
 -- | The full context in which the CI pipeline is executed.
 data ViraEnvironment = ViraEnvironment
@@ -23,6 +25,8 @@ data ViraEnvironment = ViraEnvironment
   , branch :: Branch
   , cachixSettings :: Maybe CachixSettings
   , atticSettings :: Maybe AtticSettings
+  , tools :: Tools
+  -- ^ All tools with their runtime info (configs, auth status, etc.)
   , workspacePath :: FilePath
   -- ^ Workspace directory path
   }
@@ -43,6 +47,8 @@ environmentFor ::
 environmentFor repo branch workspacePath = do
   cachixSettings <- App.query St.GetCachixSettingsA
   atticSettings <- App.query St.GetAtticSettingsA
+  -- Refresh all tools with their latest runtime info
+  tools <- Tool.refreshTools
   pure $ ViraEnvironment {..}
 
 -- | Extract ViraContext from ViraEnvironment

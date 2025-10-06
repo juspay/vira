@@ -39,6 +39,7 @@ applyConfig configContent ctx pipeline = do
       , "Vira.CI.Pipeline.Type"
       , "Effectful.Git"
       , "GHC.Records.Compat"
+      , "GHC.Base" -- For ifThenElse with RebindableSyntax
       ]
 
     -- Interpret the configuration code directly as a function

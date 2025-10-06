@@ -43,9 +43,6 @@ dependencies:
   - containers
   - dani-servant-lucid2
   - data-default
-  - dependent-map
-  - dependent-sum
-  - dependent-sum-template
   - deriving-aeson
   - directory
   - effectful
@@ -71,6 +68,7 @@ dependencies:
   - http-types
   - ixset-typed
   - lucid2
+  - modern-uri
   - mtl
   - optics-core
   - optics-th

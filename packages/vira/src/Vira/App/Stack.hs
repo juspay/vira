@@ -20,6 +20,7 @@ import Vira.App.LinkTo.Type (LinkTo)
 import Vira.Lib.Logging (runLogActionStdout)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
+import Vira.Tool.Type.Tools (Tools)
 import Prelude hiding (Reader, ask, asks, runReader)
 
 type AppStack =
@@ -63,4 +64,6 @@ data AppState = AppState
     linkTo :: LinkTo -> Link
   , -- Broadcast channel to track when state is updated
     stateUpdated :: TChan (Text, ByteString)
+  , -- Cached tools data (mutable for refreshing)
+    tools :: TVar Tools
   }

@@ -52,6 +52,7 @@ library
       Vira.Lib.STM
       Vira.Lib.TimeExtra
       Vira.Page.BranchPage
+      Vira.Page.Common.User
       Vira.Page.IndexPage
       Vira.Page.JobLog
       Vira.Page.JobPage
@@ -59,10 +60,7 @@ library
       Vira.Page.RegistryPage
       Vira.Page.RepoPage
       Vira.Page.SettingsPage
-      Vira.Page.ToolsPage.Handler
-      Vira.Page.ToolsPage.Tool
-      Vira.Page.ToolsPage.User
-      Vira.Page.ToolsPage.View
+      Vira.Page.ToolsPage
       Vira.State.Acid
       Vira.State.Core
       Vira.State.JSON
@@ -72,6 +70,15 @@ library
       Vira.Supervisor.Core
       Vira.Supervisor.Task
       Vira.Supervisor.Type
+      Vira.Tool.Core
+      Vira.Tool.Status
+      Vira.Tool.Tools.Attic
+      Vira.Tool.Tools.Cachix
+      Vira.Tool.Tools.Git
+      Vira.Tool.Tools.GitHub
+      Vira.Tool.Tools.Omnix
+      Vira.Tool.Type.ToolData
+      Vira.Tool.Type.Tools
       Vira.Widgets.Alert
       Vira.Widgets.Button
       Vira.Widgets.Card
@@ -131,9 +138,6 @@ library
     , containers
     , dani-servant-lucid2
     , data-default
-    , dependent-map
-    , dependent-sum
-    , dependent-sum-template
     , deriving-aeson
     , directory
     , effectful
@@ -159,6 +163,7 @@ library
     , http-types
     , ixset-typed
     , lucid2
+    , modern-uri
     , mtl
     , optics-core
     , optics-th
@@ -245,9 +250,6 @@ executable vira
     , containers
     , dani-servant-lucid2
     , data-default
-    , dependent-map
-    , dependent-sum
-    , dependent-sum-template
     , deriving-aeson
     , directory
     , effectful
@@ -273,6 +275,7 @@ executable vira
     , http-types
     , ixset-typed
     , lucid2
+    , modern-uri
     , mtl
     , optics-core
     , optics-th
@@ -361,9 +364,6 @@ executable vira-tests
     , containers
     , dani-servant-lucid2
     , data-default
-    , dependent-map
-    , dependent-sum
-    , dependent-sum-template
     , deriving-aeson
     , directory
     , effectful
@@ -389,6 +389,7 @@ executable vira-tests
     , http-types
     , ixset-typed
     , lucid2
+    , modern-uri
     , mtl
     , optics-core
     , optics-th
