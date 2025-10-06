@@ -3,6 +3,7 @@
 
 module Vira.CI.ConfigurationSpec (spec) where
 
+import Attic.Config (ConfigError (..))
 import Effectful.Git (BranchName (..), CommitID (..), RepoName (..))
 import GH.Auth.Status (AuthStatus (..))
 import Paths_vira (getDataFileName)
@@ -12,7 +13,6 @@ import Vira.CI.Environment (ViraEnvironment (..), viraContext)
 import Vira.CI.Pipeline (defaultPipeline)
 import Vira.CI.Pipeline.Type (AtticStage (..), BuildStage (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), CachixSettings (..), Repo (..))
-import Vira.Tool.Tools.Attic (SetupError (..))
 import Vira.Tool.Type.ToolData qualified as Tool
 import Vira.Tool.Type.Tools qualified as Tool
 

@@ -6,48 +6,34 @@ module Vira.Tool.Tools.Attic (
   getToolData,
   createPushProcess,
   viewToolStatus,
-  SetupError (..),
+  ConfigError (..),
   AtticError (..),
 ) where
 
 import Attic qualified
-import Attic.Config (AtticConfig (..), AtticServerConfig (..))
+import Attic.Config (AtticConfig (..), AtticServerConfig (..), ConfigError (..))
 import Attic.Config qualified
-import Attic.Types (AtticServer (..), AtticServerEndpoint)
+import Attic.Types (AtticServer (..))
 import Attic.Url qualified as Url
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Process (CreateProcess)
 import Lucid (HtmlT, class_, code_, div_, p_, span_, strong_, toHtml)
-import TOML (TOMLError)
 import Vira.Tool.Type.ToolData (ToolData (..))
 import Vira.Widgets.Alert (AlertType (..), viraAlert_)
-
--- | Configuration and setup errors
-data SetupError
-  = -- | TOML configuration parse error
-    ParseError TOMLError
-  | -- | Attic is not configured
-    NotConfigured
-  | -- | No server configured for endpoint
-    NoServerForEndpoint AtticServerEndpoint
-  | -- | Server configured but no authentication token
-    NoToken Text
-  deriving stock (Show, Eq)
 
 -- | All errors that can occur when working with Attic
 data AtticError
   = -- | URL parsing failed
     UrlParseError Url.ParseError
   | -- | Configuration/setup error
-    SetupError SetupError
+    ConfigError ConfigError
   deriving stock (Show, Eq)
 
 -- | Get Attic tool data with metadata and runtime info
-getToolData :: (IOE :> es) => Eff es (ToolData (Either SetupError AtticConfig))
+getToolData :: (IOE :> es) => Eff es (ToolData (Either ConfigError AtticConfig))
 getToolData = do
-  configResult <- liftIO Attic.Config.readAtticConfig
-  let status = validateConfig configResult
+  status <- liftIO Attic.Config.getAtticConfig
   pure
     ToolData
       { name = "Attic"
@@ -57,24 +43,13 @@ getToolData = do
       , status = status
       }
 
--- | Validate attic config and check for missing tokens
-validateConfig :: Either TOMLError (Maybe AtticConfig) -> Either SetupError AtticConfig
-validateConfig configResult = do
-  mConfig <- first ParseError configResult
-  config <- mConfig & maybeToRight NotConfigured
-
-  -- Check if any server is missing a token
-  case find (isNothing . (.token) . snd) (Map.toList config.servers) of
-    Just (serverName, _) -> Left (NoToken serverName)
-    Nothing -> Right config
-
 {- | Create attic push process from cache URL and config
 
 Takes the attic config result, cache URL, and path to push.
 Returns either an AtticError or the CreateProcess for pushing.
 -}
 createPushProcess ::
-  Either SetupError AtticConfig ->
+  Either ConfigError AtticConfig ->
   Text ->
   FilePath ->
   Either AtticError CreateProcess
@@ -83,18 +58,18 @@ createPushProcess configResult cacheUrl path = do
   (serverEndpoint, cacheName) <- first UrlParseError $ Url.parseCacheUrl cacheUrl
 
   -- Extract config
-  config <- first SetupError configResult
+  config <- first ConfigError configResult
 
   -- Find server config that matches the endpoint
   (serverName, _serverCfg) <-
     find (\(_name, serverCfg) -> serverCfg.endpoint == serverEndpoint) (Map.toList config.servers)
-      & maybeToRight (SetupError (NoServerForEndpoint serverEndpoint))
+      & maybeToRight (ConfigError (NoServerForEndpoint serverEndpoint))
 
   -- Create the push process (token validation already done in getToolData)
   pure $ Attic.atticPushProcess (AtticServer serverName serverEndpoint) cacheName path
 
 -- | View Attic tool status
-viewToolStatus :: (Monad m) => Either SetupError AtticConfig -> HtmlT m ()
+viewToolStatus :: (Monad m) => Either ConfigError AtticConfig -> HtmlT m ()
 viewToolStatus result = do
   div_ [class_ "mb-3"] $ do
     case result of
