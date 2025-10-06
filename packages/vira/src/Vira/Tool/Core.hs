@@ -3,7 +3,9 @@
 -- | Tool definitions and data operations
 module Vira.Tool.Core (
   -- Re-export types
-  module Vira.Tool.Type,
+  module Vira.Tool.Type.ToolData,
+  module Vira.Tool.Type.Tools,
+  ToolError (..),
   -- Operations
   newToolsTVar,
   getTools,
@@ -19,8 +21,13 @@ import Vira.Tool.Tools.Cachix qualified as CachixTool
 import Vira.Tool.Tools.Git qualified as GitTool
 import Vira.Tool.Tools.GitHub qualified as GitHubTool
 import Vira.Tool.Tools.Omnix qualified as OmnixTool
-import Vira.Tool.Type
+import Vira.Tool.Type.ToolData
+import Vira.Tool.Type.Tools
 import Prelude hiding (Reader)
+
+-- | Tool-related errors
+newtype ToolError = ToolError Text
+  deriving stock (Show)
 
 -- | Create a new TVar with all tools data
 newToolsTVar :: (IOE :> es) => Eff es (STM.TVar Tools)

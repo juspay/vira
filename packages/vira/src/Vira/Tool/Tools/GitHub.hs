@@ -11,7 +11,7 @@ import GH.Auth.Status qualified as GH
 import GH.Core qualified as GH
 import GH.Signoff qualified as GH
 import Lucid (HtmlT, class_, code_, div_, p_, strong_, toHtml)
-import Vira.Tool.Type (ToolData (..))
+import Vira.Tool.Type.ToolData (ToolData (..))
 import Vira.Widgets.Alert (AlertType (..), viraAlert_)
 
 -- | Get GitHub tool data with metadata and runtime info

@@ -12,7 +12,9 @@ import Vira.CI.Environment (ViraEnvironment (..), viraContext)
 import Vira.CI.Pipeline (defaultPipeline)
 import Vira.CI.Pipeline.Type (AtticStage (..), BuildStage (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), CachixSettings (..), Repo (..))
-import Vira.Tool.Type qualified as Tool
+import Vira.Tool.Tools.Attic (SetupError (..))
+import Vira.Tool.Type.ToolData qualified as Tool
+import Vira.Tool.Type.Tools qualified as Tool
 
 -- Test data
 testRepo :: Repo
@@ -40,7 +42,7 @@ testTools =
           , Tool.description = "Test tool"
           , Tool.url = "https://example.com"
           , Tool.binPaths = one "test-bin"
-          , Tool.status = Left Tool.NotConfigured
+          , Tool.status = Left NotConfigured
           }
     , Tool.github =
         Tool.ToolData

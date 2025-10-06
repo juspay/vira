@@ -77,7 +77,8 @@ library
       Vira.Tool.Tools.Git
       Vira.Tool.Tools.GitHub
       Vira.Tool.Tools.Omnix
-      Vira.Tool.Type
+      Vira.Tool.Type.ToolData
+      Vira.Tool.Type.Tools
       Vira.Widgets.Alert
       Vira.Widgets.Button
       Vira.Widgets.Card

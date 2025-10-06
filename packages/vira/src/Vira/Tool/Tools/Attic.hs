@@ -6,22 +6,34 @@ module Vira.Tool.Tools.Attic (
   getToolData,
   createPushProcess,
   viewToolStatus,
+  SetupError (..),
   AtticError (..),
 ) where
 
 import Attic qualified
 import Attic.Config (AtticConfig (..), AtticServerConfig (..))
 import Attic.Config qualified
-import Attic.Types (AtticServer (..))
+import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified as Url
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Process (CreateProcess)
 import Lucid (HtmlT, class_, code_, div_, p_, span_, strong_, toHtml)
 import TOML (TOMLError)
-import Vira.Tool.Type (SetupError (..))
-import Vira.Tool.Type qualified as Tool
+import Vira.Tool.Type.ToolData (ToolData (..))
 import Vira.Widgets.Alert (AlertType (..), viraAlert_)
+
+-- | Configuration and setup errors
+data SetupError
+  = -- | TOML configuration parse error
+    ParseError TOMLError
+  | -- | Attic is not configured
+    NotConfigured
+  | -- | No server configured for endpoint
+    NoServerForEndpoint AtticServerEndpoint
+  | -- | Server configured but no authentication token
+    NoToken Text
+  deriving stock (Show, Eq)
 
 -- | All errors that can occur when working with Attic
 data AtticError
@@ -32,12 +44,12 @@ data AtticError
   deriving stock (Show, Eq)
 
 -- | Get Attic tool data with metadata and runtime info
-getToolData :: (IOE :> es) => Eff es (Tool.ToolData (Either SetupError AtticConfig))
+getToolData :: (IOE :> es) => Eff es (ToolData (Either SetupError AtticConfig))
 getToolData = do
   configResult <- liftIO Attic.Config.readAtticConfig
   let status = validateConfig configResult
   pure
-    Tool.ToolData
+    ToolData
       { name = "Attic"
       , description = "Self-hosted Nix binary cache server"
       , url = "https://github.com/zhaofengli/attic"

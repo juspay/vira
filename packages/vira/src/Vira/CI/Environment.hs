@@ -17,7 +17,7 @@ import Vira.CI.Context (ViraContext (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (AtticSettings, Branch (..), CachixSettings, Repo)
 import Vira.Tool.Core qualified as Tool
-import Vira.Tool.Type (Tools)
+import Vira.Tool.Type.Tools (Tools)
 
 -- | The full context in which the CI pipeline is executed.
 data ViraEnvironment = ViraEnvironment

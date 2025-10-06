@@ -20,7 +20,7 @@ import Vira.App.LinkTo.Type (LinkTo)
 import Vira.Lib.Logging (runLogActionStdout)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
-import Vira.Tool.Type (Tools)
+import Vira.Tool.Type.Tools (Tools)
 import Prelude hiding (Reader, ask, asks, runReader)
 
 type AppStack =

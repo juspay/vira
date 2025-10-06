@@ -5,7 +5,7 @@ module Vira.Tool.Tools.Omnix (
 
 import Effectful (Eff, IOE, (:>))
 import Vira.Lib.Omnix qualified as Omnix
-import Vira.Tool.Type (ToolData (..))
+import Vira.Tool.Type.ToolData (ToolData (..))
 
 -- | Get Omnix tool data with metadata and runtime info
 getToolData :: (IOE :> es) => Eff es (ToolData ())

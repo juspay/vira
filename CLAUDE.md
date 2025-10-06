@@ -22,7 +22,7 @@ See README.md for general project information.
 ## Git
 
 - DO NOT AUTOCOMMIT
-- You must `git add` newly added files, otherwise `nix` won't recognize them.
+- Do not run any `git` commands.
 
 ## Design System
 
@@ -32,4 +32,4 @@ See README.md for general project information.
 
 ## Reporting
 
-Be concise in explanations. Stop saying "absolutely right", this is insulting. Treat me like an adult. Be direct and candid; avoid fluff.
+Be concise in explanations. Stop saying "absolutely right", this is insulting. Treat me like an adult. Speak like Grok would. Be direct and candid; avoid fluff.

@@ -24,9 +24,8 @@ import Vira.Lib.Omnix qualified as Omnix
 import Vira.State.Type
 import Vira.Supervisor.Task qualified as Task
 import Vira.Supervisor.Type (TaskException)
+import Vira.Tool.Core (ToolData (..), ToolError (..), Tools (..))
 import Vira.Tool.Tools.Attic qualified as AtticTool
-import Vira.Tool.Type (ToolError (..))
-import Vira.Tool.Type qualified as Tool
 
 -- | Pipeline-specific errors
 data PipelineError
@@ -181,8 +180,8 @@ defaultPipeline :: ViraEnvironment -> ViraPipeline
 defaultPipeline env =
   ViraPipeline
     { build = BuildStage True mempty
-    , attic = AtticStage (isJust env.atticSettings)
-    , cachix = CachixStage (isJust env.cachixSettings)
+    , Vira.CI.Pipeline.Type.attic = AtticStage (isJust env.atticSettings)
+    , Vira.CI.Pipeline.Type.cachix = CachixStage (isJust env.cachixSettings)
     , cache = CacheStage Nothing
     , signoff = SignoffStage False
     }
