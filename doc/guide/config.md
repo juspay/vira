@@ -19,7 +19,7 @@ Create a `vira.hs` file in your repository root:
   pipeline
     { signoff.enable = True
     , build.overrideInputs = [("nixpkgs", "github:nixos/nixpkgs/nixos-unstable")]
-    , attic.enable = False
+    , cache.url = Just "https://attic.example.com/my-cache"
     }
 ```
 
@@ -41,17 +41,19 @@ pipeline { build.enable = True }
 pipeline { build.overrideInputs = [("input-name", "flake-url")] }
 ```
 
-#### Attic Cache Stage
+#### Cache Stage
+
+Configure binary cache pushing to an Attic server:
 
 ```haskell
-pipeline { attic.enable = True }
+pipeline { cache.url = Just "https://attic.example.com/my-cache" }
+pipeline { cache.url = Nothing }  -- Disable cache
 ```
 
-#### Cachix Cache Stage
+The cache URL should point to an Attic cache. Make sure you've run `attic login` first.
 
-```haskell
-pipeline { cachix.enable = True }
-```
+> [!TIP]
+> Only Attic is currently supported for binary caching. Cachix support may be added on a needs basis.
 
 #### Signoff Stage
 
@@ -69,7 +71,9 @@ You can customize the pipeline based on branch or repository information:
       isReleaseBranch = "release-" `isPrefixOf` ctx.branch
   in pipeline
     { signoff.enable = not isMainBranch
-    , attic.enable = isMainBranch || isReleaseBranch
+    , cache.url = if isMainBranch || isReleaseBranch
+                  then Just "https://attic.example.com/prod-cache"
+                  else Nothing
     , build.overrideInputs = [("local", "github:boolean-option/false") | isReleaseBranch]
     }
 ```
