@@ -29,13 +29,13 @@ copyable textToCopy displayText =
   title_ "Click to copy"
     <> onclick_
       ( "event.stopPropagation(); event.preventDefault(); "
-          <> "navigator.clipboard.writeText('"
+          <> "navigator.clipboard.writeText(`"
           <> textToCopy
-          <> "'); "
+          <> "`); "
           <> "this.innerText = 'Copied!'; "
-          <> "setTimeout(() => { this.innerText = '"
+          <> "setTimeout(() => { this.innerText = `"
           <> displayText
-          <> "'; }, 1000); "
+          <> "`; }, 1000); "
           <> "return false;"
       )
 
@@ -43,7 +43,7 @@ copyable textToCopy displayText =
 viraCodeCopyable_ :: (Monad m) => Text -> HtmlT m ()
 viraCodeCopyable_ code = do
   code_
-    [ class_ "block px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded font-mono transition-colors cursor-pointer"
+    [ class_ "block px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded font-mono transition-colors cursor-pointer whitespace-pre-wrap"
         <> copyable code code
     ]
     $ toHtml code

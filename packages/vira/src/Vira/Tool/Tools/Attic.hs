@@ -15,23 +15,15 @@ module Vira.Tool.Tools.Attic (
 import Attic qualified
 import Attic.Config (AtticConfig (..), AtticServerConfig (..), ConfigError (..))
 import Attic.Config qualified
-import Attic.Types (AtticCache (..), AtticServer (..), AtticServerEndpoint (..))
+import Attic.Types (AtticCache (..), AtticServer (..), AtticServerEndpoint (..), AtticToken (..))
 import Data.Map.Strict qualified as Map
+import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
 import Effectful.Process (CreateProcess)
 import Lucid (HtmlT, ToHtml (..), class_, code_, div_, p_, span_, strong_, toHtml)
 import Vira.Tool.Type.ToolData (ToolData (..))
 import Vira.Widgets.Alert (AlertType (..), viraAlert_)
 import Vira.Widgets.Code qualified as W
-
--- | Suggestions for fixing Attic configuration issues
-data AtticSuggestion = AtticLoginSuggestion
-  { bin :: FilePath
-  , serverName :: Text
-  , endpoint :: AtticServerEndpoint
-  , tokenPlaceholder :: Text
-  }
-  deriving stock (Show, Eq)
 
 -- | Get Attic tool data with metadata and runtime info
 getToolData :: (IOE :> es) => Eff es (ToolData (Either ConfigError AtticConfig))
@@ -69,6 +61,22 @@ createPushProcess configResult serverEndpoint cacheName path = do
   -- Create the push process (token validation already done in getToolData)
   pure $ Attic.atticPushProcess (AtticServer serverName serverEndpoint) cacheName path
 
+-- | Suggestions for fixing Attic configuration issues
+data AtticSuggestion = AtticLoginSuggestion
+  { bin :: FilePath
+  , endpoint :: AtticServerEndpoint
+  , token :: Maybe AtticToken
+  }
+  deriving stock (Show, Eq)
+
+-- | Derive server name from endpoint URL (e.g., https://cache.nixos.asia -> cache-nixos-asia)
+endpointToServerName :: AtticServerEndpoint -> Text
+endpointToServerName (AtticServerEndpoint url) =
+  T.replace "https://" "" url
+    & T.replace "http://" ""
+    & T.replace "." "-"
+    & T.replace "/" ""
+
 -- | Convert a ConfigError to a suggestion for fixing it
 configErrorToSuggestion :: Maybe AtticServerEndpoint -> ConfigError -> Maybe AtticSuggestion
 configErrorToSuggestion mEndpoint = \case
@@ -77,39 +85,36 @@ configErrorToSuggestion mEndpoint = \case
     Just $
       AtticLoginSuggestion
         { bin = Attic.atticBin
-        , serverName = "myserver"
         , endpoint = fromMaybe "https://cache.example.com" mEndpoint
-        , tokenPlaceholder = "<token>"
+        , token = Nothing
         }
   NoServerForEndpoint endpoint ->
     Just $
       AtticLoginSuggestion
         { bin = Attic.atticBin
-        , serverName = "myserver"
         , endpoint = endpoint
-        , tokenPlaceholder = "<token>"
+        , token = Nothing
         }
-  NoToken serverName ->
+  NoToken _serverName ->
     Just $
       AtticLoginSuggestion
         { bin = Attic.atticBin
-        , serverName = serverName
         , endpoint = fromMaybe "https://cache.example.com" mEndpoint
-        , tokenPlaceholder = "<token>"
+        , token = Nothing
         }
 
 -- | Convert suggestion to text for CI logs
 suggestionToText :: AtticSuggestion -> Text
-suggestionToText AtticLoginSuggestion {bin, serverName, endpoint, tokenPlaceholder} =
-  toText bin <> " login " <> serverName <> " " <> toText endpoint <> " " <> tokenPlaceholder
+suggestionToText AtticLoginSuggestion {bin, endpoint, token} =
+  "ATTIC=" <> toText bin <> "\n$ATTIC login " <> endpointToServerName endpoint <> " " <> toText endpoint <> " " <> maybe "<token>" (toText . unAtticToken) token
 
 -- | ToHtml instance for rendering suggestions in the Tools Page
 instance ToHtml AtticSuggestion where
   toHtmlRaw = toHtml
-  toHtml AtticLoginSuggestion {bin, serverName, endpoint, tokenPlaceholder} = do
+  toHtml suggestion = do
     div_ [class_ "mt-2"] $ do
       p_ [class_ "text-sm text-yellow-700 dark:text-yellow-300 mb-1"] "Run:"
-      W.viraCodeCopyable_ $ toText bin <> " login " <> serverName <> " " <> toText endpoint <> " " <> tokenPlaceholder
+      W.viraCodeCopyable_ $ suggestionToText suggestion
 
 -- | View Attic tool status
 viewToolStatus :: (Monad m) => Either ConfigError AtticConfig -> HtmlT m ()

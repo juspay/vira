@@ -52,15 +52,15 @@ authStatusToSuggestion = \case
 -- | Convert suggestion to text for CI logs
 suggestionToText :: GitHubSuggestion -> Text
 suggestionToText GhAuthLoginSuggestion {bin, command} =
-  toText bin <> " " <> command
+  "GH=" <> toText bin <> "\n$GH " <> command
 
 -- | ToHtml instance for rendering suggestions in the Tools Page
 instance ToHtml GitHubSuggestion where
   toHtmlRaw = toHtml
-  toHtml GhAuthLoginSuggestion {bin, command} = do
+  toHtml suggestion = do
     div_ [class_ "mt-2"] $ do
       p_ [class_ "text-sm text-red-700 dark:text-red-300 mb-1"] "Run:"
-      W.viraCodeCopyable_ $ toText bin <> " " <> command
+      W.viraCodeCopyable_ $ suggestionToText suggestion
 
 -- | View GitHub tool status
 viewToolStatus :: (Monad m) => AuthStatus -> HtmlT m ()
