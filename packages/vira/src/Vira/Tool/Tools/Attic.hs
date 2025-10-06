@@ -24,6 +24,7 @@ import Effectful.Process (CreateProcess)
 import Lucid (HtmlT, ToHtml (..), class_, code_, div_, p_, span_, strong_, toHtml)
 import Vira.Tool.Type.ToolData (ToolData (..))
 import Vira.Widgets.Alert (AlertType (..), viraAlert_)
+import Vira.Widgets.Code qualified as W
 
 -- | All errors that can occur when working with Attic
 data AtticError
@@ -118,16 +119,9 @@ suggestionToText AtticLoginSuggestion {bin, serverName, endpoint, tokenPlacehold
 instance ToHtml AtticSuggestion where
   toHtmlRaw = toHtml
   toHtml AtticLoginSuggestion {bin, serverName, endpoint, tokenPlaceholder} = do
-    p_ [class_ "text-sm mt-2"] $ do
-      "Run: "
-      code_ [class_ "bg-yellow-50 dark:bg-yellow-900 px-1 rounded text-xs"] $ do
-        toHtml $ toText bin
-        " login "
-        toHtml serverName
-        " "
-        toHtml $ toText endpoint
-        " "
-        span_ [class_ "text-yellow-600 dark:text-yellow-400"] $ toHtml tokenPlaceholder
+    div_ [class_ "mt-2"] $ do
+      p_ [class_ "text-sm text-yellow-700 dark:text-yellow-300 mb-1"] "Run:"
+      W.viraCodeCopyable_ $ toText bin <> " login " <> serverName <> " " <> toText endpoint <> " " <> tokenPlaceholder
 
 -- | View Attic tool status
 viewToolStatus :: (Monad m) => Either ConfigError AtticConfig -> HtmlT m ()

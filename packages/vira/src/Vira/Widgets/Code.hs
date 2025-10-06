@@ -25,6 +25,8 @@ Always prefer these components over raw HTML to maintain design consistency.
 -}
 module Vira.Widgets.Code (
   viraCodeInline_,
+  viraCodeCopyable_,
+  copyable,
   viraCommitInfo_,
   viraCommitInfoCompact_,
   viraCommitHash_,
@@ -72,6 +74,70 @@ Integrates seamlessly with surrounding text flow.
 viraCodeInline_ :: (Monad m) => Text -> HtmlT m ()
 viraCodeInline_ code = do
   code_ [class_ "px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded font-mono"] $ toHtml code
+
+{- |
+Generate copyable attributes for click-to-copy functionality.
+
+Returns Lucid attributes that add clipboard copy behavior to any element.
+Shows "Copied!" feedback for 1 second after copying.
+
+= Parameters
+- @textToCopy@: The text to copy to clipboard
+- @displayText@: The text to show in the element (may differ from copied text)
+
+= Usage Examples
+
+@
+-- Simple copyable button
+button_ (copyable "full text here" "short") $ "short"
+
+-- Copyable code
+code_ (class_ "..." : copyable commitHash shortHash) $ toHtml shortHash
+@
+-}
+copyable :: Text -> Text -> Attributes
+copyable textToCopy displayText =
+  title_ "Click to copy"
+    <> onclick_
+      ( "event.stopPropagation(); event.preventDefault(); "
+          <> "navigator.clipboard.writeText('"
+          <> textToCopy
+          <> "'); "
+          <> "this.innerText = 'Copied!'; "
+          <> "setTimeout(() => { this.innerText = '"
+          <> displayText
+          <> "'; }, 1000); "
+          <> "return false;"
+      )
+
+{- |
+Copyable code component with click-to-copy functionality.
+
+Displays code that can be clicked to copy to clipboard.
+Shows "Copied!" feedback for 1 second after copying.
+
+= Usage Examples
+
+@
+-- Command suggestion
+W.viraCodeCopyable_ "attic login myserver https://cache.example.com <token>"
+
+-- File path
+W.viraCodeCopyable_ "~/.config/attic/config.toml"
+@
+
+= Design Guidelines
+
+Uses button styling with hover effects and clipboard functionality.
+Provides clear visual feedback when text is copied.
+-}
+viraCodeCopyable_ :: (Monad m) => Text -> HtmlT m ()
+viraCodeCopyable_ code = do
+  button_
+    [ class_ "px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded font-mono transition-colors cursor-pointer border-none text-left"
+        <> copyable code code
+    ]
+    $ toHtml code
 
 {- |
 Commit information display component showing hash, message, author, and date.
@@ -152,7 +218,6 @@ viraCommitHash_ commitId = do
       fullHash = toText $ Git.unCommitID commitId
   button_
     [ class_ "px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded font-mono transition-colors cursor-pointer border-none"
-    , title_ $ "Click to copy: " <> fullHash
-    , onclick_ $ "event.stopPropagation(); event.preventDefault(); navigator.clipboard.writeText('" <> fullHash <> "'); this.innerText = 'Copied!'; setTimeout(() => { this.innerText = '" <> shortHash <> "'; }, 1000); return false;"
+        <> copyable fullHash shortHash
     ]
     $ toHtml shortHash

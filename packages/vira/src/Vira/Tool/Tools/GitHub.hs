@@ -13,9 +13,10 @@ import GH.Auth.Status (AuthStatus (..))
 import GH.Auth.Status qualified as GH
 import GH.Core qualified as GH
 import GH.Signoff qualified as GH
-import Lucid (HtmlT, ToHtml (..), class_, code_, div_, p_, strong_, toHtml)
+import Lucid (HtmlT, ToHtml (..), class_, div_, p_, strong_, toHtml)
 import Vira.Tool.Type.ToolData (ToolData (..))
 import Vira.Widgets.Alert (AlertType (..), viraAlert_)
+import Vira.Widgets.Code qualified as W
 
 -- | Suggestions for fixing GitHub CLI configuration issues
 data GitHubSuggestion = GhAuthLoginSuggestion
@@ -57,10 +58,9 @@ suggestionToText GhAuthLoginSuggestion {bin, command} =
 instance ToHtml GitHubSuggestion where
   toHtmlRaw = toHtml
   toHtml GhAuthLoginSuggestion {bin, command} = do
-    p_ [class_ "text-sm mt-2"] $ do
-      "Run: "
-      code_ [class_ "bg-red-50 dark:bg-red-900 px-1 rounded text-xs"] $ do
-        toHtml $ toText bin <> " " <> command
+    div_ [class_ "mt-2"] $ do
+      p_ [class_ "text-sm text-red-700 dark:text-red-300 mb-1"] "Run:"
+      W.viraCodeCopyable_ $ toText bin <> " " <> command
 
 -- | View GitHub tool status
 viewToolStatus :: (Monad m) => AuthStatus -> HtmlT m ()
