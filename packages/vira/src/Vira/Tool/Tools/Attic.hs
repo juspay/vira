@@ -15,7 +15,7 @@ module Vira.Tool.Tools.Attic (
 import Attic qualified
 import Attic.Config (AtticConfig (..), ConfigError (..))
 import Attic.Config qualified
-import Attic.Types (AtticCache (..), AtticServer (AtticServer), AtticServerEndpoint (..), AtticToken (..))
+import Attic.Types (AtticCache (..), AtticServer (AtticServer, name), AtticServerEndpoint (..), AtticToken (..))
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
@@ -76,7 +76,7 @@ configErrorToSuggestion mEndpoint = \case
   ParseError _ -> Nothing -- Parse errors need manual TOML fixing
   NotConfigured -> Just v
   NoServerForEndpoint ep -> Just $ v {endpoint = ep, serverName = deriveServerName ep}
-  NoToken serverName -> Just $ v {serverName = serverName}
+  NoToken server -> Just $ v {serverName = server.name}
   where
     v =
       AtticLoginSuggestion
@@ -140,7 +140,7 @@ viewToolStatus result = do
             p_ [class_ "text-yellow-800 dark:text-yellow-200 font-semibold mb-1"] "Missing authentication token"
             p_ [class_ "text-yellow-700 dark:text-yellow-300 text-sm"] $ do
               "Server "
-              strong_ $ toHtml serverName
+              strong_ $ toHtml serverName.name
               " is configured but has no authentication token"
             forM_ (configErrorToSuggestion Nothing (NoToken serverName)) toHtml
       Right atticCfg -> do
