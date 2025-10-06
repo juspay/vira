@@ -6,6 +6,7 @@ module Vira.Page.ToolsPage (
   handlers,
 ) where
 
+import Data.Text qualified as T
 import Lucid
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -49,20 +50,18 @@ viewTools = do
         span_ [class_ "text-indigo-800 dark:text-indigo-300 font-semibold"] User.viewUserInfo
 
     div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
-      viewToolCard "Attic" tools.attic (AtticTool.viewToolStatus tools.attic.status)
-      viewToolCard "GitHub" tools.github (GitHubTool.viewToolStatus tools.github.status)
-      viewToolCard "Omnix" tools.omnix mempty
-      viewToolCard "Git" tools.git mempty
-      viewToolCard "Cachix" tools.cachix mempty
+      viewToolCard tools.attic (AtticTool.viewToolStatus tools.attic.status)
+      viewToolCard tools.github (GitHubTool.viewToolStatus tools.github.status)
+      viewToolCard tools.omnix mempty
+      viewToolCard tools.git mempty
+      viewToolCard tools.cachix mempty
 
 -- | View a tool card with its metadata and runtime info
-viewToolCard :: (Monad m) => Text -> ToolData statusType -> HtmlT m () -> HtmlT m ()
-viewToolCard toolName toolData infoHtml = do
-  let disp = viewToolDisplay toolName
+viewToolCard :: (Monad m) => ToolData statusType -> HtmlT m () -> HtmlT m ()
+viewToolCard toolData infoHtml = do
   W.viraCard_ [class_ "p-6"] $ do
     div_ [class_ "flex items-start mb-4"] $ do
-      span_ [class_ $ "h-12 w-12 mr-4 " <> disp.bgClass <> " rounded-lg flex items-center justify-center " <> disp.textClass <> " font-bold text-xl"] $
-        toHtml disp.initial
+      viewToolIcon $ mkToolDisplay toolData.name
       div_ [class_ "flex-1"] $ do
         h3_ [class_ "text-xl font-bold text-gray-900 dark:text-gray-100 mb-2"] $ toHtml toolData.name
         p_ [class_ "text-gray-600 dark:text-gray-300 text-sm mb-3"] $ toHtml toolData.description
@@ -89,12 +88,20 @@ data ToolDisplay = ToolDisplay
   , textClass :: Text
   }
 
+-- | Render tool icon badge
+viewToolIcon :: (Monad m) => ToolDisplay -> HtmlT m ()
+viewToolIcon disp =
+  span_ [class_ $ "h-12 w-12 mr-4 " <> disp.bgClass <> " rounded-lg flex items-center justify-center " <> disp.textClass <> " font-bold text-xl"] $
+    toHtml disp.initial
+
 -- | Get display styling for a tool
-viewToolDisplay :: Text -> ToolDisplay
-viewToolDisplay = \case
-  "Attic" -> ToolDisplay {initial = "A", bgClass = "bg-indigo-100", textClass = "text-indigo-600"}
-  "GitHub" -> ToolDisplay {initial = "G", bgClass = "bg-green-100", textClass = "text-green-600"}
-  "Omnix" -> ToolDisplay {initial = "O", bgClass = "bg-purple-100", textClass = "text-purple-600"}
-  "Git" -> ToolDisplay {initial = "G", bgClass = "bg-orange-100", textClass = "text-orange-600"}
-  "Cachix" -> ToolDisplay {initial = "C", bgClass = "bg-blue-100", textClass = "text-blue-600"}
-  _ -> ToolDisplay {initial = "?", bgClass = "bg-gray-100", textClass = "text-gray-600"}
+mkToolDisplay :: Text -> ToolDisplay
+mkToolDisplay name = case name of
+  "Attic" -> mkDisplay "bg-indigo-100" "text-indigo-600"
+  "GitHub" -> mkDisplay "bg-green-100" "text-green-600"
+  "Omnix" -> mkDisplay "bg-purple-100" "text-purple-600"
+  "Git" -> mkDisplay "bg-orange-100" "text-orange-600"
+  "Cachix" -> mkDisplay "bg-blue-100" "text-blue-600"
+  _ -> mkDisplay "bg-gray-100" "text-gray-600"
+  where
+    mkDisplay bg txt = ToolDisplay {initial = T.take 1 name, bgClass = bg, textClass = txt}
