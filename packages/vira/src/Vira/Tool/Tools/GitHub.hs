@@ -2,6 +2,9 @@
 module Vira.Tool.Tools.GitHub (
   getToolData,
   viewToolStatus,
+  GitHubSuggestion (..),
+  authStatusToSuggestion,
+  suggestionToText,
 ) where
 
 import Data.Text qualified as T
@@ -10,9 +13,16 @@ import GH.Auth.Status (AuthStatus (..))
 import GH.Auth.Status qualified as GH
 import GH.Core qualified as GH
 import GH.Signoff qualified as GH
-import Lucid (HtmlT, class_, code_, div_, p_, strong_, toHtml)
+import Lucid (HtmlT, ToHtml (..), class_, code_, div_, p_, strong_, toHtml)
 import Vira.Tool.Type.ToolData (ToolData (..))
 import Vira.Widgets.Alert (AlertType (..), viraAlert_)
+
+-- | Suggestions for fixing GitHub CLI configuration issues
+data GitHubSuggestion = GhAuthLoginSuggestion
+  { bin :: FilePath
+  , command :: Text
+  }
+  deriving stock (Show, Eq)
 
 -- | Get GitHub tool data with metadata and runtime info
 getToolData :: (IOE :> es) => Eff es (ToolData GH.AuthStatus)
@@ -26,6 +36,31 @@ getToolData = do
       , binPaths = toText GH.ghBin :| [toText GH.ghSignoffBin]
       , status = info
       }
+
+-- | Convert an AuthStatus to a suggestion for fixing it
+authStatusToSuggestion :: AuthStatus -> Maybe GitHubSuggestion
+authStatusToSuggestion = \case
+  Authenticated {} -> Nothing
+  NotAuthenticated ->
+    Just
+      GhAuthLoginSuggestion
+        { bin = GH.ghBin
+        , command = "auth login"
+        }
+
+-- | Convert suggestion to text for CI logs
+suggestionToText :: GitHubSuggestion -> Text
+suggestionToText GhAuthLoginSuggestion {bin, command} =
+  toText bin <> " " <> command
+
+-- | ToHtml instance for rendering suggestions in the Tools Page
+instance ToHtml GitHubSuggestion where
+  toHtmlRaw = toHtml
+  toHtml GhAuthLoginSuggestion {bin, command} = do
+    p_ [class_ "text-sm mt-2"] $ do
+      "Run: "
+      code_ [class_ "bg-red-50 dark:bg-red-900 px-1 rounded text-xs"] $ do
+        toHtml $ toText bin <> " " <> command
 
 -- | View GitHub tool status
 viewToolStatus :: (Monad m) => AuthStatus -> HtmlT m ()
@@ -45,7 +80,5 @@ viewToolStatus status = do
       NotAuthenticated -> do
         viraAlert_ AlertError $ do
           p_ [class_ "text-red-800 mb-1"] "✗ Not authenticated"
-          p_ [class_ "text-red-700 text-sm"] $ do
-            "Run "
-            code_ [class_ "bg-red-100 px-1 rounded"] "gh auth login"
-            " to authenticate."
+          p_ [class_ "text-red-700 text-sm"] "Please authenticate to use GitHub CLI."
+          forM_ (authStatusToSuggestion NotAuthenticated) toHtml

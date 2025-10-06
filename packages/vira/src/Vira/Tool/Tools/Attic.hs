@@ -8,17 +8,20 @@ module Vira.Tool.Tools.Attic (
   viewToolStatus,
   ConfigError (..),
   AtticError (..),
+  AtticSuggestion (..),
+  configErrorToSuggestion,
+  suggestionToText,
 ) where
 
 import Attic qualified
 import Attic.Config (AtticConfig (..), AtticServerConfig (..), ConfigError (..))
 import Attic.Config qualified
-import Attic.Types (AtticServer (..))
+import Attic.Types (AtticServer (..), AtticServerEndpoint (..))
 import Attic.Url qualified as Url
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Process (CreateProcess)
-import Lucid (HtmlT, class_, code_, div_, p_, span_, strong_, toHtml)
+import Lucid (HtmlT, ToHtml (..), class_, code_, div_, p_, span_, strong_, toHtml)
 import Vira.Tool.Type.ToolData (ToolData (..))
 import Vira.Widgets.Alert (AlertType (..), viraAlert_)
 
@@ -28,6 +31,15 @@ data AtticError
     UrlParseError Url.ParseError
   | -- | Configuration/setup error
     ConfigError ConfigError
+  deriving stock (Show, Eq)
+
+-- | Suggestions for fixing Attic configuration issues
+data AtticSuggestion = AtticLoginSuggestion
+  { bin :: FilePath
+  , serverName :: Text
+  , endpoint :: AtticServerEndpoint
+  , tokenPlaceholder :: Text
+  }
   deriving stock (Show, Eq)
 
 -- | Get Attic tool data with metadata and runtime info
@@ -68,6 +80,55 @@ createPushProcess configResult cacheUrl path = do
   -- Create the push process (token validation already done in getToolData)
   pure $ Attic.atticPushProcess (AtticServer serverName serverEndpoint) cacheName path
 
+-- | Convert a ConfigError to a suggestion for fixing it
+configErrorToSuggestion :: ConfigError -> Maybe AtticSuggestion
+configErrorToSuggestion = \case
+  ParseError _ -> Nothing -- Parse errors need manual TOML fixing
+  NotConfigured ->
+    Just $
+      AtticLoginSuggestion
+        { bin = Attic.atticBin
+        , serverName = "myserver"
+        , endpoint = "https://cache.example.com"
+        , tokenPlaceholder = "<token>"
+        }
+  NoServerForEndpoint endpoint ->
+    Just $
+      AtticLoginSuggestion
+        { bin = Attic.atticBin
+        , serverName = "myserver"
+        , endpoint = endpoint
+        , tokenPlaceholder = "<token>"
+        }
+  NoToken serverName ->
+    Just $
+      AtticLoginSuggestion
+        { bin = Attic.atticBin
+        , serverName = serverName
+        , endpoint = "https://cache.example.com"
+        , tokenPlaceholder = "<token>"
+        }
+
+-- | Convert suggestion to text for CI logs
+suggestionToText :: AtticSuggestion -> Text
+suggestionToText AtticLoginSuggestion {bin, serverName, endpoint, tokenPlaceholder} =
+  toText bin <> " login " <> serverName <> " " <> toText endpoint <> " " <> tokenPlaceholder
+
+-- | ToHtml instance for rendering suggestions in the Tools Page
+instance ToHtml AtticSuggestion where
+  toHtmlRaw = toHtml
+  toHtml AtticLoginSuggestion {bin, serverName, endpoint, tokenPlaceholder} = do
+    p_ [class_ "text-sm mt-2"] $ do
+      "Run: "
+      code_ [class_ "bg-yellow-50 dark:bg-yellow-900 px-1 rounded text-xs"] $ do
+        toHtml $ toText bin
+        " login "
+        toHtml serverName
+        " "
+        toHtml $ toText endpoint
+        " "
+        span_ [class_ "text-yellow-600 dark:text-yellow-400"] $ toHtml tokenPlaceholder
+
 -- | View Attic tool status
 viewToolStatus :: (Monad m) => Either ConfigError AtticConfig -> HtmlT m ()
 viewToolStatus result = do
@@ -84,12 +145,14 @@ viewToolStatus result = do
             p_ [class_ "text-yellow-700 text-sm"] $ do
               "Config file not found at "
               code_ [class_ "bg-yellow-100 px-1 rounded"] "~/.config/attic/config.toml"
+            forM_ (configErrorToSuggestion NotConfigured) toHtml
         NoServerForEndpoint endpoint -> do
           viraAlert_ AlertWarning $ do
             p_ [class_ "text-yellow-800 font-semibold mb-1"] "⚠ No server configured"
             p_ [class_ "text-yellow-700 text-sm"] $ do
               "No server found for endpoint: "
               code_ [class_ "bg-yellow-100 px-1 rounded"] $ toHtml (toText endpoint)
+            forM_ (configErrorToSuggestion (NoServerForEndpoint endpoint)) toHtml
         NoToken serverName -> do
           viraAlert_ AlertWarning $ do
             p_ [class_ "text-yellow-800 font-semibold mb-1"] "⚠ Missing authentication token"
@@ -97,6 +160,7 @@ viewToolStatus result = do
               "Server "
               strong_ $ toHtml serverName
               " is configured but has no authentication token"
+            forM_ (configErrorToSuggestion (NoToken serverName)) toHtml
       Right atticCfg -> do
         viraAlert_ AlertSuccess $ do
           case atticCfg.defaultServer of

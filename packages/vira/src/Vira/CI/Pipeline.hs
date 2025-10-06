@@ -117,8 +117,24 @@ cacheProcs env stage = case stage.url of
   Nothing -> pure []
   Just urlText -> do
     let atticConfigResult = env.tools.attic.status
-    pushProc <- first (ToolError . show) $ AtticTool.createPushProcess atticConfigResult urlText "result"
+    pushProc <- first (atticErrorToToolError urlText) $ AtticTool.createPushProcess atticConfigResult urlText "result"
     pure $ one pushProc
+  where
+    atticErrorToToolError :: Text -> AtticTool.AtticError -> ToolError
+    atticErrorToToolError cacheUrl err = case err of
+      AtticTool.ConfigError configErr ->
+        case AtticTool.configErrorToSuggestion configErr of
+          Just suggestion ->
+            ToolError $
+              "Attic configuration error for cache URL '"
+                <> cacheUrl
+                <> "': "
+                <> show configErr
+                <> "\n\nSuggestion: "
+                <> AtticTool.suggestionToText suggestion
+          Nothing -> ToolError $ "Attic configuration error: " <> show configErr
+      AtticTool.UrlParseError parseErr ->
+        ToolError $ "Failed to parse cache URL '" <> cacheUrl <> "': " <> show parseErr
 
 signoffProcs :: SignoffStage -> [CreateProcess]
 signoffProcs stage =
