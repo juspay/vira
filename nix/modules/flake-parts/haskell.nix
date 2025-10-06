@@ -66,29 +66,14 @@
             postUnpack = (oldAttrs.postUnpack or "") + ''
               ln -s ${self'.packages.jsAssets}/js $sourceRoot/static/js
 
-              # Generate GitRev.hs with the git commit hash
+              # Replace "dev" with actual git hash in GitRev.hs
               gitRevFile="$sourceRoot/src/Vira/App/GitRev.hs"
               gitHash="${inputs.self.rev or "UNKNOWN"}"
-              cat > "$gitRevFile" <<EOF
-              {- |
-              Git revision information injected at build time.
-
-              This file is auto-generated during the Nix build process.
-              DO NOT EDIT - changes will be overwritten.
-              -}
-              module Vira.App.GitRev (
-                gitHashFull,
-                gitHashShort,
-              ) where
-
-              -- | Full git commit hash (40 characters)
-              gitHashFull :: Text
-              gitHashFull = "$gitHash"
-
-              -- | Short git commit hash (7 characters)
-              gitHashShort :: Text
-              gitHashShort = "\''${gitHash:0:7}"
-              EOF
+              gitHashShort="''${gitHash:0:7}"
+              ${pkgs.gnused}/bin/sed -i \
+                -e "s/gitHashFull = \"dev\"/gitHashFull = \"$gitHash\"/" \
+                -e "s/gitHashShort = \"dev\"/gitHashShort = \"$gitHashShort\"/" \
+                "$gitRevFile"
             '';
             nativeBuildInputs = (oldAttrs.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
             postInstall = (oldAttrs.postInstall or "") + ''
