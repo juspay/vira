@@ -4,4 +4,5 @@
   in pipeline
     { signoff.enable = True
     , cache.url = if isMain then Just "https://cache.nixos.asia/oss" else Nothing
+    sdf
     }
