@@ -13,9 +13,9 @@ module Vira.Tool.Tools.Attic (
 ) where
 
 import Attic qualified
-import Attic.Config (AtticConfig (..), AtticServerConfig (..), ConfigError (..))
+import Attic.Config (AtticConfig (..), ConfigError (..))
 import Attic.Config qualified
-import Attic.Types (AtticCache (..), AtticServer (..), AtticServerEndpoint (..), AtticToken (..))
+import Attic.Types (AtticCache (..), AtticServer (AtticServer), AtticServerEndpoint (..), AtticToken (..))
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
@@ -64,44 +64,32 @@ createPushProcess configResult serverEndpoint cacheName path = do
 -- | Suggestions for fixing Attic configuration issues
 data AtticSuggestion = AtticLoginSuggestion
   { bin :: FilePath
+  , serverName :: Text
   , endpoint :: AtticServerEndpoint
   , token :: Maybe AtticToken
   }
   deriving stock (Show, Eq)
 
--- | Derive server name from endpoint URL (e.g., https://cache.nixos.asia -> cache-nixos-asia)
-endpointToServerName :: AtticServerEndpoint -> Text
-endpointToServerName (AtticServerEndpoint url) =
-  T.replace "https://" "" url
-    & T.replace "http://" ""
-    & T.replace "." "-"
-    & T.replace "/" ""
-
 -- | Convert a ConfigError to a suggestion for fixing it
 configErrorToSuggestion :: Maybe AtticServerEndpoint -> ConfigError -> Maybe AtticSuggestion
 configErrorToSuggestion mEndpoint = \case
   ParseError _ -> Nothing -- Parse errors need manual TOML fixing
-  NotConfigured ->
-    Just $
+  NotConfigured -> Just v
+  NoServerForEndpoint ep -> Just $ v {endpoint = ep, serverName = deriveServerName ep}
+  NoToken serverName -> Just $ v {serverName = serverName}
+  where
+    v =
       AtticLoginSuggestion
         { bin = Attic.atticBin
+        , serverName = deriveServerName $ fromMaybe "https://cache.example.com" mEndpoint
         , endpoint = fromMaybe "https://cache.example.com" mEndpoint
         , token = Nothing
         }
-  NoServerForEndpoint endpoint ->
-    Just $
-      AtticLoginSuggestion
-        { bin = Attic.atticBin
-        , endpoint = endpoint
-        , token = Nothing
-        }
-  NoToken _serverName ->
-    Just $
-      AtticLoginSuggestion
-        { bin = Attic.atticBin
-        , endpoint = fromMaybe "https://cache.example.com" mEndpoint
-        , token = Nothing
-        }
+    deriveServerName (AtticServerEndpoint url) =
+      T.replace "https://" "" url
+        & T.replace "http://" ""
+        & T.replace "." "-"
+        & T.replace "/" ""
 
 -- | Convert suggestion to text for CI logs
 suggestionToText :: AtticSuggestion -> Text
@@ -110,11 +98,10 @@ suggestionToText suggestion =
     "\n"
     [ "ATTIC=" <> toText suggestion.bin
     , "TOKEN=" <> tokenText
-    , "$ATTIC login " <> serverName <> " " <> toText suggestion.endpoint <> " $TOKEN"
+    , "$ATTIC login " <> suggestion.serverName <> " " <> toText suggestion.endpoint <> " $TOKEN"
     ]
   where
-    serverName = endpointToServerName suggestion.endpoint
-    tokenText = maybe "YOUR-TOKEN-HERE" (toText . unAtticToken) suggestion.token
+    tokenText = maybe "<token>" (toText . unAtticToken) suggestion.token
 
 -- | ToHtml instance for rendering suggestions in the Tools Page
 instance ToHtml AtticSuggestion where
