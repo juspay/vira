@@ -65,6 +65,15 @@
           custom = drv: drv.overrideAttrs (oldAttrs: {
             postUnpack = (oldAttrs.postUnpack or "") + ''
               ln -s ${self'.packages.jsAssets}/js $sourceRoot/static/js
+
+              # Replace "dev" with actual git hash in GitRev.hs
+              gitRevFile="$sourceRoot/src/Vira/App/GitRev.hs"
+              gitHash="${inputs.self.rev or "UNKNOWN"}"
+              gitHashShort="''${gitHash:0:7}"
+              ${pkgs.gnused}/bin/sed -i \
+                -e "s/gitHashFull = \"dev\"/gitHashFull = \"$gitHash\"/" \
+                -e "s/gitHashShort = \"dev\"/gitHashShort = \"$gitHashShort\"/" \
+                "$gitRevFile"
             '';
             nativeBuildInputs = (oldAttrs.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
             postInstall = (oldAttrs.postInstall or "") + ''

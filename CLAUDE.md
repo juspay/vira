@@ -2,6 +2,8 @@ See README.md for general project information.
 
 ## Coding Guidelines
 
+- Never edit `.cabal` files directly; we use hpack.
+
 ### Haskell Coding Style
 
 - Use `LambdaCase` and `where` for local functions
