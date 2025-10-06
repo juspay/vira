@@ -4,7 +4,6 @@
 -- | Attic tool-specific logic
 module Vira.Tool.Tools.Attic (
   getToolData,
-  createPushProcess,
   viewToolStatus,
   ConfigError (..),
   AtticSuggestion (..),
@@ -15,11 +14,10 @@ module Vira.Tool.Tools.Attic (
 import Attic qualified
 import Attic.Config (AtticConfig (..), ConfigError (..))
 import Attic.Config qualified
-import Attic.Types (AtticCache (..), AtticServer (AtticServer, name), AtticServerEndpoint (..), AtticToken (..))
+import Attic.Types (AtticServer (name), AtticServerEndpoint (..), AtticToken (..))
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
-import Effectful.Process (CreateProcess)
 import Lucid (HtmlT, ToHtml (..), class_, code_, div_, p_, span_, strong_, toHtml)
 import Vira.Tool.Type.ToolData (ToolData (..))
 import Vira.Widgets.Alert (AlertType (..), viraAlert_)
@@ -37,26 +35,6 @@ getToolData = do
       , binPaths = one $ toText Attic.atticBin
       , status = status
       }
-
-{- | Create attic push process from parsed cache info and config
-
-Takes the attic config, server endpoint, cache name, and path to push.
-Returns either a ConfigError or the CreateProcess for pushing.
--}
-createPushProcess ::
-  AtticConfig ->
-  AtticServerEndpoint ->
-  AtticCache ->
-  FilePath ->
-  Either ConfigError CreateProcess
-createPushProcess config serverEndpoint cacheName path = do
-  -- Get server name for endpoint
-  serverName <-
-    Attic.Config.lookupEndpoint config serverEndpoint
-      & maybeToRight (NoServerForEndpoint serverEndpoint)
-
-  -- Create the push process (token validation already done in getToolData)
-  pure $ Attic.atticPushProcess (AtticServer serverName serverEndpoint) cacheName path
 
 -- | Suggestions for fixing Attic configuration issues
 data AtticSuggestion = AtticLoginSuggestion
@@ -124,14 +102,14 @@ viewToolStatus result = do
             p_ [class_ "text-yellow-700 dark:text-yellow-300 text-sm"] $ do
               "Config file not found at "
               code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] "~/.config/attic/config.toml"
-            forM_ (configErrorToSuggestion Nothing NotConfigured) toHtml
+            forM_ (configErrorToSuggestion Nothing setupErr) toHtml
         NoServerForEndpoint endpoint -> do
           viraAlert_ AlertWarning $ do
             p_ [class_ "text-yellow-800 dark:text-yellow-200 font-semibold mb-1"] "No server configured"
             p_ [class_ "text-yellow-700 dark:text-yellow-300 text-sm"] $ do
               "No server found for endpoint: "
               code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] $ toHtml (toText endpoint)
-            forM_ (configErrorToSuggestion Nothing (NoServerForEndpoint endpoint)) toHtml
+            forM_ (configErrorToSuggestion Nothing setupErr) toHtml
         NoToken serverName -> do
           viraAlert_ AlertWarning $ do
             p_ [class_ "text-yellow-800 dark:text-yellow-200 font-semibold mb-1"] "Missing authentication token"
@@ -139,7 +117,7 @@ viewToolStatus result = do
               "Server "
               strong_ $ toHtml serverName.name
               " is configured but has no authentication token"
-            forM_ (configErrorToSuggestion Nothing (NoToken serverName)) toHtml
+            forM_ (configErrorToSuggestion Nothing setupErr) toHtml
       Right atticCfg -> do
         viraAlert_ AlertSuccess $ do
           case atticCfg.defaultServer of
