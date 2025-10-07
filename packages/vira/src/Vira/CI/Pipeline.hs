@@ -13,7 +13,7 @@ import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Git qualified as Git
 import Effectful.Process (CreateProcess (cwd))
 import GH.Signoff qualified as Signoff
-import Language.Haskell.Interpreter (InterpreterError)
+import Language.Haskell.Interpreter (GhcError (..), InterpreterError (..))
 import Optics.Core
 import Shower qualified
 import System.Directory (doesFileExist)
@@ -49,8 +49,16 @@ data PipelineError
 instance TS.Show PipelineError where
   show (PipelineToolError (ToolError msg)) =
     "Tool: " <> toString msg
-  show (PipelineConfigurationError (InterpreterError err)) =
-    "vira.hs error: " <> TS.show err
+  show (PipelineConfigurationError (InterpreterError (WontCompile []))) =
+    "vira.hs error: WontCompile\n"
+  show (PipelineConfigurationError (InterpreterError (WontCompile ghcErrors))) =
+    "vira.hs error: WontCompile\n" <> toString (unlines (map (toText . errMsg) ghcErrors))
+  show (PipelineConfigurationError (InterpreterError (UnknownError err))) =
+    "vira.hs error: UnknownError\n" <> toString err
+  show (PipelineConfigurationError (InterpreterError (NotAllowed err))) =
+    "vira.hs error: NotAllowed\n" <> toString err
+  show (PipelineConfigurationError (InterpreterError (GhcException err))) =
+    "vira.hs error: GhcException\n" <> toString err
   show (PipelineConfigurationError (MalformedConfig msg)) =
     "vira.hs has malformed config: " <> toString msg
   show PipelineEmpty =
