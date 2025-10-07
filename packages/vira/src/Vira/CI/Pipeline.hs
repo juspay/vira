@@ -7,6 +7,7 @@ import Attic qualified
 import Attic.Config (lookupEndpointWithToken)
 import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
+import Control.Monad.Writer.Strict (MonadWriter (tell), WriterT (..))
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Git qualified as Git
@@ -52,7 +53,7 @@ runPipeline env = do
           pure $ Left $ PipelineConfigurationError $ InterpreterError err
         Right pipeline -> do
           Task.logToWorkspaceOutput $ toText $ "ℹ️ Pipeline configuration:\n" <> Shower.shower pipeline
-          case pipelineToProcesses env pipeline of
+          case pipelineProcesses env pipeline of
             Left err -> do
               pure $ Left err
             Right pipelineProcs -> do
@@ -60,26 +61,21 @@ runPipeline env = do
     Right exitCode -> do
       pure $ Right exitCode
 
--- | Convert pipeline configuration to CreateProcess list
-pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> Either PipelineError (NonEmpty CreateProcess)
-pipelineToProcesses env pipeline = do
-  procs' <- pipelineToProcesses' env pipeline
-  procs <- nonEmpty procs' & maybeToRight PipelineEmpty
+{- | Get all the processes to run as part of this Pipeline
+
+TODO: To be rewritten during https://github.com/juspay/vira/issues/6
+-}
+pipelineProcesses :: ViraEnvironment -> ViraPipeline -> Either PipelineError (NonEmpty CreateProcess)
+pipelineProcesses env pipeline = do
+  (_, postBuildProcs) <- runWriterT $ do
+    tell <=< lift $ cacheProcs env pipeline.cache
+    tell $ signoffProcs pipeline.signoff
+  let procs = buildProc pipeline.build :| postBuildProcs
   pure $ procs <&> alwaysUnderPath Env.projectDirName
 
-pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> Either PipelineError [CreateProcess]
-pipelineToProcesses' env pipeline = do
-  cachePs <- cacheProcs env pipeline.cache
-  pure $
-    concat
-      [ buildProcs pipeline.build
-      , cachePs
-      , signoffProcs pipeline.signoff
-      ]
-
-buildProcs :: BuildStage -> [CreateProcess]
-buildProcs stage =
-  [Omnix.omnixCiProcess (overrideInputsToArgs stage.overrideInputs)]
+buildProc :: BuildStage -> CreateProcess
+buildProc stage =
+  Omnix.omnixCiProcess (overrideInputsToArgs stage.overrideInputs)
   where
     -- Convert override inputs to command line arguments
     overrideInputsToArgs :: [(Text, Text)] -> [String]

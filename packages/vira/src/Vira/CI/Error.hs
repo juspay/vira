@@ -13,7 +13,6 @@ import Vira.Tool.Core (ToolError (..))
 data PipelineError
   = PipelineConfigurationError ConfigurationError
   | PipelineToolError ToolError
-  | PipelineEmpty
   | PipelineTaskException TaskException
 
 -- | Configuration error types
@@ -33,6 +32,4 @@ instance TS.Show PipelineError where
       GhcException err -> "GhcException\n" <> err
   show (PipelineConfigurationError (MalformedConfig msg)) =
     "vira.hs has malformed config: " <> toString msg
-  show PipelineEmpty =
-    "Pipeline is empty - no stages to run"
   show (PipelineTaskException err) = TS.show err
