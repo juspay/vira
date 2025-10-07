@@ -24,9 +24,8 @@ data ViraPipeline = ViraPipeline
   }
   deriving stock (Generic, Show)
 
-data BuildStage = BuildStage
-  { enable :: Bool
-  , overrideInputs :: [(Text, Text)]
+newtype BuildStage = BuildStage
+  { overrideInputs :: [(Text, Text)]
   }
   deriving stock (Generic, Show)
 
@@ -45,11 +44,8 @@ newtype CacheStage = CacheStage
 -- NOTE: Do not forgot to fill in these instances if the types above change.
 -- In future, we could generically derive them using generics-sop and the like.
 
-instance HasField "enable" BuildStage Bool where
-  hasField (BuildStage enable overrideInputs) = ((`BuildStage` overrideInputs), enable)
-
 instance HasField "overrideInputs" BuildStage [(Text, Text)] where
-  hasField (BuildStage enable overrideInputs) = (BuildStage enable, overrideInputs)
+  hasField (BuildStage overrideInputs) = (BuildStage, overrideInputs)
 
 instance HasField "enable" SignoffStage Bool where
   hasField (SignoffStage enable) = (SignoffStage, enable)

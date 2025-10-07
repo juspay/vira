@@ -79,7 +79,7 @@ pipelineToProcesses' env pipeline = do
 
 buildProcs :: BuildStage -> [CreateProcess]
 buildProcs stage =
-  [Omnix.omnixCiProcess (overrideInputsToArgs stage.overrideInputs) | stage.enable]
+  [Omnix.omnixCiProcess (overrideInputsToArgs stage.overrideInputs)]
   where
     -- Convert override inputs to command line arguments
     overrideInputsToArgs :: [(Text, Text)] -> [String]
@@ -165,7 +165,7 @@ environmentPipeline env logger = do
 defaultPipeline :: ViraPipeline
 defaultPipeline =
   ViraPipeline
-    { build = BuildStage True mempty
+    { build = BuildStage mempty
     , cache = CacheStage Nothing
     , signoff = SignoffStage False
     }
