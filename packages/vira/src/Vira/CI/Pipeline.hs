@@ -49,16 +49,13 @@ data PipelineError
 instance TS.Show PipelineError where
   show (PipelineToolError (ToolError msg)) =
     "Tool: " <> toString msg
-  show (PipelineConfigurationError (InterpreterError (WontCompile []))) =
-    "vira.hs error: WontCompile\n"
-  show (PipelineConfigurationError (InterpreterError (WontCompile ghcErrors))) =
-    "vira.hs error: WontCompile\n" <> toString (unlines (map (toText . errMsg) ghcErrors))
-  show (PipelineConfigurationError (InterpreterError (UnknownError err))) =
-    "vira.hs error: UnknownError\n" <> toString err
-  show (PipelineConfigurationError (InterpreterError (NotAllowed err))) =
-    "vira.hs error: NotAllowed\n" <> toString err
-  show (PipelineConfigurationError (InterpreterError (GhcException err))) =
-    "vira.hs error: GhcException\n" <> toString err
+  show (PipelineConfigurationError (InterpreterError herr)) =
+    "vira.hs error: " <> case herr of
+      WontCompile [] -> "WontCompile\n"
+      WontCompile ghcErrors -> "WontCompile\n" <> toString (unlines (map (toText . errMsg) ghcErrors))
+      UnknownError err -> "UnknownError\n" <> toString err
+      NotAllowed err -> "NotAllowed\n" <> toString err
+      GhcException err -> "GhcException\n" <> toString err
   show (PipelineConfigurationError (MalformedConfig msg)) =
     "vira.hs has malformed config: " <> toString msg
   show PipelineEmpty =
