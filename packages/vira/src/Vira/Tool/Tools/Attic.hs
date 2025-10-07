@@ -13,7 +13,7 @@ module Vira.Tool.Tools.Attic (
 import Attic qualified
 import Attic.Config (AtticConfig (..), ConfigError (..))
 import Attic.Config qualified
-import Attic.Types (AtticServer (name), AtticServerEndpoint (..), AtticToken (..))
+import Attic.Types (AtticServer (name), AtticServerEndpoint (..))
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
@@ -41,7 +41,6 @@ data AtticSuggestion = AtticLoginSuggestion
   { bin :: FilePath
   , serverName :: Text
   , endpoint :: AtticServerEndpoint
-  , token :: Maybe AtticToken
   }
   deriving stock (Eq)
 
@@ -51,11 +50,9 @@ instance TS.Show AtticSuggestion where
       T.intercalate
         "\n"
         [ "ATTIC=" <> toText suggestion.bin
-        , "TOKEN=" <> tokenText
+        , "TOKEN=YOUR-TOKEN-HERE"
         , "$ATTIC login " <> suggestion.serverName <> " " <> toText suggestion.endpoint <> " $TOKEN"
         ]
-    where
-      tokenText = maybe "<token>" (toText . unAtticToken) suggestion.token
 
 -- | Convert a ConfigError to a suggestion for fixing it
 configErrorToSuggestion :: Maybe AtticServerEndpoint -> ConfigError -> Maybe AtticSuggestion
@@ -70,7 +67,6 @@ configErrorToSuggestion mEndpoint = \case
         { bin = Attic.atticBin
         , serverName = deriveServerName $ fromMaybe "https://cache.example.com" mEndpoint
         , endpoint = fromMaybe "https://cache.example.com" mEndpoint
-        , token = Nothing
         }
     deriveServerName (AtticServerEndpoint url) =
       T.replace "https://" "" url
