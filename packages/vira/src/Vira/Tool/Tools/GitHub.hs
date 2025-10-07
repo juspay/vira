@@ -15,7 +15,7 @@ import GH.Signoff qualified as GH
 import Lucid (HtmlT, ToHtml (..), class_, div_, p_, strong_, toHtml)
 import Text.Show qualified as TS
 import Vira.Tool.Type.ToolData (ToolData (..))
-import Vira.Widgets.Alert (AlertType (..), viraAlert_)
+import Vira.Widgets.Alert (AlertType (..), viraAlertWithTitle_, viraAlert_)
 import Vira.Widgets.Code qualified as W
 
 -- | Suggestions for fixing GitHub CLI configuration issues
@@ -76,8 +76,6 @@ viewToolStatus status = do
           p_ [class_ "text-green-700 dark:text-green-300 text-xs"] $ do
             "Scopes: "
             toHtml $ T.intercalate ", " scopes
-      NotAuthenticated -> do
-        viraAlert_ AlertError $ do
-          p_ [class_ "text-red-800 dark:text-red-200 mb-1"] "Not authenticated"
-          p_ [class_ "text-red-700 dark:text-red-300 text-sm"] "Please authenticate to use GitHub CLI."
-          forM_ (authStatusToSuggestion NotAuthenticated) toHtml
+      NotAuthenticated -> viraAlertWithTitle_ AlertError "Not authenticated" $ do
+        "Please authenticate to use GitHub CLI."
+        forM_ (authStatusToSuggestion NotAuthenticated) toHtml

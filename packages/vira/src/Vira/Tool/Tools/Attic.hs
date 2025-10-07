@@ -20,7 +20,7 @@ import Effectful (Eff, IOE, (:>))
 import Lucid (HtmlT, ToHtml (..), class_, code_, div_, p_, span_, strong_, toHtml)
 import Text.Show qualified as TS
 import Vira.Tool.Type.ToolData (ToolData (..))
-import Vira.Widgets.Alert (AlertType (..), viraAlert_)
+import Vira.Widgets.Alert (AlertType (..), viraAlertWithTitle_, viraAlert_)
 import Vira.Widgets.Code qualified as W
 
 -- | Get Attic tool data with metadata and runtime info
@@ -102,32 +102,22 @@ viewToolStatus result = do
       Left setupErr -> do
         let suggestion = configErrorToSuggestion Nothing setupErr
         case setupErr of
-          ParseError err -> do
-            viraAlert_ AlertError $ do
-              p_ [class_ "text-red-800 dark:text-red-200 font-semibold mb-1"] "Parse error"
-              p_ [class_ "text-red-700 dark:text-red-300 text-sm"] $ toHtml (show err :: String)
-          NotConfigured -> do
-            viraAlert_ AlertWarning $ do
-              p_ [class_ "text-yellow-800 dark:text-yellow-200 mb-1"] "Not configured"
-              p_ [class_ "text-yellow-700 dark:text-yellow-300 text-sm"] $ do
-                "Config file not found at "
-                code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] "~/.config/attic/config.toml"
-              toHtml suggestion
-          NoServerForEndpoint endpoint -> do
-            viraAlert_ AlertWarning $ do
-              p_ [class_ "text-yellow-800 dark:text-yellow-200 font-semibold mb-1"] "No server configured"
-              p_ [class_ "text-yellow-700 dark:text-yellow-300 text-sm"] $ do
-                "No server found for endpoint: "
-                code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] $ toHtml (toText endpoint)
-              toHtml suggestion
-          NoToken serverName -> do
-            viraAlert_ AlertWarning $ do
-              p_ [class_ "text-yellow-800 dark:text-yellow-200 font-semibold mb-1"] "Missing authentication token"
-              p_ [class_ "text-yellow-700 dark:text-yellow-300 text-sm"] $ do
-                "Server "
-                strong_ $ toHtml serverName.name
-                " is configured but has no authentication token"
-              toHtml suggestion
+          ParseError err ->
+            viraAlertWithTitle_ AlertError "Parse error" $
+              toHtml (show err :: String) >> toHtml suggestion
+          NotConfigured -> viraAlertWithTitle_ AlertWarning "Not configured" $ do
+            "Config file not found at "
+            code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] "~/.config/attic/config.toml"
+            toHtml suggestion
+          NoServerForEndpoint endpoint -> viraAlertWithTitle_ AlertWarning "No server configured" $ do
+            "No server found for endpoint: "
+            code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] $ toHtml (toText endpoint)
+            toHtml suggestion
+          NoToken serverName -> viraAlertWithTitle_ AlertWarning "Missing authentication token" $ do
+            "Server "
+            strong_ $ toHtml serverName.name
+            " is configured but has no authentication token"
+            toHtml suggestion
       Right atticCfg -> do
         viraAlert_ AlertSuccess $ do
           case atticCfg.defaultServer of
