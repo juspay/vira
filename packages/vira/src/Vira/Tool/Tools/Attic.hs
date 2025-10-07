@@ -62,18 +62,15 @@ instance TS.Show AtticSuggestion where
       toString $ "rm " <> configPath
 
 -- | Convert a ConfigError to a suggestion for fixing it
-configErrorToSuggestion :: Maybe AtticServerEndpoint -> ConfigError -> AtticSuggestion
-configErrorToSuggestion mEndpoint = \case
+configErrorToSuggestion :: ConfigError -> AtticSuggestion
+configErrorToSuggestion = \case
   ParseError _ ->
     AtticParseErrorSuggestion "~/.config/attic/config.toml"
-  NotConfigured ->
-    mkLoginSuggestion (deriveServerName defaultEndpoint) defaultEndpoint
   NoServerForEndpoint ep ->
     mkLoginSuggestion (deriveServerName ep) ep
   NoToken server ->
     mkLoginSuggestion server.name server.endpoint
   where
-    defaultEndpoint = fromMaybe "https://cache.example.com" mEndpoint
     mkLoginSuggestion :: Text -> AtticServerEndpoint -> AtticSuggestion
     mkLoginSuggestion name endpoint =
       AtticLoginSuggestion
@@ -101,16 +98,11 @@ viewToolStatus result = do
   div_ [class_ "mb-3"] $ do
     case result of
       Left setupErr -> do
-        let suggestion = configErrorToSuggestion Nothing setupErr
+        let suggestion = configErrorToSuggestion setupErr
         case setupErr of
           ParseError err ->
             viraAlertWithTitle_ AlertError "Parse error" $
               toHtml (show err :: String) >> toHtml suggestion
-          NotConfigured -> viraAlertWithTitle_ AlertWarning "Not configured" $ do
-            "Config file not found at "
-            code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] "~/.config/attic/config.toml"
-            toHtml suggestion
-          -- This case is not reached, since it is only applicable for CI context.
           NoServerForEndpoint endpoint -> viraAlertWithTitle_ AlertWarning "No server configured" $ do
             "No server found for endpoint: "
             code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] $ toHtml (toText endpoint)
@@ -120,18 +112,28 @@ viewToolStatus result = do
             strong_ $ toHtml serverName.name
             " is configured but has no authentication token"
             toHtml suggestion
-      Right atticCfg -> do
-        viraAlert_ AlertSuccess $ do
-          case atticCfg.defaultServer of
-            Just defServer -> do
-              p_ [class_ "text-green-800 dark:text-green-200 font-semibold mb-1"] $ do
-                "Default server: "
-                strong_ $ toHtml defServer
-            Nothing -> do
-              p_ [class_ "text-green-800 dark:text-green-200 font-semibold mb-1"] "Configured"
+      Right atticCfg ->
+        if Map.null atticCfg.servers
+          then
+            let suggestion =
+                  AtticLoginSuggestion
+                    { bin = Attic.atticBin
+                    , serverName = "cache-example-com"
+                    , endpoint = "https://cache.example.com"
+                    }
+             in viraAlertWithTitle_ AlertInfo "Not configured" $ do
+                  "No Attic servers configured. "
+                  toHtml suggestion
+          else viraAlert_ AlertSuccess $ do
+            case atticCfg.defaultServer of
+              Just defServer -> do
+                p_ [class_ "text-green-800 dark:text-green-200 font-semibold mb-1"] $ do
+                  "Default server: "
+                  strong_ $ toHtml defServer
+              Nothing -> do
+                p_ [class_ "text-green-800 dark:text-green-200 font-semibold mb-1"] "Configured"
 
-          -- Display all configured servers
-          unless (Map.null atticCfg.servers) $ do
+            -- Display all configured servers
             p_ [class_ "text-green-700 text-xs mt-2 mb-1"] "Configured servers:"
             div_ [class_ "space-y-1"] $ do
               forM_ (Map.toList atticCfg.servers) $ \(serverName, serverCfg) -> do

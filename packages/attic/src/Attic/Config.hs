@@ -47,8 +47,6 @@ instance DecodeTOML AtticConfig where
 data ConfigError
   = -- | TOML configuration parse error
     ParseError TOMLError
-  | -- | Attic is not configured
-    NotConfigured
   | -- | No server configured for endpoint
     NoServerForEndpoint AtticServerEndpoint
   | -- | Server configured but no authentication token
@@ -59,8 +57,8 @@ data ConfigError
 
 Combines reading and validation into a single operation.
 Returns:
-- Left ConfigError if config is missing, invalid, or incomplete
-- Right AtticConfig if successfully parsed and validated
+- Left ConfigError if config is invalid or incomplete
+- Right AtticConfig if successfully parsed and validated (empty config if file doesn't exist)
 -}
 getAtticConfig :: IO (Either ConfigError AtticConfig)
 getAtticConfig = validateConfig <$> readAtticConfig
@@ -68,12 +66,14 @@ getAtticConfig = validateConfig <$> readAtticConfig
     validateConfig :: Either TOMLError (Maybe AtticConfig) -> Either ConfigError AtticConfig
     validateConfig result = do
       mConfig <- first ParseError result
-      config <- mConfig & maybeToRight NotConfigured
+      let config = fromMaybe emptyConfig mConfig
 
       -- Check if any server is missing a token
       case find (\(_server, serverCfg) -> isNothing serverCfg.token) (Map.toList config.servers) of
         Just (serverName, cfg) -> Left $ NoToken $ AtticServer serverName cfg.endpoint
         Nothing -> Right config
+
+    emptyConfig = AtticConfig {defaultServer = Nothing, servers = Map.empty}
 
 {- | Read Attic configuration from ~/.config/attic/config.toml
 
@@ -97,6 +97,8 @@ readAtticConfig = do
 {- | Get server name from endpoint in config
 
 Searches the config for a server with matching endpoint and returns the server name.
+
+TODO: This should raise error if token is empty.
 -}
 lookupEndpoint ::
   AtticConfig ->

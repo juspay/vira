@@ -140,8 +140,8 @@ cacheProcs env stage =
           "Invalid cache URL '" <> url <> "': " <> show err
 
     atticErrorToPipelineError :: Text -> AtticServerEndpoint -> ConfigError -> PipelineError
-    atticErrorToPipelineError url endpoint err =
-      let suggestion = AtticTool.configErrorToSuggestion (Just endpoint) err
+    atticErrorToPipelineError url _endpoint err =
+      let suggestion = AtticTool.configErrorToSuggestion err
           suggestionText =
             "\n\nSuggestion: Run the following in your terminal\n\n"
               <> show @Text suggestion
