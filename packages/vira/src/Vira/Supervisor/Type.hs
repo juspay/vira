@@ -44,13 +44,9 @@ data TaskInfo = TaskInfo
   }
   deriving stock (Generic)
 
-{- | Exceptions (not errors!) that occurred during a task
-
-For anything caller specific, define your own error type.
--}
-data TaskException
-  = KilledByUser
+-- | Task was explicitly terminate (by the user)
+data Terminated = Terminated
   deriving stock (Show)
 
-instance Exception TaskException where
-  displayException KilledByUser = "Task was killed by user"
+instance Exception Terminated where
+  displayException Terminated = "Task was killed by user"

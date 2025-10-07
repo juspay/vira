@@ -3,62 +3,22 @@
 
 module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
 
-import Attic qualified
-import Attic.Config (lookupEndpointWithToken)
-import Attic.Types (AtticServer (..), AtticServerEndpoint)
-import Attic.Url qualified
-import Data.List qualified
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Git qualified as Git
-import Effectful.Process (CreateProcess (cwd))
-import GH.Signoff qualified as Signoff
-import Language.Haskell.Interpreter (GhcError (..), InterpreterError (..))
+import Language.Haskell.Interpreter (InterpreterError (..))
 import Shower qualified
 import System.Directory (doesFileExist)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
-import System.Info qualified as SysInfo
-import Text.Show qualified as TS
 import Vira.CI.Configuration qualified as Configuration
-import Vira.CI.Environment (ViraEnvironment (..), projectDir, viraContext)
+import Vira.CI.Environment (ViraEnvironment (..))
+import Vira.CI.Environment qualified as Env
+import Vira.CI.Error
 import Vira.CI.Pipeline.Type
-import Vira.Lib.Omnix qualified as Omnix
+import Vira.CI.Processes (pipelineProcesses)
 import Vira.State.Type (cloneUrl, headCommit)
 import Vira.Supervisor.Task qualified as Task
-import Vira.Supervisor.Type (TaskException)
-import Vira.Tool.Core (ToolError (..))
-import Vira.Tool.Tools.Attic qualified as AtticTool
-import Vira.Tool.Type.ToolData (status)
-import Vira.Tool.Type.Tools (attic)
-
--- | Configuration error types
-data ConfigurationError
-  = InterpreterError InterpreterError
-  | MalformedConfig Text
-  deriving stock (Show)
-
--- | Pipeline-specific errors
-data PipelineError
-  = PipelineConfigurationError ConfigurationError
-  | PipelineToolError ToolError
-  | PipelineEmpty
-  | PipelineTaskException TaskException
-
-instance TS.Show PipelineError where
-  show (PipelineToolError (ToolError msg)) =
-    "Tool: " <> toString msg
-  show (PipelineConfigurationError (InterpreterError herr)) =
-    "vira.hs error: " <> case herr of
-      WontCompile ghcErrors -> "WontCompile\n" <> Data.List.unlines (errMsg <$> ghcErrors)
-      UnknownError err -> "UnknownError\n" <> err
-      NotAllowed err -> "NotAllowed\n" <> err
-      GhcException err -> "GhcException\n" <> err
-  show (PipelineConfigurationError (MalformedConfig msg)) =
-    "vira.hs has malformed config: " <> toString msg
-  show PipelineEmpty =
-    "Pipeline is empty - no stages to run"
-  show (PipelineTaskException err) = TS.show err
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
@@ -67,116 +27,49 @@ runPipeline ::
   Eff es (Either PipelineError ExitCode)
 runPipeline env = do
   -- 1. Setup workspace and clone
-  -- HACK: We hardcoding "project" (see projectDir function in Environment.hs)
   let setupProcs =
-        one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit "project"
+        one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit Env.projectDirName
   Task.runProcesses setupProcs >>= \case
     Left err ->
-      pure $ Left $ PipelineTaskException err
+      pure $ Left $ PipelineTerminated err
     Right ExitSuccess -> do
-      -- 2. Configure and run pipeline
-      runErrorNoCallStack @InterpreterError (pipelineForProject env Task.logToWorkspaceOutput) >>= \case
+      -- 2. Configure the pipeline, looking for optional vira.hs
+      runErrorNoCallStack @InterpreterError (environmentPipeline env Task.logToWorkspaceOutput) >>= \case
         Left err -> do
           pure $ Left $ PipelineConfigurationError $ InterpreterError err
         Right pipeline -> do
           Task.logToWorkspaceOutput $ toText $ "ℹ️ Pipeline configuration:\n" <> Shower.shower pipeline
-          case pipelineToProcesses env pipeline of
+          case pipelineProcesses env pipeline of
             Left err -> do
               pure $ Left err
             Right pipelineProcs -> do
-              Task.runProcesses pipelineProcs <&> first PipelineTaskException
+              -- 3. Run the actual CI pipeline.
+              Task.runProcesses pipelineProcs <&> first PipelineTerminated
     Right exitCode -> do
       pure $ Right exitCode
 
--- | Convert pipeline configuration to CreateProcess list
-pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> Either PipelineError (NonEmpty CreateProcess)
-pipelineToProcesses env pipeline = do
-  procs' <- pipelineToProcesses' env pipeline
-  procs <- nonEmpty procs' & maybeToRight PipelineEmpty
-  pure $ procs <&> \p -> p {cwd = Just (projectDir env)}
+{- | Load pipeline configuration for the given project environment.
 
-pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> Either PipelineError [CreateProcess]
-pipelineToProcesses' env pipeline = do
-  cachePs <- cacheProcs env pipeline.cache
-  pure $
-    concat
-      [ buildProcs pipeline.build
-      , cachePs
-      , signoffProcs pipeline.signoff
-      ]
-
-buildProcs :: BuildStage -> [CreateProcess]
-buildProcs stage =
-  [Omnix.omnixCiProcess (overrideInputsToArgs stage.overrideInputs) | stage.enable]
-  where
-    -- Convert override inputs to command line arguments
-    overrideInputsToArgs :: [(Text, Text)] -> [String]
-    overrideInputsToArgs =
-      concatMap (\(key, value) -> ["--override-input", toString key, toString value])
-
-cacheProcs :: ViraEnvironment -> CacheStage -> Either PipelineError [CreateProcess]
-cacheProcs env stage =
-  go env.tools.attic stage.url
-  where
-    go _ Nothing = pure []
-    go attic (Just urlText) = do
-      -- Parse cache URL once
-      (serverEndpoint, cacheName) <-
-        Attic.Url.parseCacheUrl urlText
-          & first (parseErrorToPipelineError urlText)
-
-      -- Get attic config and create push process
-      pushProc <- first (atticErrorToPipelineError urlText serverEndpoint) $ do
-        atticConfig <- attic.status
-        -- Get server name for endpoint (only if it has a token)
-        serverName <-
-          lookupEndpointWithToken atticConfig serverEndpoint
-            & maybeToRight (AtticTool.MissingEndpoint serverEndpoint)
-        -- Create the push process (token already validated by lookupEndpointWithToken)
-        pure $ Attic.atticPushProcess (AtticServer serverName serverEndpoint) cacheName "result"
-      pure $ one pushProc
-
-    parseErrorToPipelineError :: Text -> Attic.Url.ParseError -> PipelineError
-    parseErrorToPipelineError url err =
-      PipelineConfigurationError $
-        MalformedConfig $
-          "Invalid cache URL '" <> url <> "': " <> show err
-
-    atticErrorToPipelineError :: Text -> AtticServerEndpoint -> AtticTool.ConfigError -> PipelineError
-    atticErrorToPipelineError url _endpoint err =
-      let suggestion = AtticTool.configErrorToSuggestion err
-          suggestionText =
-            "\n\nSuggestion: Run the following in your terminal\n\n"
-              <> show @Text suggestion
-          msg = "Attic configuration error for cache URL '" <> url <> "': " <> show err <> suggestionText
-       in PipelineToolError $ ToolError msg
-
-signoffProcs :: SignoffStage -> [CreateProcess]
-signoffProcs stage =
-  [Signoff.create Signoff.Force statusTitle | stage.enable]
-  where
-    nixSystem = SysInfo.arch <> "-" <> SysInfo.os
-    statusTitle = "vira/" <> nixSystem <> "/ci"
-
--- | Load pipeline configuration for a project directory
-pipelineForProject ::
+Uses vira.hs from project repository.
+-}
+environmentPipeline ::
   (Error InterpreterError :> es, IOE :> es) =>
   -- | Project's environment
   ViraEnvironment ->
   -- | Logger function
   (Text -> Eff es ()) ->
   Eff es ViraPipeline
-pipelineForProject env logger = do
+environmentPipeline env logger = do
   let
     pipeline = defaultPipeline
-    viraConfigPath = projectDir env </> "vira.hs"
+    viraConfigPath = Env.projectDir env </> "vira.hs"
   configExists <- liftIO $ doesFileExist viraConfigPath
 
   if configExists
     then do
       logger "Found vira.hs configuration file, applying customizations..."
       content <- liftIO $ readFileBS viraConfigPath
-      liftIO (Configuration.applyConfig (decodeUtf8 content) (viraContext env) pipeline) >>= \case
+      liftIO (Configuration.applyConfig (decodeUtf8 content) (Env.viraContext env) pipeline) >>= \case
         Left err -> do
           throwError err
         Right customPipeline -> do
@@ -190,7 +83,7 @@ pipelineForProject env logger = do
 defaultPipeline :: ViraPipeline
 defaultPipeline =
   ViraPipeline
-    { build = BuildStage True mempty
+    { build = BuildStage mempty
     , cache = CacheStage Nothing
     , signoff = SignoffStage False
     }

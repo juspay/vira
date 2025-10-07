@@ -29,7 +29,7 @@ import System.FilePath ((</>))
 import System.Tail qualified as Tail
 import Vira.Lib.Logging (log, tagCurrentThread)
 import Vira.Lib.Process qualified as Process
-import Vira.Supervisor.Type (Task (..), TaskException (KilledByUser), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..))
+import Vira.Supervisor.Type (Task (..), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..), Terminated (Terminated))
 import Prelude hiding (Reader, readMVar, runReader)
 
 type AppTaskStack es =
@@ -44,11 +44,11 @@ type AppTaskStack es =
 {- | Start a task in the supervisor
 
   The orchestrator is a function that runs the actual task logic (using `runProcesses`), and is provided
-  with the necessary Effectful capabilities. It should return an `Either TaskException ExitCode`
+  with the necessary Effectful capabilities. It should return an `Either Terminated ExitCode`
   indicating the result of the task.
 
   The `onFinish` handler is called when the task completes, whether successfully or due to an exception.
-  It receives the same `Either TaskException ExitCode` result from the orchestrator.
+  It receives the same `Either Terminated ExitCode` result from the orchestrator.
 
   The working directory for the task is created if it does not exist, and an empty log file is initialized.
   The task's output is logged to this file, and a tail handle is created for potential log streaming.
@@ -113,14 +113,14 @@ runProcesses ::
   ) =>
   -- List of processes to run in sequence
   NonEmpty CreateProcess ->
-  Eff es (Either TaskException ExitCode)
+  Eff es (Either Terminated ExitCode)
 runProcesses procs = do
   taskId <- Reader.asks taskId
   tagCurrentThread $ "🪜 ;task=" <> show taskId
   runProcs $ toList procs
   where
     -- Run each process one after another; exiting immediately if any fails
-    runProcs :: [CreateProcess] -> Eff es (Either TaskException ExitCode)
+    runProcs :: [CreateProcess] -> Eff es (Either Terminated ExitCode)
     runProcs [] = do
       log Info "All procs for task finished successfully"
       pure $ Right ExitSuccess
@@ -136,7 +136,7 @@ runProcesses procs = do
           log Warning $ "A proc for task (pid=" <> show pid <> ") was interrupted:  " <> show e
           pure $ Left e
 
-    runProc :: CreateProcess -> Eff es (Maybe Pid, Either TaskException ExitCode)
+    runProc :: CreateProcess -> Eff es (Maybe Pid, Either Terminated ExitCode)
     runProc process = do
       taskId <- Reader.asks taskId
       workDir <- Reader.asks workDir
@@ -147,7 +147,7 @@ runProcesses procs = do
         let processSettings =
               Process.alwaysUnderPath workDir
                 >>> Process.redirectOutputTo outputHandle
-                >>> (\cp -> cp {create_group = True}) -- For `interruptProcessGroupOf`, when the process is `KilledByUser`
+                >>> (\cp -> cp {create_group = True}) -- For `interruptProcessGroupOf`, when the process is `Terminated`
         (_, _, _, ph) <- createProcess $ process & processSettings
         pid <- getPid ph
         tagCurrentThread $ "🪜 ;task=" <> show taskId <> ";pid=" <> maybe "?" show pid
@@ -158,13 +158,13 @@ runProcesses procs = do
           mask $ \restore ->
             restore (Right <$> waitForProcess ph)
               `catch` \case
-                KilledByUser -> do
+                Terminated -> do
                   log Info "Terminating process"
                   interruptProcessGroupOf ph `catch` \(e :: SomeException) ->
                     -- Analogous to `Control-C`'ing the process in an interactive shell
                     log Error $ "Failed to terminate process: " <> show e
                   _ <- waitForProcess ph -- Reap to prevent zombies
-                  pure $ Left KilledByUser
+                  pure $ Left Terminated
         log Debug $ "Task finished: " <> show (cmdspec process)
         logToWorkspaceOutput $
           "A task (pid=" <> show pid <> ") finished with " <> either (("exception: " <>) . toText . displayException) (("exitcode: " <>) . show) result
@@ -181,7 +181,7 @@ killTask supervisor taskId = do
         pure tasks -- Don't modify the map if task doesn't exist
       Just task -> do
         log Info $ "Killing task " <> show taskId
-        cancelWith task.asyncHandle KilledByUser
+        cancelWith task.asyncHandle Terminated
         pure $ Map.delete taskId tasks
 
 taskState :: (Concurrent :> es) => Task -> Eff es TaskState
