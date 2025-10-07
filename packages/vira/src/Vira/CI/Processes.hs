@@ -37,12 +37,10 @@ pipelineProcesses env pipeline = do
 
 buildProc :: BuildStage -> CreateProcess
 buildProc stage =
-  Omnix.omnixCiProcess (overrideInputsToArgs stage.overrideInputs)
+  Omnix.omnixCiProcess args
   where
-    -- Convert override inputs to command line arguments
-    overrideInputsToArgs :: [(Text, Text)] -> [String]
-    overrideInputsToArgs =
-      concatMap (\(key, value) -> ["--override-input", toString key, toString value])
+    args = flip concatMap stage.overrideInputs $ \(k, v) ->
+      ["--override-input", toString k, toString v]
 
 cacheProcs :: ViraEnvironment -> CacheStage -> Either PipelineError [CreateProcess]
 cacheProcs env stage =
