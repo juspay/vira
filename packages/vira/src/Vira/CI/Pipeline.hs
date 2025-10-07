@@ -8,6 +8,7 @@ import Attic qualified
 import Attic.Config (lookupEndpointWithToken)
 import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
+import Data.List qualified
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Git qualified as Git
@@ -51,10 +52,10 @@ instance TS.Show PipelineError where
     "Tool: " <> toString msg
   show (PipelineConfigurationError (InterpreterError herr)) =
     "vira.hs error: " <> case herr of
-      WontCompile ghcErrors -> "WontCompile\n" <> toString (unlines (map (toText . errMsg) ghcErrors))
-      UnknownError err -> "UnknownError\n" <> toString err
-      NotAllowed err -> "NotAllowed\n" <> toString err
-      GhcException err -> "GhcException\n" <> toString err
+      WontCompile ghcErrors -> "WontCompile\n" <> Data.List.unlines (errMsg <$> ghcErrors)
+      UnknownError err -> "UnknownError\n" <> err
+      NotAllowed err -> "NotAllowed\n" <> err
+      GhcException err -> "GhcException\n" <> err
   show (PipelineConfigurationError (MalformedConfig msg)) =
     "vira.hs has malformed config: " <> toString msg
   show PipelineEmpty =
