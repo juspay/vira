@@ -8,7 +8,6 @@ module Vira.Tool.Tools.Attic (
   ConfigError (..),
   AtticSuggestion (..),
   configErrorToSuggestion,
-  suggestionToText,
 ) where
 
 import Attic qualified
@@ -19,6 +18,7 @@ import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
 import Lucid (HtmlT, ToHtml (..), class_, code_, div_, p_, span_, strong_, toHtml)
+import Text.Show qualified as TS
 import Vira.Tool.Type.ToolData (ToolData (..))
 import Vira.Widgets.Alert (AlertType (..), viraAlert_)
 import Vira.Widgets.Code qualified as W
@@ -43,7 +43,19 @@ data AtticSuggestion = AtticLoginSuggestion
   , endpoint :: AtticServerEndpoint
   , token :: Maybe AtticToken
   }
-  deriving stock (Show, Eq)
+  deriving stock (Eq)
+
+instance TS.Show AtticSuggestion where
+  show suggestion =
+    toString $
+      T.intercalate
+        "\n"
+        [ "ATTIC=" <> toText suggestion.bin
+        , "TOKEN=" <> tokenText
+        , "$ATTIC login " <> suggestion.serverName <> " " <> toText suggestion.endpoint <> " $TOKEN"
+        ]
+    where
+      tokenText = maybe "<token>" (toText . unAtticToken) suggestion.token
 
 -- | Convert a ConfigError to a suggestion for fixing it
 configErrorToSuggestion :: Maybe AtticServerEndpoint -> ConfigError -> Maybe AtticSuggestion
@@ -66,25 +78,13 @@ configErrorToSuggestion mEndpoint = \case
         & T.replace "." "-"
         & T.replace "/" ""
 
--- | Convert suggestion to text for CI logs
-suggestionToText :: AtticSuggestion -> Text
-suggestionToText suggestion =
-  T.intercalate
-    "\n"
-    [ "ATTIC=" <> toText suggestion.bin
-    , "TOKEN=" <> tokenText
-    , "$ATTIC login " <> suggestion.serverName <> " " <> toText suggestion.endpoint <> " $TOKEN"
-    ]
-  where
-    tokenText = maybe "<token>" (toText . unAtticToken) suggestion.token
-
 -- | ToHtml instance for rendering suggestions in the Tools Page
 instance ToHtml AtticSuggestion where
   toHtmlRaw = toHtml
   toHtml suggestion = do
     div_ [class_ "mt-2"] $ do
       p_ [class_ "text-sm text-yellow-700 dark:text-yellow-300 mb-1"] "Run:"
-      W.viraCodeCopyable_ $ suggestionToText suggestion
+      W.viraCodeCopyable_ $ show @Text suggestion
 
 -- | View Attic tool status
 viewToolStatus :: (Monad m) => Either ConfigError AtticConfig -> HtmlT m ()

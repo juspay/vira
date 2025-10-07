@@ -149,7 +149,7 @@ cacheProcs env stage =
               <> "': "
               <> show err
               <> "\n\nSuggestion: Run the following in your terminal\n\n"
-              <> AtticTool.suggestionToText suggestion
+              <> show @Text suggestion
         Nothing -> ToolError $ "Attic configuration error: " <> show err
 
 signoffProcs :: SignoffStage -> [CreateProcess]
