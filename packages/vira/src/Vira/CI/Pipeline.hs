@@ -51,7 +51,6 @@ instance TS.Show PipelineError where
     "Tool: " <> toString msg
   show (PipelineConfigurationError (InterpreterError herr)) =
     "vira.hs error: " <> case herr of
-      WontCompile [] -> "WontCompile\n"
       WontCompile ghcErrors -> "WontCompile\n" <> toString (unlines (map (toText . errMsg) ghcErrors))
       UnknownError err -> "UnknownError\n" <> toString err
       NotAllowed err -> "NotAllowed\n" <> toString err
