@@ -13,7 +13,7 @@ module Vira.Tool.Tools.Attic (
 import Attic qualified
 import Attic.Config (AtticConfig (..), ConfigError (..))
 import Attic.Config qualified
-import Attic.Types (AtticServer (name), AtticServerEndpoint (..))
+import Attic.Types (AtticServer (..), AtticServerEndpoint (..))
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
@@ -37,36 +37,48 @@ getToolData = do
       }
 
 -- | Suggestions for fixing Attic configuration issues
-data AtticSuggestion = AtticLoginSuggestion
-  { bin :: FilePath
-  , serverName :: Text
-  , endpoint :: AtticServerEndpoint
-  }
+data AtticSuggestion
+  = AtticLoginSuggestion
+      { bin :: FilePath
+      , serverName :: Text
+      , endpoint :: AtticServerEndpoint
+      }
+  | AtticParseErrorSuggestion
+      { configPath :: Text
+      }
   deriving stock (Eq)
 
 instance TS.Show AtticSuggestion where
-  show suggestion =
-    toString $
-      T.intercalate
-        "\n"
-        [ "ATTIC=" <> toText suggestion.bin
-        , "TOKEN=YOUR-TOKEN-HERE"
-        , "$ATTIC login " <> suggestion.serverName <> " " <> toText suggestion.endpoint <> " $TOKEN"
-        ]
+  show = \case
+    AtticLoginSuggestion {bin, serverName, endpoint} ->
+      toString $
+        T.intercalate
+          "\n"
+          [ "ATTIC=" <> toText bin
+          , "TOKEN=YOUR-TOKEN-HERE"
+          , "$ATTIC login " <> serverName <> " " <> toText endpoint <> " $TOKEN"
+          ]
+    AtticParseErrorSuggestion {configPath} ->
+      toString $ "rm " <> configPath
 
 -- | Convert a ConfigError to a suggestion for fixing it
-configErrorToSuggestion :: Maybe AtticServerEndpoint -> ConfigError -> Maybe AtticSuggestion
+configErrorToSuggestion :: Maybe AtticServerEndpoint -> ConfigError -> AtticSuggestion
 configErrorToSuggestion mEndpoint = \case
-  ParseError _ -> Nothing -- Parse errors need manual TOML fixing
-  NotConfigured -> Just v
-  NoServerForEndpoint ep -> Just $ v {endpoint = ep, serverName = deriveServerName ep}
-  NoToken server -> Just $ v {serverName = server.name}
+  ParseError _ ->
+    AtticParseErrorSuggestion "~/.config/attic/config.toml"
+  NotConfigured ->
+    mkLoginSuggestion $ fromMaybe "https://cache.example.com" mEndpoint
+  NoServerForEndpoint ep ->
+    mkLoginSuggestion ep
+  NoToken server ->
+    mkLoginSuggestion server.endpoint
   where
-    v =
+    mkLoginSuggestion :: AtticServerEndpoint -> AtticSuggestion
+    mkLoginSuggestion endpoint =
       AtticLoginSuggestion
         { bin = Attic.atticBin
-        , serverName = deriveServerName $ fromMaybe "https://cache.example.com" mEndpoint
-        , endpoint = fromMaybe "https://cache.example.com" mEndpoint
+        , endpoint = endpoint
+        , serverName = deriveServerName endpoint
         }
     deriveServerName (AtticServerEndpoint url) =
       T.replace "https://" "" url
@@ -100,14 +112,14 @@ viewToolStatus result = do
               p_ [class_ "text-yellow-700 dark:text-yellow-300 text-sm"] $ do
                 "Config file not found at "
                 code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] "~/.config/attic/config.toml"
-              toHtml `mapM_` suggestion
+              toHtml suggestion
           NoServerForEndpoint endpoint -> do
             viraAlert_ AlertWarning $ do
               p_ [class_ "text-yellow-800 dark:text-yellow-200 font-semibold mb-1"] "No server configured"
               p_ [class_ "text-yellow-700 dark:text-yellow-300 text-sm"] $ do
                 "No server found for endpoint: "
                 code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] $ toHtml (toText endpoint)
-              toHtml `mapM_` suggestion
+              toHtml suggestion
           NoToken serverName -> do
             viraAlert_ AlertWarning $ do
               p_ [class_ "text-yellow-800 dark:text-yellow-200 font-semibold mb-1"] "Missing authentication token"
@@ -115,7 +127,7 @@ viewToolStatus result = do
                 "Server "
                 strong_ $ toHtml serverName.name
                 " is configured but has no authentication token"
-              toHtml `mapM_` suggestion
+              toHtml suggestion
       Right atticCfg -> do
         viraAlert_ AlertSuccess $ do
           case atticCfg.defaultServer of
