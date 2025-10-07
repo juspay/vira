@@ -44,7 +44,7 @@ runPipeline env = do
         one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit Env.projectDirName
   Task.runProcesses setupProcs >>= \case
     Left err ->
-      pure $ Left $ PipelineTaskException err
+      pure $ Left $ PipelineTerminated err
     Right ExitSuccess -> do
       -- 2. Configure the pipeline, looking for optional vira.hs
       runErrorNoCallStack @InterpreterError (environmentPipeline env Task.logToWorkspaceOutput) >>= \case
@@ -57,7 +57,7 @@ runPipeline env = do
               pure $ Left err
             Right pipelineProcs -> do
               -- 3. Run the actual CI pipeline.
-              Task.runProcesses pipelineProcs <&> first PipelineTaskException
+              Task.runProcesses pipelineProcs <&> first PipelineTerminated
     Right exitCode -> do
       pure $ Right exitCode
 

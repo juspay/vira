@@ -6,14 +6,14 @@ module Vira.CI.Error (
 import Data.List qualified
 import Language.Haskell.Interpreter (GhcError (..), InterpreterError (..))
 import Text.Show qualified as TS
-import Vira.Supervisor.Type (TaskException)
+import Vira.Supervisor.Type (Terminated)
 import Vira.Tool.Core (ToolError (..))
 
 -- | Pipeline-specific errors
 data PipelineError
   = PipelineConfigurationError ConfigurationError
   | PipelineToolError ToolError
-  | PipelineTaskException TaskException
+  | PipelineTerminated Terminated
 
 -- | Configuration error types
 data ConfigurationError
@@ -32,4 +32,4 @@ instance TS.Show PipelineError where
       GhcException err -> "GhcException\n" <> err
   show (PipelineConfigurationError (MalformedConfig msg)) =
     "vira.hs has malformed config: " <> toString msg
-  show (PipelineTaskException err) = TS.show err
+  show (PipelineTerminated err) = displayException err
