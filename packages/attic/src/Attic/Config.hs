@@ -7,7 +7,7 @@ module Attic.Config (
   ConfigError (..),
   getAtticConfig,
   readAtticConfig,
-  lookupEndpoint,
+  lookupEndpointWithToken,
   TOML.TOMLError,
 ) where
 
@@ -94,17 +94,19 @@ readAtticConfig = do
         Left err -> pure $ Left err
         Right config -> pure $ Right $ Just config
 
-{- | Get server name from endpoint in config
+{- | Get server name from endpoint in config, only if it has a token
 
-Searches the config for a server with matching endpoint and returns the server name.
-
-TODO: This should raise error if token is empty.
+Searches the config for a server with matching endpoint and returns the server name
+only if that server has an authentication token configured.
 -}
-lookupEndpoint ::
+lookupEndpointWithToken ::
   AtticConfig ->
   AtticServerEndpoint ->
   Maybe Text
-lookupEndpoint config serverEndpoint =
-  fst <$> find matchesEndpoint (Map.toList config.servers)
+lookupEndpointWithToken config serverEndpoint = do
+  (name, cfg) <- find matchesEndpoint (Map.toList config.servers)
+  case cfg.token of
+    Just _token -> Just name
+    Nothing -> Nothing
   where
     matchesEndpoint (_name, serverCfg) = serverCfg.endpoint == serverEndpoint

@@ -1351,11 +1351,6 @@
       border-color: var(--color-yellow-800);
     }
   }
-  .dark\:bg-blue-800 {
-    @media (prefers-color-scheme: dark) {
-      background-color: var(--color-blue-800);
-    }
-  }
   .dark\:bg-blue-900\/20 {
     @media (prefers-color-scheme: dark) {
       background-color: color-mix(in srgb, oklch(37.9% 0.146 265.522) 20%, transparent);

@@ -5,7 +5,7 @@
 module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
 
 import Attic qualified
-import Attic.Config (ConfigError (..), lookupEndpoint)
+import Attic.Config (ConfigError (..), lookupEndpointWithToken)
 import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
 import Effectful (Eff, IOE, (:>))
@@ -125,11 +125,11 @@ cacheProcs env stage =
       -- Get attic config and create push process
       pushProc <- first (atticErrorToPipelineError urlText serverEndpoint) $ do
         atticConfig <- attic.status
-        -- Get server name for endpoint
+        -- Get server name for endpoint (only if it has a token)
         serverName <-
-          lookupEndpoint atticConfig serverEndpoint
+          lookupEndpointWithToken atticConfig serverEndpoint
             & maybeToRight (NoServerForEndpoint serverEndpoint)
-        -- Create the push process (token validation already done in getToolData)
+        -- Create the push process (token already validated by lookupEndpointWithToken)
         pure $ Attic.atticPushProcess (AtticServer serverName serverEndpoint) cacheName "result"
       pure $ one pushProc
 
