@@ -66,9 +66,9 @@ configErrorToSuggestion :: ConfigError -> AtticSuggestion
 configErrorToSuggestion = \case
   ParseError _ ->
     AtticParseErrorSuggestion "~/.config/attic/config.toml"
-  NoServerForEndpoint ep ->
+  MissingEndpoint ep ->
     mkLoginSuggestion (deriveServerName ep) ep
-  NoToken server ->
+  MissingToken server ->
     mkLoginSuggestion server.name server.endpoint
   where
     mkLoginSuggestion :: Text -> AtticServerEndpoint -> AtticSuggestion
@@ -103,11 +103,11 @@ viewToolStatus result = do
           ParseError err ->
             viraAlertWithTitle_ AlertError "Parse error" $
               toHtml (show err :: String) >> toHtml suggestion
-          NoServerForEndpoint endpoint -> viraAlertWithTitle_ AlertWarning "No server configured" $ do
+          MissingEndpoint endpoint -> viraAlertWithTitle_ AlertWarning "No server configured" $ do
             "No server found for endpoint: "
             code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] $ toHtml (toText endpoint)
             toHtml suggestion
-          NoToken serverName -> viraAlertWithTitle_ AlertWarning "Missing authentication token" $ do
+          MissingToken serverName -> viraAlertWithTitle_ AlertWarning "Missing authentication token" $ do
             "Server "
             strong_ $ toHtml serverName.name
             " is configured but has no authentication token"

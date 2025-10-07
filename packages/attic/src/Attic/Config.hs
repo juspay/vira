@@ -48,9 +48,9 @@ data ConfigError
   = -- | TOML configuration parse error
     ParseError TOMLError
   | -- | No server configured for endpoint
-    NoServerForEndpoint AtticServerEndpoint
+    MissingEndpoint AtticServerEndpoint
   | -- | Server configured but no authentication token
-    NoToken AtticServer
+    MissingToken AtticServer
   deriving stock (Show, Eq)
 
 {- | Get validated Attic configuration
@@ -70,7 +70,7 @@ getAtticConfig = validateConfig <$> readAtticConfig
 
       -- Check if any server is missing a token
       case find (\(_server, serverCfg) -> isNothing serverCfg.token) (Map.toList config.servers) of
-        Just (serverName, cfg) -> Left $ NoToken $ AtticServer serverName cfg.endpoint
+        Just (serverName, cfg) -> Left $ MissingToken $ AtticServer serverName cfg.endpoint
         Nothing -> Right config
 
     emptyConfig = AtticConfig {defaultServer = Nothing, servers = Map.empty}

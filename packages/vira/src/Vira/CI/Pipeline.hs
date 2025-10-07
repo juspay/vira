@@ -128,7 +128,7 @@ cacheProcs env stage =
         -- Get server name for endpoint (only if it has a token)
         serverName <-
           lookupEndpointWithToken atticConfig serverEndpoint
-            & maybeToRight (NoServerForEndpoint serverEndpoint)
+            & maybeToRight (MissingEndpoint serverEndpoint)
         -- Create the push process (token already validated by lookupEndpointWithToken)
         pure $ Attic.atticPushProcess (AtticServer serverName serverEndpoint) cacheName "result"
       pure $ one pushProc
