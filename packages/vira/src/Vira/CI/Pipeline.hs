@@ -40,14 +40,13 @@ runPipeline ::
   Eff es (Either PipelineError ExitCode)
 runPipeline env = do
   -- 1. Setup workspace and clone
-  -- HACK: We hardcoding "project" (see projectDir function in Environment.hs)
   let setupProcs =
         one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit Env.projectDirName
   Task.runProcesses setupProcs >>= \case
     Left err ->
       pure $ Left $ PipelineTaskException err
     Right ExitSuccess -> do
-      -- 2. Configure and run pipeline
+      -- 2. Configure the pipeline, looking for optional vira.hs
       runErrorNoCallStack @InterpreterError (environmentPipeline env Task.logToWorkspaceOutput) >>= \case
         Left err -> do
           pure $ Left $ PipelineConfigurationError $ InterpreterError err
@@ -57,6 +56,7 @@ runPipeline env = do
             Left err -> do
               pure $ Left err
             Right pipelineProcs -> do
+              -- 3. Run the actual CI pipeline.
               Task.runProcesses pipelineProcs <&> first PipelineTaskException
     Right exitCode -> do
       pure $ Right exitCode
