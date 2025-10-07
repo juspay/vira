@@ -10,7 +10,7 @@ import Attic.Url qualified
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Git qualified as Git
-import Effectful.Process (CreateProcess (cwd))
+import Effectful.Process (CreateProcess)
 import GH.Signoff qualified as Signoff
 import Language.Haskell.Interpreter (InterpreterError (..))
 import Shower qualified
@@ -19,10 +19,12 @@ import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Info qualified as SysInfo
 import Vira.CI.Configuration qualified as Configuration
-import Vira.CI.Environment (ViraEnvironment (..), projectDir, viraContext)
+import Vira.CI.Environment (ViraEnvironment (..))
+import Vira.CI.Environment qualified as Env
 import Vira.CI.Error
 import Vira.CI.Pipeline.Type
 import Vira.Lib.Omnix qualified as Omnix
+import Vira.Lib.Process (alwaysUnderPath)
 import Vira.State.Type (cloneUrl, headCommit)
 import Vira.Supervisor.Task qualified as Task
 import Vira.Tool.Core (ToolError (..))
@@ -39,7 +41,7 @@ runPipeline env = do
   -- 1. Setup workspace and clone
   -- HACK: We hardcoding "project" (see projectDir function in Environment.hs)
   let setupProcs =
-        one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit "project"
+        one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit Env.projectDirName
   Task.runProcesses setupProcs >>= \case
     Left err ->
       pure $ Left $ PipelineTaskException err
@@ -63,7 +65,7 @@ pipelineToProcesses :: ViraEnvironment -> ViraPipeline -> Either PipelineError (
 pipelineToProcesses env pipeline = do
   procs' <- pipelineToProcesses' env pipeline
   procs <- nonEmpty procs' & maybeToRight PipelineEmpty
-  pure $ procs <&> \p -> p {cwd = Just (projectDir env)}
+  pure $ procs <&> alwaysUnderPath Env.projectDirName
 
 pipelineToProcesses' :: ViraEnvironment -> ViraPipeline -> Either PipelineError [CreateProcess]
 pipelineToProcesses' env pipeline = do
@@ -142,14 +144,14 @@ environmentPipeline ::
 environmentPipeline env logger = do
   let
     pipeline = defaultPipeline
-    viraConfigPath = projectDir env </> "vira.hs"
+    viraConfigPath = Env.projectDir env </> "vira.hs"
   configExists <- liftIO $ doesFileExist viraConfigPath
 
   if configExists
     then do
       logger "Found vira.hs configuration file, applying customizations..."
       content <- liftIO $ readFileBS viraConfigPath
-      liftIO (Configuration.applyConfig (decodeUtf8 content) (viraContext env) pipeline) >>= \case
+      liftIO (Configuration.applyConfig (decodeUtf8 content) (Env.viraContext env) pipeline) >>= \case
         Left err -> do
           throwError err
         Right customPipeline -> do

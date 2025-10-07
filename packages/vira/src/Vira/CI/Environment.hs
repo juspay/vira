@@ -4,6 +4,7 @@
 module Vira.CI.Environment (
   ViraEnvironment (..),
   projectDir,
+  projectDirName,
   environmentFor,
   viraContext,
 ) where
@@ -27,9 +28,12 @@ data ViraEnvironment = ViraEnvironment
   -- ^ Workspace directory path
   }
 
+projectDirName :: FilePath
+projectDirName = "project"
+
 -- | Get the project directory path from the workspace
 projectDir :: ViraEnvironment -> FilePath
-projectDir env = env.workspacePath </> "project"
+projectDir env = env.workspacePath </> projectDirName
 
 -- | Construct the 'ViraEnvironment' for a given repository and branch.
 environmentFor ::
