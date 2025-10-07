@@ -67,18 +67,19 @@ configErrorToSuggestion mEndpoint = \case
   ParseError _ ->
     AtticParseErrorSuggestion "~/.config/attic/config.toml"
   NotConfigured ->
-    mkLoginSuggestion $ fromMaybe "https://cache.example.com" mEndpoint
+    mkLoginSuggestion (deriveServerName defaultEndpoint) defaultEndpoint
   NoServerForEndpoint ep ->
-    mkLoginSuggestion ep
+    mkLoginSuggestion (deriveServerName ep) ep
   NoToken server ->
-    mkLoginSuggestion server.endpoint
+    mkLoginSuggestion server.name server.endpoint
   where
-    mkLoginSuggestion :: AtticServerEndpoint -> AtticSuggestion
-    mkLoginSuggestion endpoint =
+    defaultEndpoint = fromMaybe "https://cache.example.com" mEndpoint
+    mkLoginSuggestion :: Text -> AtticServerEndpoint -> AtticSuggestion
+    mkLoginSuggestion name endpoint =
       AtticLoginSuggestion
         { bin = Attic.atticBin
         , endpoint = endpoint
-        , serverName = deriveServerName endpoint
+        , serverName = name
         }
     deriveServerName (AtticServerEndpoint url) =
       T.replace "https://" "" url
@@ -109,6 +110,7 @@ viewToolStatus result = do
             "Config file not found at "
             code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] "~/.config/attic/config.toml"
             toHtml suggestion
+          -- This case is not reached, since it is only applicable for CI context.
           NoServerForEndpoint endpoint -> viraAlertWithTitle_ AlertWarning "No server configured" $ do
             "No server found for endpoint: "
             code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] $ toHtml (toText endpoint)
