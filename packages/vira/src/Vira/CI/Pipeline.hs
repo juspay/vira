@@ -1,5 +1,4 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
@@ -15,7 +14,6 @@ import Effectful.Git qualified as Git
 import Effectful.Process (CreateProcess (cwd))
 import GH.Signoff qualified as Signoff
 import Language.Haskell.Interpreter (GhcError (..), InterpreterError (..))
-import Optics.Core
 import Shower qualified
 import System.Directory (doesFileExist)
 import System.Exit (ExitCode (ExitSuccess))
@@ -26,7 +24,7 @@ import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Environment (ViraEnvironment (..), projectDir, viraContext)
 import Vira.CI.Pipeline.Type
 import Vira.Lib.Omnix qualified as Omnix
-import Vira.State.Type (branchName, cloneUrl, headCommit, name)
+import Vira.State.Type (cloneUrl, headCommit)
 import Vira.Supervisor.Task qualified as Task
 import Vira.Supervisor.Type (TaskException)
 import Vira.Tool.Core (ToolError (..))
@@ -160,25 +158,6 @@ signoffProcs stage =
     nixSystem = SysInfo.arch <> "-" <> SysInfo.os
     statusTitle = "vira/" <> nixSystem <> "/ci"
 
--- HACK: Hardcoding until we have per-repo configuration
--- Until we have https://github.com/juspay/vira/issues/59
-hardcodePerRepoConfig :: ViraEnvironment -> ViraPipeline -> ViraPipeline
-hardcodePerRepoConfig env pipeline =
-  case toString env.repo.name of
-    "euler-lsp" ->
-      eulerLspConfiguration env pipeline
-    _ -> pipeline
-
-eulerLspConfiguration :: ViraEnvironment -> ViraPipeline -> ViraPipeline
-eulerLspConfiguration env pipeline =
-  let
-    isReleaseBranch = toString env.branch.branchName `isPrefixOf` "release-"
-   in
-    pipeline
-      & #build
-      % #overrideInputs
-      .~ [("flake/local", "github:boolean-option/false") | isReleaseBranch]
-
 -- | Load pipeline configuration for a project directory
 pipelineForProject ::
   (Error InterpreterError :> es, IOE :> es) =>
@@ -189,7 +168,7 @@ pipelineForProject ::
   Eff es ViraPipeline
 pipelineForProject env logger = do
   let
-    pipeline = defaultPipeline & hardcodePerRepoConfig env
+    pipeline = defaultPipeline
     viraConfigPath = projectDir env </> "vira.hs"
   configExists <- liftIO $ doesFileExist viraConfigPath
 
