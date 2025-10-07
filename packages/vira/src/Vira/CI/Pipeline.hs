@@ -141,16 +141,14 @@ cacheProcs env stage =
 
     atticErrorToPipelineError :: Text -> AtticServerEndpoint -> ConfigError -> PipelineError
     atticErrorToPipelineError url endpoint err =
-      PipelineToolError $ case AtticTool.configErrorToSuggestion (Just endpoint) err of
-        Just suggestion ->
-          ToolError $
-            "Attic configuration error for cache URL '"
-              <> url
-              <> "': "
-              <> show err
-              <> "\n\nSuggestion: Run the following in your terminal\n\n"
-              <> show @Text suggestion
-        Nothing -> ToolError $ "Attic configuration error: " <> show err
+      let suggestionText = do
+            suggestion <- AtticTool.configErrorToSuggestion (Just endpoint) err
+            -- FIXME: This text should also be part of suggestion?
+            pure $
+              "\n\nSuggestion: Run the following in your terminal\n\n"
+                <> show @Text suggestion
+          msg = "Attic configuration error for cache URL '" <> url <> "': " <> show err <> fromMaybe "" suggestionText
+       in PipelineToolError $ ToolError msg
 
 signoffProcs :: SignoffStage -> [CreateProcess]
 signoffProcs stage =
