@@ -8,25 +8,59 @@ module Vira.Tool.Tools.Attic (
   ConfigError (..),
   AtticSuggestion (..),
   configErrorToSuggestion,
+  getAtticConfig,
 ) where
 
 import Attic qualified
-import Attic.Config (AtticConfig (..), ConfigError (..))
+import Attic.Config (AtticConfig (..), AtticServerConfig (..))
 import Attic.Config qualified
 import Attic.Types (AtticServer (..), AtticServerEndpoint (..))
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
 import Lucid (HtmlT, ToHtml (..), class_, code_, div_, p_, span_, strong_, toHtml)
+import TOML (TOMLError)
 import Text.Show qualified as TS
 import Vira.Tool.Type.ToolData (ToolData (..))
 import Vira.Widgets.Alert (AlertType (..), viraAlertWithTitle_, viraAlert_)
 import Vira.Widgets.Code qualified as W
 
+-- | Configuration errors
+data ConfigError
+  = -- | TOML configuration parse error
+    ParseError TOMLError
+  | -- | No server configured for endpoint
+    MissingEndpoint AtticServerEndpoint
+  | -- | Server configured but no authentication token
+    MissingToken AtticServer
+  deriving stock (Show, Eq)
+
+{- | Get validated Attic configuration
+
+Combines reading and validation into a single operation.
+Returns:
+- Left ConfigError if config is invalid or incomplete
+- Right AtticConfig if successfully parsed and validated (empty config if file doesn't exist)
+-}
+getAtticConfig :: IO (Either ConfigError AtticConfig)
+getAtticConfig = validateConfig <$> Attic.Config.readAtticConfig
+  where
+    validateConfig :: Either TOMLError (Maybe AtticConfig) -> Either ConfigError AtticConfig
+    validateConfig result = do
+      mConfig <- first ParseError result
+      let config = fromMaybe emptyConfig mConfig
+
+      -- Check if any server is missing a token
+      case find (\(_server, serverCfg) -> isNothing serverCfg.token) (Map.toList config.servers) of
+        Just (serverName, cfg) -> Left $ MissingToken $ AtticServer serverName cfg.endpoint
+        Nothing -> Right config
+
+    emptyConfig = AtticConfig {defaultServer = Nothing, servers = Map.empty}
+
 -- | Get Attic tool data with metadata and runtime info
 getToolData :: (IOE :> es) => Eff es (ToolData (Either ConfigError AtticConfig))
 getToolData = do
-  status <- liftIO Attic.Config.getAtticConfig
+  status <- liftIO getAtticConfig
   pure
     ToolData
       { name = "Attic"

@@ -5,7 +5,7 @@
 module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
 
 import Attic qualified
-import Attic.Config (ConfigError (..), lookupEndpointWithToken)
+import Attic.Config (lookupEndpointWithToken)
 import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
 import Effectful (Eff, IOE, (:>))
@@ -128,7 +128,7 @@ cacheProcs env stage =
         -- Get server name for endpoint (only if it has a token)
         serverName <-
           lookupEndpointWithToken atticConfig serverEndpoint
-            & maybeToRight (MissingEndpoint serverEndpoint)
+            & maybeToRight (AtticTool.MissingEndpoint serverEndpoint)
         -- Create the push process (token already validated by lookupEndpointWithToken)
         pure $ Attic.atticPushProcess (AtticServer serverName serverEndpoint) cacheName "result"
       pure $ one pushProc
@@ -139,7 +139,7 @@ cacheProcs env stage =
         MalformedConfig $
           "Invalid cache URL '" <> url <> "': " <> show err
 
-    atticErrorToPipelineError :: Text -> AtticServerEndpoint -> ConfigError -> PipelineError
+    atticErrorToPipelineError :: Text -> AtticServerEndpoint -> AtticTool.ConfigError -> PipelineError
     atticErrorToPipelineError url _endpoint err =
       let suggestion = AtticTool.configErrorToSuggestion err
           suggestionText =

@@ -4,14 +4,12 @@
 module Attic.Config (
   AtticConfig (..),
   AtticServerConfig (..),
-  ConfigError (..),
-  getAtticConfig,
   readAtticConfig,
   lookupEndpointWithToken,
   TOML.TOMLError,
 ) where
 
-import Attic.Types (AtticServer (AtticServer), AtticServerEndpoint (..), AtticToken (..))
+import Attic.Types (AtticServerEndpoint (..), AtticToken (..))
 import Data.Map.Strict qualified as Map
 import System.Directory (XdgDirectory (..), doesFileExist, getXdgDirectory)
 import TOML (DecodeTOML, TOMLError, getField, getFields)
@@ -42,38 +40,6 @@ instance DecodeTOML AtticConfig where
     AtticConfig
       <$> (getFields ["default-server"] <|> pure Nothing)
       <*> getField "servers"
-
--- | Configuration errors
-data ConfigError
-  = -- | TOML configuration parse error
-    ParseError TOMLError
-  | -- | No server configured for endpoint
-    MissingEndpoint AtticServerEndpoint
-  | -- | Server configured but no authentication token
-    MissingToken AtticServer
-  deriving stock (Show, Eq)
-
-{- | Get validated Attic configuration
-
-Combines reading and validation into a single operation.
-Returns:
-- Left ConfigError if config is invalid or incomplete
-- Right AtticConfig if successfully parsed and validated (empty config if file doesn't exist)
--}
-getAtticConfig :: IO (Either ConfigError AtticConfig)
-getAtticConfig = validateConfig <$> readAtticConfig
-  where
-    validateConfig :: Either TOMLError (Maybe AtticConfig) -> Either ConfigError AtticConfig
-    validateConfig result = do
-      mConfig <- first ParseError result
-      let config = fromMaybe emptyConfig mConfig
-
-      -- Check if any server is missing a token
-      case find (\(_server, serverCfg) -> isNothing serverCfg.token) (Map.toList config.servers) of
-        Just (serverName, cfg) -> Left $ MissingToken $ AtticServer serverName cfg.endpoint
-        Nothing -> Right config
-
-    emptyConfig = AtticConfig {defaultServer = Nothing, servers = Map.empty}
 
 {- | Read Attic configuration from ~/.config/attic/config.toml
 
