@@ -46,6 +46,7 @@ library
       Vira.CI.Environment
       Vira.CI.Error
       Vira.CI.Pipeline
+      Vira.CI.Processes
       Vira.CI.Workspace
       Vira.Lib.Cachix
       Vira.Lib.Logging
