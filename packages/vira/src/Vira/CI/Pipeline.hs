@@ -7,58 +7,28 @@ import Attic qualified
 import Attic.Config (lookupEndpointWithToken)
 import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
-import Data.List qualified
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Git qualified as Git
 import Effectful.Process (CreateProcess (cwd))
 import GH.Signoff qualified as Signoff
-import Language.Haskell.Interpreter (GhcError (..), InterpreterError (..))
+import Language.Haskell.Interpreter (InterpreterError (..))
 import Shower qualified
 import System.Directory (doesFileExist)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Info qualified as SysInfo
-import Text.Show qualified as TS
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Environment (ViraEnvironment (..), projectDir, viraContext)
+import Vira.CI.Error
 import Vira.CI.Pipeline.Type
 import Vira.Lib.Omnix qualified as Omnix
 import Vira.State.Type (cloneUrl, headCommit)
 import Vira.Supervisor.Task qualified as Task
-import Vira.Supervisor.Type (TaskException)
 import Vira.Tool.Core (ToolError (..))
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type.ToolData (status)
 import Vira.Tool.Type.Tools (attic)
-
--- | Configuration error types
-data ConfigurationError
-  = InterpreterError InterpreterError
-  | MalformedConfig Text
-  deriving stock (Show)
-
--- | Pipeline-specific errors
-data PipelineError
-  = PipelineConfigurationError ConfigurationError
-  | PipelineToolError ToolError
-  | PipelineEmpty
-  | PipelineTaskException TaskException
-
-instance TS.Show PipelineError where
-  show (PipelineToolError (ToolError msg)) =
-    "Tool: " <> toString msg
-  show (PipelineConfigurationError (InterpreterError herr)) =
-    "vira.hs error: " <> case herr of
-      WontCompile ghcErrors -> "WontCompile\n" <> Data.List.unlines (errMsg <$> ghcErrors)
-      UnknownError err -> "UnknownError\n" <> err
-      NotAllowed err -> "NotAllowed\n" <> err
-      GhcException err -> "GhcException\n" <> err
-  show (PipelineConfigurationError (MalformedConfig msg)) =
-    "vira.hs has malformed config: " <> toString msg
-  show PipelineEmpty =
-    "Pipeline is empty - no stages to run"
-  show (PipelineTaskException err) = TS.show err
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
@@ -75,7 +45,7 @@ runPipeline env = do
       pure $ Left $ PipelineTaskException err
     Right ExitSuccess -> do
       -- 2. Configure and run pipeline
-      runErrorNoCallStack @InterpreterError (pipelineForProject env Task.logToWorkspaceOutput) >>= \case
+      runErrorNoCallStack @InterpreterError (environmentPipeline env Task.logToWorkspaceOutput) >>= \case
         Left err -> do
           pure $ Left $ PipelineConfigurationError $ InterpreterError err
         Right pipeline -> do
@@ -158,15 +128,18 @@ signoffProcs stage =
     nixSystem = SysInfo.arch <> "-" <> SysInfo.os
     statusTitle = "vira/" <> nixSystem <> "/ci"
 
--- | Load pipeline configuration for a project directory
-pipelineForProject ::
+{- | Load pipeline configuration for the given project environment.
+
+Uses vira.hs from project repository.
+-}
+environmentPipeline ::
   (Error InterpreterError :> es, IOE :> es) =>
   -- | Project's environment
   ViraEnvironment ->
   -- | Logger function
   (Text -> Eff es ()) ->
   Eff es ViraPipeline
-pipelineForProject env logger = do
+environmentPipeline env logger = do
   let
     pipeline = defaultPipeline
     viraConfigPath = projectDir env </> "vira.hs"

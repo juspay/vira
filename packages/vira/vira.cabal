@@ -44,6 +44,7 @@ library
       Vira.App.Stack
       Vira.CI.Configuration
       Vira.CI.Environment
+      Vira.CI.Error
       Vira.CI.Pipeline
       Vira.CI.Workspace
       Vira.Lib.Cachix
