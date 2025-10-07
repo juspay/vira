@@ -4,13 +4,12 @@
 module Attic.Config (
   AtticConfig (..),
   AtticServerConfig (..),
-  ConfigError (..),
-  getAtticConfig,
   readAtticConfig,
+  lookupEndpointWithToken,
   TOML.TOMLError,
 ) where
 
-import Attic.Types (AtticServer (AtticServer), AtticServerEndpoint (..), AtticToken (..))
+import Attic.Types (AtticServerEndpoint (..), AtticToken (..))
 import Data.Map.Strict qualified as Map
 import System.Directory (XdgDirectory (..), doesFileExist, getXdgDirectory)
 import TOML (DecodeTOML, TOMLError, getField, getFields)
@@ -42,38 +41,6 @@ instance DecodeTOML AtticConfig where
       <$> (getFields ["default-server"] <|> pure Nothing)
       <*> getField "servers"
 
--- | Configuration errors
-data ConfigError
-  = -- | TOML configuration parse error
-    ParseError TOMLError
-  | -- | Attic is not configured
-    NotConfigured
-  | -- | No server configured for endpoint
-    NoServerForEndpoint AtticServerEndpoint
-  | -- | Server configured but no authentication token
-    NoToken AtticServer
-  deriving stock (Show, Eq)
-
-{- | Get validated Attic configuration
-
-Combines reading and validation into a single operation.
-Returns:
-- Left ConfigError if config is missing, invalid, or incomplete
-- Right AtticConfig if successfully parsed and validated
--}
-getAtticConfig :: IO (Either ConfigError AtticConfig)
-getAtticConfig = validateConfig <$> readAtticConfig
-  where
-    validateConfig :: Either TOMLError (Maybe AtticConfig) -> Either ConfigError AtticConfig
-    validateConfig result = do
-      mConfig <- first ParseError result
-      config <- mConfig & maybeToRight NotConfigured
-
-      -- Check if any server is missing a token
-      case find (\(_server, serverCfg) -> isNothing serverCfg.token) (Map.toList config.servers) of
-        Just (serverName, cfg) -> Left $ NoToken $ AtticServer serverName cfg.endpoint
-        Nothing -> Right config
-
 {- | Read Attic configuration from ~/.config/attic/config.toml
 
 Returns:
@@ -92,3 +59,20 @@ readAtticConfig = do
       case TOML.decode contents of
         Left err -> pure $ Left err
         Right config -> pure $ Right $ Just config
+
+{- | Get server name from endpoint in config, only if it has a token
+
+Searches the config for a server with matching endpoint and returns the server name
+only if that server has an authentication token configured.
+-}
+lookupEndpointWithToken ::
+  AtticConfig ->
+  AtticServerEndpoint ->
+  Maybe Text
+lookupEndpointWithToken config serverEndpoint = do
+  (name, cfg) <- find matchesEndpoint (Map.toList config.servers)
+  case cfg.token of
+    Just _token -> Just name
+    Nothing -> Nothing
+  where
+    matchesEndpoint (_name, serverCfg) = serverCfg.endpoint == serverEndpoint

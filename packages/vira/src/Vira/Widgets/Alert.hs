@@ -3,6 +3,7 @@ Alert component for displaying important messages with semantic colors.
 -}
 module Vira.Widgets.Alert (
   viraAlert_,
+  viraAlertWithTitle_,
   AlertType (..),
 ) where
 
@@ -81,3 +82,28 @@ viraAlert_ alertType content = do
       div_ [class_ "flex-shrink-0"] $ do
         div_ [class_ $ iconColor <> " w-5 h-5 flex items-center justify-center"] $ toHtmlRaw iconSvg
       div_ [class_ "ml-3 flex-1"] content
+
+{- | Alert with title and body in standardized layout
+Helper for tool status messages that follow the pattern:
+- Title paragraph with semibold font
+- Body paragraph with smaller text
+-}
+viraAlertWithTitle_ ::
+  (Monad m) =>
+  AlertType ->
+  -- | Title text
+  HtmlT m () ->
+  -- | Body content (can include suggestions)
+  HtmlT m () ->
+  HtmlT m ()
+viraAlertWithTitle_ alertType title body = do
+  viraAlert_ alertType $ do
+    let (titleClass, bodyClass) = alertTypeClasses alertType
+    p_ [class_ titleClass] title
+    p_ [class_ bodyClass] body
+  where
+    alertTypeClasses = \case
+      AlertError -> ("text-red-800 dark:text-red-200 font-semibold mb-1", "text-red-700 dark:text-red-300 text-sm")
+      AlertWarning -> ("text-yellow-800 dark:text-yellow-200 font-semibold mb-1", "text-yellow-700 dark:text-yellow-300 text-sm")
+      AlertSuccess -> ("text-green-800 dark:text-green-200 font-semibold mb-1", "text-green-700 dark:text-green-300 text-sm")
+      AlertInfo -> ("text-blue-800 dark:text-blue-200 font-semibold mb-1", "text-blue-700 dark:text-blue-300 text-sm")

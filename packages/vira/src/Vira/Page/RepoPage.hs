@@ -29,7 +29,7 @@ import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
 import Vira.Widgets.Button qualified as W
-import Vira.Widgets.Code qualified as W
+import Vira.Widgets.Commit qualified as W
 import Vira.Widgets.Form qualified as W
 import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Modal (ErrorModal (..))

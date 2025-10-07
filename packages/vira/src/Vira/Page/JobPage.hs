@@ -31,7 +31,7 @@ import Vira.Supervisor.Task qualified as Supervisor
 import Vira.Supervisor.Type (TaskException (KilledByUser))
 import Vira.Widgets.Button qualified as W
 import Vira.Widgets.Card qualified as W
-import Vira.Widgets.Code qualified as W
+import Vira.Widgets.Commit qualified as W
 import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Status qualified as W
 import Vira.Widgets.Time qualified as Time

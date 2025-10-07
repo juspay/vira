@@ -83,6 +83,7 @@ library
       Vira.Widgets.Button
       Vira.Widgets.Card
       Vira.Widgets.Code
+      Vira.Widgets.Commit
       Vira.Widgets.Form
       Vira.Widgets.Layout
       Vira.Widgets.Modal

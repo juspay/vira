@@ -4,7 +4,8 @@
 
 module Vira.CI.ConfigurationSpec (spec) where
 
-import Attic.Config (ConfigError (..))
+import Attic.Config (AtticConfig (..))
+import Data.Map.Strict qualified as Map
 import Effectful.Git (BranchName (..), CommitID (..), RepoName (..))
 import GH.Auth.Status (AuthStatus (..))
 import Paths_vira (getDataFileName)
@@ -42,7 +43,7 @@ testTools =
           , Tool.description = "Test tool"
           , Tool.url = "https://example.com"
           , Tool.binPaths = one "test-bin"
-          , Tool.status = Left NotConfigured
+          , Tool.status = Right AtticConfig {defaultServer = Nothing, servers = Map.empty}
           }
     , Tool.github =
         Tool.ToolData
@@ -93,7 +94,7 @@ spec = describe "Vira.CI.Configuration" $ do
     it "applies valid config correctly" $ do
       configPath <- getDataFileName "test/sample-configs/simple-example.hs"
       configCode <- decodeUtf8 <$> readFileBS configPath
-      result <- applyConfig configCode (viraContext testEnvStaging) (defaultPipeline testEnvStaging)
+      result <- applyConfig configCode (viraContext testEnvStaging) defaultPipeline
       case result of
         Right pipeline -> do
           pipeline.signoff.enable `shouldBe` True
