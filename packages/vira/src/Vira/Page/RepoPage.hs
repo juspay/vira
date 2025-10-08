@@ -170,7 +170,7 @@ viewBranchListing repo branches = do
   branchStatuses <- lift $ mkBranchStatus repo.name `mapM` branches
 
   div_ [class_ "space-y-2"] $ do
-    forM_ (sortOn branchStatusSortKey branchStatuses) $ \branchStatus -> do
+    forM_ (sort branchStatuses) $ \branchStatus -> do
       branchUrl <- lift $ App.getLinkUrl $ LinkTo.RepoBranch repo.name branchStatus.branchData.branchName
       a_
         [ href_ branchUrl
@@ -222,7 +222,18 @@ data BranchStatus = BranchStatus
   , mHeadCommit :: Maybe Git.Commit
   -- ^ The commit at the head of the branch, if available
   }
-  deriving stock (Show)
+  deriving stock (Show, Eq)
+
+{- | Prioritizes branches with CI jobs (built/building) over never-built branches.
+Within each group, sorts by commit date descending (most recent first) to surface
+recently active branches. This helps users quickly identify branches that need
+attention or are actively being worked on.
+-}
+instance Ord BranchStatus where
+  compare a b = compare (sortingKey a) (sortingKey b)
+    where
+      sortingKey bs = (Down $ isJust bs.mLatestJob, Down $ maybe defaultTime (.date) bs.mHeadCommit)
+      defaultTime = UTCTime (fromGregorian 1900 1 1) 0
 
 -- | Create a 'BranchStatus' for a given branch, fetching required data.
 mkBranchStatus :: (Reader App.AppState Effectful.:> es, IOE Effectful.:> es) => RepoName -> St.Branch -> Eff es BranchStatus
@@ -232,19 +243,6 @@ mkBranchStatus repoName branch = do
       effectiveStatus = getBranchEffectiveStatus branch mLatestJob
   mHeadCommit <- App.query $ St.GetCommitByIdA branch.headCommit
   pure BranchStatus {branchData = branch, mLatestJob, effectiveStatus, mHeadCommit}
-
-{- | Extract the sorting key for 'BranchStatus'.
-
- Prioritizes branches with CI jobs (built/building) over never-built branches.
- Within each group, sorts by commit date descending (most recent first) to surface
- recently active branches. This helps users quickly identify branches that need
- attention or are actively being worked on.
--}
-branchStatusSortKey :: BranchStatus -> (Down Bool, Down UTCTime)
-branchStatusSortKey bs =
-  (Down $ isJust bs.mLatestJob, Down $ maybe defaultTime (.date) bs.mHeadCommit)
-  where
-    defaultTime = UTCTime (fromGregorian 1900 1 1) 0
 
 {- | The effective build-status of a branch.
 
@@ -259,7 +257,7 @@ data BranchEffectiveStatus
     JobStatus St.JobStatus
   | -- | The branch was built previously but the head commit has changed
     OutOfDate
-  deriving stock (Show)
+  deriving stock (Show, Eq, Ord)
 
 -- | Determine the 'BranchEffectiveStatus' based on its latest job.
 getBranchEffectiveStatus :: St.Branch -> Maybe St.Job -> BranchEffectiveStatus
