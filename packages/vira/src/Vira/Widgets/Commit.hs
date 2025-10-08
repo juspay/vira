@@ -38,27 +38,27 @@ viraCommitInfo_ commitId = do
         span_ [class_ "text-xs text-red-600 dark:text-red-400"] "Commit not found"
 
 -- | Compact commit info: hash, message, relative time
-viraCommitInfoCompact_ :: Git.CommitID -> Vira.App.AppHtml ()
-viraCommitInfoCompact_ commitId = do
-  maybeCommit <- lift $ Vira.App.query $ Vira.State.Acid.GetCommitByIdA commitId
+viraCommitInfoCompact_ :: Maybe Git.Commit -> Vira.App.AppHtml ()
+viraCommitInfoCompact_ mCommit = do
   now <- liftIO getCurrentTime
   div_ [class_ "flex items-center space-x-2"] $ do
-    viraCommitHash_ commitId
-    case maybeCommit of
+    case mCommit of
       Just commit -> do
+        viraCommitHash_ commit.id
         unless (T.null commit.message) $ do
           span_ [class_ "text-sm text-gray-700 dark:text-gray-300 truncate max-w-xs"] $ toHtml commit.message
         div_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $
           toHtml $
             formatRelativeTime now commit.date
       Nothing -> do
+        viraCommitHash_ (Git.CommitID "unknown")
         span_ [class_ "text-xs text-red-600 dark:text-red-400"] "Commit not found"
 
 -- | Clickable commit hash (8 chars) with copy-to-clipboard
 viraCommitHash_ :: Git.CommitID -> Vira.App.AppHtml ()
 viraCommitHash_ commitId = do
-  let shortHash = T.take 8 $ toText $ Git.unCommitID commitId
-      fullHash = toText $ Git.unCommitID commitId
+  let shortHash = T.take 8 $ toText commitId
+      fullHash = toText commitId
   code_
     [ class_ "px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded font-mono transition-colors cursor-pointer"
         <> copyable fullHash shortHash

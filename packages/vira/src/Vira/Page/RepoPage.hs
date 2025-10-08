@@ -5,7 +5,7 @@ module Vira.Page.RepoPage (
   handlers,
 ) where
 
-import Data.Time (UTCTime(..), diffUTCTime)
+import Data.Time (UTCTime (..), diffUTCTime)
 import Data.Time.Calendar (fromGregorian)
 import Effectful (Eff, raise)
 import Effectful.Error.Static (runErrorNoCallStack, throwError)
@@ -173,14 +173,13 @@ viewBranchListing repo branches = do
     let maybeLatestJob = viaNonEmpty head jobs
         effectiveStatus = getBranchEffectiveStatus branch maybeLatestJob
     maybeCommit <- App.query $ St.GetCommitByIdA branch.headCommit
-    let commitDate = maybe (UTCTime (fromGregorian 1900 1 1) 0) (.date) maybeCommit
-    pure (branch, maybeLatestJob, effectiveStatus, commitDate)
+    pure (branch, maybeLatestJob, effectiveStatus, maybeCommit)
 
   -- Sort branches: built/building first (by commit date), never built last (by commit date, recent first)
-  let sortedBranchStatuses = sortOn (\(_, maybeJob, _, commitDate) -> (Down $ isJust maybeJob, Down commitDate)) branchStatuses
+  let sortedBranchStatuses = sortOn (\(_, maybeJob, _, maybeCommit) -> (Down $ isJust maybeJob, Down $ maybe (UTCTime (fromGregorian 1900 1 1) 0) (.date) maybeCommit)) branchStatuses
 
   div_ [class_ "space-y-2"] $ do
-    forM_ sortedBranchStatuses $ \(branch, maybeLatestJob, effectiveStatus, _) -> do
+    forM_ sortedBranchStatuses $ \(branch, maybeLatestJob, effectiveStatus, maybeCommit) -> do
       branchUrl <- lift $ App.getLinkUrl $ LinkTo.RepoBranch repo.name branch.branchName
       let branchNameText = toText $ toString branch.branchName
       a_ [href_ branchUrl, class_ "block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600", data_ "branch-item" branchNameText] $ do
@@ -195,7 +194,7 @@ viewBranchListing repo branches = do
 
           -- Column 2: Last update info (5 columns)
           div_ [class_ "col-span-5 min-w-0"] $ do
-            W.viraCommitInfoCompact_ branch.headCommit
+            W.viraCommitInfoCompact_ maybeCommit
 
           -- Column 3: Build info and status (3 columns)
           div_ [class_ "col-span-3 flex items-center justify-end space-x-2"] $ do
