@@ -14,7 +14,7 @@ import Effectful.Process (Process, runProcess)
 import Effectful.Reader.Dynamic (Reader, runReader)
 import Servant (Handler (Handler), ServerError)
 import Servant.Links (Link)
-import Vira.App.CLI (WebSettings)
+import Vira.App.CLI (GlobalSettings (..), WebSettings)
 import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.Lib.Logging (runLogActionStdout)
@@ -35,20 +35,20 @@ type AppStack =
 type AppServantStack = (Error ServerError : Reader WebSettings : AppStack)
 
 -- | Run the application stack in IO monad
-runApp :: AppState -> Eff AppStack a -> IO a
-runApp cfg =
+runApp :: GlobalSettings -> AppState -> Eff AppStack a -> IO a
+runApp globalSettings appState =
   do
     runEff
-    . runLogActionStdout
+    . runLogActionStdout (logLevel globalSettings)
     . runFileSystem
     . runProcess
     . runConcurrent
-    . runReader cfg
+    . runReader appState
 
 -- | Like `runApp`, but for Servant 'Handler'.
-runAppInServant :: AppState -> WebSettings -> Eff AppServantStack a -> Handler a
-runAppInServant cfg webSettings =
-  Handler . ExceptT . runApp cfg . runReader webSettings . runErrorNoCallStack
+runAppInServant :: GlobalSettings -> AppState -> WebSettings -> Eff AppServantStack a -> Handler a
+runAppInServant globalSettings appState webSettings =
+  Handler . ExceptT . runApp globalSettings appState . runReader webSettings . runErrorNoCallStack
 
 -- | Application-wide state available in Effectful stack
 data AppState = AppState

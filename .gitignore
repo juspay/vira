@@ -23,4 +23,7 @@ result-*
 # Claude
 .claude/settings.local.json
 
+# LLM plans
+.plan/
+
 /ghcid.log

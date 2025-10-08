@@ -4,7 +4,7 @@ module Vira.App.Server (
   runServer,
 ) where
 
-import Colog (Message, Severity (..))
+import Colog (Message)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.FileSystem (FileSystem, doesDirectoryExist)
@@ -39,14 +39,14 @@ runServer globalSettings webSettings = do
   where
     buildApplication = do
       appState <- Reader.ask @AppState
-      let servantApp = genericServe $ IndexPage.handlers appState webSettings
+      let servantApp = genericServe $ IndexPage.handlers globalSettings appState webSettings
       staticDir <- getDataDirMultiHome
       log Debug $ "Static dir = " <> toText staticDir
       let middlewares =
             [ -- Middleware to serve static files
               staticPolicy $ noDots >-> addBase staticDir
             , -- 404 handler
-              notFoundMiddleware appState webSettings
+              notFoundMiddleware globalSettings appState webSettings
             ]
           app = foldl' (&) servantApp middlewares
       pure app
@@ -84,13 +84,13 @@ getDataDirMultiHome = do
       isJust <$> lookupEnv "IN_NIX_SHELL"
 
 -- | WAI middleware to handle 404 errors with custom page
-notFoundMiddleware :: AppState -> WebSettings -> Middleware
-notFoundMiddleware appState webSettings app req respond = do
+notFoundMiddleware :: GlobalSettings -> AppState -> WebSettings -> Middleware
+notFoundMiddleware globalSettings appState webSettings app req respond = do
   app req $ \res -> do
     -- Check if the response is a 404
     if responseStatus res == status404
       then do
-        html404 <- NotFoundPage.complete404Page appState webSettings
+        html404 <- NotFoundPage.complete404Page globalSettings appState webSettings
         respond $
           responseLBS status404 [("Content-Type", "text/html; charset=utf-8")] $
             encodeUtf8 html404
