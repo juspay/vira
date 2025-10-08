@@ -93,6 +93,7 @@ viewCommitTimeline branch jobs = do
 
     -- Show all jobs for this branch
     forM_ jobs $ \job -> do
+      maybeCommit <- lift $ App.query $ St.GetCommitByIdA job.commit
       jobUrl <- lift $ App.getLinkUrl $ LinkTo.Job job.jobId
       a_ [href_ jobUrl, class_ "block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-colors"] $ do
         -- Single-line columnar layout for easy scanning
@@ -104,7 +105,7 @@ viewCommitTimeline branch jobs = do
 
           -- Column 2: Commit info (6 columns)
           div_ [class_ "col-span-6 min-w-0"] $ do
-            W.viraCommitInfoCompact_ job.commit
+            W.viraCommitInfoCompact_ maybeCommit
 
           -- Column 3: Build duration and status (4 columns)
           div_ [class_ "col-span-4 flex items-center justify-end space-x-2"] $ do

@@ -5,13 +5,14 @@ module Vira.Page.RepoPage (
   handlers,
 ) where
 
-import Data.Time (diffUTCTime)
-import Effectful (Eff, raise)
+import Data.Time (UTCTime (..), diffUTCTime)
+import Data.Time.Calendar (fromGregorian)
+import Effectful (Eff, IOE, raise, (:>))
 import Effectful.Error.Static (runErrorNoCallStack, throwError)
 import Effectful.Git (RepoName)
 import Effectful.Git qualified as Git
 import Effectful.Git.Mirror qualified as Mirror
-import Effectful.Reader.Dynamic (asks)
+import Effectful.Reader.Dynamic (Reader, asks)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (..))
@@ -36,12 +37,12 @@ import Vira.Widgets.Modal (ErrorModal (..))
 import Vira.Widgets.Status qualified as Status
 import Vira.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
-import Prelude hiding (ask, asks)
+import Prelude hiding (Reader, ask, asks)
 
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
-  , _update :: mode :- "fetch" :> Post '[HTML] (Headers '[HXRefresh] (Maybe ErrorModal))
-  , _delete :: mode :- "delete" :> Post '[HTML] (Headers '[HXRedirect] Text)
+  , _update :: mode :- "fetch" Servant.:> Post '[HTML] (Headers '[HXRefresh] (Maybe ErrorModal))
+  , _delete :: mode :- "delete" Servant.:> Post '[HTML] (Headers '[HXRedirect] Text)
   }
   deriving stock (Generic)
 
@@ -166,69 +167,99 @@ viewRepo repo branches _allJobs = do
 -- Branch listing component for repository page
 viewBranchListing :: St.Repo -> [St.Branch] -> App.AppHtml ()
 viewBranchListing repo branches = do
-  -- Get latest job for each branch for status indicators and sorting
-  branchStatuses <- lift $ forM branches $ \branch -> do
-    jobs <- App.query $ St.GetJobsByBranchA repo.name branch.branchName
-    let maybeLatestJob = viaNonEmpty head jobs
-        effectiveStatus = getBranchEffectiveStatus branch maybeLatestJob
-    pure (branch, maybeLatestJob, effectiveStatus)
-
-  -- Sort branches: built/building first, never built last
-  let sortedBranchStatuses = sortOn (\(_, maybeJob, _) -> Down $ isJust maybeJob) branchStatuses
+  branchStatuses <- lift $ mkBranchStatus repo.name `mapM` branches
 
   div_ [class_ "space-y-2"] $ do
-    forM_ sortedBranchStatuses $ \(branch, maybeLatestJob, effectiveStatus) -> do
-      branchUrl <- lift $ App.getLinkUrl $ LinkTo.RepoBranch repo.name branch.branchName
-      let branchNameText = toText $ toString branch.branchName
-      a_ [href_ branchUrl, class_ "block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600", data_ "branch-item" branchNameText] $ do
-        -- Single-line columnar layout for easy scanning
-        div_ [class_ "grid grid-cols-12 gap-4 items-center"] $ do
-          -- Column 1: Branch name (4 columns)
-          div_ [class_ "col-span-4 flex items-center space-x-2 min-w-0"] $ do
-            div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"] $ toHtmlRaw Icon.git_branch
-            h3_ [class_ "text-sm font-semibold text-gray-900 dark:text-gray-100 truncate"] $
-              toHtml $
-                toString branch.branchName
+    forM_ (sort branchStatuses) $ \branchStatus -> do
+      branchUrl <- lift $ App.getLinkUrl $ LinkTo.RepoBranch repo.name branchStatus.branchData.branchName
+      a_
+        [ href_ branchUrl
+        , class_ "block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
+        , data_ "branch-item" (toText branchStatus.branchData.branchName)
+        ]
+        $ do
+          -- Single-line columnar layout for easy scanning
+          div_ [class_ "grid grid-cols-12 gap-4 items-center"] $ do
+            -- Column 1: Branch name (4 columns)
+            div_ [class_ "col-span-4 flex items-center space-x-2 min-w-0"] $ do
+              div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"] $ toHtmlRaw Icon.git_branch
+              h3_ [class_ "text-sm font-semibold text-gray-900 dark:text-gray-100 truncate"] $
+                toHtml $
+                  toText branchStatus.branchData.branchName
 
-          -- Column 2: Last update info (5 columns)
-          div_ [class_ "col-span-5 min-w-0"] $ do
-            W.viraCommitInfoCompact_ branch.headCommit
+            -- Column 2: Last update info (5 columns)
+            div_ [class_ "col-span-5 min-w-0"] $ do
+              W.viraCommitInfoCompact_ branchStatus.mHeadCommit
 
-          -- Column 3: Build info and status (3 columns)
-          div_ [class_ "col-span-3 flex items-center justify-end space-x-2"] $ do
-            -- Build duration and metadata
-            case maybeLatestJob of
-              Just latestJob -> do
-                jobs <- lift $ App.query $ St.GetJobsByBranchA repo.name branch.branchName
-                div_ [class_ "flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400"] $ do
-                  case St.jobEndTime latestJob of
-                    Just endTime -> do
-                      let duration = diffUTCTime endTime latestJob.jobCreatedTime
-                      Time.viraDuration_ duration
-                    Nothing -> mempty
-                  span_ $ "#" <> toHtml (show @Text latestJob.jobId)
-                  span_ $ "(" <> toHtml (show @Text (length jobs)) <> ")"
-              Nothing ->
-                span_ [class_ "text-xs text-gray-500 dark:text-gray-400"] "No builds"
+            -- Column 3: Build info and status (3 columns)
+            div_ [class_ "col-span-3 flex items-center justify-end space-x-2"] $ do
+              -- Build duration and metadata
+              case branchStatus.mLatestJob of
+                Just latestJob -> do
+                  jobs <- lift $ App.query $ St.GetJobsByBranchA repo.name branchStatus.branchData.branchName
+                  div_ [class_ "flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400"] $ do
+                    case St.jobEndTime latestJob of
+                      Just endTime -> do
+                        let duration = diffUTCTime endTime latestJob.jobCreatedTime
+                        Time.viraDuration_ duration
+                      Nothing -> mempty
+                    span_ $ "#" <> toHtml (show @Text latestJob.jobId)
+                    span_ $ "(" <> toHtml (show @Text (length jobs)) <> ")"
+                Nothing ->
+                  span_ [class_ "text-xs text-gray-500 dark:text-gray-400"] "No builds"
 
-            -- Status badge
-            case effectiveStatus of
-              NeverBuilt ->
-                span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"] "Never built"
-              JobStatus jobStatus ->
-                Status.viraStatusBadge_ jobStatus
-              OutOfDate ->
-                span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
-                  div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
-                  "Out of date"
+              -- Status badge
+              viewBranchEffectiveStatus branchStatus.effectiveStatus
 
--- Data type to represent the effective status of a branch
+-- | Data type to hold branch information for sorting and display
+data BranchStatus = BranchStatus
+  { branchData :: St.Branch
+  -- ^ The branch information from the database
+  , mLatestJob :: Maybe St.Job
+  -- ^ The most recent CI job for this branch, if any
+  , effectiveStatus :: BranchEffectiveStatus
+  -- ^ The computed status of the branch (built, building, never built, or out of date)
+  , mHeadCommit :: Maybe Git.Commit
+  -- ^ The commit at the head of the branch, if available
+  }
+  deriving stock (Show, Eq)
+
+{- | Prioritizes branches with CI jobs (built/building) over never-built branches.
+Within each group, sorts by commit date descending (most recent first) to surface
+recently active branches. This helps users quickly identify branches that need
+attention or are actively being worked on.
+-}
+instance Ord BranchStatus where
+  compare a b = compare (sortingKey a) (sortingKey b)
+    where
+      sortingKey bs = (Down $ isJust bs.mLatestJob, Down $ maybe defaultTime (.date) bs.mHeadCommit)
+      defaultTime = UTCTime (fromGregorian 1900 1 1) 0
+
+-- | Create a 'BranchStatus' for a given branch, fetching required data.
+mkBranchStatus :: (Reader App.AppState Effectful.:> es, IOE Effectful.:> es) => RepoName -> St.Branch -> Eff es BranchStatus
+mkBranchStatus repoName branch = do
+  jobs <- App.query $ St.GetJobsByBranchA repoName branch.branchName
+  let mLatestJob = viaNonEmpty head jobs
+      effectiveStatus = getBranchEffectiveStatus branch mLatestJob
+  mHeadCommit <- App.query $ St.GetCommitByIdA branch.headCommit
+  pure BranchStatus {branchData = branch, mLatestJob, effectiveStatus, mHeadCommit}
+
+{- | The effective build-status of a branch.
+
+This type represents the computed status of a branch based on its CI job history
+and current head commit. Used in 'BranchStatus' and computed by
+'getBranchEffectiveStatus'.
+-}
 data BranchEffectiveStatus
-  = NeverBuilt
-  | JobStatus St.JobStatus
-  | OutOfDate
+  = -- | The branch has never been built by CI
+    NeverBuilt
+  | -- | The branch has been built, with the given job status
+    JobStatus St.JobStatus
+  | -- | The branch was built previously but the head commit has changed
+    OutOfDate
+  deriving stock (Show, Eq, Ord)
 
--- Determine the effective status of a branch considering if it's out of date
+-- | Determine the 'BranchEffectiveStatus' based on its latest job.
 getBranchEffectiveStatus :: St.Branch -> Maybe St.Job -> BranchEffectiveStatus
 getBranchEffectiveStatus branch = \case
   Nothing -> NeverBuilt
@@ -236,3 +267,15 @@ getBranchEffectiveStatus branch = \case
     if branch.headCommit == job.commit
       then JobStatus job.jobStatus
       else OutOfDate
+
+-- | Render the status badge for a branch's effective status.
+viewBranchEffectiveStatus :: BranchEffectiveStatus -> App.AppHtml ()
+viewBranchEffectiveStatus = \case
+  NeverBuilt ->
+    span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"] "Never built"
+  JobStatus jobStatus ->
+    Status.viraStatusBadge_ jobStatus
+  OutOfDate ->
+    span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
+      div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
+      "Out of date"
