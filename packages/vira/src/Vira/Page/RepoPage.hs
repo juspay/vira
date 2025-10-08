@@ -5,7 +5,8 @@ module Vira.Page.RepoPage (
   handlers,
 ) where
 
-import Data.Time (diffUTCTime)
+import Data.Time (UTCTime(..), diffUTCTime)
+import Data.Time.Calendar (fromGregorian)
 import Effectful (Eff, raise)
 import Effectful.Error.Static (runErrorNoCallStack, throwError)
 import Effectful.Git (RepoName)
@@ -171,13 +172,15 @@ viewBranchListing repo branches = do
     jobs <- App.query $ St.GetJobsByBranchA repo.name branch.branchName
     let maybeLatestJob = viaNonEmpty head jobs
         effectiveStatus = getBranchEffectiveStatus branch maybeLatestJob
-    pure (branch, maybeLatestJob, effectiveStatus)
+    maybeCommit <- App.query $ St.GetCommitByIdA branch.headCommit
+    let commitDate = maybe (UTCTime (fromGregorian 1900 1 1) 0) (.date) maybeCommit
+    pure (branch, maybeLatestJob, effectiveStatus, commitDate)
 
-  -- Sort branches: built/building first, never built last
-  let sortedBranchStatuses = sortOn (\(_, maybeJob, _) -> Down $ isJust maybeJob) branchStatuses
+  -- Sort branches: built/building first (by commit date), never built last (by commit date, recent first)
+  let sortedBranchStatuses = sortOn (\(_, maybeJob, _, commitDate) -> (Down $ isJust maybeJob, Down commitDate)) branchStatuses
 
   div_ [class_ "space-y-2"] $ do
-    forM_ sortedBranchStatuses $ \(branch, maybeLatestJob, effectiveStatus) -> do
+    forM_ sortedBranchStatuses $ \(branch, maybeLatestJob, effectiveStatus, _) -> do
       branchUrl <- lift $ App.getLinkUrl $ LinkTo.RepoBranch repo.name branch.branchName
       let branchNameText = toText $ toString branch.branchName
       a_ [href_ branchUrl, class_ "block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600", data_ "branch-item" branchNameText] $ do
