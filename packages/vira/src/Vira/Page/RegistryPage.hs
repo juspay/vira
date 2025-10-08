@@ -3,7 +3,6 @@
 
 module Vira.Page.RegistryPage where
 
-import Colog (Severity (..))
 import Effectful (Eff)
 import Effectful.Git (BranchName, RepoName (..))
 import GHC.Records (HasField)
@@ -43,13 +42,13 @@ data Routes mode = Routes
   }
   deriving stock (Generic)
 
-handlers :: App.AppState -> App.WebSettings -> Routes AsServer
-handlers cfg webSettings = do
+handlers :: App.GlobalSettings -> App.AppState -> App.WebSettings -> Routes AsServer
+handlers globalSettings appState webSettings = do
   Routes
-    { _listing = App.runAppInServant cfg webSettings $ App.runAppHtml handleListing
-    , _repo = RepoPage.handlers cfg webSettings
-    , _branch = BranchPage.handlers cfg webSettings
-    , _addRepo = App.runAppInServant cfg webSettings . handleAddRepo
+    { _listing = App.runAppInServant globalSettings appState webSettings $ App.runAppHtml handleListing
+    , _repo = RepoPage.handlers globalSettings appState webSettings
+    , _branch = BranchPage.handlers globalSettings appState webSettings
+    , _addRepo = App.runAppInServant globalSettings appState webSettings . handleAddRepo
     }
 
 handleListing :: AppHtml ()

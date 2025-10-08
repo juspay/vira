@@ -13,7 +13,6 @@ import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.Lucid (AppHtml)
 import Vira.App.Servant (mapSourceT)
-import Vira.App.Stack (runApp)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
@@ -28,11 +27,11 @@ data Routes mode = Routes
   }
   deriving stock (Generic)
 
-handlers :: App.AppState -> WebSettings -> JobId -> Routes AsServer
-handlers cfg webSettings jobId = do
+handlers :: App.GlobalSettings -> App.AppState -> WebSettings -> JobId -> Routes AsServer
+handlers globalSettings appState webSettings jobId = do
   Routes
-    { _rawLog = App.runAppInServant cfg webSettings $ rawLogHandler jobId
-    , _streamLog = pure $ recommendedEventSourceHeaders $ mapSourceT (runApp cfg) $ Log.streamRouteHandler jobId
+    { _rawLog = App.runAppInServant globalSettings appState webSettings $ rawLogHandler jobId
+    , _streamLog = pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp globalSettings appState) $ Log.streamRouteHandler jobId
     }
 
 rawLogHandler :: JobId -> Eff App.AppServantStack Text

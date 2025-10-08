@@ -11,7 +11,7 @@ import Data.Text.Lazy qualified as TL
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Reader.Dynamic qualified as Reader
 import Lucid
-import Vira.App.CLI (WebSettings (..))
+import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
 import Vira.App.Lucid (runAppHtml)
 import Vira.App.Stack (AppState, runApp)
 import Vira.Widgets.Layout qualified as W
@@ -43,9 +43,9 @@ Complete 404 page with full HTML structure using Vira's layout system.
 This creates a standalone HTML page that includes all CSS and uses the
 proper Vira layout for consistency with the rest of the application.
 -}
-complete404Page :: AppState -> WebSettings -> IO TL.Text
-complete404Page appState webSettings = do
-  result <- runApp appState $ do
+complete404Page :: GlobalSettings -> AppState -> WebSettings -> IO TL.Text
+complete404Page globalSettings appState webSettings = do
+  result <- runApp globalSettings appState $ do
     Reader.runReader webSettings $ do
       runErrorNoCallStack $ do
         runAppHtml $ do

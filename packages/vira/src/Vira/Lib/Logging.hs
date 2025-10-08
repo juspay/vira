@@ -9,6 +9,7 @@ module Vira.Lib.Logging (
   -- * Logging
   log,
   tagCurrentThread,
+  Severity (..), -- Add this
 
   -- * Runner
   runLogActionStdout,
@@ -43,14 +44,15 @@ log :: forall es. (HasCallStack, Log Message :> es) => Severity -> Text -> Eff e
 log msgSeverity msgText =
   withFrozenCallStack $ logMsg $ Msg {msgStack = callStack, ..}
 
--- | Like `runLogAction` but works with `Message` and writes to `Stdout` (the common use-case)
-runLogActionStdout :: Eff '[Log Message, IOE] a -> Eff '[IOE] a
-runLogActionStdout =
+-- | Like `runLogAction` but works with `Message`, writes to `Stdout`, and filters by severity
+runLogActionStdout :: Severity -> Eff '[Log Message, IOE] a -> Eff '[IOE] a
+runLogActionStdout minSeverity =
   runLogAction logAction
   where
     logAction = LogAction $ \m -> do
-      formatted <- unsafeEff_ $ fmtRichMessage m
-      putTextLn formatted
+      when (msgSeverity m >= minSeverity) $ do
+        formatted <- unsafeEff_ $ fmtRichMessage m
+        putTextLn formatted
 
 -- | Custom rich message formatter that includes timestamp, severity with colors, and call stack info
 fmtRichMessage :: Message -> IO Text

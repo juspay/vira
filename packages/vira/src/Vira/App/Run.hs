@@ -51,7 +51,7 @@ runVira = do
         toolsVar <- runEff Tool.newToolsTVar
         let appState = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar}
             appServer = Server.runServer globalSettings webSettings
-        App.runApp appState appServer
+        App.runApp globalSettings appState appServer
 
     runExport :: GlobalSettings -> IO ()
     runExport globalSettings = do

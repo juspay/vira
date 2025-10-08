@@ -2,7 +2,6 @@
 
 module Vira.Page.JobPage where
 
-import Colog (Severity (..))
 import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
@@ -50,13 +49,13 @@ data Routes mode = Routes
   }
   deriving stock (Generic)
 
-handlers :: App.AppState -> WebSettings -> Routes AsServer
-handlers cfg webSettings = do
+handlers :: App.GlobalSettings -> App.AppState -> WebSettings -> Routes AsServer
+handlers globalSettings appState webSettings = do
   Routes
-    { _build = \x -> App.runAppInServant cfg webSettings . buildHandler x
-    , _view = App.runAppInServant cfg webSettings . App.runAppHtml . viewHandler
-    , _log = JobLog.handlers cfg webSettings
-    , _kill = App.runAppInServant cfg webSettings . killHandler
+    { _build = \x -> App.runAppInServant globalSettings appState webSettings . buildHandler x
+    , _view = App.runAppInServant globalSettings appState webSettings . App.runAppHtml . viewHandler
+    , _log = JobLog.handlers globalSettings appState webSettings
+    , _kill = App.runAppInServant globalSettings appState webSettings . killHandler
     }
 
 buildHandler :: RepoName -> BranchName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)

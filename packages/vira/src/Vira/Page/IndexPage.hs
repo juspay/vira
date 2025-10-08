@@ -30,20 +30,20 @@ data Routes mode = Routes
   deriving stock (Generic)
 
 -- | Top-level handlers
-handlers :: App.AppState -> App.WebSettings -> Routes AsServer
-handlers cfg webSettings =
+handlers :: App.GlobalSettings -> App.AppState -> App.WebSettings -> Routes AsServer
+handlers globalSettings appState webSettings =
   Routes
     { _home =
-        App.runAppInServant cfg webSettings $
+        App.runAppInServant globalSettings appState webSettings $
           runAppHtml $ do
             logoUrl <- W.appLogoUrl
             W.layout mempty $
               heroWelcome logoUrl menu
-    , _repos = RegistryPage.handlers cfg webSettings
-    , _jobs = JobPage.handlers cfg webSettings
-    , _tools = ToolsPage.handlers cfg webSettings
+    , _repos = RegistryPage.handlers globalSettings appState webSettings
+    , _jobs = JobPage.handlers globalSettings appState webSettings
+    , _tools = ToolsPage.handlers globalSettings appState webSettings
     , _refresh =
-        pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp cfg) Refresh.streamRouteHandler
+        pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp globalSettings appState) Refresh.streamRouteHandler
     }
   where
     linkText = show . linkURI

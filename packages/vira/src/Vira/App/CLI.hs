@@ -12,6 +12,8 @@ module Vira.App.CLI (
   parseCLI,
 ) where
 
+import Colog.Core (Severity (..))
+import Data.Char (toLower)
 import Data.Version (showVersion)
 import Network.Wai.Handler.Warp (Port)
 import Network.Wai.Handler.WarpTLS.Simple (TLSConfig, tlsConfigParser)
@@ -22,7 +24,7 @@ import Prelude hiding (Reader, reader, runReader)
 
 -- | Global CLI Settings
 data GlobalSettings = GlobalSettings
-  { logLevel :: String
+  { logLevel :: Severity
   -- ^ Minimum logging level
   , stateDir :: FilePath
   -- ^ Directory where Vira stores its state
@@ -70,13 +72,25 @@ globalSettingsParser = do
           <> showDefault
       )
   logLevel <-
-    strOption
+    option
+      severityReader
       ( long "log-level"
           <> metavar "LOG_LEVEL"
-          <> help "Log level"
-          <> value "Debug"
+          <> help "Minimum log level (Debug, Info, Warning, Error)"
+          <> value Info
+          <> showDefault
       )
   pure GlobalSettings {..}
+
+-- | Reader for parsing severity levels
+severityReader :: ReadM Severity
+severityReader = eitherReader $ \s -> case map toLower s of
+  "debug" -> Right Debug
+  "info" -> Right Info
+  "warning" -> Right Warning
+  "warn" -> Right Warning -- Allow both variants
+  "error" -> Right Error
+  _ -> Left "Invalid log level. Choose from: Debug, Info, Warning, Error"
 
 -- | Parser for web settings
 webSettingsParser :: Parser WebSettings

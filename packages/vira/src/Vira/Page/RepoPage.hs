@@ -48,12 +48,12 @@ data Routes mode = Routes
 crumbs :: [LinkTo.LinkTo]
 crumbs = [LinkTo.RepoListing]
 
-handlers :: App.AppState -> WebSettings -> RepoName -> Routes AsServer
-handlers cfg webSettings name = do
+handlers :: App.GlobalSettings -> App.AppState -> WebSettings -> RepoName -> Routes AsServer
+handlers globalSettings appState webSettings name = do
   Routes
-    { _view = App.runAppInServant cfg webSettings . App.runAppHtml $ viewHandler name
-    , _update = App.runAppInServant cfg webSettings $ updateHandler name
-    , _delete = App.runAppInServant cfg webSettings $ deleteHandler name
+    { _view = App.runAppInServant globalSettings appState webSettings . App.runAppHtml $ viewHandler name
+    , _update = App.runAppInServant globalSettings appState webSettings $ updateHandler name
+    , _delete = App.runAppInServant globalSettings appState webSettings $ deleteHandler name
     }
 
 viewHandler :: RepoName -> AppHtml ()
