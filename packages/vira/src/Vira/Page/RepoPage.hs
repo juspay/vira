@@ -167,8 +167,7 @@ viewRepo repo branches _allJobs = do
 -- Branch listing component for repository page
 viewBranchListing :: St.Repo -> [St.Branch] -> App.AppHtml ()
 viewBranchListing repo branches = do
-  -- Get latest job for each branch for status indicators and sorting
-  branchStatuses <- lift $ forM branches $ \branch -> mkBranchStatus repo.name branch
+  branchStatuses <- lift $ mkBranchStatus repo.name `mapM` branches
 
   div_ [class_ "space-y-2"] $ do
     forM_ (sortOn branchStatusSortKey branchStatuses) $ \branchStatus -> do
@@ -210,15 +209,7 @@ viewBranchListing repo branches = do
                   span_ [class_ "text-xs text-gray-500 dark:text-gray-400"] "No builds"
 
               -- Status badge
-              case branchStatus.effectiveStatus of
-                NeverBuilt ->
-                  span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"] "Never built"
-                JobStatus jobStatus ->
-                  Status.viraStatusBadge_ jobStatus
-                OutOfDate ->
-                  span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
-                    div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
-                    "Out of date"
+              viewBranchEffectiveStatus branchStatus.effectiveStatus
 
 -- | Data type to hold branch information for sorting and display
 data BranchStatus = BranchStatus
@@ -278,3 +269,15 @@ getBranchEffectiveStatus branch = \case
     if branch.headCommit == job.commit
       then JobStatus job.jobStatus
       else OutOfDate
+
+-- | Render the status badge for a branch's effective status.
+viewBranchEffectiveStatus :: BranchEffectiveStatus -> App.AppHtml ()
+viewBranchEffectiveStatus = \case
+  NeverBuilt ->
+    span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"] "Never built"
+  JobStatus jobStatus ->
+    Status.viraStatusBadge_ jobStatus
+  OutOfDate ->
+    span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
+      div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
+      "Out of date"
