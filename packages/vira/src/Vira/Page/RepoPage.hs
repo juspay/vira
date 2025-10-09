@@ -5,7 +5,7 @@ module Vira.Page.RepoPage (
   handlers,
 ) where
 
-import Data.Time (UTCTime (..), diffUTCTime)
+import Data.Time (UTCTime (..), diffUTCTime, getCurrentTime)
 import Data.Time.Calendar (fromGregorian)
 import Effectful (Eff, IOE, raise, (:>))
 import Effectful.Error.Static (runErrorNoCallStack, throwError)
@@ -26,6 +26,8 @@ import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.CI.Workspace qualified as Workspace
+import Vira.Lib.TimeExtra (formatRelativeTime)
+import Vira.Refresh.Type (RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -101,6 +103,7 @@ viewRepo repo branches _allJobs = do
         p_ [class_ "text-gray-600 dark:text-gray-300 text-sm font-mono break-all"] $
           toHtml repo.cloneUrl
         div_ [class_ "flex items-center gap-2 ml-4"] $ do
+          viewRefreshStatus repo
           W.viraRequestButton_
             W.ButtonSecondary
             updateLink
@@ -243,6 +246,27 @@ mkBranchStatus repoName branch = do
       effectiveStatus = getBranchEffectiveStatus branch mLatestJob
   mHeadCommit <- App.query $ St.GetCommitByIdA branch.headCommit
   pure BranchStatus {branchData = branch, mLatestJob, effectiveStatus, mHeadCommit}
+
+-- | View the refresh status for a repository
+viewRefreshStatus :: St.Repo -> App.AppHtml ()
+viewRefreshStatus repo = do
+  currentTime <- liftIO getCurrentTime
+  div_ [class_ "text-sm text-gray-500 dark:text-gray-400 mr-3"] $ do
+    case repo.lastRefreshStatus of
+      RefreshSuccess -> do
+        span_ [class_ "text-green-600 dark:text-green-400"] "✓"
+        " "
+        case repo.lastRefreshTime of
+          Just time -> do
+            "Refreshed "
+            toHtml $ formatRelativeTime currentTime time
+          Nothing -> "Never refreshed"
+      RefreshFailure err -> do
+        span_ [class_ "text-red-600 dark:text-red-400", title_ err] "⚠"
+        " Refresh failed"
+      RefreshPending -> do
+        span_ [class_ "text-blue-600 dark:text-blue-400"] "⟳"
+        " Refreshing..."
 
 {- | The effective build-status of a branch.
 

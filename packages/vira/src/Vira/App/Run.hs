@@ -2,19 +2,23 @@ module Vira.App.Run (
   runVira,
 ) where
 
-import Control.Concurrent.STM (newBroadcastTChan)
+import Control.Concurrent.Async (async)
+import Control.Concurrent.STM qualified as STM
 import Control.Exception (bracket)
 import Data.Acid (AcidState)
 import Data.Aeson (encode)
 import Data.ByteString.Lazy qualified as LBS
 import Effectful (runEff)
 import Main.Utf8 qualified as Utf8
+import Relude hiding (atomically, newTVarIO)
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Server qualified as Server
+import Vira.Refresh.Daemon (runRefreshDaemon)
+import Vira.Refresh.Type (RefreshConfig (..))
 import Vira.State.Core (ViraState, closeViraState, openViraState)
 import Vira.State.JSON (getExportData, importViraState)
 import Vira.Supervisor.Core qualified as Supervisor
@@ -44,12 +48,21 @@ runVira = do
           importFromFileOrStdin acid (Just filePath)
 
         instanceInfo <- getInstanceInfo
-        supervisor <- Supervisor.newSupervisor (stateDir globalSettings)
+        supervisor <- Supervisor.newSupervisor (CLI.stateDir globalSettings)
         -- Initialize broadcast channel for state update tracking
-        stateUpdateBuffer <- atomically newBroadcastTChan
+        stateUpdateBuffer <- STM.atomically STM.newBroadcastTChan
         -- Create TVar with all tools data for caching
         toolsVar <- runEff Tool.newToolsTVar
-        let appState = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar}
+        -- Initialize refresh config
+        let defaultInterval = 60
+            configuredInterval = fromMaybe defaultInterval (CLI.refreshInterval globalSettings)
+        refreshConfig <- STM.newTVarIO $ RefreshConfig (fromIntegral configuredInterval) (configuredInterval > 0)
+        -- Create initial appState without daemon
+        let appStateWithoutDaemon = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar, App.refreshDaemon = Nothing, App.refreshConfig = refreshConfig}
+        -- Start refresh daemon
+        daemonHandle <- async $ App.runApp globalSettings appStateWithoutDaemon $ runRefreshDaemon refreshConfig
+        -- Create final appState with daemon
+        let appState = appStateWithoutDaemon {App.refreshDaemon = Just daemonHandle}
             appServer = Server.runServer globalSettings webSettings
         App.runApp globalSettings appState appServer
 

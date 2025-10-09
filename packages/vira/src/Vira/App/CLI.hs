@@ -28,6 +28,8 @@ data GlobalSettings = GlobalSettings
   -- ^ Minimum logging level
   , stateDir :: FilePath
   -- ^ Directory where Vira stores its state
+  , refreshInterval :: Maybe Int
+  -- ^ Auto-refresh interval in seconds (Nothing = use default, 0 = disabled)
   }
   deriving stock (Show)
 
@@ -80,6 +82,14 @@ globalSettingsParser = do
           <> value Info
           <> showDefault
       )
+  refreshInterval <-
+    optional $
+      option
+        auto
+        ( long "refresh-interval"
+            <> metavar "SECONDS"
+            <> help "Auto-refresh interval in seconds (0 = disabled, default = 60)"
+        )
   pure GlobalSettings {..}
 
 -- | Reader for parsing severity levels

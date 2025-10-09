@@ -2,7 +2,7 @@ See README.md for general project information.
 
 ## Coding Guidelines
 
-- Never edit `.cabal` files directly; we use hpack.
+- Never edit `.cabal` files directly; we use hpack. And never put modules explicitly in `package.yaml`.
 
 ### Haskell Coding Style
 
@@ -19,7 +19,7 @@ See README.md for general project information.
 
 ### Build instructions
 
-**IMPORTANT**: Do not run build commands yourself. The human runs ghcid on the terminal, which then updates `ghcid.log` with its output (if this file does not exist, or if ghcid has stopped, remind the human to manually run `just ghcid` in devShell). You should read `ghcid.log` after making code changes; this file updates in a second or so. Don't rely on VSCode diagnostics.
+**IMPORTANT**: Do not run build commands yourself. The human runs ghcid on the terminal, which then updates `ghcid.log` with any compile error or warning (if this file does not exist, or if ghcid has stopped, remind the human to manually run `just ghcid` in devShell). You should read `ghcid.log` (in _entirety_) after making code changes; this file updates in a second or so. Don't rely on VSCode diagnostics.
 
 ## Git
 

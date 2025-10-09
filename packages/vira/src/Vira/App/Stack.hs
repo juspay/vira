@@ -3,21 +3,24 @@ module Vira.App.Stack where
 
 import Colog (Message)
 import Control.Concurrent.STM (TChan)
+import Control.Exception (throwIO)
 import Data.Acid (AcidState)
 import Data.ByteString
 import Effectful (Eff, IOE, runEff)
 import Effectful.Colog (Log)
-import Effectful.Concurrent.Async (Concurrent, runConcurrent)
+import Effectful.Concurrent.Async (Async, Concurrent, runConcurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem, runFileSystem)
 import Effectful.Process (Process, runProcess)
 import Effectful.Reader.Dynamic (Reader, runReader)
 import Servant (Handler (Handler), ServerError)
 import Servant.Links (Link)
+import System.IO.Error (userError)
 import Vira.App.CLI (GlobalSettings (..), WebSettings)
 import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.Lib.Logging (runLogActionStdout)
+import Vira.Refresh.Type (RefreshConfig)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Vira.Tool.Type.Tools (Tools)
@@ -28,6 +31,7 @@ type AppStack =
    , Concurrent
    , Process
    , FileSystem
+   , Error Text
    , Log Message
    , IOE
    ]
@@ -36,14 +40,17 @@ type AppServantStack = (Error ServerError : Reader WebSettings : AppStack)
 
 -- | Run the application stack in IO monad
 runApp :: GlobalSettings -> AppState -> Eff AppStack a -> IO a
-runApp globalSettings appState =
-  do
+runApp globalSettings appState action = do
+  result <-
     runEff
-    . runLogActionStdout (logLevel globalSettings)
-    . runFileSystem
-    . runProcess
-    . runConcurrent
-    . runReader appState
+      . runLogActionStdout (logLevel globalSettings)
+      . runErrorNoCallStack @Text
+      . runFileSystem
+      . runProcess
+      . runConcurrent
+      . runReader appState
+      $ action
+  either (throwIO . userError . toString) pure result
 
 -- | Like `runApp`, but for Servant 'Handler'.
 runAppInServant :: GlobalSettings -> AppState -> WebSettings -> Eff AppServantStack a -> Handler a
@@ -66,4 +73,8 @@ data AppState = AppState
     stateUpdated :: TChan (Text, ByteString)
   , -- Cached tools data (mutable for refreshing)
     tools :: TVar Tools
+  , -- Refresh daemon handle
+    refreshDaemon :: Maybe (Async ())
+  , -- Refresh configuration
+    refreshConfig :: TVar RefreshConfig
   }

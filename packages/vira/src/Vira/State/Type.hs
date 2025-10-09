@@ -11,6 +11,7 @@ import Data.SafeCopy
 import Data.Time (UTCTime)
 import Effectful.Git (BranchName, CommitID, RepoName (..))
 import Servant.API (FromHttpApiData, ToHttpApiData)
+import Vira.Refresh.Type (RefreshStatus (..))
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
 
 -- | A project's git repository
@@ -19,6 +20,10 @@ data Repo = Repo
   -- ^ An unique name identifying this repository
   , cloneUrl :: Text
   -- ^ The git clone URL of the repository
+  , lastRefreshTime :: Maybe UTCTime
+  -- ^ When this repository was last refreshed
+  , lastRefreshStatus :: RefreshStatus
+  -- ^ Status of the last refresh attempt
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
@@ -28,6 +33,8 @@ instance FromForm Repo where
     Repo
       <$> parseUnique "name" f
       <*> parseUnique "cloneUrl" f
+      <*> pure Nothing -- lastRefreshTime
+      <*> pure RefreshPending -- lastRefreshStatus
 
 type RepoIxs = '[RepoName]
 type IxRepo = IxSet RepoIxs Repo
