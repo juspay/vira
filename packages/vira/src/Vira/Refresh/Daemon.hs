@@ -3,11 +3,17 @@
 
 {-# HLINT ignore "Use infinitely" #-}
 
-module Vira.Refresh.Daemon where
+module Vira.Refresh.Daemon (
+  mkRefreshDaemon,
+  runRefreshDaemon,
+  processRefreshCommand,
+  refreshAllRepositories,
+) where
 
 import Colog.Message (Message)
 import Control.Concurrent (threadDelay)
-import Control.Concurrent.STM (atomically, modifyTVar, readTVarIO, retry)
+import Control.Concurrent.Async qualified as Async
+import Control.Concurrent.STM (atomically, modifyTVar, newTVarIO, readTVarIO, retry, writeTVar)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Data.Time (diffUTCTime, getCurrentTime)
@@ -24,13 +30,45 @@ import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Process (Process)
 import Effectful.Reader.Dynamic (Reader, asks)
 import Vira.App qualified as App
+import Vira.App.CLI (GlobalSettings)
 import Vira.App.Stack (AppState (..))
 import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.Logging (Severity (..), log, tagCurrentThread)
 import Vira.Refresh.Type (RefreshCommand (..), RefreshConfig (..), RefreshDaemon (..), RefreshPriority (..), RefreshState (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..))
-import Prelude hiding (Reader, ask, asks, readTVarIO)
+import Prelude hiding (Reader, ask, asks, atomically, newTVarIO, readTVarIO, writeTVar)
+
+-- | Create and initialize a RefreshDaemon with its state and background thread
+mkRefreshDaemon ::
+  GlobalSettings ->
+  Maybe Int ->
+  AppState ->
+  IO (TVar (Maybe RefreshDaemon))
+mkRefreshDaemon globalSettings mRefreshInterval appStateWithoutDaemon = do
+  -- Initialize refresh config
+  let defaultInterval = 300
+      configuredInterval = fromMaybe defaultInterval mRefreshInterval
+  refreshConfig <- newTVarIO $ RefreshConfig (fromIntegral configuredInterval) (configuredInterval > 0)
+
+  -- Initialize refresh state
+  refreshStatuses <- atomically $ newTVar Map.empty
+  reposNeedingRefresh <- atomically $ newTVar Set.empty
+  let refreshState = RefreshState refreshConfig refreshStatuses reposNeedingRefresh
+
+  -- Create TVar for refresh daemon (initially Nothing)
+  refreshDaemonTVar <- newTVarIO Nothing
+
+  -- Start refresh daemon with temporary state
+  daemonHandle <- Async.async $ App.runApp globalSettings appStateWithoutDaemon runRefreshDaemon
+
+  -- Create refresh daemon with handle and state
+  let refreshDaemon = RefreshDaemon daemonHandle refreshState
+
+  -- Update the TVar with the daemon
+  atomically $ writeTVar refreshDaemonTVar (Just refreshDaemon)
+
+  pure refreshDaemonTVar
 
 -- | Run the refresh daemon in the background
 runRefreshDaemon ::
