@@ -54,7 +54,7 @@ runVira = do
         -- Create TVar with all tools data for caching
         toolsVar <- runEff Tool.newToolsTVar
         -- Initialize refresh config
-        let defaultInterval = 60
+        let defaultInterval = 300
             configuredInterval = fromMaybe defaultInterval (CLI.refreshInterval globalSettings)
         refreshConfig <- STM.newTVarIO $ RefreshConfig (fromIntegral configuredInterval) (configuredInterval > 0)
         -- Create initial appState without daemon
