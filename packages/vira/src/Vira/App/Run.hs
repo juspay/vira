@@ -8,6 +8,8 @@ import Control.Exception (bracket)
 import Data.Acid (AcidState)
 import Data.Aeson (encode)
 import Data.ByteString.Lazy qualified as LBS
+import Data.Map qualified as Map
+import Data.Set qualified as Set
 import Effectful (runEff)
 import Main.Utf8 qualified as Utf8
 import Relude hiding (atomically, newTVarIO)
@@ -57,10 +59,11 @@ runVira = do
         let defaultInterval = 300
             configuredInterval = fromMaybe defaultInterval (CLI.refreshInterval globalSettings)
         refreshConfig <- STM.newTVarIO $ RefreshConfig (fromIntegral configuredInterval) (configuredInterval > 0)
-        -- Initialize refresh command queue
-        refreshQueue <- STM.atomically STM.newTQueue
+        -- Initialize refresh state
+        refreshStatuses <- STM.atomically $ STM.newTVar Map.empty
+        reposNeedingRefresh <- STM.atomically $ STM.newTVar Set.empty
         -- Create initial appState without daemon
-        let appStateWithoutDaemon = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar, App.refreshDaemon = Nothing, App.refreshConfig = refreshConfig, App.refreshQueue = refreshQueue}
+        let appStateWithoutDaemon = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar, App.refreshDaemon = Nothing, App.refreshConfig = refreshConfig, App.refreshStatuses = refreshStatuses, App.reposNeedingRefresh = reposNeedingRefresh}
         -- Start refresh daemon
         daemonHandle <- async $ App.runApp globalSettings appStateWithoutDaemon runRefreshDaemon
         -- Create final appState with daemon

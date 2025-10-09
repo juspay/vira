@@ -1,16 +1,21 @@
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+
 -- | Effectful stack for our app.
 module Vira.App.Stack where
 
 import Colog (Message)
-import Control.Concurrent.STM (TChan, TQueue)
+import Control.Concurrent.STM (TChan, TVar)
 import Control.Exception (throwIO)
 import Data.Acid (AcidState)
 import Data.ByteString
+import Data.Map (Map)
+import Data.Set (Set)
 import Effectful (Eff, IOE, runEff)
 import Effectful.Colog (Log)
 import Effectful.Concurrent.Async (Async, Concurrent, runConcurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem, runFileSystem)
+import Effectful.Git (RepoName)
 import Effectful.Process (Process, runProcess)
 import Effectful.Reader.Dynamic (Reader, runReader)
 import Servant (Handler (Handler), ServerError)
@@ -20,11 +25,15 @@ import Vira.App.CLI (GlobalSettings (..), WebSettings)
 import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.Lib.Logging (runLogActionStdout)
-import Vira.Refresh.Type (RefreshCommand, RefreshConfig)
+import Vira.Refresh.Type (RefreshConfig, RefreshStatus)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Vira.Tool.Type.Tools (Tools)
 import Prelude hiding (Reader, ask, asks, runReader)
+
+-- Type synonyms to ensure imports are used
+type RefreshStatusMap = Map RepoName RefreshStatus
+type RepoNameSet = Set RepoName
 
 type AppStack =
   '[ Reader AppState
@@ -77,6 +86,8 @@ data AppState = AppState
     refreshDaemon :: Maybe (Async ())
   , -- Refresh configuration
     refreshConfig :: TVar RefreshConfig
-  , -- Queue for refresh commands
-    refreshQueue :: TQueue RefreshCommand
+  , -- Refresh status per repository
+    refreshStatuses :: TVar RefreshStatusMap
+  , -- Set of repositories that need refresh
+    reposNeedingRefresh :: TVar RepoNameSet
   }

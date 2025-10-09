@@ -5,7 +5,9 @@ module Vira.Page.RepoPage (
   handlers,
 ) where
 
-import Control.Concurrent.STM (atomically, writeTQueue)
+import Control.Concurrent.STM (atomically, modifyTVar)
+import Data.Map qualified as Map
+import Data.Set qualified as Set
 import Data.Time (UTCTime (..), diffUTCTime, getCurrentTime)
 import Data.Time.Calendar (fromGregorian)
 import Effectful (Eff, IOE, (:>))
@@ -26,7 +28,7 @@ import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.TimeExtra (formatRelativeTime)
-import Vira.Refresh.Type (RefreshCommand (..), RefreshPriority (..), RefreshStatus (..))
+import Vira.Refresh.Type (RefreshPriority (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -67,13 +69,15 @@ viewHandler name = do
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
-  -- Enqueue refresh command
-  queue <- asks @App.AppState (.refreshQueue)
-  _ <- liftIO $ Control.Concurrent.STM.atomically $ writeTQueue queue (RefreshRepo name Manual)
+  -- Add repo to pending refresh set
+  pendingSet <- asks @App.AppState (.reposNeedingRefresh)
+  liftIO $ Control.Concurrent.STM.atomically $ modifyTVar pendingSet (Set.insert name)
 
   -- Immediately set status to Pending for UI feedback
   currentTime <- liftIO getCurrentTime
-  App.update $ St.UpdateRepoRefreshA name currentTime RefreshPending
+  statusMap <- asks @App.AppState (.refreshStatuses)
+  let pendingStatus = RefreshPending {priority = Manual, requestedAt = currentTime}
+  liftIO $ Control.Concurrent.STM.atomically $ modifyTVar statusMap (Map.insert name pendingStatus)
 
   -- Return immediately (~10ms response)
   pure $ addHeader True Nothing
@@ -247,22 +251,29 @@ mkBranchStatus repoName branch = do
 viewRefreshStatus :: St.Repo -> App.AppHtml ()
 viewRefreshStatus repo = do
   currentTime <- liftIO getCurrentTime
+  statusMap <- lift $ asks @App.AppState (.refreshStatuses) >>= liftIO . readTVarIO
+  let refreshStatus = Map.lookup repo.name statusMap
+
   div_ [class_ "text-sm text-gray-500 dark:text-gray-400 mr-3"] $ do
-    case repo.lastRefreshStatus of
-      RefreshSuccess -> do
+    case refreshStatus of
+      Just (RefreshSuccess completedAt) -> do
         span_ [class_ "text-green-600 dark:text-green-400"] "✓"
         " "
-        case repo.lastRefreshTime of
-          Just time -> do
-            "Refreshed "
-            toHtml $ formatRelativeTime currentTime time
-          Nothing -> "Never refreshed"
-      RefreshFailure err -> do
+        "Refreshed "
+        toHtml $ formatRelativeTime currentTime completedAt
+      Just (RefreshFailure err completedAt) -> do
         span_ [class_ "text-red-600 dark:text-red-400", title_ err] "⚠"
-        " Refresh failed"
-      RefreshPending -> do
+        " Refresh failed "
+        toHtml $ formatRelativeTime currentTime completedAt
+      Just RefreshPending {} -> do
         span_ [class_ "text-blue-600 dark:text-blue-400"] "⟳"
         " Refreshing..."
+      Just RefreshNotStarted -> do
+        span_ [class_ "text-gray-600 dark:text-gray-400"] "○"
+        " Not refreshed"
+      Nothing -> do
+        span_ [class_ "text-gray-600 dark:text-gray-400"] "○"
+        " Not refreshed"
 
 {- | The effective build-status of a branch.
 

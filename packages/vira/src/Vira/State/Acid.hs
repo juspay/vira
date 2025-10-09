@@ -15,10 +15,9 @@ import Data.IxSet.Typed qualified as Ix
 import Data.List (maximum)
 import Data.Map.Strict qualified as Map
 import Data.SafeCopy (base, deriveSafeCopy)
-import Data.Time (NominalDiffTime, UTCTime, diffUTCTime)
+import Data.Time (UTCTime)
 import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit, RepoName)
 import System.FilePath ((</>))
-import Vira.Refresh.Type (RefreshStatus)
 import Vira.State.Type
 
 {- | Application that gets persisted to disk through acid-state
@@ -107,26 +106,6 @@ setRepoBranchesA repo branches = do
         { branches = updateIxMulti repo (Ix.fromList repoBranches) s.branches
         , commits = s.commits ||| Ix.fromList commits
         }
-
--- | Update repository refresh metadata
-updateRepoRefreshA :: RepoName -> UTCTime -> RefreshStatus -> Update ViraState ()
-updateRepoRefreshA repoName refreshTime refreshStatus = do
-  modify $ \s ->
-    case Ix.getOne (s.repos @= repoName) of
-      Nothing -> s -- Repository not found, do nothing
-      Just repo ->
-        let updatedRepo = repo {lastRefreshTime = Just refreshTime, lastRefreshStatus = refreshStatus}
-         in s {repos = Ix.updateIx repoName updatedRepo s.repos}
-
--- | Get repositories that need refresh (older than the given age)
-getReposNeedingRefreshA :: UTCTime -> NominalDiffTime -> Query ViraState [Repo]
-getReposNeedingRefreshA currentTime maxAge = do
-  ViraState {repos} <- ask
-  let allRepos = Ix.toList repos
-      needsRefresh repo = case repo.lastRefreshTime of
-        Nothing -> True -- Never refreshed
-        Just lastTime -> diffUTCTime currentTime lastTime > maxAge
-  pure $ filter needsRefresh allRepos
 
 -- | Get a commit by its ID
 getCommitByIdA :: CommitID -> Query ViraState (Maybe Commit)
@@ -229,7 +208,6 @@ $( makeAcidic
     , 'getBranchByNameA
     , 'setRepoA
     , 'setRepoBranchesA
-    , 'updateRepoRefreshA
     , 'getCommitByIdA
     , 'storeCommitA
     , 'getJobsByBranchA

@@ -2,9 +2,12 @@
 
 module Vira.Page.BranchPage where
 
+import Control.Concurrent.STM (readTVarIO)
+import Data.Map qualified as Map
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName, RepoName)
+import Effectful.Reader.Dynamic (asks)
 import Lucid
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -125,19 +128,26 @@ viewCommitTimeline branch jobs = do
 viewRefreshStatus :: St.Repo -> App.AppHtml ()
 viewRefreshStatus repo = do
   currentTime <- liftIO getCurrentTime
+  statusMap <- lift $ asks @App.AppState (.refreshStatuses) >>= liftIO . Control.Concurrent.STM.readTVarIO
+  let refreshStatus = Map.lookup repo.name statusMap
+
   div_ [class_ "text-sm text-gray-500 dark:text-gray-400 mr-3"] $ do
-    case repo.lastRefreshStatus of
-      RefreshSuccess -> do
+    case refreshStatus of
+      Just (RefreshSuccess completedAt) -> do
         span_ [class_ "text-green-600 dark:text-green-400"] "✓"
         " "
-        case repo.lastRefreshTime of
-          Just time -> do
-            "Refreshed "
-            toHtml $ formatRelativeTime currentTime time
-          Nothing -> "Never refreshed"
-      RefreshFailure err -> do
+        "Refreshed "
+        toHtml $ formatRelativeTime currentTime completedAt
+      Just (RefreshFailure err completedAt) -> do
         span_ [class_ "text-red-600 dark:text-red-400", title_ err] "⚠"
-        " Refresh failed"
-      RefreshPending -> do
+        " Refresh failed "
+        toHtml $ formatRelativeTime currentTime completedAt
+      Just RefreshPending {} -> do
         span_ [class_ "text-blue-600 dark:text-blue-400"] "⟳"
         " Refreshing..."
+      Just RefreshNotStarted -> do
+        span_ [class_ "text-gray-600 dark:text-gray-400"] "○"
+        " Not refreshed"
+      Nothing -> do
+        span_ [class_ "text-gray-600 dark:text-gray-400"] "○"
+        " Not refreshed"

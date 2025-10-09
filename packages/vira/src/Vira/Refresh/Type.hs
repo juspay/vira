@@ -4,7 +4,7 @@ module Vira.Refresh.Type where
 
 import Data.Data (Data)
 import Data.SafeCopy
-import Data.Time (NominalDiffTime)
+import Data.Time (NominalDiffTime, UTCTime)
 import Effectful.Git (RepoName)
 import Prelude
 
@@ -17,14 +17,26 @@ data RefreshConfig = RefreshConfig
   }
   deriving stock (Show, Eq)
 
+-- | Priority level for refresh operations
+data RefreshPriority
+  = -- | Manual refresh triggered by user
+    Manual
+  | -- | Automatic refresh from timer
+    Automatic
+  deriving stock (Generic, Typeable, Data, Eq, Show, Ord)
+
+$(deriveSafeCopy 0 'base ''RefreshPriority)
+
 -- | Status of a repository refresh operation
 data RefreshStatus
   = -- | Refresh completed successfully
-    RefreshSuccess
+    RefreshSuccess {completedAt :: UTCTime}
   | -- | Refresh failed with an error message
-    RefreshFailure Text
+    RefreshFailure {errorMsg :: Text, failedAt :: UTCTime}
   | -- | Refresh is queued or in progress
-    RefreshPending
+    RefreshPending {priority :: RefreshPriority, requestedAt :: UTCTime}
+  | -- | Repository has never been refreshed
+    RefreshNotStarted
   deriving stock (Generic, Typeable, Data, Eq, Show, Ord)
 
 $(deriveSafeCopy 0 'base ''RefreshStatus)
@@ -36,11 +48,3 @@ data RefreshCommand
   | -- | Refresh all repositories (periodic auto-refresh)
     RefreshAll
   deriving stock (Show, Eq)
-
--- | Priority level for refresh operations
-data RefreshPriority
-  = -- | Manual refresh triggered by user
-    Manual
-  | -- | Automatic refresh from timer
-    Automatic
-  deriving stock (Show, Eq, Ord)

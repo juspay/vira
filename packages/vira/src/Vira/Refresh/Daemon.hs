@@ -7,8 +7,9 @@ module Vira.Refresh.Daemon where
 
 import Colog.Message (Message)
 import Control.Concurrent (threadDelay)
-import Control.Concurrent.STM (readTQueue, readTVarIO, writeTQueue)
+import Control.Concurrent.STM (atomically, modifyTVar, readTVarIO, retry)
 import Data.Map qualified as Map
+import Data.Set qualified as Set
 import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
@@ -26,7 +27,7 @@ import Vira.App qualified as App
 import Vira.App.Stack (AppState (..))
 import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.Logging (Severity (..), log, tagCurrentThread)
-import Vira.Refresh.Type (RefreshCommand (..), RefreshConfig (..), RefreshStatus (..))
+import Vira.Refresh.Type (RefreshCommand (..), RefreshConfig (..), RefreshPriority (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..))
 import Prelude hiding (Reader, ask, asks, readTVarIO)
@@ -48,20 +49,36 @@ runRefreshDaemon = do
   -- Start periodic timer in background
   _ <- async runPeriodicTimer
 
-  -- Main command processing loop
+  -- Main refresh processing loop
   forever $ do
-    queue <- asks (.refreshQueue)
-    command <- liftIO $ atomically $ readTQueue queue
+    pendingSet <- asks (.reposNeedingRefresh)
 
-    case command of
-      RefreshRepo repoName priority -> do
-        log Info $ "Processing " <> show priority <> " refresh for " <> repoName.unRepoName
-        processRefreshCommand command
-      RefreshAll -> do
-        log Debug "Processing periodic refresh for all repositories"
-        processRefreshCommand command
+    -- Wait for a repo that needs refresh
+    repoName <- liftIO $ Control.Concurrent.STM.atomically $ do
+      currentSet <- readTVar pendingSet
+      case Set.minView currentSet of
+        Just (name, rest) -> do
+          writeTVar pendingSet rest -- Remove from pending set
+          pure name
+        Nothing -> retry -- Wait for repos to be added
 
--- | Run the periodic timer that enqueues RefreshAll commands
+    -- Set status to pending (in case it wasn't already)
+    statusMap <- asks (.refreshStatuses)
+    now <- liftIO getCurrentTime
+    liftIO $
+      Control.Concurrent.STM.atomically $
+        modifyTVar statusMap $
+          Map.insert repoName (RefreshPending Automatic now)
+
+    -- Process the refresh
+    repos <- App.query St.GetAllReposA
+    case find (\r -> r.name == repoName) repos of
+      Just repo -> do
+        void $ refreshRepository repo
+      Nothing -> do
+        log Warning $ "Repository not found: " <> repoName.unRepoName
+
+-- | Run the periodic timer that adds all repos to the refresh set
 runPeriodicTimer ::
   ( Log Message :> es
   , Reader AppState :> es
@@ -72,9 +89,14 @@ runPeriodicTimer = forever $ do
   config <- asks (.refreshConfig) >>= liftIO . readTVarIO
   if config.enabled
     then do
-      queue <- asks (.refreshQueue)
-      liftIO $ atomically $ writeTQueue queue RefreshAll
-      log Debug "Enqueued periodic refresh"
+      -- Get all repos and add them to pending set
+      allRepos <- App.query St.GetAllReposA
+      let allNames = Set.fromList $ map (.name) allRepos
+
+      pendingSet <- asks (.reposNeedingRefresh)
+      liftIO $ Control.Concurrent.STM.atomically $ modifyTVar pendingSet (Set.union allNames)
+
+      log Debug $ "Added " <> show (length allNames) <> " repos to refresh queue"
     else do
       log Debug "Auto-refresh disabled, skipping timer"
 
@@ -82,7 +104,7 @@ runPeriodicTimer = forever $ do
   let delayMicroseconds = round (config.refreshInterval * 1_000_000)
   liftIO $ threadDelay delayMicroseconds
 
--- | Process a refresh command
+-- \| Process a refresh command
 processRefreshCommand ::
   ( Log Message :> es
   , Reader AppState :> es
@@ -141,16 +163,24 @@ refreshRepository repo = do
   case result of
     Left errorMsg -> do
       log Warning errorMsg
-      -- Update refresh metadata with failure
+      -- Update refresh status with failure
       currentTime <- liftIO getCurrentTime
-      _ <- App.update $ St.UpdateRepoRefreshA repo.name currentTime (RefreshFailure errorMsg)
+      statusMap <- asks (.refreshStatuses)
+      liftIO $
+        Control.Concurrent.STM.atomically $
+          modifyTVar statusMap $
+            Map.insert repo.name (RefreshFailure errorMsg currentTime)
       pure $ Left errorMsg
     Right branches -> do
       -- Update state with new branches
       _ <- App.update $ St.SetRepoBranchesA repo.name branches
-      -- Update refresh metadata with success
+      -- Update refresh status with success
       currentTime <- liftIO getCurrentTime
-      _ <- App.update $ St.UpdateRepoRefreshA repo.name currentTime RefreshSuccess
+      statusMap <- asks (.refreshStatuses)
+      liftIO $
+        Control.Concurrent.STM.atomically $
+          modifyTVar statusMap $
+            Map.insert repo.name (RefreshSuccess currentTime)
       log Debug $ "Successfully refreshed " <> repo.name.unRepoName <> " (" <> show (Map.size branches) <> " branches)"
       pure $ Right branches
 

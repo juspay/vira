@@ -13,7 +13,6 @@ import Data.Aeson (FromJSON (..), ToJSON (..), decode)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Map qualified as Map
 import Effectful.Git (RepoName)
-import Vira.Refresh.Type (RefreshStatus (..))
 import Vira.State.Acid (AddNewRepoA (AddNewRepoA), GetAllReposA (GetAllReposA), GetRepoByNameA (GetRepoByNameA))
 import Vira.State.Core (ViraState)
 import Vira.State.Type (Repo (..))
@@ -59,10 +58,10 @@ importSingleRepo acid name url = do
   case existingRepo of
     Nothing -> do
       -- Repository doesn't exist, add it
-      let newRepo = Repo name url Nothing RefreshPending
+      let newRepo = Repo name url
       update acid (AddNewRepoA newRepo)
       pure $ Right ()
-    Just (Repo _ existingUrl _ _) -> do
+    Just (Repo _ existingUrl) -> do
       -- Repository exists, check if URL matches
       if existingUrl == url
         then pure $ Right () -- Same URL, no conflict
