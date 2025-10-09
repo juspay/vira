@@ -57,10 +57,12 @@ runVira = do
         let defaultInterval = 300
             configuredInterval = fromMaybe defaultInterval (CLI.refreshInterval globalSettings)
         refreshConfig <- STM.newTVarIO $ RefreshConfig (fromIntegral configuredInterval) (configuredInterval > 0)
+        -- Initialize refresh command queue
+        refreshQueue <- STM.atomically STM.newTQueue
         -- Create initial appState without daemon
-        let appStateWithoutDaemon = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar, App.refreshDaemon = Nothing, App.refreshConfig = refreshConfig}
+        let appStateWithoutDaemon = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar, App.refreshDaemon = Nothing, App.refreshConfig = refreshConfig, App.refreshQueue = refreshQueue}
         -- Start refresh daemon
-        daemonHandle <- async $ App.runApp globalSettings appStateWithoutDaemon $ runRefreshDaemon refreshConfig
+        daemonHandle <- async $ App.runApp globalSettings appStateWithoutDaemon runRefreshDaemon
         -- Create final appState with daemon
         let appState = appStateWithoutDaemon {App.refreshDaemon = Just daemonHandle}
             appServer = Server.runServer globalSettings webSettings

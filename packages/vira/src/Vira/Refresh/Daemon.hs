@@ -7,11 +7,12 @@ module Vira.Refresh.Daemon where
 
 import Colog.Message (Message)
 import Control.Concurrent (threadDelay)
-import Control.Concurrent.STM (readTVarIO)
+import Control.Concurrent.STM (readTQueue, readTVarIO, writeTQueue)
 import Data.Map qualified as Map
 import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
+import Effectful.Concurrent.Async (Concurrent, async)
 import Effectful.Error.Static (
   Error,
   runErrorNoCallStack,
@@ -25,7 +26,7 @@ import Vira.App qualified as App
 import Vira.App.Stack (AppState (..))
 import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.Logging (Severity (..), log, tagCurrentThread)
-import Vira.Refresh.Type (RefreshConfig (..), RefreshStatus (..))
+import Vira.Refresh.Type (RefreshCommand (..), RefreshConfig (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..))
 import Prelude hiding (Reader, ask, asks, readTVarIO)
@@ -34,33 +35,85 @@ import Prelude hiding (Reader, ask, asks, readTVarIO)
 runRefreshDaemon ::
   ( Log Message :> es
   , Reader AppState :> es
+  , Concurrent :> es
   , IOE :> es
   , Error Text :> es
   , Process :> es
   ) =>
-  TVar RefreshConfig ->
   Eff es ()
-runRefreshDaemon configVar = do
+runRefreshDaemon = do
   tagCurrentThread "🔄"
   log Info "Refresh daemon started"
 
-  forever $ do
-    config <- liftIO $ readTVarIO configVar
-    if config.enabled
-      then do
-        log Debug "Starting refresh cycle"
-        startTime <- liftIO getCurrentTime
-        results <- refreshAllRepositories
-        endTime <- liftIO getCurrentTime
-        let duration = endTime `diffUTCTime` startTime
-        log Info $ "Refresh completed in " <> show duration <> "s"
-        log Debug $ "Refreshed " <> show (length results) <> " repositories"
-      else do
-        log Debug "Auto-refresh disabled, skipping cycle"
+  -- Start periodic timer in background
+  _ <- async runPeriodicTimer
 
-    -- Wait for next cycle
-    let delayMicroseconds = round (config.refreshInterval * 1_000_000)
-    liftIO $ threadDelay delayMicroseconds
+  -- Main command processing loop
+  forever $ do
+    queue <- asks (.refreshQueue)
+    command <- liftIO $ atomically $ readTQueue queue
+
+    case command of
+      RefreshRepo repoName priority -> do
+        log Info $ "Processing " <> show priority <> " refresh for " <> repoName.unRepoName
+        processRefreshCommand command
+      RefreshAll -> do
+        log Debug "Processing periodic refresh for all repositories"
+        processRefreshCommand command
+
+-- | Run the periodic timer that enqueues RefreshAll commands
+runPeriodicTimer ::
+  ( Log Message :> es
+  , Reader AppState :> es
+  , IOE :> es
+  ) =>
+  Eff es ()
+runPeriodicTimer = forever $ do
+  config <- asks (.refreshConfig) >>= liftIO . readTVarIO
+  if config.enabled
+    then do
+      queue <- asks (.refreshQueue)
+      liftIO $ atomically $ writeTQueue queue RefreshAll
+      log Debug "Enqueued periodic refresh"
+    else do
+      log Debug "Auto-refresh disabled, skipping timer"
+
+  -- Wait for next cycle
+  let delayMicroseconds = round (config.refreshInterval * 1_000_000)
+  liftIO $ threadDelay delayMicroseconds
+
+-- | Process a refresh command
+processRefreshCommand ::
+  ( Log Message :> es
+  , Reader AppState :> es
+  , IOE :> es
+  , Error Text :> es
+  , Process :> es
+  ) =>
+  RefreshCommand ->
+  Eff es ()
+processRefreshCommand command = do
+  startTime <- liftIO getCurrentTime
+
+  results <- case command of
+    RefreshRepo repoName _ -> do
+      -- Refresh single repository
+      repos <- App.query St.GetAllReposA
+      case find (\r -> r.name == repoName) repos of
+        Just repo -> do
+          result <- refreshRepository repo
+          pure [(repoName, result)]
+        Nothing -> do
+          log Warning $ "Repository not found: " <> repoName.unRepoName
+          pure []
+    RefreshAll -> do
+      -- Refresh all repositories
+      refreshAllRepositories
+
+  endTime <- liftIO getCurrentTime
+  let duration = endTime `diffUTCTime` startTime
+  log Info $ "Refresh completed in " <> show duration <> "s"
+  log Debug $ "Processed " <> show (length results) <> " repositories"
 
 -- | Refresh a single repository
 refreshRepository ::

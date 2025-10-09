@@ -5,13 +5,13 @@ module Vira.Page.RepoPage (
   handlers,
 ) where
 
+import Control.Concurrent.STM (atomically, writeTQueue)
 import Data.Time (UTCTime (..), diffUTCTime, getCurrentTime)
 import Data.Time.Calendar (fromGregorian)
-import Effectful (Eff, IOE, raise, (:>))
-import Effectful.Error.Static (runErrorNoCallStack, throwError)
+import Effectful (Eff, IOE, (:>))
+import Effectful.Error.Static (throwError)
 import Effectful.Git (RepoName)
 import Effectful.Git qualified as Git
-import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Reader.Dynamic (Reader, asks)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
@@ -25,9 +25,8 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.TimeExtra (formatRelativeTime)
-import Vira.Refresh.Type (RefreshStatus (..))
+import Vira.Refresh.Type (RefreshCommand (..), RefreshPriority (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -68,19 +67,16 @@ viewHandler name = do
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
-  repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  supervisor <- asks @App.AppState (.supervisor)
-  let mirrorPath = Workspace.mirrorPath supervisor repo.name
-  result <- runErrorNoCallStack @Text $ do
-    -- Ensure mirror exists and update it
-    Mirror.syncMirror repo.cloneUrl mirrorPath
-    allBranches <- Git.remoteBranchesFromClone mirrorPath
-    raise $ App.update $ St.SetRepoBranchesA repo.name allBranches
+  -- Enqueue refresh command
+  queue <- asks @App.AppState (.refreshQueue)
+  _ <- liftIO $ Control.Concurrent.STM.atomically $ writeTQueue queue (RefreshRepo name Manual)
 
-  case result of
-    Left errorMsg ->
-      pure $ noHeader $ Just (ErrorModal errorMsg)
-    Right () -> pure $ addHeader True Nothing
+  -- Immediately set status to Pending for UI feedback
+  currentTime <- liftIO getCurrentTime
+  App.update $ St.UpdateRepoRefreshA name currentTime RefreshPending
+
+  -- Return immediately (~10ms response)
+  pure $ addHeader True Nothing
 
 deleteHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do

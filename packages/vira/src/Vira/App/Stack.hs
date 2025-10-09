@@ -2,7 +2,7 @@
 module Vira.App.Stack where
 
 import Colog (Message)
-import Control.Concurrent.STM (TChan)
+import Control.Concurrent.STM (TChan, TQueue)
 import Control.Exception (throwIO)
 import Data.Acid (AcidState)
 import Data.ByteString
@@ -20,7 +20,7 @@ import Vira.App.CLI (GlobalSettings (..), WebSettings)
 import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.Lib.Logging (runLogActionStdout)
-import Vira.Refresh.Type (RefreshConfig)
+import Vira.Refresh.Type (RefreshCommand, RefreshConfig)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Vira.Tool.Type.Tools (Tools)
@@ -77,4 +77,6 @@ data AppState = AppState
     refreshDaemon :: Maybe (Async ())
   , -- Refresh configuration
     refreshConfig :: TVar RefreshConfig
+  , -- Queue for refresh commands
+    refreshQueue :: TQueue RefreshCommand
   }
