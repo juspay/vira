@@ -28,7 +28,7 @@ import Vira.Lib.Logging (Severity (..), log, tagCurrentThread)
 import Vira.Refresh.Type (RefreshConfig (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..))
-import Prelude hiding (Reader, ask, asks, isLeft, isRight, readTVarIO)
+import Prelude hiding (Reader, ask, asks, readTVarIO)
 
 -- | Run the refresh daemon in the background
 runRefreshDaemon ::
@@ -115,13 +115,9 @@ refreshAllRepositories = do
   log Debug $ "Found " <> show (length repos) <> " repositories to refresh"
 
   -- Refresh each repository
-  results <-
-    mapM
-      ( \repo -> do
-          result <- refreshRepository repo
-          pure (repo.name, result)
-      )
-      repos
+  results <- forM repos $ \repo -> do
+    result <- refreshRepository repo
+    pure (repo.name, result)
 
   -- Log summary
   let successCount = length $ filter (isRight . snd) results
@@ -129,12 +125,3 @@ refreshAllRepositories = do
   log Info $ "Refresh cycle complete: " <> show successCount <> " successful, " <> show failureCount <> " failed"
 
   pure results
-
--- | Helper to check if Either is Right
-isRight :: Either a b -> Bool
-isRight (Right _) = True
-isRight (Left _) = False
-
--- | Helper to check if Either is Left
-isLeft :: Either a b -> Bool
-isLeft = not . isRight

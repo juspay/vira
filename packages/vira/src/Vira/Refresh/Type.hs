@@ -18,9 +18,12 @@ data RefreshConfig = RefreshConfig
 
 -- | Status of a repository refresh operation
 data RefreshStatus
-  = RefreshSuccess
-  | RefreshFailure Text
-  | RefreshPending
+  = -- | Refresh completed successfully
+    RefreshSuccess
+  | -- | Refresh failed with an error message
+    RefreshFailure Text
+  | -- | Refresh is queued or in progress
+    RefreshPending
   deriving stock (Generic, Typeable, Data, Eq, Show, Ord)
 
 $(deriveSafeCopy 0 'base ''RefreshStatus)
