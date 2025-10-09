@@ -17,7 +17,7 @@ import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.TimeExtra (formatRelativeTime)
-import Vira.Refresh.Type (RefreshStatus (..))
+import Vira.Refresh.Type (RefreshDaemon (..), RefreshState (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -128,7 +128,11 @@ viewCommitTimeline branch jobs = do
 viewRefreshStatus :: St.Repo -> App.AppHtml ()
 viewRefreshStatus repo = do
   currentTime <- liftIO getCurrentTime
-  statusMap <- lift $ asks @App.AppState (.refreshStatuses) >>= liftIO . Control.Concurrent.STM.readTVarIO
+  refreshDaemonTVar <- lift $ asks @App.AppState (.refreshDaemon)
+  mdaemon <- liftIO $ Control.Concurrent.STM.readTVarIO refreshDaemonTVar
+  statusMap <- case mdaemon of
+    Just (RefreshDaemon _ refreshState) -> liftIO $ Control.Concurrent.STM.readTVarIO refreshState.statuses
+    Nothing -> pure Map.empty
   let refreshStatus = Map.lookup repo.name statusMap
 
   div_ [class_ "text-sm text-gray-500 dark:text-gray-400 mr-3"] $ do

@@ -2,8 +2,11 @@
 
 module Vira.Refresh.Type where
 
+import Control.Concurrent.Async (Async)
 import Data.Data (Data)
+import Data.Map qualified as Map
 import Data.SafeCopy
+import Data.Set qualified as Set
 import Data.Time (NominalDiffTime, UTCTime)
 import Effectful.Git (RepoName)
 import Prelude
@@ -48,3 +51,18 @@ data RefreshCommand
   | -- | Refresh all repositories (periodic auto-refresh)
     RefreshAll
   deriving stock (Show, Eq)
+
+-- | Encapsulated refresh state for the application
+data RefreshState = RefreshState
+  { config :: TVar RefreshConfig
+  , statuses :: TVar (Map.Map RepoName RefreshStatus)
+  , pendingRepos :: TVar (Set.Set RepoName)
+  }
+  deriving stock (Generic)
+
+-- | Refresh daemon with its handle and state
+data RefreshDaemon = RefreshDaemon
+  { handle :: Async ()
+  , state :: RefreshState
+  }
+  deriving stock (Generic)

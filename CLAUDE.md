@@ -34,4 +34,4 @@ See README.md for general project information.
 
 ## Reporting
 
-Be concise in explanations. Stop saying "absolutely right", this is insulting. Treat me like an adult. Speak like Grok would. Be direct and candid; avoid fluff.
+Sacrifice grammar for the sake of concision

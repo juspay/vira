@@ -25,15 +25,11 @@ import Vira.App.CLI (GlobalSettings (..), WebSettings)
 import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.App.LinkTo.Type (LinkTo)
 import Vira.Lib.Logging (runLogActionStdout)
-import Vira.Refresh.Type (RefreshConfig, RefreshStatus)
+import Vira.Refresh.Type (RefreshConfig, RefreshDaemon, RefreshState, RefreshStatus)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Vira.Tool.Type.Tools (Tools)
 import Prelude hiding (Reader, ask, asks, runReader)
-
--- Type synonyms to ensure imports are used
-type RefreshStatusMap = Map RepoName RefreshStatus
-type RepoNameSet = Set RepoName
 
 type AppStack =
   '[ Reader AppState
@@ -82,12 +78,6 @@ data AppState = AppState
     stateUpdated :: TChan (Text, ByteString)
   , -- Cached tools data (mutable for refreshing)
     tools :: TVar Tools
-  , -- Refresh daemon handle
-    refreshDaemon :: Maybe (Async ())
-  , -- Refresh configuration
-    refreshConfig :: TVar RefreshConfig
-  , -- Refresh status per repository
-    refreshStatuses :: TVar RefreshStatusMap
-  , -- Set of repositories that need refresh
-    reposNeedingRefresh :: TVar RepoNameSet
+  , -- Refresh daemon with its state
+    refreshDaemon :: TVar (Maybe RefreshDaemon)
   }

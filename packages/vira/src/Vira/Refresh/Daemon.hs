@@ -27,7 +27,7 @@ import Vira.App qualified as App
 import Vira.App.Stack (AppState (..))
 import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.Logging (Severity (..), log, tagCurrentThread)
-import Vira.Refresh.Type (RefreshCommand (..), RefreshConfig (..), RefreshPriority (..), RefreshStatus (..))
+import Vira.Refresh.Type (RefreshCommand (..), RefreshConfig (..), RefreshDaemon (..), RefreshPriority (..), RefreshState (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..))
 import Prelude hiding (Reader, ask, asks, readTVarIO)
@@ -51,32 +51,39 @@ runRefreshDaemon = do
 
   -- Main refresh processing loop
   forever $ do
-    pendingSet <- asks (.reposNeedingRefresh)
+    refreshDaemonTVar <- asks (.refreshDaemon)
+    mdaemon <- liftIO $ readTVarIO refreshDaemonTVar
+    case mdaemon of
+      Just daemon -> do
+        let pendingSet = daemon.state.pendingRepos
 
-    -- Wait for a repo that needs refresh
-    repoName <- liftIO $ Control.Concurrent.STM.atomically $ do
-      currentSet <- readTVar pendingSet
-      case Set.minView currentSet of
-        Just (name, rest) -> do
-          writeTVar pendingSet rest -- Remove from pending set
-          pure name
-        Nothing -> retry -- Wait for repos to be added
+        -- Wait for a repo that needs refresh
+        repoName <- liftIO $ Control.Concurrent.STM.atomically $ do
+          currentSet <- readTVar pendingSet
+          case Set.minView currentSet of
+            Just (name, rest) -> do
+              writeTVar pendingSet rest -- Remove from pending set
+              pure name
+            Nothing -> retry -- Wait for repos to be added
 
-    -- Set status to pending (in case it wasn't already)
-    statusMap <- asks (.refreshStatuses)
-    now <- liftIO getCurrentTime
-    liftIO $
-      Control.Concurrent.STM.atomically $
-        modifyTVar statusMap $
-          Map.insert repoName (RefreshPending Automatic now)
+        -- Set status to pending (in case it wasn't already)
+        let statusMap = daemon.state.statuses
+        now <- liftIO getCurrentTime
+        liftIO $
+          Control.Concurrent.STM.atomically $
+            modifyTVar statusMap $
+              Map.insert repoName (RefreshPending Automatic now)
 
-    -- Process the refresh
-    repos <- App.query St.GetAllReposA
-    case find (\r -> r.name == repoName) repos of
-      Just repo -> do
-        void $ refreshRepository repo
+        -- Process the refresh
+        repos <- App.query St.GetAllReposA
+        case find (\r -> r.name == repoName) repos of
+          Just repo -> do
+            void $ refreshRepository repo
+          Nothing -> do
+            log Warning $ "Repository not found: " <> repoName.unRepoName
       Nothing -> do
-        log Warning $ "Repository not found: " <> repoName.unRepoName
+        log Debug "Refresh daemon not yet initialized, waiting..."
+        liftIO $ threadDelay 100_000 -- Wait 100ms before checking again
 
 -- | Run the periodic timer that adds all repos to the refresh set
 runPeriodicTimer ::
@@ -86,23 +93,30 @@ runPeriodicTimer ::
   ) =>
   Eff es ()
 runPeriodicTimer = forever $ do
-  config <- asks (.refreshConfig) >>= liftIO . readTVarIO
-  if config.enabled
-    then do
-      -- Get all repos and add them to pending set
-      allRepos <- App.query St.GetAllReposA
-      let allNames = Set.fromList $ map (.name) allRepos
+  refreshDaemonTVar <- asks (.refreshDaemon)
+  mdaemon <- liftIO $ readTVarIO refreshDaemonTVar
+  case mdaemon of
+    Just daemon -> do
+      config <- liftIO $ readTVarIO daemon.state.config
+      if config.enabled
+        then do
+          -- Get all repos and add them to pending set
+          allRepos <- App.query St.GetAllReposA
+          let allNames = Set.fromList $ map (.name) allRepos
 
-      pendingSet <- asks (.reposNeedingRefresh)
-      liftIO $ Control.Concurrent.STM.atomically $ modifyTVar pendingSet (Set.union allNames)
+          let pendingSet = daemon.state.pendingRepos
+          liftIO $ Control.Concurrent.STM.atomically $ modifyTVar pendingSet (Set.union allNames)
 
-      log Debug $ "Added " <> show (length allNames) <> " repos to refresh queue"
-    else do
-      log Debug "Auto-refresh disabled, skipping timer"
+          log Debug $ "Added " <> show (length allNames) <> " repos to refresh queue"
+        else do
+          log Debug "Auto-refresh disabled, skipping timer"
 
-  -- Wait for next cycle
-  let delayMicroseconds = round (config.refreshInterval * 1_000_000)
-  liftIO $ threadDelay delayMicroseconds
+      -- Wait for next cycle
+      let delayMicroseconds = round (config.refreshInterval * 1_000_000)
+      liftIO $ threadDelay delayMicroseconds
+    Nothing -> do
+      log Debug "Refresh daemon not yet initialized in timer, waiting..."
+      liftIO $ threadDelay 100_000 -- Wait 100ms before checking again
 
 -- \| Process a refresh command
 processRefreshCommand ::
@@ -165,22 +179,32 @@ refreshRepository repo = do
       log Warning errorMsg
       -- Update refresh status with failure
       currentTime <- liftIO getCurrentTime
-      statusMap <- asks (.refreshStatuses)
-      liftIO $
-        Control.Concurrent.STM.atomically $
-          modifyTVar statusMap $
-            Map.insert repo.name (RefreshFailure errorMsg currentTime)
+      refreshDaemonTVar <- asks (.refreshDaemon)
+      mdaemon <- liftIO $ readTVarIO refreshDaemonTVar
+      case mdaemon of
+        Just daemon -> do
+          let statusMap = daemon.state.statuses
+          liftIO $
+            Control.Concurrent.STM.atomically $
+              modifyTVar statusMap $
+                Map.insert repo.name (RefreshFailure errorMsg currentTime)
+        Nothing -> log Error "Refresh daemon not initialized for failure status update"
       pure $ Left errorMsg
     Right branches -> do
       -- Update state with new branches
       _ <- App.update $ St.SetRepoBranchesA repo.name branches
       -- Update refresh status with success
       currentTime <- liftIO getCurrentTime
-      statusMap <- asks (.refreshStatuses)
-      liftIO $
-        Control.Concurrent.STM.atomically $
-          modifyTVar statusMap $
-            Map.insert repo.name (RefreshSuccess currentTime)
+      refreshDaemonTVar <- asks (.refreshDaemon)
+      mdaemon <- liftIO $ readTVarIO refreshDaemonTVar
+      case mdaemon of
+        Just daemon -> do
+          let statusMap = daemon.state.statuses
+          liftIO $
+            Control.Concurrent.STM.atomically $
+              modifyTVar statusMap $
+                Map.insert repo.name (RefreshSuccess currentTime)
+        Nothing -> log Error "Refresh daemon not initialized for success status update"
       log Debug $ "Successfully refreshed " <> repo.name.unRepoName <> " (" <> show (Map.size branches) <> " branches)"
       pure $ Right branches
 

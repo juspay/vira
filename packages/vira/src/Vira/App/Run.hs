@@ -20,7 +20,7 @@ import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Server qualified as Server
 import Vira.Refresh.Daemon (runRefreshDaemon)
-import Vira.Refresh.Type (RefreshConfig (..))
+import Vira.Refresh.Type (RefreshConfig (..), RefreshDaemon (..), RefreshState (..))
 import Vira.State.Core (ViraState, closeViraState, openViraState)
 import Vira.State.JSON (getExportData, importViraState)
 import Vira.Supervisor.Core qualified as Supervisor
@@ -49,12 +49,6 @@ runVira = do
         whenJust (importFile webSettings) $ \filePath -> do
           importFromFileOrStdin acid (Just filePath)
 
-        instanceInfo <- getInstanceInfo
-        supervisor <- Supervisor.newSupervisor (CLI.stateDir globalSettings)
-        -- Initialize broadcast channel for state update tracking
-        stateUpdateBuffer <- STM.atomically STM.newBroadcastTChan
-        -- Create TVar with all tools data for caching
-        toolsVar <- runEff Tool.newToolsTVar
         -- Initialize refresh config
         let defaultInterval = 300
             configuredInterval = fromMaybe defaultInterval (CLI.refreshInterval globalSettings)
@@ -62,14 +56,28 @@ runVira = do
         -- Initialize refresh state
         refreshStatuses <- STM.atomically $ STM.newTVar Map.empty
         reposNeedingRefresh <- STM.atomically $ STM.newTVar Set.empty
-        -- Create initial appState without daemon
-        let appStateWithoutDaemon = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar, App.refreshDaemon = Nothing, App.refreshConfig = refreshConfig, App.refreshStatuses = refreshStatuses, App.reposNeedingRefresh = reposNeedingRefresh}
-        -- Start refresh daemon
+        let refreshState = RefreshState refreshConfig refreshStatuses reposNeedingRefresh
+
+        -- Create TVar for refresh daemon (initially Nothing)
+        refreshDaemonTVar <- STM.newTVarIO Nothing
+
+        instanceInfo <- getInstanceInfo
+        supervisor <- Supervisor.newSupervisor (CLI.stateDir globalSettings)
+        -- Initialize broadcast channel for state update tracking
+        stateUpdateBuffer <- STM.atomically STM.newBroadcastTChan
+        -- Create TVar with all tools data for caching
+        toolsVar <- runEff Tool.newToolsTVar
+
+        -- Create appState without daemon
+        let appStateWithoutDaemon = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar, App.refreshDaemon = refreshDaemonTVar}
+        -- Start refresh daemon with temporary state
         daemonHandle <- async $ App.runApp globalSettings appStateWithoutDaemon runRefreshDaemon
-        -- Create final appState with daemon
-        let appState = appStateWithoutDaemon {App.refreshDaemon = Just daemonHandle}
-            appServer = Server.runServer globalSettings webSettings
-        App.runApp globalSettings appState appServer
+        -- Create refresh daemon with handle and state
+        let refreshDaemon = RefreshDaemon daemonHandle refreshState
+        -- Update the TVar with the daemon
+        STM.atomically $ STM.writeTVar refreshDaemonTVar (Just refreshDaemon)
+        let appServer = Server.runServer globalSettings webSettings
+        App.runApp globalSettings appStateWithoutDaemon appServer
 
     runExport :: GlobalSettings -> IO ()
     runExport globalSettings = do
