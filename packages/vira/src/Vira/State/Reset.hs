@@ -2,11 +2,14 @@
 module Vira.State.Reset (
   checkSchemaVersion,
   viraDbVersion,
+
+  -- * Used in tests
   versionToInt,
 ) where
 
 import Data.SafeCopy (SafeCopy (version), Version)
-import System.Directory (doesDirectoryExist, doesFileExist, removeDirectoryRecursive, removeFile)
+import System.Directory (doesDirectoryExist, doesFileExist, listDirectory, removeDirectoryRecursive, removeFile)
+import System.FilePath ((</>))
 import Unsafe.Coerce (unsafeCoerce)
 import Vira.State.Acid (ViraState)
 
@@ -40,24 +43,35 @@ checkSchemaVersion stateDir acidStateDir workspaceDir versionFile autoResetState
             else handleVersionMismatch viraDbVersion stateDir storedVersion
   where
     resetState acidDir workspace vFile = do
-      putStrLn "Auto-reset is enabled - cleaning state directories and starting fresh."
+      putStrLn "Auto-reset is enabled - cleaning state (ViraState and job workspaces)."
       putStrLn ""
-      putStrLn ("Removing: " <> acidDir)
-      whenM (doesDirectoryExist acidDir) $
+
+      -- Remove ViraState directory
+      whenM (doesDirectoryExist acidDir) $ do
+        putStrLn ("Removing: " <> acidDir)
         removeDirectoryRecursive acidDir
-      putStrLn ("Removing: " <> workspace)
-      whenM (doesDirectoryExist workspace) $
-        removeDirectoryRecursive workspace
+
+      -- Remove job directories under workspace/*/jobs
+      whenM (doesDirectoryExist workspace) $ do
+        repos <- listDirectory workspace
+        forM_ repos $ \repo -> do
+          let jobsDir = workspace </> repo </> "jobs"
+          whenM (doesDirectoryExist jobsDir) $ do
+            putStrLn ("Removing: " <> jobsDir)
+            removeDirectoryRecursive jobsDir
+
       -- Remove version file to start fresh
       whenM (doesFileExist vFile) $
         removeFile vFile
+
       putStrLn ""
 
     handleMissingVersion dir = do
       putStrLn "ERROR: Found existing state but no schema version file."
       putStrLn "This may indicate a legacy state or corruption."
-      putStrLn "Please remove the vira data directory and restart:"
-      putStrLn ("  rm -rf " <> dir)
+      putStrLn "Please remove ViraState and job workspaces manually and restart:"
+      putStrLn ("  rm -rf " <> dir </> "ViraState")
+      putStrLn ("  rm -rf " <> dir </> "workspace/*/jobs")
       putStrLn "Or use the --auto-reset-state flag to automatically reset on schema changes."
       exitFailure
 
@@ -67,8 +81,9 @@ checkSchemaVersion stateDir acidStateDir workspaceDir versionFile autoResetState
       putStrLn $ "  Current version: " <> show currentVer
       putStrLn ""
       putStrLn "Your state is incompatible with this version of Vira."
-      putStrLn "Please remove the vira data directory and restart:"
-      putStrLn ("  rm -rf " <> dir)
+      putStrLn "Please remove ViraState and job workspaces manually and restart:"
+      putStrLn ("  rm -rf " <> dir </> "ViraState")
+      putStrLn ("  rm -rf " <> dir </> "workspace/*/jobs")
       putStrLn "Or use the --auto-reset-state flag to automatically reset on schema changes."
       exitFailure
 

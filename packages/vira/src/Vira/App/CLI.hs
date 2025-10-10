@@ -29,7 +29,7 @@ data GlobalSettings = GlobalSettings
   , stateDir :: FilePath
   -- ^ Directory where Vira stores its state
   , autoResetState :: Bool
-  -- ^ Automatically reset state on acid-state schema mismatch
+  -- ^ Automatically reset state on schema mismatch (removes ViraState and job workspaces)
   }
   deriving stock (Show)
 
@@ -86,7 +86,7 @@ globalSettingsParser = do
   autoResetState <-
     switch
       ( long "auto-reset-state"
-          <> help "Automatically reset state on acid-state schema mismatch"
+          <> help "Automatically reset state on schema mismatch (removes ViraState and job workspaces)"
       )
   pure GlobalSettings {..}
 

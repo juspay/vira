@@ -38,6 +38,7 @@ data ViraState = ViraState
 
 {- | IMPORTANT: Increment the version number when making breaking changes to ViraState or its indexed types.
 The version is automatically used by the --auto-reset-state feature to detect schema changes.
+When enabled, auto-reset will remove ViraState/ and workspace/*/jobs directories on mismatch.
 Run `vira info` to see the current schema version.
 -}
 $(deriveSafeCopy 0 'base ''ViraState)

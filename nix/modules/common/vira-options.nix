@@ -57,7 +57,7 @@ in
     autoResetState = mkOption {
       type = types.bool;
       default = false;
-      description = "Automatically reset state on acid-state schema mismatch";
+      description = "Automatically reset state on schema mismatch (removes ViraState and job workspaces)";
     };
 
     initialState = mkOption {
