@@ -66,6 +66,7 @@ library
       Vira.State.Acid
       Vira.State.Core
       Vira.State.JSON
+      Vira.State.Reset
       Vira.State.Type
       Vira.Stream.Log
       Vira.Stream.Refresh
@@ -320,6 +321,7 @@ executable vira-tests
   main-is: Spec.hs
   other-modules:
       Vira.CI.ConfigurationSpec
+      Vira.State.ResetSpec
       Paths_vira
   autogen-modules:
       Paths_vira

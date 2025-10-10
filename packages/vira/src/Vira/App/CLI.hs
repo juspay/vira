@@ -28,6 +28,8 @@ data GlobalSettings = GlobalSettings
   -- ^ Minimum logging level
   , stateDir :: FilePath
   -- ^ Directory where Vira stores its state
+  , autoResetState :: Bool
+  -- ^ Automatically reset state on schema mismatch (removes ViraState and job workspaces)
   }
   deriving stock (Show)
 
@@ -51,6 +53,7 @@ data Command
   = WebCommand WebSettings
   | ExportCommand
   | ImportCommand
+  | InfoCommand
   deriving stock (Show)
 
 -- | Complete CLI configuration
@@ -79,6 +82,11 @@ globalSettingsParser = do
           <> help "Minimum log level (Debug, Info, Warning, Error)"
           <> value Info
           <> showDefault
+      )
+  autoResetState <-
+    switch
+      ( long "auto-reset-state"
+          <> help "Automatically reset state on schema mismatch (removes ViraState and job workspaces)"
       )
   pure GlobalSettings {..}
 
@@ -136,6 +144,7 @@ commandParser =
     ( OA.command "web" (info (WebCommand <$> webSettingsParser) (progDesc "Start the web server"))
         <> OA.command "export" (info (pure ExportCommand) (progDesc "Export Vira state to JSON"))
         <> OA.command "import" (info (pure ImportCommand) (progDesc "Import Vira state from JSON"))
+        <> OA.command "info" (info (pure InfoCommand) (progDesc "Show Vira information (version, schema version, etc.)"))
     )
 
 -- | Parser for CLISettings

@@ -54,6 +54,12 @@ in
       description = "Base URL path for the HTTP server";
     };
 
+    autoResetState = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Automatically reset state on schema mismatch (removes ViraState and job workspaces)";
+    };
+
     initialState = mkOption {
       description = "Initial state configuration for Vira";
       default = { };
@@ -81,7 +87,7 @@ in
                 globalArgs = [
                   "--state-dir"
                   cfg.stateDir
-                ];
+                ] ++ optionals cfg.autoResetState [ "--auto-reset-state" ];
                 webArgs = [
                   "--host"
                   cfg.hostname

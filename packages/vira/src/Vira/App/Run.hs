@@ -7,15 +7,18 @@ import Control.Exception (bracket)
 import Data.Acid (AcidState)
 import Data.Aeson (encode)
 import Data.ByteString.Lazy qualified as LBS
+import Data.Version (showVersion)
 import Effectful (runEff)
 import Main.Utf8 qualified as Utf8
+import Paths_vira qualified
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Server qualified as Server
-import Vira.State.Core (ViraState, closeViraState, openViraState)
+import Vira.State.Acid (ViraState)
+import Vira.State.Core (closeViraState, openViraState, viraDbVersion)
 import Vira.State.JSON (getExportData, importViraState)
 import Vira.Supervisor.Core qualified as Supervisor
 import Vira.Tool.Core qualified as Tool
@@ -35,6 +38,7 @@ runVira = do
         WebCommand webSettings -> runWebServer globalSettings webSettings
         ExportCommand -> runExport globalSettings
         ImportCommand -> runImport globalSettings
+        InfoCommand -> runInfo
 
     runWebServer :: GlobalSettings -> WebSettings -> IO ()
     runWebServer globalSettings webSettings = do
@@ -64,6 +68,12 @@ runVira = do
       withViraState globalSettings $ \acid -> do
         importFromFileOrStdin acid Nothing
 
+    runInfo :: IO ()
+    runInfo = do
+      let viraVersion = showVersion Paths_vira.version
+      putTextLn $ "Vira version: " <> toText viraVersion
+      putTextLn $ "Schema version: " <> show viraDbVersion
+
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()
     importFromFileOrStdin acid mFilePath = do
       jsonData <- maybe LBS.getContents readFileLBS mFilePath
@@ -76,4 +86,4 @@ runVira = do
           putTextLn $ "Imported from: " <> maybe "stdin" toText mFilePath
 
     withViraState globalSettings action = do
-      bracket (openViraState (stateDir globalSettings)) closeViraState action
+      bracket (openViraState (stateDir globalSettings) (autoResetState globalSettings)) closeViraState action

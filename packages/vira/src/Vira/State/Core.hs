@@ -12,35 +12,38 @@ module Vira.State.Core (
   -- * App initialization
   openViraState,
   closeViraState,
+
+  -- * Version utilities
+  viraDbVersion,
 ) where
 
-import Control.Exception (ErrorCall (..), catch)
 import Data.Acid
 import Data.Typeable (typeOf)
 import System.FilePath ((</>))
-import Vira.State.Acid
+import Vira.State.Acid (ViraState (..))
+import Vira.State.Acid qualified as Acid
+import Vira.State.Reset (checkSchemaVersion, viraDbVersion, writeSchemaVersion)
 import Vira.State.Type
 
 -- | Open vira database
-openViraState :: (HasCallStack) => FilePath -> IO (AcidState ViraState)
-openViraState stateDir = do
+openViraState :: (HasCallStack) => FilePath -> Bool -> IO (AcidState ViraState)
+openViraState stateDir autoResetState = do
   let initialState = ViraState mempty mempty mempty mempty
   -- Manually construct the path that openLocalState would use: stateDir </> show (typeOf initialState)
   -- This is just for backwards compat.
   let acidStateDir = stateDir </> show (typeOf initialState)
-  st <- openLocalStateFrom acidStateDir initialState `catch` handleStateError
-  update st MarkUnfinishedJobsAsStaleA
+
+  -- Check and handle schema version
+  checkSchemaVersion stateDir acidStateDir autoResetState
+
+  -- Open the state
+  st <- openLocalStateFrom acidStateDir initialState
+
+  -- Write current version after successful open
+  writeSchemaVersion (stateDir </> "schema-version") viraDbVersion
+
+  update st Acid.MarkUnfinishedJobsAsStaleA
   pure st
-  where
-    handleStateError (ErrorCall msg) = do
-      putStrLn "ERROR: Failed to open acid-state database. This usually indicates incompatible state format."
-      putStrLn "Please remove the vira data directory and restart:"
-      putStrLn ("  rm -rf " <> stateDir)
-      putStrLn "Your data will be lost, but this is necessary to continue."
-      putStrLn ""
-      putStrLn "Original error:"
-      putStrLn msg
-      exitFailure
 
 {- | Close vira database
 
