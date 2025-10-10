@@ -54,6 +54,12 @@ in
       description = "Base URL path for the HTTP server";
     };
 
+    autoResetDb = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Automatically reset database on acid-state schema mismatch";
+    };
+
     initialState = mkOption {
       description = "Initial state configuration for Vira";
       default = { };
@@ -81,7 +87,7 @@ in
                 globalArgs = [
                   "--state-dir"
                   cfg.stateDir
-                ];
+                ] ++ optionals cfg.autoResetDb [ "--auto-reset-db" ];
                 webArgs = [
                   "--host"
                   cfg.hostname
