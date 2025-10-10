@@ -7,6 +7,7 @@ module Vira.State.Reset (
 
 import Data.SafeCopy (SafeCopy (version), Version)
 import System.Directory (doesDirectoryExist, doesFileExist, removeDirectoryRecursive, removeFile)
+import Unsafe.Coerce (unsafeCoerce)
 import Vira.State.Acid (ViraState)
 
 -- * Public API
@@ -73,13 +74,13 @@ checkSchemaVersion stateDir acidStateDir workspaceDir versionFile autoResetState
 
 -- * Internal helpers
 
-{- | Get the version number from a SafeCopy Version type
-Since Version has Num instance, we use recursive subtraction to extract the Int
+{- | Get the version number from a SafeCopy Version type in O(1)
+Version is a newtype wrapper around Int32. Since the constructor isn't exported,
+we use unsafeCoerce to unwrap it directly. This is safe because Version is
+literally `newtype Version a = Version Int32`.
 -}
 versionToInt :: forall a. Version a -> Int
-versionToInt v
-  | v == 0 = 0
-  | otherwise = versionToInt (v - 1) + 1
+versionToInt v = fromIntegral (unsafeCoerce v :: Int32)
 
 -- | Read the stored schema version from disk
 readSchemaVersion :: FilePath -> IO (Maybe Int)
