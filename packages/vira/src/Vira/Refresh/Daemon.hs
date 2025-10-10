@@ -14,9 +14,8 @@ module Vira.Refresh.Daemon (
 import Colog.Message (Message)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async qualified as Async
-import Control.Concurrent.STM (atomically, modifyTVar, newTVarIO, putTMVar, readTMVar, readTVar, readTVarIO, retry, writeTVar)
+import Control.Concurrent.STM (atomically, modifyTVar, newTVarIO, putTMVar, readTMVar, readTVar, readTVarIO, retry)
 import Data.Map qualified as Map
-import Data.Set qualified as Set
 import Data.Time (getCurrentTime)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
@@ -52,7 +51,6 @@ mkRefreshState :: TVar RefreshConfig -> IO RefreshState
 mkRefreshState configTVar =
   RefreshState configTVar
     <$> newTVarIO Map.empty
-    <*> newTVarIO Set.empty
 
 -- | Get the current RefreshDaemon from AppState
 getRefreshDaemon ::
@@ -76,11 +74,19 @@ requestRefreshRepo repoName priority = do
   daemon <- getRefreshDaemon
   currentTime <- liftIO getCurrentTime
   liftIO $ atomically $ do
-    -- Add to pending set
-    modifyTVar daemon.state.pendingRepos (Set.insert repoName)
-    -- Set status to Pending
-    modifyTVar daemon.state.statuses $
-      Map.insert repoName (RefreshPending priority currentTime)
+    -- Set status to Pending (or upgrade to Manual if already Pending with Automatic)
+    modifyTVar daemon.state.statuses $ \statusMap ->
+      case Map.lookup repoName statusMap of
+        Just (RefreshPending Automatic _)
+          | priority == Manual ->
+              -- Upgrade to Manual priority
+              Map.insert repoName (RefreshPending Manual currentTime) statusMap
+        Just (RefreshPending Manual _) ->
+          -- Already Manual, keep existing
+          statusMap
+        _ ->
+          -- Insert new pending status
+          Map.insert repoName (RefreshPending priority currentTime) statusMap
 
 -- | Start the refresh daemon background thread and populate the TMVar
 startRefreshDaemon ::
@@ -127,27 +133,31 @@ runRefreshDaemon = do
   -- Main refresh processing loop
   forever $ do
     daemon <- getRefreshDaemon
-    repoName <- waitForPendingRepo daemon.state.pendingRepos
-    markAsPending daemon.state.statuses repoName
+    repoName <- waitForPendingRepo daemon.state.statuses
     -- Process the refresh
     mRepo <- App.query $ St.GetRepoByNameA repoName
     case mRepo of
       Just repo -> void $ refreshRepository repo
       Nothing -> log Warning $ "Repository not found: " <> repoName.unRepoName
   where
-    waitForPendingRepo pendingSet = liftIO $ atomically $ do
-      currentSet <- readTVar pendingSet
-      case Set.minView currentSet of
-        Just (name, rest) -> do
-          writeTVar pendingSet rest -- Remove from pending set
-          pure name
-        Nothing -> retry -- Wait for repos to be added
-    markAsPending statusMap repoName = do
-      now <- liftIO getCurrentTime
-      liftIO $
-        atomically $
-          modifyTVar statusMap $
-            Map.insert repoName (RefreshPending Automatic now)
+    -- Wait for a pending repo, prioritizing Manual over Automatic
+    waitForPendingRepo statusTVar = liftIO $ atomically $ do
+      statusMap <- readTVar statusTVar
+      let pendingRepos = Map.filter isPending statusMap
+      maybe retry pure (findHighestPriority pendingRepos) -- Wait for repos to be added
+    isPending (RefreshPending {}) = True
+    isPending _ = False
+
+    -- Find repo with highest priority (Manual > Automatic), with deterministic ordering by RepoName
+    findHighestPriority :: Map Git.RepoName RefreshStatus -> Maybe Git.RepoName
+    findHighestPriority pendingMap =
+      let sorted = sortOn (\(name, status) -> (getPriority status, name)) $ Map.toList pendingMap
+       in fst <$> viaNonEmpty head sorted
+
+    getPriority :: RefreshStatus -> Int
+    getPriority (RefreshPending Manual _) = 0 -- Manual first
+    getPriority (RefreshPending Automatic _) = 1 -- Automatic second
+    getPriority _ = 2 -- Should not happen
 
 -- | Run the periodic timer that adds all repos to the refresh set
 runPeriodicTimer ::
@@ -162,18 +172,28 @@ runPeriodicTimer =
     config <- liftIO $ readTVarIO daemon.state.config
     if config.enabled
       then do
-        -- Get all repos and add them to pending set
+        -- Get all repos and mark them as pending with Automatic priority
         allRepos <- App.query St.GetAllReposA
-        let allNames = Set.fromList $ (.name) <$> allRepos
+        currentTime <- liftIO getCurrentTime
 
-        liftIO $ atomically $ modifyTVar daemon.state.pendingRepos (Set.union allNames)
-        log Debug $ "Added " <> show (length allNames) <> " repos to refresh queue"
+        liftIO $ atomically $ do
+          modifyTVar daemon.state.statuses $ \statusMap ->
+            foldr
+              ((\repoName acc -> Map.insertWith mergePending repoName (RefreshPending Automatic currentTime) acc) . (.name))
+              statusMap
+              allRepos
+
+        log Debug $ "Added " <> show (length allRepos) <> " repos to refresh queue"
       else do
         log Debug "Auto-refresh disabled, skipping timer"
 
     -- Wait for next cycle
     let delayMicroseconds = round (config.refreshInterval * 1_000_000)
     liftIO $ threadDelay delayMicroseconds
+  where
+    -- When inserting, keep Manual priority if it already exists
+    mergePending _new existing@(RefreshPending Manual _) = existing
+    mergePending new _ = new
 
 -- | Refresh a single repository
 refreshRepository ::

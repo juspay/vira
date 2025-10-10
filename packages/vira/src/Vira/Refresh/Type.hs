@@ -4,9 +4,7 @@ module Vira.Refresh.Type where
 
 import Control.Concurrent.Async (Async)
 import Data.Data (Data)
-import Data.Map qualified as Map
 import Data.SafeCopy
-import Data.Set qualified as Set
 import Data.Time (NominalDiffTime, UTCTime)
 import Effectful.Git (RepoName)
 import Prelude
@@ -56,10 +54,8 @@ data RefreshCommand
 data RefreshState = RefreshState
   { config :: TVar RefreshConfig
   -- ^ Refresh configuration (interval, enabled status)
-  , statuses :: TVar (Map.Map RepoName RefreshStatus)
-  -- ^ Current refresh status for each repository
-  , pendingRepos :: TVar (Set.Set RepoName)
-  -- ^ Set of repositories that need to be refreshed
+  , statuses :: TVar (Map RepoName RefreshStatus)
+  -- ^ Current refresh status for each repository (includes pending with priority)
   }
   deriving stock (Generic)
 
