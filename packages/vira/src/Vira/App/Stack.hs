@@ -34,22 +34,6 @@ type AppStack =
 
 type AppServantStack = (Error ServerError : Reader WebSettings : AppStack)
 
--- | Run the application stack in IO monad
-runApp :: GlobalSettings -> AppState -> Eff AppStack a -> IO a
-runApp globalSettings appState =
-  do
-    runEff
-    . runLogActionStdout (logLevel globalSettings)
-    . runFileSystem
-    . runProcess
-    . runConcurrent
-    . runReader appState
-
--- | Like `runApp`, but for Servant 'Handler'.
-runAppInServant :: GlobalSettings -> AppState -> WebSettings -> Eff AppServantStack a -> Handler a
-runAppInServant globalSettings appState webSettings =
-  Handler . ExceptT . runApp globalSettings appState . runReader webSettings . runErrorNoCallStack
-
 -- | Application-wide state available in Effectful stack
 data AppState = AppState
   { -- Instance information (hostname, platform)
@@ -67,3 +51,19 @@ data AppState = AppState
   , -- Cached tools data (mutable for refreshing)
     tools :: TVar Tools
   }
+
+-- | Run the application stack in IO monad
+runApp :: GlobalSettings -> AppState -> Eff AppStack a -> IO a
+runApp globalSettings appState =
+  do
+    runEff
+    . runLogActionStdout (logLevel globalSettings)
+    . runFileSystem
+    . runProcess
+    . runConcurrent
+    . runReader appState
+
+-- | Like `runApp`, but for Servant 'Handler'.
+runAppInServant :: GlobalSettings -> AppState -> WebSettings -> Eff AppServantStack a -> Handler a
+runAppInServant globalSettings appState webSettings =
+  Handler . ExceptT . runApp globalSettings appState . runReader webSettings . runErrorNoCallStack

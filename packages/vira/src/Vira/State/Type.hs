@@ -9,7 +9,7 @@ import Data.Data (Data)
 import Data.IxSet.Typed
 import Data.SafeCopy
 import Data.Time (UTCTime)
-import Effectful.Git (BranchName, CommitID, RepoName (..))
+import Effectful.Git (BranchName, CommitID, IxCommit, RepoName (..))
 import Servant.API (FromHttpApiData, ToHttpApiData)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
 
@@ -120,9 +120,32 @@ jobEndTime job = case job.jobStatus of
   JobFinished _ endTime -> Just endTime
   _ -> Nothing
 
+{- | Application state persisted to disk through acid-state
+
+All operations (`query` or `update`) on this state are defined in Vira.State.Acid.
+They can be invoked as follows:
+
+>>> Just repo <- Vira.App.query $ GetRepoByNameA "my-repo"
+
+Data in this state is indexed by `IxSet` to allow for efficient querying.
+-}
+data ViraState = ViraState
+  { repos :: IxRepo
+  , branches :: IxBranch
+  , commits :: IxCommit
+  , jobs :: IxJob
+  }
+  deriving stock (Generic, Typeable)
+
+{- | IMPORTANT: Increment the version number when making breaking changes to ViraState or its indexed types.
+The version is automatically used by the --auto-reset-state feature to detect schema changes.
+When enabled, auto-reset will remove ViraState/ and workspace/*/jobs directories on mismatch.
+Run `vira info` to see the current schema version.
+-}
 $(deriveSafeCopy 0 'base ''JobResult)
 $(deriveSafeCopy 0 'base ''JobStatus)
 $(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
 $(deriveSafeCopy 0 'base ''Branch)
 $(deriveSafeCopy 0 'base ''Repo)
+$(deriveSafeCopy 0 'base ''ViraState)

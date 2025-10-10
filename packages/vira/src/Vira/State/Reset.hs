@@ -12,7 +12,7 @@ import Data.SafeCopy (SafeCopy (version), Version)
 import System.Directory (doesDirectoryExist, doesFileExist, listDirectory, removeDirectoryRecursive, removeFile)
 import System.FilePath ((</>))
 import Unsafe.Coerce (unsafeCoerce)
-import Vira.State.Acid (ViraState)
+import Vira.State.Type (ViraState)
 
 -- * Public API
 
