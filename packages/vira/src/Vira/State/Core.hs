@@ -32,17 +32,15 @@ openViraState stateDir autoResetState = do
   -- Manually construct the path that openLocalState would use: stateDir </> show (typeOf initialState)
   -- This is just for backwards compat.
   let acidStateDir = stateDir </> show (typeOf initialState)
-      workspaceDir = stateDir </> "workspace"
-      versionFile = stateDir </> "schema-version"
 
   -- Check and handle schema version
-  checkSchemaVersion stateDir acidStateDir workspaceDir versionFile autoResetState
+  checkSchemaVersion stateDir acidStateDir autoResetState
 
   -- Open the state
   st <- openLocalStateFrom acidStateDir initialState
 
   -- Write current version after successful open
-  writeSchemaVersion versionFile viraDbVersion
+  writeSchemaVersion (stateDir </> "schema-version") viraDbVersion
 
   update st Acid.MarkUnfinishedJobsAsStaleA
   pure st

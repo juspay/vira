@@ -20,8 +20,11 @@ viraDbVersion :: Int
 viraDbVersion = versionToInt (version @ViraState)
 
 -- | Check schema version compatibility and handle mismatches
-checkSchemaVersion :: FilePath -> FilePath -> FilePath -> FilePath -> Bool -> IO ()
-checkSchemaVersion stateDir acidStateDir workspaceDir versionFile autoResetState = do
+checkSchemaVersion :: FilePath -> FilePath -> Bool -> IO ()
+checkSchemaVersion stateDir acidStateDir autoResetState = do
+  let workspaceDir = stateDir </> "workspace"
+      versionFile = stateDir </> "schema-version"
+
   stateExists <- doesDirectoryExist acidStateDir
   when stateExists $ do
     mStoredVersion <- readSchemaVersion versionFile
@@ -69,11 +72,7 @@ checkSchemaVersion stateDir acidStateDir workspaceDir versionFile autoResetState
     handleMissingVersion dir = do
       putStrLn "ERROR: Found existing state but no schema version file."
       putStrLn "This may indicate a legacy state or corruption."
-      putStrLn "Please remove ViraState and job workspaces manually and restart:"
-      putStrLn ("  rm -rf " <> dir </> "ViraState")
-      putStrLn ("  rm -rf " <> dir </> "workspace/*/jobs")
-      putStrLn "Or use the --auto-reset-state flag to automatically reset on schema changes."
-      exitFailure
+      showManualResetInstructions dir
 
     handleVersionMismatch currentVer dir storedVersion = do
       putStrLn "ERROR: Schema version mismatch."
@@ -81,6 +80,9 @@ checkSchemaVersion stateDir acidStateDir workspaceDir versionFile autoResetState
       putStrLn $ "  Current version: " <> show currentVer
       putStrLn ""
       putStrLn "Your state is incompatible with this version of Vira."
+      showManualResetInstructions dir
+
+    showManualResetInstructions dir = do
       putStrLn "Please remove ViraState and job workspaces manually and restart:"
       putStrLn ("  rm -rf " <> dir </> "ViraState")
       putStrLn ("  rm -rf " <> dir </> "workspace/*/jobs")
