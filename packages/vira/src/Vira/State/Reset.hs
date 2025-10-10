@@ -40,19 +40,19 @@ checkSchemaVersion stateDir acidStateDir autoResetState = do
           -- Version mismatch detected
           if autoResetState
             then do
-              putStrLn "WARNING: Schema version mismatch detected."
+              putStrLn "⚠️  WARNING: Schema version mismatch detected."
               putStrLn $ "  Stored version: " <> show storedVersion
               putStrLn $ "  Current version: " <> show viraDbVersion
               resetState acidStateDir workspaceDir versionFile
             else handleVersionMismatch viraDbVersion stateDir storedVersion
   where
     resetState acidDir workspace vFile = do
-      putStrLn "Auto-reset is enabled - cleaning state (ViraState and job workspaces)."
+      putStrLn "⚠️  Auto-reset is enabled - cleaning state (ViraState and job workspaces)."
       putStrLn ""
 
       -- Remove ViraState directory
       whenM (doesDirectoryExist acidDir) $ do
-        putStrLn ("Removing: " <> acidDir)
+        putStrLn ("⚠️  Removing: " <> acidDir)
         removeDirectoryRecursive acidDir
 
       -- Remove job directories under workspace/*/jobs
@@ -61,7 +61,7 @@ checkSchemaVersion stateDir acidStateDir autoResetState = do
         forM_ repos $ \repo -> do
           let jobsDir = workspace </> repo </> "jobs"
           whenM (doesDirectoryExist jobsDir) $ do
-            putStrLn ("Removing: " <> jobsDir)
+            putStrLn ("⚠️  Removing: " <> jobsDir)
             removeDirectoryRecursive jobsDir
 
       -- Remove version file to start fresh
