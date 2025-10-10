@@ -2,6 +2,7 @@
 module Vira.State.Reset (
   checkSchemaVersion,
   viraDbVersion,
+  versionToInt,
 ) where
 
 import Data.SafeCopy (SafeCopy (version), Version)
