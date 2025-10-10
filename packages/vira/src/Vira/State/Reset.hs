@@ -86,7 +86,7 @@ checkSchemaVersion stateDir acidStateDir autoResetState = do
     showManualResetInstructions dir = do
       putStrLn "Please remove ViraState and job workspaces manually and restart:"
       putStrLn ("  rm -rf " <> dir </> "ViraState")
-      putStrLn ("  rm -rf " <> dir </> "workspace/*/jobs")
+      putStrLn ("  rm -rf " <> dir </> "workspace" </> "*" </> "jobs")
       putStrLn "Or use the --auto-reset-state flag to automatically reset on schema changes."
       exitFailure
 
