@@ -15,13 +15,13 @@ import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
-import Vira.App.LinkTo.Resolve (linkTo)
-import Vira.App.Server qualified as Server
-import Vira.State.Acid (ViraState)
 import Vira.State.Core (closeViraState, openViraState, viraDbVersion)
 import Vira.State.JSON (getExportData, importViraState)
+import Vira.State.Type (ViraState)
 import Vira.Supervisor.Core qualified as Supervisor
 import Vira.Tool.Core qualified as Tool
+import Vira.Web.LinkTo.Resolve (linkTo)
+import Vira.Web.Server qualified as Server
 import Prelude hiding (Reader, ask, runReader)
 
 -- | Run the Vira application
@@ -53,9 +53,9 @@ runVira = do
         stateUpdateBuffer <- atomically newBroadcastTChan
         -- Create TVar with all tools data for caching
         toolsVar <- runEff Tool.newToolsTVar
-        let appState = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar}
+        let viraRuntimeState = App.ViraRuntimeState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar}
             appServer = Server.runServer globalSettings webSettings
-        App.runApp globalSettings appState appServer
+        App.runApp globalSettings viraRuntimeState appServer
 
     runExport :: GlobalSettings -> IO ()
     runExport globalSettings = do

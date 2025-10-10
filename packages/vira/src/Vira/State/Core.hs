@@ -20,7 +20,6 @@ module Vira.State.Core (
 import Data.Acid
 import Data.Typeable (typeOf)
 import System.FilePath ((</>))
-import Vira.State.Acid (ViraState (..))
 import Vira.State.Acid qualified as Acid
 import Vira.State.Reset (checkSchemaVersion, viraDbVersion, writeSchemaVersion)
 import Vira.State.Type

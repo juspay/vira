@@ -15,7 +15,7 @@ module Vira.Tool.Core (
 import Control.Concurrent.STM qualified as STM
 import Effectful (Eff, IOE, (:>))
 import Effectful.Reader.Dynamic qualified as Reader
-import Vira.App.Stack (AppState (..))
+import Vira.App.Type (ViraRuntimeState (..))
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Tools.Cachix qualified as CachixTool
 import Vira.Tool.Tools.Git qualified as GitTool
@@ -35,16 +35,16 @@ newToolsTVar = do
   initialTools <- getAllTools
   liftIO $ STM.newTVarIO initialTools
 
--- | Get cached tools from AppState
-getTools :: (IOE :> es, Reader.Reader AppState :> es) => Eff es Tools
+-- | Get cached tools from ViraRuntimeState
+getTools :: (IOE :> es, Reader.Reader ViraRuntimeState :> es) => Eff es Tools
 getTools = do
-  AppState {tools = toolsVar} <- Reader.ask
+  ViraRuntimeState {tools = toolsVar} <- Reader.ask
   liftIO $ STM.readTVarIO toolsVar
 
--- | Refresh tools data and update cache in AppState
-refreshTools :: (IOE :> es, Reader.Reader AppState :> es) => Eff es Tools
+-- | Refresh tools data and update cache in ViraRuntimeState
+refreshTools :: (IOE :> es, Reader.Reader ViraRuntimeState :> es) => Eff es Tools
 refreshTools = do
-  AppState {tools = toolsVar} <- Reader.ask
+  ViraRuntimeState {tools = toolsVar} <- Reader.ask
   freshTools <- getAllTools
   liftIO $ STM.atomically $ STM.writeTVar toolsVar freshTools
   pure freshTools

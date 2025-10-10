@@ -12,7 +12,7 @@ module Vira.CI.Environment (
 import Effectful (Eff, IOE, (:>))
 import Effectful.Reader.Dynamic qualified as Reader
 import System.FilePath ((</>))
-import Vira.App.Stack (AppState)
+import Vira.App.Type (ViraRuntimeState)
 import Vira.CI.Context (ViraContext (..))
 import Vira.State.Type (Branch (..), Repo)
 import Vira.Tool.Core qualified as Tool
@@ -37,7 +37,7 @@ projectDir env = env.workspacePath </> projectDirName
 
 -- | Construct the 'ViraEnvironment' for a given repository and branch.
 environmentFor ::
-  ( Reader.Reader AppState :> es
+  ( Reader.Reader ViraRuntimeState :> es
   , IOE :> es
   ) =>
   Repo ->

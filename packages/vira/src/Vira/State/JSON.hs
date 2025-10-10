@@ -13,8 +13,8 @@ import Data.Aeson (FromJSON (..), ToJSON (..), decode)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Map qualified as Map
 import Effectful.Git (RepoName)
-import Vira.State.Acid (AddNewRepoA (AddNewRepoA), GetAllReposA (GetAllReposA), GetRepoByNameA (GetRepoByNameA), ViraState)
-import Vira.State.Type (Repo (..))
+import Vira.State.Acid (AddNewRepoA (AddNewRepoA), GetAllReposA (GetAllReposA), GetRepoByNameA (GetRepoByNameA))
+import Vira.State.Type (Repo (..), ViraState)
 
 -- | Subset of ViraState that can be exported/imported
 newtype ViraExportData = ViraExportData

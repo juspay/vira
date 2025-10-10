@@ -15,8 +15,8 @@ import GH.Signoff qualified as GH
 import Lucid (HtmlT, ToHtml (..), class_, div_, p_, strong_, toHtml)
 import Text.Show qualified as TS
 import Vira.Tool.Type.ToolData (ToolData (..))
-import Vira.Widgets.Alert (AlertType (..), viraAlertWithTitle_, viraAlert_)
-import Vira.Widgets.Code qualified as W
+import Vira.Web.Widgets.Alert (AlertType (..), viraAlertWithTitle_, viraAlert_)
+import Vira.Web.Widgets.Code qualified as W
 
 -- | Suggestions for fixing GitHub CLI configuration issues
 data GitHubSuggestion = GhAuthLoginSuggestion

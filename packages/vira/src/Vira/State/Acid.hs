@@ -3,8 +3,8 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# OPTIONS_GHC -Wno-deprecations #-}
 {-# OPTIONS_GHC -Wno-missing-deriving-strategies #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 -- | acid-state implementation for Vira state
 module Vira.State.Acid where
@@ -14,34 +14,10 @@ import Data.IxSet.Typed
 import Data.IxSet.Typed qualified as Ix
 import Data.List (maximum)
 import Data.Map.Strict qualified as Map
-import Data.SafeCopy (base, deriveSafeCopy)
 import Data.Time (UTCTime)
-import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit, RepoName)
+import Effectful.Git (BranchName, Commit (..), CommitID, RepoName)
 import System.FilePath ((</>))
 import Vira.State.Type
-
-{- | Application that gets persisted to disk through acid-state
-
-All operations (`query` or `update`) on this state are defined immediately below. They can be invoked as follows:
-
->>> Just repo <- Vira.App.query $ GetRepoByNameA "my-repo"
-
-Data in this state is indexed by `IxSet` to allow for efficient querying.
--}
-data ViraState = ViraState
-  { repos :: IxRepo
-  , branches :: IxBranch
-  , commits :: IxCommit
-  , jobs :: IxJob
-  }
-  deriving stock (Generic, Typeable)
-
-{- | IMPORTANT: Increment the version number when making breaking changes to ViraState or its indexed types.
-The version is automatically used by the --auto-reset-state feature to detect schema changes.
-When enabled, auto-reset will remove ViraState/ and workspace/*/jobs directories on mismatch.
-Run `vira info` to see the current schema version.
--}
-$(deriveSafeCopy 0 'base ''ViraState)
 
 -- | Set all repositories, replacing existing ones
 setAllReposA :: [Repo] -> Update ViraState ()

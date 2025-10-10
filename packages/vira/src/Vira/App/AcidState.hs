@@ -13,7 +13,7 @@ import Data.Typeable (typeOf)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Reader.Dynamic (Reader, asks)
-import Vira.App.Stack (AppState (acid, stateUpdated))
+import Vira.App.Type (ViraRuntimeState (acid, stateUpdated))
 import Vira.Lib.Logging (log)
 import Vira.State.Core (ViraState)
 import Prelude hiding (Reader, ask, asks, runReader)
@@ -22,7 +22,7 @@ import Prelude hiding (Reader, ask, asks, runReader)
 query ::
   ( QueryEvent event
   , EventState event ~ ViraState
-  , Reader AppState :> es
+  , Reader ViraRuntimeState :> es
   , IOE :> es
   ) =>
   event ->
@@ -39,7 +39,7 @@ update ::
   , EventState event ~ ViraState
   , SafeCopy event
   , Typeable event
-  , Reader AppState :> es
+  , Reader ViraRuntimeState :> es
   , IOE :> es
   , Log Message :> es
   , HasCallStack
@@ -54,21 +54,21 @@ update event = do
 broadcastStateUpdate ::
   ( SafeCopy event
   , Typeable event
-  , Reader AppState :> es
+  , Reader ViraRuntimeState :> es
   , IOE :> es
   , Log Message :> es
   ) =>
   event ->
   Eff es ()
 broadcastStateUpdate event = do
-  stateUpdated <- asks @AppState stateUpdated
+  stateUpdated <- asks @ViraRuntimeState stateUpdated
   -- Serialize event name and data for logging
   let eventName = show $ typeOf event
       eventData = runPut $ safePut event
   liftIO $ atomically $ writeTChan stateUpdated (eventName, eventData)
   log Info $ "📝 State updated (" <> eventName <> "), notified listeners"
 
-createCheckpoint :: (Reader AppState :> es, IOE :> es) => Eff es ()
+createCheckpoint :: (Reader ViraRuntimeState :> es, IOE :> es) => Eff es ()
 createCheckpoint = do
   acid <- asks acid
   liftIO $ Acid.createCheckpoint acid
