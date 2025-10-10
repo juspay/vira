@@ -21,7 +21,8 @@ import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Lucid (AppHtml, getLinkUrl)
-import Vira.App.Stack (AppStack, AppState (stateUpdated))
+import Vira.App.Stack (AppStack)
+import Vira.App.Type (ViraRuntimeState (stateUpdated))
 import Vira.Lib.Logging (log, tagCurrentThread)
 import Vira.Lib.STM (drainRemainingTChan, drainTChan)
 import Prelude hiding (Reader, ask, asks, runReader)

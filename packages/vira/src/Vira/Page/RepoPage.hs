@@ -49,12 +49,12 @@ data Routes mode = Routes
 crumbs :: [LinkTo.LinkTo]
 crumbs = [LinkTo.RepoListing]
 
-handlers :: App.GlobalSettings -> App.AppState -> WebSettings -> RepoName -> Routes AsServer
-handlers globalSettings appState webSettings name = do
+handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> RepoName -> Routes AsServer
+handlers globalSettings viraRuntimeState webSettings name = do
   Routes
-    { _view = App.runAppInServant globalSettings appState webSettings . App.runAppHtml $ viewHandler name
-    , _update = App.runAppInServant globalSettings appState webSettings $ updateHandler name
-    , _delete = App.runAppInServant globalSettings appState webSettings $ deleteHandler name
+    { _view = App.runAppInServant globalSettings viraRuntimeState webSettings . App.runAppHtml $ viewHandler name
+    , _update = App.runAppInServant globalSettings viraRuntimeState webSettings $ updateHandler name
+    , _delete = App.runAppInServant globalSettings viraRuntimeState webSettings $ deleteHandler name
     }
 
 viewHandler :: RepoName -> AppHtml ()
@@ -67,7 +67,7 @@ viewHandler name = do
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  supervisor <- asks @App.AppState (.supervisor)
+  supervisor <- asks @App.ViraRuntimeState (.supervisor)
   let mirrorPath = Workspace.mirrorPath supervisor repo.name
   result <- runErrorNoCallStack @Text $ do
     -- Ensure mirror exists and update it
@@ -236,7 +236,7 @@ instance Ord BranchStatus where
       defaultTime = UTCTime (fromGregorian 1900 1 1) 0
 
 -- | Create a 'BranchStatus' for a given branch, fetching required data.
-mkBranchStatus :: (Reader App.AppState Effectful.:> es, IOE Effectful.:> es) => RepoName -> St.Branch -> Eff es BranchStatus
+mkBranchStatus :: (Reader App.ViraRuntimeState Effectful.:> es, IOE Effectful.:> es) => RepoName -> St.Branch -> Eff es BranchStatus
 mkBranchStatus repoName branch = do
   jobs <- App.query $ St.GetJobsByBranchA repoName branch.branchName
   let mLatestJob = viaNonEmpty head jobs

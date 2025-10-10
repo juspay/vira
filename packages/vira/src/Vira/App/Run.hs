@@ -53,9 +53,9 @@ runVira = do
         stateUpdateBuffer <- atomically newBroadcastTChan
         -- Create TVar with all tools data for caching
         toolsVar <- runEff Tool.newToolsTVar
-        let appState = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar}
+        let viraRuntimeState = App.ViraRuntimeState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar}
             appServer = Server.runServer globalSettings webSettings
-        App.runApp globalSettings appState appServer
+        App.runApp globalSettings viraRuntimeState appServer
 
     runExport :: GlobalSettings -> IO ()
     runExport globalSettings = do

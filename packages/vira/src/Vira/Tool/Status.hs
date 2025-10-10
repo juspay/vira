@@ -11,7 +11,7 @@ import GH.Auth.Status (AuthStatus (..))
 import Lucid
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Lucid (AppHtml, getLinkUrl)
-import Vira.App.Stack (AppState (..))
+import Vira.App.Type (ViraRuntimeState (..))
 import Vira.Tool.Core (ToolData (..))
 import Vira.Tool.Type.Tools qualified as Tool
 import Web.TablerIcons.Outline qualified as Icon
@@ -20,8 +20,8 @@ import Prelude hiding (ask)
 -- | View tools status indicator for the status bar
 viewToolsStatus :: AppHtml ()
 viewToolsStatus = do
-  appState <- lift $ ask @AppState
-  toolsData <- liftIO $ readTVarIO appState.tools
+  viraRuntimeState <- lift $ ask @ViraRuntimeState
+  toolsData <- liftIO $ readTVarIO viraRuntimeState.tools
   let hasError = isToolsError toolsData
       (iconSvg, classes, label :: Text) =
         if hasError

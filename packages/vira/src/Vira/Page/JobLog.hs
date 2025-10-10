@@ -27,11 +27,11 @@ data Routes mode = Routes
   }
   deriving stock (Generic)
 
-handlers :: App.GlobalSettings -> App.AppState -> WebSettings -> JobId -> Routes AsServer
-handlers globalSettings appState webSettings jobId = do
+handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> JobId -> Routes AsServer
+handlers globalSettings viraRuntimeState webSettings jobId = do
   Routes
-    { _rawLog = App.runAppInServant globalSettings appState webSettings $ rawLogHandler jobId
-    , _streamLog = pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp globalSettings appState) $ Log.streamRouteHandler jobId
+    { _rawLog = App.runAppInServant globalSettings viraRuntimeState webSettings $ rawLogHandler jobId
+    , _streamLog = pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp globalSettings viraRuntimeState) $ Log.streamRouteHandler jobId
     }
 
 rawLogHandler :: JobId -> Eff App.AppServantStack Text

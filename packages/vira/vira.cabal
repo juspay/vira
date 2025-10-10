@@ -42,6 +42,7 @@ library
       Vira.App.Servant
       Vira.App.Server
       Vira.App.Stack
+      Vira.App.Type
       Vira.CI.Configuration
       Vira.CI.Environment
       Vira.CI.Error

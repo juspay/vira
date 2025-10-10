@@ -42,13 +42,13 @@ data Routes mode = Routes
   }
   deriving stock (Generic)
 
-handlers :: App.GlobalSettings -> App.AppState -> App.WebSettings -> Routes AsServer
-handlers globalSettings appState webSettings = do
+handlers :: App.GlobalSettings -> App.ViraRuntimeState -> App.WebSettings -> Routes AsServer
+handlers globalSettings viraRuntimeState webSettings = do
   Routes
-    { _listing = App.runAppInServant globalSettings appState webSettings $ App.runAppHtml handleListing
-    , _repo = RepoPage.handlers globalSettings appState webSettings
-    , _branch = BranchPage.handlers globalSettings appState webSettings
-    , _addRepo = App.runAppInServant globalSettings appState webSettings . handleAddRepo
+    { _listing = App.runAppInServant globalSettings viraRuntimeState webSettings $ App.runAppHtml handleListing
+    , _repo = RepoPage.handlers globalSettings viraRuntimeState webSettings
+    , _branch = BranchPage.handlers globalSettings viraRuntimeState webSettings
+    , _addRepo = App.runAppInServant globalSettings viraRuntimeState webSettings . handleAddRepo
     }
 
 handleListing :: AppHtml ()

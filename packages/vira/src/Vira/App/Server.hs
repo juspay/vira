@@ -23,7 +23,7 @@ import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
 import Vira.App (AppStack)
 import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
-import Vira.App.Stack (AppState)
+import Vira.App.Type (ViraRuntimeState)
 import Vira.Lib.Logging
 import Vira.Page.IndexPage qualified as IndexPage
 import Vira.Page.NotFoundPage qualified as NotFoundPage
@@ -38,15 +38,15 @@ runServer globalSettings webSettings = do
   liftIO $ startWarpServer (warpSettings webSettings) globalSettings.stateDir webSettings.tlsConfig app
   where
     buildApplication = do
-      appState <- Reader.ask @AppState
-      let servantApp = genericServe $ IndexPage.handlers globalSettings appState webSettings
+      viraRuntimeState <- Reader.ask @ViraRuntimeState
+      let servantApp = genericServe $ IndexPage.handlers globalSettings viraRuntimeState webSettings
       staticDir <- getDataDirMultiHome
       log Debug $ "Static dir = " <> toText staticDir
       let middlewares =
             [ -- Middleware to serve static files
               staticPolicy $ noDots >-> addBase staticDir
             , -- 404 handler
-              notFoundMiddleware globalSettings appState webSettings
+              notFoundMiddleware globalSettings viraRuntimeState webSettings
             ]
           app = foldl' (&) servantApp middlewares
       pure app
@@ -84,13 +84,13 @@ getDataDirMultiHome = do
       isJust <$> lookupEnv "IN_NIX_SHELL"
 
 -- | WAI middleware to handle 404 errors with custom page
-notFoundMiddleware :: GlobalSettings -> AppState -> WebSettings -> Middleware
-notFoundMiddleware globalSettings appState webSettings app req respond = do
+notFoundMiddleware :: GlobalSettings -> ViraRuntimeState -> WebSettings -> Middleware
+notFoundMiddleware globalSettings viraRuntimeState webSettings app req respond = do
   app req $ \res -> do
     -- Check if the response is a 404
     if responseStatus res == status404
       then do
-        html404 <- NotFoundPage.complete404Page globalSettings appState webSettings
+        html404 <- NotFoundPage.complete404Page globalSettings viraRuntimeState webSettings
         respond $
           responseLBS status404 [("Content-Type", "text/html; charset=utf-8")] $
             encodeUtf8 html404

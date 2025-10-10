@@ -49,13 +49,13 @@ data Routes mode = Routes
   }
   deriving stock (Generic)
 
-handlers :: App.GlobalSettings -> App.AppState -> WebSettings -> Routes AsServer
-handlers globalSettings appState webSettings = do
+handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> Routes AsServer
+handlers globalSettings viraRuntimeState webSettings = do
   Routes
-    { _build = \x -> App.runAppInServant globalSettings appState webSettings . buildHandler x
-    , _view = App.runAppInServant globalSettings appState webSettings . App.runAppHtml . viewHandler
-    , _log = JobLog.handlers globalSettings appState webSettings
-    , _kill = App.runAppInServant globalSettings appState webSettings . killHandler
+    { _build = \x -> App.runAppInServant globalSettings viraRuntimeState webSettings . buildHandler x
+    , _view = App.runAppInServant globalSettings viraRuntimeState webSettings . App.runAppHtml . viewHandler
+    , _log = JobLog.handlers globalSettings viraRuntimeState webSettings
+    , _kill = App.runAppInServant globalSettings viraRuntimeState webSettings . killHandler
     }
 
 buildHandler :: RepoName -> BranchName -> Eff App.AppServantStack (Headers '[HXRefresh] Text)

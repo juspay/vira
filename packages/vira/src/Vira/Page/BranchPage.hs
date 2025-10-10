@@ -29,10 +29,10 @@ newtype Routes mode = Routes
   }
   deriving stock (Generic)
 
-handlers :: App.GlobalSettings -> App.AppState -> WebSettings -> RepoName -> BranchName -> Routes AsServer
-handlers globalSettings appState webSettings repoName branchName = do
+handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> RepoName -> BranchName -> Routes AsServer
+handlers globalSettings viraRuntimeState webSettings repoName branchName = do
   Routes
-    { _view = App.runAppInServant globalSettings appState webSettings . App.runAppHtml $ viewHandler repoName branchName
+    { _view = App.runAppInServant globalSettings viraRuntimeState webSettings . App.runAppHtml $ viewHandler repoName branchName
     }
 
 viewHandler :: RepoName -> BranchName -> AppHtml ()

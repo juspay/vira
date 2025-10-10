@@ -32,6 +32,7 @@ import Vira.App qualified as App
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.App.Lucid (AppHtml, getLinkUrl)
 import Vira.App.Stack (AppStack)
+import Vira.App.Type (ViraRuntimeState (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
@@ -93,7 +94,7 @@ streamRouteHandler jobId = S.fromStepT $ step 0 Init
       case st of
         Init -> do
           -- Get the task from supervisor to reuse its Tail handle
-          supervisor <- Effectful.Reader.Dynamic.asks App.supervisor
+          supervisor <- Effectful.Reader.Dynamic.asks supervisor
           tasks <- liftIO $ readMVar supervisor.tasks
           case Map.lookup jobId tasks of
             Nothing -> do

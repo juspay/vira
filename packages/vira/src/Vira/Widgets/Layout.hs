@@ -45,7 +45,7 @@ import Vira.App.GitRev qualified as GitRev
 import Vira.App.InstanceInfo (InstanceInfo (..), platform)
 import Vira.App.LinkTo.Type (LinkTo (..), linkShortTitle, linkTitle)
 import Vira.App.Lucid (AppHtml)
-import Vira.App.Stack (AppState)
+import Vira.App.Type (ViraRuntimeState (..))
 import Vira.Page.Common.User qualified as User
 import Vira.Stream.Refresh qualified as Refresh
 import Vira.Tool.Status qualified as ToolStatus
@@ -65,7 +65,7 @@ pageTitle instanceInfo = \case
 -- | Dynamic favicon based on platform
 appLogoUrl :: AppHtml Text
 appLogoUrl = do
-  instanceInfo <- lift $ asks @AppState (.instanceInfo)
+  instanceInfo <- lift $ asks @ViraRuntimeState instanceInfo
   case instanceInfo.os of
     "linux" -> pure "vira-logo-penguin.svg"
     "darwin" -> pure "vira-logo-apple.svg"
@@ -74,7 +74,7 @@ appLogoUrl = do
 -- | Common HTML layout for all routes.
 layout :: [LinkTo] -> AppHtml () -> AppHtml ()
 layout crumbs content = do
-  instanceInfo <- lift $ asks @AppState (.instanceInfo)
+  instanceInfo <- lift $ asks @ViraRuntimeState instanceInfo
   logoUrl <- appLogoUrl
   basePath <- lift $ asks @WebSettings (.basePath)
   doctype_
@@ -125,7 +125,7 @@ layout crumbs content = do
     -- Footer with memory usage information
     footer :: [LinkTo] -> AppHtml ()
     footer _crumbs = do
-      instanceInfo <- lift $ asks @AppState (.instanceInfo)
+      instanceInfo <- lift $ asks @ViraRuntimeState instanceInfo
       div_ [class_ "bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-auto"] $ do
         div_ [class_ "container mx-auto px-4 py-3 lg:px-8"] $ do
           div_ [class_ "flex justify-between items-center text-sm text-gray-600 dark:text-gray-300"] $ do
