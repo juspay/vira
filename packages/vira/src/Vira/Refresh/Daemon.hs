@@ -5,6 +5,7 @@
 
 module Vira.Refresh.Daemon (
   mkRefreshDaemon,
+  startRefreshDaemon,
   runRefreshDaemon,
   processRefreshCommand,
   refreshAllRepositories,
@@ -39,36 +40,43 @@ import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..))
 import Prelude hiding (Reader, ask, asks, atomically, newTVarIO, readTVarIO, writeTVar)
 
--- | Create and initialize a RefreshDaemon with its state and background thread
+-- | Create and initialize a RefreshDaemon TVar (initially Nothing)
 mkRefreshDaemon ::
+  IO (TVar (Maybe RefreshDaemon))
+mkRefreshDaemon = do
+  -- Create TVar for refresh daemon (initially Nothing)
+  newTVarIO Nothing
+
+-- | Start the refresh daemon background thread and populate the TVar
+startRefreshDaemon ::
+  ( Log Message :> es
+  , Reader AppState :> es
+  , IOE :> es
+  ) =>
   GlobalSettings ->
   Maybe Int ->
-  AppState ->
-  IO (TVar (Maybe RefreshDaemon))
-mkRefreshDaemon globalSettings mRefreshInterval appStateWithoutDaemon = do
+  Eff es ()
+startRefreshDaemon globalSettings mRefreshInterval = do
+  appState <- asks @AppState identity
+
   -- Initialize refresh config
   let defaultInterval = 300
       configuredInterval = fromMaybe defaultInterval mRefreshInterval
-  refreshConfig <- newTVarIO $ RefreshConfig (fromIntegral configuredInterval) (configuredInterval > 0)
+  refreshConfig <- liftIO $ newTVarIO $ RefreshConfig (fromIntegral configuredInterval) (configuredInterval > 0)
 
   -- Initialize refresh state
-  refreshStatuses <- atomically $ newTVar Map.empty
-  reposNeedingRefresh <- atomically $ newTVar Set.empty
+  refreshStatuses <- liftIO $ atomically $ newTVar Map.empty
+  reposNeedingRefresh <- liftIO $ atomically $ newTVar Set.empty
   let refreshState = RefreshState refreshConfig refreshStatuses reposNeedingRefresh
 
-  -- Create TVar for refresh daemon (initially Nothing)
-  refreshDaemonTVar <- newTVarIO Nothing
+  -- Start refresh daemon with app state
+  daemonHandle <- liftIO $ Async.async $ App.runApp globalSettings appState runRefreshDaemon
 
-  -- Start refresh daemon with temporary state
-  daemonHandle <- Async.async $ App.runApp globalSettings appStateWithoutDaemon runRefreshDaemon
-
-  -- Create refresh daemon with handle and state
+  -- Create daemon with handle and state
   let refreshDaemon = RefreshDaemon daemonHandle refreshState
 
   -- Update the TVar with the daemon
-  atomically $ writeTVar refreshDaemonTVar (Just refreshDaemon)
-
-  pure refreshDaemonTVar
+  liftIO $ atomically $ writeTVar appState.refreshDaemon (Just refreshDaemon)
 
 -- | Run the refresh daemon in the background
 runRefreshDaemon ::

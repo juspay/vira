@@ -16,7 +16,7 @@ import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Server qualified as Server
-import Vira.Refresh.Daemon (mkRefreshDaemon)
+import Vira.Refresh.Daemon (mkRefreshDaemon, startRefreshDaemon)
 import Vira.State.Core (ViraState, closeViraState, openViraState)
 import Vira.State.JSON (getExportData, importViraState)
 import Vira.Supervisor.Core qualified as Supervisor
@@ -52,19 +52,17 @@ runVira = do
         -- Create TVar with all tools data for caching
         toolsVar <- runEff Tool.newToolsTVar
 
-        -- Create placeholder TVar for refresh daemon (to be filled by mkRefreshDaemon)
-        placeholderTVar <- STM.newTVarIO Nothing
+        -- Initialize refresh daemon TVar
+        refreshDaemonTVar <- mkRefreshDaemon
 
-        -- Create appState with placeholder daemon
-        let appStateWithPlaceholder = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar, App.refreshDaemon = placeholderTVar}
+        -- Create appState with daemon TVar
+        let appState = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar, App.refreshDaemon = refreshDaemonTVar}
 
-        -- Initialize refresh daemon (will populate the placeholderTVar)
-        refreshDaemonTVar <- mkRefreshDaemon globalSettings (CLI.refreshInterval globalSettings) appStateWithPlaceholder
-
-        -- Create final appState with actual daemon
-        let appState = appStateWithPlaceholder {App.refreshDaemon = refreshDaemonTVar}
-
-        let appServer = Server.runServer globalSettings webSettings
+        let appServer = do
+              -- Start refresh daemon (will create state and populate the TVar)
+              startRefreshDaemon globalSettings (CLI.refreshInterval globalSettings)
+              -- Run the server
+              Server.runServer globalSettings webSettings
         App.runApp globalSettings appState appServer
 
     runExport :: GlobalSettings -> IO ()
