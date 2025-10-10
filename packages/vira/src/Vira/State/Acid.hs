@@ -40,7 +40,7 @@ data ViraState = ViraState
 The version is automatically used by the --auto-reset-state feature to detect schema changes.
 Run `vira info` to see the current schema version.
 -}
-$(deriveSafeCopy 1 'base ''ViraState)
+$(deriveSafeCopy 0 'base ''ViraState)
 
 -- | Set all repositories, replacing existing ones
 setAllReposA :: [Repo] -> Update ViraState ()
