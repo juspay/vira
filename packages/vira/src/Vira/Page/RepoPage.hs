@@ -5,9 +5,8 @@ module Vira.Page.RepoPage (
   handlers,
 ) where
 
-import Control.Concurrent.STM (atomically, modifyTVar, readTMVar, readTVarIO)
+import Control.Concurrent.STM (atomically, readTMVar, readTVarIO)
 import Data.Map qualified as Map
-import Data.Set qualified as Set
 import Data.Time (UTCTime (..), diffUTCTime, getCurrentTime)
 import Data.Time.Calendar (fromGregorian)
 import Effectful (Eff, IOE, (:>))
@@ -28,7 +27,9 @@ import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
 import Vira.Lib.TimeExtra (formatRelativeTime)
-import Vira.Refresh.Type (RefreshDaemon (..), RefreshPriority (..), RefreshState (..), RefreshStatus (..))
+import Vira.Refresh.Daemon qualified as Refresh
+import Vira.Refresh.Type (RefreshDaemon (..), RefreshState (..), RefreshStatus (..))
+import Vira.Refresh.Type qualified as Refresh
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -69,20 +70,7 @@ viewHandler name = do
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
-  -- Add repo to pending refresh set
-  refreshDaemonTVar <- asks @App.AppState (.refreshDaemon)
-  daemon <- liftIO $ atomically $ readTMVar refreshDaemonTVar
-  let RefreshDaemon _ refreshState = daemon
-  let pendingSet = refreshState.pendingRepos
-  liftIO $ atomically $ modifyTVar pendingSet (Set.insert name)
-
-  -- Immediately set status to Pending for UI feedback
-  currentTime <- liftIO getCurrentTime
-  let statusMap = refreshState.statuses
-  let pendingStatus = RefreshPending {priority = Manual, requestedAt = currentTime}
-  liftIO $ atomically $ modifyTVar statusMap (Map.insert name pendingStatus)
-
-  -- Return immediately (~10ms response)
+  Refresh.requestRefreshRepo name Refresh.Manual
   pure $ addHeader True Nothing
 
 deleteHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRedirect] Text)

@@ -6,6 +6,7 @@
 module Vira.Refresh.Daemon (
   mkRefreshConfig,
   mkRefreshState,
+  requestRefreshRepo,
   startRefreshDaemon,
   runRefreshDaemon,
 ) where
@@ -62,6 +63,24 @@ getRefreshDaemon ::
 getRefreshDaemon = do
   refreshDaemonTVar <- asks (.refreshDaemon)
   liftIO $ atomically $ readTMVar refreshDaemonTVar
+
+-- | Request a refresh for a specific repository with given priority
+requestRefreshRepo ::
+  ( Reader AppState :> es
+  , IOE :> es
+  ) =>
+  Git.RepoName ->
+  RefreshPriority ->
+  Eff es ()
+requestRefreshRepo repoName priority = do
+  daemon <- getRefreshDaemon
+  currentTime <- liftIO getCurrentTime
+  liftIO $ atomically $ do
+    -- Add to pending set
+    modifyTVar daemon.state.pendingRepos (Set.insert repoName)
+    -- Set status to Pending
+    modifyTVar daemon.state.statuses $
+      Map.insert repoName (RefreshPending priority currentTime)
 
 -- | Start the refresh daemon background thread and populate the TMVar
 startRefreshDaemon ::
