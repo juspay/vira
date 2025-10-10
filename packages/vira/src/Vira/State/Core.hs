@@ -22,7 +22,7 @@ import Data.Typeable (typeOf)
 import System.FilePath ((</>))
 import Vira.State.Acid (ViraState (..))
 import Vira.State.Acid qualified as Acid
-import Vira.State.Reset (checkSchemaVersion, viraDbVersion)
+import Vira.State.Reset (checkSchemaVersion, viraDbVersion, writeSchemaVersion)
 import Vira.State.Type
 
 -- | Open vira database
@@ -44,11 +44,6 @@ openViraState stateDir autoResetState = do
 
   update st Acid.MarkUnfinishedJobsAsStaleA
   pure st
-
--- | Write the current schema version to disk
-writeSchemaVersion :: FilePath -> Int -> IO ()
-writeSchemaVersion path ver = do
-  writeFileBS path (encodeUtf8 @Text $ show ver)
 
 {- | Close vira database
 

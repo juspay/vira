@@ -2,6 +2,7 @@
 module Vira.State.Reset (
   checkSchemaVersion,
   viraDbVersion,
+  writeSchemaVersion,
 
   -- * Used in tests
   versionToInt,
@@ -108,3 +109,8 @@ readSchemaVersion path = do
       content <- readFileBS path
       pure $ readMaybe (decodeUtf8 content)
     else pure Nothing
+
+-- | Write the current schema version to disk
+writeSchemaVersion :: FilePath -> Int -> IO ()
+writeSchemaVersion path ver = do
+  writeFileBS path (encodeUtf8 @Text $ show ver)
