@@ -1,9 +1,0 @@
-# Stan configuration
-# See https://github.com/kowainik/stan/blob/main/.stan.toml
-
-# Exclude Paths_* module.
-# FIXME: This doesn't work: https://github.com/kowainik/stan/issues/399
-[[check]]
-type = "Exclude"
-directory = "dist/"
-filter = "all"

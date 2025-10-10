@@ -25,7 +25,6 @@
           (root + /cabal.project)
           (root + /LICENSE)
           (root + /README.md)
-          (root + /.stan.toml)
         ];
       };
 
@@ -55,7 +54,6 @@
             config.settings.hint-nix
           ];
           generateOptparseApplicativeCompletions = [ "vira" ];
-          stan = true;
           extraBuildDepends = [
             pkgs.attic-client # For attic
             pkgs.cachix # For cachix

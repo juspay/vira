@@ -22,11 +22,11 @@ test COMPONENT='vira-tests':
 ghcid COMPONENT='vira':
     ghcid --outputfile=ghcid.log -c "./cabal-repl {{ COMPONENT }}"
 
-# Delete and recreate vira.db
+# Delete and recreate vira state during next `just run`
 [group('1. vira')]
 resetdb:
-    rm -rf ./state/ViraState
-    rm -rf ./state/workspace
+    # If this file is missing, Vira will reset state/job dirs.
+    rm -f ./state/schema-version
 
 [private]
 pc_hooks:
