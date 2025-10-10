@@ -3,6 +3,7 @@
     "nixos-unified-template": "https://github.com/juspay/nixos-unified-template.git",
     "omnix": "https://github.com/juspay/omnix.git",
     "superposition": "https://github.com/juspay/superposition.git",
-    "vira": "https://github.com/juspay/vira.git"
+    "vira": "https://github.com/juspay/vira.git",
+    "nammayatri": "https://github.com/nammayatri/nammayatri.git"
   }
 }
