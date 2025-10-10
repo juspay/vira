@@ -66,6 +66,7 @@ library
       Vira.State.Acid
       Vira.State.Core
       Vira.State.JSON
+      Vira.State.Reset
       Vira.State.Type
       Vira.Stream.Log
       Vira.Stream.Refresh
