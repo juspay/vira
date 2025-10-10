@@ -35,12 +35,7 @@ library
       Vira.App.CLI
       Vira.App.GitRev
       Vira.App.InstanceInfo
-      Vira.App.LinkTo.Resolve
-      Vira.App.LinkTo.Type
-      Vira.App.Lucid
       Vira.App.Run
-      Vira.App.Servant
-      Vira.App.Server
       Vira.App.Stack
       Vira.App.Type
       Vira.CI.Configuration
@@ -55,22 +50,11 @@ library
       Vira.Lib.Process
       Vira.Lib.STM
       Vira.Lib.TimeExtra
-      Vira.Page.BranchPage
-      Vira.Page.Common.User
-      Vira.Page.IndexPage
-      Vira.Page.JobLog
-      Vira.Page.JobPage
-      Vira.Page.NotFoundPage
-      Vira.Page.RegistryPage
-      Vira.Page.RepoPage
-      Vira.Page.ToolsPage
       Vira.State.Acid
       Vira.State.Core
       Vira.State.JSON
       Vira.State.Reset
       Vira.State.Type
-      Vira.Stream.Log
-      Vira.Stream.Refresh
       Vira.Supervisor.Core
       Vira.Supervisor.Task
       Vira.Supervisor.Type
@@ -83,16 +67,33 @@ library
       Vira.Tool.Tools.Omnix
       Vira.Tool.Type.ToolData
       Vira.Tool.Type.Tools
-      Vira.Widgets.Alert
-      Vira.Widgets.Button
-      Vira.Widgets.Card
-      Vira.Widgets.Code
-      Vira.Widgets.Commit
-      Vira.Widgets.Form
-      Vira.Widgets.Layout
-      Vira.Widgets.Modal
-      Vira.Widgets.Status
-      Vira.Widgets.Time
+      Vira.Web.LinkTo.Resolve
+      Vira.Web.LinkTo.Type
+      Vira.Web.Lucid
+      Vira.Web.Pages.BranchPage
+      Vira.Web.Pages.Common.User
+      Vira.Web.Pages.IndexPage
+      Vira.Web.Pages.JobLog
+      Vira.Web.Pages.JobPage
+      Vira.Web.Pages.NotFoundPage
+      Vira.Web.Pages.RegistryPage
+      Vira.Web.Pages.RepoPage
+      Vira.Web.Pages.ToolsPage
+      Vira.Web.Servant
+      Vira.Web.Server
+      Vira.Web.Stack
+      Vira.Web.Stream.Log
+      Vira.Web.Stream.Refresh
+      Vira.Web.Widgets.Alert
+      Vira.Web.Widgets.Button
+      Vira.Web.Widgets.Card
+      Vira.Web.Widgets.Code
+      Vira.Web.Widgets.Commit
+      Vira.Web.Widgets.Form
+      Vira.Web.Widgets.Layout
+      Vira.Web.Widgets.Modal
+      Vira.Web.Widgets.Status
+      Vira.Web.Widgets.Time
   other-modules:
       Paths_vira
   autogen-modules:

@@ -22,8 +22,8 @@ import Lucid (HtmlT, ToHtml (..), class_, code_, div_, p_, span_, strong_, toHtm
 import TOML (TOMLError)
 import Text.Show qualified as TS
 import Vira.Tool.Type.ToolData (ToolData (..))
-import Vira.Widgets.Alert (AlertType (..), viraAlertWithTitle_, viraAlert_)
-import Vira.Widgets.Code qualified as W
+import Vira.Web.Widgets.Alert (AlertType (..), viraAlertWithTitle_, viraAlert_)
+import Vira.Web.Widgets.Code qualified as W
 
 -- | Configuration errors
 data ConfigError

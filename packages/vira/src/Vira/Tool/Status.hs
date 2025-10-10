@@ -9,11 +9,11 @@ module Vira.Tool.Status (
 import Effectful.Reader.Dynamic (ask)
 import GH.Auth.Status (AuthStatus (..))
 import Lucid
-import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.App.Lucid (AppHtml, getLinkUrl)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.Tool.Core (ToolData (..))
 import Vira.Tool.Type.Tools qualified as Tool
+import Vira.Web.LinkTo.Type qualified as LinkTo
+import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask)
 

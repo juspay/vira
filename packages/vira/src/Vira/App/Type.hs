@@ -9,10 +9,10 @@ import Control.Concurrent.STM (TChan)
 import Data.Acid (AcidState)
 import Servant.Links (Link)
 import Vira.App.InstanceInfo (InstanceInfo)
-import Vira.App.LinkTo.Type (LinkTo)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Vira.Tool.Type.Tools (Tools)
+import Vira.Web.LinkTo.Type (LinkTo)
 
 -- | Application-wide state available in Effectful stack
 data ViraRuntimeState = ViraRuntimeState
