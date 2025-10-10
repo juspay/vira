@@ -4,7 +4,8 @@
 {-# HLINT ignore "Use infinitely" #-}
 
 module Vira.Refresh.Daemon (
-  mkRefreshDaemon,
+  mkRefreshConfig,
+  mkRefreshState,
   startRefreshDaemon,
   runRefreshDaemon,
   processRefreshCommand,
@@ -14,7 +15,7 @@ module Vira.Refresh.Daemon (
 import Colog.Message (Message)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async qualified as Async
-import Control.Concurrent.STM (atomically, modifyTVar, newTVarIO, readTVarIO, retry, writeTVar)
+import Control.Concurrent.STM (atomically, modifyTVar, newTVarIO, putTMVar, readTMVar, readTVar, readTVarIO, retry, writeTVar)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Data.Time (diffUTCTime, getCurrentTime)
@@ -29,7 +30,7 @@ import Effectful.Git (BranchName, RepoName)
 import Effectful.Git qualified as Git
 import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Process (Process)
-import Effectful.Reader.Dynamic (Reader, asks)
+import Effectful.Reader.Dynamic (Reader, ask, asks)
 import Vira.App qualified as App
 import Vira.App.CLI (GlobalSettings)
 import Vira.App.Stack (AppState (..))
@@ -38,16 +39,23 @@ import Vira.Lib.Logging (Severity (..), log, tagCurrentThread)
 import Vira.Refresh.Type (RefreshCommand (..), RefreshConfig (..), RefreshDaemon (..), RefreshPriority (..), RefreshState (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..))
-import Prelude hiding (Reader, ask, asks, atomically, newTVarIO, readTVarIO, writeTVar)
+import Prelude hiding (Reader, ask, asks, atomically, newTVarIO, putTMVar, readTMVar, readTVar, readTVarIO, writeTVar)
 
--- | Create and initialize a RefreshDaemon TVar (initially Nothing)
-mkRefreshDaemon ::
-  IO (TVar (Maybe RefreshDaemon))
-mkRefreshDaemon = do
-  -- Create TVar for refresh daemon (initially Nothing)
-  newTVarIO Nothing
+-- | Create a RefreshConfig TVar
+mkRefreshConfig :: Maybe Int -> IO (TVar RefreshConfig)
+mkRefreshConfig mRefreshInterval = do
+  let defaultInterval = 300
+      configuredInterval = fromMaybe defaultInterval mRefreshInterval
+  newTVarIO $ RefreshConfig (fromIntegral configuredInterval) (configuredInterval > 0)
 
--- | Start the refresh daemon background thread and populate the TVar
+-- | Create a RefreshState
+mkRefreshState :: TVar RefreshConfig -> IO RefreshState
+mkRefreshState configTVar =
+  RefreshState configTVar
+    <$> newTVarIO Map.empty
+    <*> newTVarIO Set.empty
+
+-- | Start the refresh daemon background thread and populate the TMVar
 startRefreshDaemon ::
   ( Log Message :> es
   , Reader AppState :> es
@@ -57,17 +65,11 @@ startRefreshDaemon ::
   Maybe Int ->
   Eff es ()
 startRefreshDaemon globalSettings mRefreshInterval = do
-  appState <- asks @AppState identity
+  appState <- ask
 
-  -- Initialize refresh config
-  let defaultInterval = 300
-      configuredInterval = fromMaybe defaultInterval mRefreshInterval
-  refreshConfig <- liftIO $ newTVarIO $ RefreshConfig (fromIntegral configuredInterval) (configuredInterval > 0)
-
-  -- Initialize refresh state
-  refreshStatuses <- liftIO $ atomically $ newTVar Map.empty
-  reposNeedingRefresh <- liftIO $ atomically $ newTVar Set.empty
-  let refreshState = RefreshState refreshConfig refreshStatuses reposNeedingRefresh
+  -- Initialize refresh config and state
+  refreshConfig <- liftIO $ mkRefreshConfig mRefreshInterval
+  refreshState <- liftIO $ mkRefreshState refreshConfig
 
   -- Start refresh daemon with app state
   daemonHandle <- liftIO $ Async.async $ App.runApp globalSettings appState runRefreshDaemon
@@ -75,8 +77,8 @@ startRefreshDaemon globalSettings mRefreshInterval = do
   -- Create daemon with handle and state
   let refreshDaemon = RefreshDaemon daemonHandle refreshState
 
-  -- Update the TVar with the daemon
-  liftIO $ atomically $ writeTVar appState.refreshDaemon (Just refreshDaemon)
+  -- Update the TMVar with the daemon
+  liftIO $ atomically $ putTMVar appState.refreshDaemon refreshDaemon
 
 -- | Run the refresh daemon in the background
 runRefreshDaemon ::
@@ -98,38 +100,33 @@ runRefreshDaemon = do
   -- Main refresh processing loop
   forever $ do
     refreshDaemonTVar <- asks (.refreshDaemon)
-    mdaemon <- liftIO $ readTVarIO refreshDaemonTVar
-    case mdaemon of
-      Just daemon -> do
-        let pendingSet = daemon.state.pendingRepos
+    daemon <- liftIO $ atomically $ readTMVar refreshDaemonTVar
+    let pendingSet = daemon.state.pendingRepos
 
-        -- Wait for a repo that needs refresh
-        repoName <- liftIO $ Control.Concurrent.STM.atomically $ do
-          currentSet <- readTVar pendingSet
-          case Set.minView currentSet of
-            Just (name, rest) -> do
-              writeTVar pendingSet rest -- Remove from pending set
-              pure name
-            Nothing -> retry -- Wait for repos to be added
+    -- Wait for a repo that needs refresh
+    repoName <- liftIO $ atomically $ do
+      currentSet <- readTVar pendingSet
+      case Set.minView currentSet of
+        Just (name, rest) -> do
+          writeTVar pendingSet rest -- Remove from pending set
+          pure name
+        Nothing -> retry -- Wait for repos to be added
 
-        -- Set status to pending (in case it wasn't already)
-        let statusMap = daemon.state.statuses
-        now <- liftIO getCurrentTime
-        liftIO $
-          Control.Concurrent.STM.atomically $
-            modifyTVar statusMap $
-              Map.insert repoName (RefreshPending Automatic now)
+    -- Set status to pending (in case it wasn't already)
+    let statusMap = daemon.state.statuses
+    now <- liftIO getCurrentTime
+    liftIO $
+      atomically $
+        modifyTVar statusMap $
+          Map.insert repoName (RefreshPending Automatic now)
 
-        -- Process the refresh
-        repos <- App.query St.GetAllReposA
-        case find (\r -> r.name == repoName) repos of
-          Just repo -> do
-            void $ refreshRepository repo
-          Nothing -> do
-            log Warning $ "Repository not found: " <> repoName.unRepoName
+    -- Process the refresh
+    repos <- App.query St.GetAllReposA
+    case find (\r -> r.name == repoName) repos of
+      Just repo -> do
+        void $ refreshRepository repo
       Nothing -> do
-        log Debug "Refresh daemon not yet initialized, waiting..."
-        liftIO $ threadDelay 100_000 -- Wait 100ms before checking again
+        log Warning $ "Repository not found: " <> repoName.unRepoName
 
 -- | Run the periodic timer that adds all repos to the refresh set
 runPeriodicTimer ::
@@ -140,29 +137,24 @@ runPeriodicTimer ::
   Eff es ()
 runPeriodicTimer = forever $ do
   refreshDaemonTVar <- asks (.refreshDaemon)
-  mdaemon <- liftIO $ readTVarIO refreshDaemonTVar
-  case mdaemon of
-    Just daemon -> do
-      config <- liftIO $ readTVarIO daemon.state.config
-      if config.enabled
-        then do
-          -- Get all repos and add them to pending set
-          allRepos <- App.query St.GetAllReposA
-          let allNames = Set.fromList $ map (.name) allRepos
+  daemon <- liftIO $ atomically $ readTMVar refreshDaemonTVar
+  config <- liftIO $ readTVarIO daemon.state.config
+  if config.enabled
+    then do
+      -- Get all repos and add them to pending set
+      allRepos <- App.query St.GetAllReposA
+      let allNames = Set.fromList $ map (.name) allRepos
 
-          let pendingSet = daemon.state.pendingRepos
-          liftIO $ Control.Concurrent.STM.atomically $ modifyTVar pendingSet (Set.union allNames)
+      let pendingSet = daemon.state.pendingRepos
+      liftIO $ atomically $ modifyTVar pendingSet (Set.union allNames)
 
-          log Debug $ "Added " <> show (length allNames) <> " repos to refresh queue"
-        else do
-          log Debug "Auto-refresh disabled, skipping timer"
+      log Debug $ "Added " <> show (length allNames) <> " repos to refresh queue"
+    else do
+      log Debug "Auto-refresh disabled, skipping timer"
 
-      -- Wait for next cycle
-      let delayMicroseconds = round (config.refreshInterval * 1_000_000)
-      liftIO $ threadDelay delayMicroseconds
-    Nothing -> do
-      log Debug "Refresh daemon not yet initialized in timer, waiting..."
-      liftIO $ threadDelay 100_000 -- Wait 100ms before checking again
+  -- Wait for next cycle
+  let delayMicroseconds = round (config.refreshInterval * 1_000_000)
+  liftIO $ threadDelay delayMicroseconds
 
 -- \| Process a refresh command
 processRefreshCommand ::
@@ -226,15 +218,12 @@ refreshRepository repo = do
       -- Update refresh status with failure
       currentTime <- liftIO getCurrentTime
       refreshDaemonTVar <- asks (.refreshDaemon)
-      mdaemon <- liftIO $ readTVarIO refreshDaemonTVar
-      case mdaemon of
-        Just daemon -> do
-          let statusMap = daemon.state.statuses
-          liftIO $
-            Control.Concurrent.STM.atomically $
-              modifyTVar statusMap $
-                Map.insert repo.name (RefreshFailure errorMsg currentTime)
-        Nothing -> log Error "Refresh daemon not initialized for failure status update"
+      daemon <- liftIO $ atomically $ readTMVar refreshDaemonTVar
+      let statusMap = daemon.state.statuses
+      liftIO $
+        atomically $
+          modifyTVar statusMap $
+            Map.insert repo.name (RefreshFailure errorMsg currentTime)
       pure $ Left errorMsg
     Right branches -> do
       -- Update state with new branches
@@ -242,15 +231,12 @@ refreshRepository repo = do
       -- Update refresh status with success
       currentTime <- liftIO getCurrentTime
       refreshDaemonTVar <- asks (.refreshDaemon)
-      mdaemon <- liftIO $ readTVarIO refreshDaemonTVar
-      case mdaemon of
-        Just daemon -> do
-          let statusMap = daemon.state.statuses
-          liftIO $
-            Control.Concurrent.STM.atomically $
-              modifyTVar statusMap $
-                Map.insert repo.name (RefreshSuccess currentTime)
-        Nothing -> log Error "Refresh daemon not initialized for success status update"
+      daemon <- liftIO $ atomically $ readTMVar refreshDaemonTVar
+      let statusMap = daemon.state.statuses
+      liftIO $
+        atomically $
+          modifyTVar statusMap $
+            Map.insert repo.name (RefreshSuccess currentTime)
       log Debug $ "Successfully refreshed " <> repo.name.unRepoName <> " (" <> show (Map.size branches) <> " branches)"
       pure $ Right branches
 

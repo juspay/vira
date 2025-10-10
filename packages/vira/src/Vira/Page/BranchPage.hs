@@ -2,7 +2,7 @@
 
 module Vira.Page.BranchPage where
 
-import Control.Concurrent.STM (readTVarIO)
+import Control.Concurrent.STM (atomically, readTMVar, readTVarIO)
 import Data.Map qualified as Map
 import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Effectful.Error.Static (throwError)
@@ -27,7 +27,7 @@ import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Status qualified as Status
 import Vira.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
-import Prelude hiding (ask, asks)
+import Prelude hiding (ask, asks, atomically, readTMVar, readTVarIO)
 
 newtype Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
@@ -129,10 +129,9 @@ viewRefreshStatus :: St.Repo -> App.AppHtml ()
 viewRefreshStatus repo = do
   currentTime <- liftIO getCurrentTime
   refreshDaemonTVar <- lift $ asks @App.AppState (.refreshDaemon)
-  mdaemon <- liftIO $ Control.Concurrent.STM.readTVarIO refreshDaemonTVar
-  statusMap <- case mdaemon of
-    Just (RefreshDaemon _ refreshState) -> liftIO $ Control.Concurrent.STM.readTVarIO refreshState.statuses
-    Nothing -> pure Map.empty
+  daemon <- liftIO $ atomically $ readTMVar refreshDaemonTVar
+  let RefreshDaemon _ refreshState = daemon
+  statusMap <- liftIO $ readTVarIO refreshState.statuses
   let refreshStatus = Map.lookup repo.name statusMap
 
   div_ [class_ "text-sm text-gray-500 dark:text-gray-400 mr-3"] $ do

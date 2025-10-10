@@ -4,7 +4,7 @@
 module Vira.App.Stack where
 
 import Colog (Message)
-import Control.Concurrent.STM (TChan, TVar)
+import Control.Concurrent.STM (TChan, TMVar, TVar)
 import Control.Exception (throwIO)
 import Data.Acid (AcidState)
 import Data.ByteString
@@ -79,5 +79,5 @@ data AppState = AppState
   , -- Cached tools data (mutable for refreshing)
     tools :: TVar Tools
   , -- Refresh daemon with its state
-    refreshDaemon :: TVar (Maybe RefreshDaemon)
+    refreshDaemon :: TMVar RefreshDaemon
   }

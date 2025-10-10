@@ -18,7 +18,7 @@ import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Server qualified as Server
-import Vira.Refresh.Daemon (mkRefreshDaemon, startRefreshDaemon)
+import Vira.Refresh.Daemon (startRefreshDaemon)
 import Vira.State.Acid (ViraState)
 import Vira.State.Core (closeViraState, openViraState, viraDbVersion)
 import Vira.State.JSON (getExportData, importViraState)
@@ -56,8 +56,8 @@ runVira = do
         -- Create TVar with all tools data for caching
         toolsVar <- runEff Tool.newToolsTVar
 
-        -- Initialize refresh daemon TVar
-        refreshDaemonTVar <- mkRefreshDaemon
+        -- Initialize refresh daemon TMVar (initially empty)
+        refreshDaemonTVar <- STM.newEmptyTMVarIO
 
         -- Create appState with daemon TVar
         let appState = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar, App.refreshDaemon = refreshDaemonTVar}

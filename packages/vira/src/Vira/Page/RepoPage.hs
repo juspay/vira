@@ -5,7 +5,7 @@ module Vira.Page.RepoPage (
   handlers,
 ) where
 
-import Control.Concurrent.STM (atomically, modifyTVar)
+import Control.Concurrent.STM (atomically, modifyTVar, readTMVar, readTVarIO)
 import Data.Map qualified as Map
 import Data.Set qualified as Set
 import Data.Time (UTCTime (..), diffUTCTime, getCurrentTime)
@@ -40,7 +40,7 @@ import Vira.Widgets.Modal (ErrorModal (..))
 import Vira.Widgets.Status qualified as Status
 import Vira.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
-import Prelude hiding (Reader, ask, asks)
+import Prelude hiding (Reader, ask, asks, atomically, readTMVar, readTVarIO)
 
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
@@ -71,24 +71,19 @@ updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Mayb
 updateHandler name = do
   -- Add repo to pending refresh set
   refreshDaemonTVar <- asks @App.AppState (.refreshDaemon)
-  mdaemon <- liftIO $ readTVarIO refreshDaemonTVar
-  case mdaemon of
-    Just (RefreshDaemon _ refreshState) -> do
-      let pendingSet = refreshState.pendingRepos
-      liftIO $ Control.Concurrent.STM.atomically $ modifyTVar pendingSet (Set.insert name)
+  daemon <- liftIO $ atomically $ readTMVar refreshDaemonTVar
+  let RefreshDaemon _ refreshState = daemon
+  let pendingSet = refreshState.pendingRepos
+  liftIO $ atomically $ modifyTVar pendingSet (Set.insert name)
 
-      -- Immediately set status to Pending for UI feedback
-      currentTime <- liftIO getCurrentTime
-      let statusMap = refreshState.statuses
-      let pendingStatus = RefreshPending {priority = Manual, requestedAt = currentTime}
-      liftIO $ Control.Concurrent.STM.atomically $ modifyTVar statusMap (Map.insert name pendingStatus)
+  -- Immediately set status to Pending for UI feedback
+  currentTime <- liftIO getCurrentTime
+  let statusMap = refreshState.statuses
+  let pendingStatus = RefreshPending {priority = Manual, requestedAt = currentTime}
+  liftIO $ atomically $ modifyTVar statusMap (Map.insert name pendingStatus)
 
-      -- Return immediately (~10ms response)
-      pure $ addHeader True Nothing
-    Nothing -> do
-      -- If daemon not initialized, return error
-      let errorModal = ErrorModal "Refresh daemon not available"
-      pure $ addHeader True (Just errorModal)
+  -- Return immediately (~10ms response)
+  pure $ addHeader True Nothing
 
 deleteHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do
@@ -260,10 +255,9 @@ viewRefreshStatus :: St.Repo -> App.AppHtml ()
 viewRefreshStatus repo = do
   currentTime <- liftIO getCurrentTime
   refreshDaemonTVar <- lift $ asks @App.AppState (.refreshDaemon)
-  mdaemon <- liftIO $ readTVarIO refreshDaemonTVar
-  statusMap <- case mdaemon of
-    Just (RefreshDaemon _ refreshState) -> liftIO $ readTVarIO refreshState.statuses
-    Nothing -> pure Map.empty
+  daemon <- liftIO $ atomically $ readTMVar refreshDaemonTVar
+  let RefreshDaemon _ refreshState = daemon
+  statusMap <- liftIO $ readTVarIO refreshState.statuses
   let refreshStatus = Map.lookup repo.name statusMap
 
   div_ [class_ "text-sm text-gray-500 dark:text-gray-400 mr-3"] $ do

@@ -55,14 +55,19 @@ data RefreshCommand
 -- | Encapsulated refresh state for the application
 data RefreshState = RefreshState
   { config :: TVar RefreshConfig
+  -- ^ Refresh configuration (interval, enabled status)
   , statuses :: TVar (Map.Map RepoName RefreshStatus)
+  -- ^ Current refresh status for each repository
   , pendingRepos :: TVar (Set.Set RepoName)
+  -- ^ Set of repositories that need to be refreshed
   }
   deriving stock (Generic)
 
 -- | Refresh daemon with its handle and state
 data RefreshDaemon = RefreshDaemon
   { handle :: Async ()
+  -- ^ Async handle for the refresh daemon thread
   , state :: RefreshState
+  -- ^ Mutable state shared with the daemon
   }
   deriving stock (Generic)
