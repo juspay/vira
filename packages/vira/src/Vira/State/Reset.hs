@@ -1,8 +1,6 @@
 -- | Database reset and schema version management
 module Vira.State.Reset (
   checkSchemaVersion,
-  readSchemaVersion,
-  versionToInt,
   viraDbVersion,
 ) where
 

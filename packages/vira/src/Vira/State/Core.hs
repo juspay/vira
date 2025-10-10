@@ -14,7 +14,6 @@ module Vira.State.Core (
   closeViraState,
 
   -- * Version utilities
-  versionToInt,
   viraDbVersion,
 ) where
 
@@ -23,7 +22,7 @@ import Data.Typeable (typeOf)
 import System.FilePath ((</>))
 import Vira.State.Acid (ViraState (..))
 import Vira.State.Acid qualified as Acid
-import Vira.State.Reset (checkSchemaVersion, versionToInt, viraDbVersion)
+import Vira.State.Reset (checkSchemaVersion, viraDbVersion)
 import Vira.State.Type
 
 -- | Open vira database
