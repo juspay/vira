@@ -8,44 +8,28 @@ import Data.SafeCopy (SafeCopy (version), Version)
 import System.Directory (doesDirectoryExist, doesFileExist, removeDirectoryRecursive, removeFile)
 import Vira.State.Acid (ViraState)
 
-{- | Get the version number from a SafeCopy Version type
-Since Version has Num instance, we use recursive subtraction to extract the Int
--}
-versionToInt :: forall a. Version a -> Int
-versionToInt v
-  | v == 0 = 0
-  | otherwise = versionToInt (v - 1) + 1
+-- * Public API
 
 -- | Get the current ViraState database schema version
 viraDbVersion :: Int
 viraDbVersion = versionToInt (version @ViraState)
 
--- | Read the stored schema version from disk
-readSchemaVersion :: FilePath -> IO (Maybe Int)
-readSchemaVersion path = do
-  exists <- doesFileExist path
-  if exists
-    then do
-      content <- readFileBS path
-      pure $ readMaybe (decodeUtf8 content)
-    else pure Nothing
-
 -- | Check schema version compatibility and handle mismatches
 checkSchemaVersion :: FilePath -> FilePath -> FilePath -> FilePath -> Bool -> IO ()
-checkSchemaVersion stateDir acidStateDir workspaceDir versionFile autoResetDb = do
+checkSchemaVersion stateDir acidStateDir workspaceDir versionFile autoResetState = do
   stateExists <- doesDirectoryExist acidStateDir
   when stateExists $ do
     mStoredVersion <- readSchemaVersion versionFile
     case mStoredVersion of
       Nothing -> do
         -- No version file - either legacy state or corrupted
-        if autoResetDb
+        if autoResetState
           then resetState acidStateDir workspaceDir versionFile
           else handleMissingVersion stateDir
       Just storedVersion -> do
         when (storedVersion /= viraDbVersion) $ do
           -- Version mismatch detected
-          if autoResetDb
+          if autoResetState
             then do
               putStrLn "WARNING: Schema version mismatch detected."
               putStrLn $ "  Stored version: " <> show storedVersion
@@ -72,7 +56,7 @@ checkSchemaVersion stateDir acidStateDir workspaceDir versionFile autoResetDb = 
       putStrLn "This may indicate a legacy state or corruption."
       putStrLn "Please remove the vira data directory and restart:"
       putStrLn ("  rm -rf " <> dir)
-      putStrLn "Or use the --auto-reset-db flag to automatically reset on schema changes."
+      putStrLn "Or use the --auto-reset-state flag to automatically reset on schema changes."
       exitFailure
 
     handleVersionMismatch currentVer dir storedVersion = do
@@ -83,5 +67,25 @@ checkSchemaVersion stateDir acidStateDir workspaceDir versionFile autoResetDb = 
       putStrLn "Your state is incompatible with this version of Vira."
       putStrLn "Please remove the vira data directory and restart:"
       putStrLn ("  rm -rf " <> dir)
-      putStrLn "Or use the --auto-reset-db flag to automatically reset on schema changes."
+      putStrLn "Or use the --auto-reset-state flag to automatically reset on schema changes."
       exitFailure
+
+-- * Internal helpers
+
+{- | Get the version number from a SafeCopy Version type
+Since Version has Num instance, we use recursive subtraction to extract the Int
+-}
+versionToInt :: forall a. Version a -> Int
+versionToInt v
+  | v == 0 = 0
+  | otherwise = versionToInt (v - 1) + 1
+
+-- | Read the stored schema version from disk
+readSchemaVersion :: FilePath -> IO (Maybe Int)
+readSchemaVersion path = do
+  exists <- doesFileExist path
+  if exists
+    then do
+      content <- readFileBS path
+      pure $ readMaybe (decodeUtf8 content)
+    else pure Nothing

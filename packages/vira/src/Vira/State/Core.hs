@@ -27,7 +27,7 @@ import Vira.State.Type
 
 -- | Open vira database
 openViraState :: (HasCallStack) => FilePath -> Bool -> IO (AcidState ViraState)
-openViraState stateDir autoResetDb = do
+openViraState stateDir autoResetState = do
   let initialState = ViraState mempty mempty mempty mempty
   -- Manually construct the path that openLocalState would use: stateDir </> show (typeOf initialState)
   -- This is just for backwards compat.
@@ -36,7 +36,7 @@ openViraState stateDir autoResetDb = do
       versionFile = stateDir </> "schema-version"
 
   -- Check and handle schema version
-  checkSchemaVersion stateDir acidStateDir workspaceDir versionFile autoResetDb
+  checkSchemaVersion stateDir acidStateDir workspaceDir versionFile autoResetState
 
   -- Open the state
   st <- openLocalStateFrom acidStateDir initialState

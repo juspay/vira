@@ -86,4 +86,4 @@ runVira = do
           putTextLn $ "Imported from: " <> maybe "stdin" toText mFilePath
 
     withViraState globalSettings action = do
-      bracket (openViraState (stateDir globalSettings) (autoResetDb globalSettings)) closeViraState action
+      bracket (openViraState (stateDir globalSettings) (autoResetState globalSettings)) closeViraState action

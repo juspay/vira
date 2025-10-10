@@ -28,8 +28,8 @@ data GlobalSettings = GlobalSettings
   -- ^ Minimum logging level
   , stateDir :: FilePath
   -- ^ Directory where Vira stores its state
-  , autoResetDb :: Bool
-  -- ^ Automatically reset database on acid-state schema mismatch
+  , autoResetState :: Bool
+  -- ^ Automatically reset state on acid-state schema mismatch
   }
   deriving stock (Show)
 
@@ -83,10 +83,10 @@ globalSettingsParser = do
           <> value Info
           <> showDefault
       )
-  autoResetDb <-
+  autoResetState <-
     switch
-      ( long "auto-reset-db"
-          <> help "Automatically reset database on acid-state schema mismatch"
+      ( long "auto-reset-state"
+          <> help "Automatically reset state on acid-state schema mismatch"
       )
   pure GlobalSettings {..}
 

@@ -37,7 +37,7 @@ data ViraState = ViraState
   deriving stock (Generic, Typeable)
 
 {- | IMPORTANT: Increment the version number when making breaking changes to ViraState or its indexed types.
-The version is automatically used by the --auto-reset-db feature to detect schema changes.
+The version is automatically used by the --auto-reset-state feature to detect schema changes.
 Run `vira info` to see the current schema version.
 -}
 $(deriveSafeCopy 1 'base ''ViraState)

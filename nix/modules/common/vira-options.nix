@@ -54,10 +54,10 @@ in
       description = "Base URL path for the HTTP server";
     };
 
-    autoResetDb = mkOption {
+    autoResetState = mkOption {
       type = types.bool;
       default = false;
-      description = "Automatically reset database on acid-state schema mismatch";
+      description = "Automatically reset state on acid-state schema mismatch";
     };
 
     initialState = mkOption {
@@ -87,7 +87,7 @@ in
                 globalArgs = [
                   "--state-dir"
                   cfg.stateDir
-                ] ++ optionals cfg.autoResetDb [ "--auto-reset-db" ];
+                ] ++ optionals cfg.autoResetState [ "--auto-reset-state" ];
                 webArgs = [
                   "--host"
                   cfg.hostname
