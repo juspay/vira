@@ -2,7 +2,7 @@ module Vira.App.Run (
   runVira,
 ) where
 
-import Control.Concurrent.STM (newBroadcastTChan)
+import Control.Concurrent.STM qualified as STM
 import Control.Exception (bracket)
 import Data.Acid (AcidState)
 import Data.Aeson (encode)
@@ -11,12 +11,14 @@ import Data.Version (showVersion)
 import Effectful (runEff)
 import Main.Utf8 qualified as Utf8
 import Paths_vira qualified
+import Relude hiding (atomically, newTVarIO)
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.App.LinkTo.Resolve (linkTo)
 import Vira.App.Server qualified as Server
+import Vira.Refresh.Daemon (startRefreshDaemon)
 import Vira.State.Acid (ViraState)
 import Vira.State.Core (closeViraState, openViraState, viraDbVersion)
 import Vira.State.JSON (getExportData, importViraState)
@@ -48,13 +50,23 @@ runVira = do
           importFromFileOrStdin acid (Just filePath)
 
         instanceInfo <- getInstanceInfo
-        supervisor <- Supervisor.newSupervisor (stateDir globalSettings)
+        supervisor <- Supervisor.newSupervisor (CLI.stateDir globalSettings)
         -- Initialize broadcast channel for state update tracking
-        stateUpdateBuffer <- atomically newBroadcastTChan
+        stateUpdateBuffer <- STM.atomically STM.newBroadcastTChan
         -- Create TVar with all tools data for caching
         toolsVar <- runEff Tool.newToolsTVar
-        let appState = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar}
-            appServer = Server.runServer globalSettings webSettings
+
+        -- Initialize refresh daemon TMVar (initially empty)
+        refreshDaemonTVar <- STM.newEmptyTMVarIO
+
+        -- Create appState with daemon TVar
+        let appState = App.AppState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar, App.refreshDaemon = refreshDaemonTVar}
+
+        let appServer = do
+              -- Start refresh daemon (will create state and populate the TVar)
+              startRefreshDaemon globalSettings (CLI.refreshInterval globalSettings)
+              -- Run the server
+              Server.runServer globalSettings webSettings
         App.runApp globalSettings appState appServer
 
     runExport :: GlobalSettings -> IO ()

@@ -2,9 +2,12 @@
 
 module Vira.Page.BranchPage where
 
-import Data.Time (diffUTCTime)
+import Control.Concurrent.STM (atomically, readTMVar, readTVarIO)
+import Data.Map qualified as Map
+import Data.Time.Clock (diffUTCTime, getCurrentTime)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName, RepoName)
+import Effectful.Reader.Dynamic (asks)
 import Lucid
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -13,6 +16,8 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
+import Vira.Lib.TimeExtra (formatRelativeTime)
+import Vira.Refresh.Type (RefreshDaemon (..), RefreshState (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -22,7 +27,7 @@ import Vira.Widgets.Layout qualified as W
 import Vira.Widgets.Status qualified as Status
 import Vira.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
-import Prelude hiding (ask, asks)
+import Prelude hiding (ask, asks, atomically, readTMVar, readTVarIO)
 
 newtype Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
@@ -56,6 +61,7 @@ viewBranch repo branch jobs = do
             div_ [class_ "w-4 h-4 flex items-center justify-center shrink-0"] $ toHtmlRaw Icon.git_commit
             div_ [class_ "min-w-0"] $ W.viraCommitInfo_ branch.headCommit
         div_ [class_ "flex items-center gap-2"] $ do
+          viewRefreshStatus repo
           buildLink <- lift $ App.getLink $ LinkTo.Build repo.name branch.branchName
           updateLink <- lift $ App.getLink $ LinkTo.RepoUpdate repo.name
           W.viraRequestButton_
@@ -117,3 +123,34 @@ viewCommitTimeline branch jobs = do
               Nothing -> mempty
             -- Status badge
             Status.viraStatusBadge_ job.jobStatus
+
+-- | View the refresh status for a repository
+viewRefreshStatus :: St.Repo -> App.AppHtml ()
+viewRefreshStatus repo = do
+  currentTime <- liftIO getCurrentTime
+  refreshDaemonTVar <- lift $ asks @App.AppState (.refreshDaemon)
+  daemon <- liftIO $ atomically $ readTMVar refreshDaemonTVar
+  let RefreshDaemon _ refreshState = daemon
+  statusMap <- liftIO $ readTVarIO refreshState.statuses
+  let refreshStatus = Map.lookup repo.name statusMap
+
+  div_ [class_ "text-sm text-gray-500 dark:text-gray-400 mr-3"] $ do
+    case refreshStatus of
+      Just (RefreshSuccess completedAt) -> do
+        span_ [class_ "text-green-600 dark:text-green-400"] "✓"
+        " "
+        "Refreshed "
+        toHtml $ formatRelativeTime currentTime completedAt
+      Just (RefreshFailure err completedAt) -> do
+        span_ [class_ "text-red-600 dark:text-red-400", title_ err] "⚠"
+        " Refresh failed "
+        toHtml $ formatRelativeTime currentTime completedAt
+      Just RefreshPending {} -> do
+        span_ [class_ "text-blue-600 dark:text-blue-400"] "⟳"
+        " Refreshing..."
+      Just RefreshNotStarted -> do
+        span_ [class_ "text-gray-600 dark:text-gray-400"] "○"
+        " Not refreshed"
+      Nothing -> do
+        span_ [class_ "text-gray-600 dark:text-gray-400"] "○"
+        " Not refreshed"

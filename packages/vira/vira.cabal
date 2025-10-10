@@ -63,6 +63,8 @@ library
       Vira.Page.RegistryPage
       Vira.Page.RepoPage
       Vira.Page.ToolsPage
+      Vira.Refresh.Daemon
+      Vira.Refresh.Type
       Vira.State.Acid
       Vira.State.Core
       Vira.State.JSON

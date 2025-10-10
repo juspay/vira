@@ -5,13 +5,14 @@ module Vira.Page.RepoPage (
   handlers,
 ) where
 
-import Data.Time (UTCTime (..), diffUTCTime)
+import Control.Concurrent.STM (atomically, readTMVar, readTVarIO)
+import Data.Map qualified as Map
+import Data.Time (UTCTime (..), diffUTCTime, getCurrentTime)
 import Data.Time.Calendar (fromGregorian)
-import Effectful (Eff, IOE, raise, (:>))
-import Effectful.Error.Static (runErrorNoCallStack, throwError)
+import Effectful (Eff, IOE, (:>))
+import Effectful.Error.Static (throwError)
 import Effectful.Git (RepoName)
 import Effectful.Git qualified as Git
-import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Reader.Dynamic (Reader, asks)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
@@ -25,7 +26,10 @@ import Vira.App (AppHtml)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.App.LinkTo.Type qualified as LinkTo
-import Vira.CI.Workspace qualified as Workspace
+import Vira.Lib.TimeExtra (formatRelativeTime)
+import Vira.Refresh.Daemon qualified as Refresh
+import Vira.Refresh.Type (RefreshDaemon (..), RefreshState (..), RefreshStatus (..))
+import Vira.Refresh.Type qualified as Refresh
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -37,7 +41,7 @@ import Vira.Widgets.Modal (ErrorModal (..))
 import Vira.Widgets.Status qualified as Status
 import Vira.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
-import Prelude hiding (Reader, ask, asks)
+import Prelude hiding (Reader, ask, asks, atomically, readTMVar, readTVarIO)
 
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
@@ -66,19 +70,8 @@ viewHandler name = do
 
 updateHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
-  repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  supervisor <- asks @App.AppState (.supervisor)
-  let mirrorPath = Workspace.mirrorPath supervisor repo.name
-  result <- runErrorNoCallStack @Text $ do
-    -- Ensure mirror exists and update it
-    Mirror.syncMirror repo.cloneUrl mirrorPath
-    allBranches <- Git.remoteBranchesFromClone mirrorPath
-    raise $ App.update $ St.SetRepoBranchesA repo.name allBranches
-
-  case result of
-    Left errorMsg ->
-      pure $ noHeader $ Just (ErrorModal errorMsg)
-    Right () -> pure $ addHeader True Nothing
+  Refresh.requestRefreshRepo name Refresh.Manual
+  pure $ addHeader True Nothing
 
 deleteHandler :: RepoName -> Eff App.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do
@@ -101,6 +94,7 @@ viewRepo repo branches _allJobs = do
         p_ [class_ "text-gray-600 dark:text-gray-300 text-sm font-mono break-all"] $
           toHtml repo.cloneUrl
         div_ [class_ "flex items-center gap-2 ml-4"] $ do
+          viewRefreshStatus repo
           W.viraRequestButton_
             W.ButtonSecondary
             updateLink
@@ -243,6 +237,37 @@ mkBranchStatus repoName branch = do
       effectiveStatus = getBranchEffectiveStatus branch mLatestJob
   mHeadCommit <- App.query $ St.GetCommitByIdA branch.headCommit
   pure BranchStatus {branchData = branch, mLatestJob, effectiveStatus, mHeadCommit}
+
+-- | View the refresh status for a repository
+viewRefreshStatus :: St.Repo -> App.AppHtml ()
+viewRefreshStatus repo = do
+  currentTime <- liftIO getCurrentTime
+  refreshDaemonTVar <- lift $ asks @App.AppState (.refreshDaemon)
+  daemon <- liftIO $ atomically $ readTMVar refreshDaemonTVar
+  let RefreshDaemon _ refreshState = daemon
+  statusMap <- liftIO $ readTVarIO refreshState.statuses
+  let refreshStatus = Map.lookup repo.name statusMap
+
+  div_ [class_ "text-sm text-gray-500 dark:text-gray-400 mr-3"] $ do
+    case refreshStatus of
+      Just (RefreshSuccess completedAt) -> do
+        span_ [class_ "text-green-600 dark:text-green-400"] "✓"
+        " "
+        "Refreshed "
+        toHtml $ formatRelativeTime currentTime completedAt
+      Just (RefreshFailure err completedAt) -> do
+        span_ [class_ "text-red-600 dark:text-red-400", title_ err] "⚠"
+        " Refresh failed "
+        toHtml $ formatRelativeTime currentTime completedAt
+      Just RefreshPending {} -> do
+        span_ [class_ "text-blue-600 dark:text-blue-400"] "⟳"
+        " Refreshing..."
+      Just RefreshNotStarted -> do
+        span_ [class_ "text-gray-600 dark:text-gray-400"] "○"
+        " Not refreshed"
+      Nothing -> do
+        span_ [class_ "text-gray-600 dark:text-gray-400"] "○"
+        " Not refreshed"
 
 {- | The effective build-status of a branch.
 
