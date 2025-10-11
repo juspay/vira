@@ -15,7 +15,7 @@ import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
-import Vira.Refresh qualified as Refresh
+import Vira.Refresh.Type qualified as Refresh
 import Vira.State.Core (closeViraState, openViraState, viraDbVersion)
 import Vira.State.JSON (getExportData, importViraState)
 import Vira.State.Type (ViraState)

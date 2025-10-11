@@ -49,7 +49,7 @@ library
       Vira.Lib.Process
       Vira.Lib.STM
       Vira.Lib.TimeExtra
-      Vira.Refresh
+      Vira.Refresh.Core
       Vira.Refresh.Type
       Vira.State.Acid
       Vira.State.Core

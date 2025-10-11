@@ -7,11 +7,10 @@ module Vira.Web.Pages.RepoPage (
 
 import Data.Time (UTCTime (..), diffUTCTime)
 import Data.Time.Calendar (fromGregorian)
-import Effectful (Eff, IOE, raise, (:>))
-import Effectful.Error.Static (runErrorNoCallStack, throwError)
+import Effectful (Eff, IOE, (:>))
+import Effectful.Error.Static (throwError)
 import Effectful.Git (RepoName)
 import Effectful.Git qualified as Git
-import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Reader.Dynamic (Reader, asks)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
@@ -23,7 +22,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
-import Vira.CI.Workspace qualified as Workspace
+import Vira.Refresh.Core qualified as Refresh
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -67,14 +66,13 @@ viewHandler name = do
 
 updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
+  -- Get repo data
   repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
+  -- Call refreshRepo directly (until daemon is implemented in Phase 3)
+  refreshState <- asks @App.ViraRuntimeState (.refreshState)
   supervisor <- asks @App.ViraRuntimeState (.supervisor)
-  let mirrorPath = Workspace.mirrorPath supervisor repo.name
-  result <- runErrorNoCallStack @Text $ do
-    -- Ensure mirror exists and update it
-    Mirror.syncMirror repo.cloneUrl mirrorPath
-    allBranches <- Git.remoteBranchesFromClone mirrorPath
-    raise $ App.update $ St.SetRepoBranchesA repo.name allBranches
+  acid <- asks @App.ViraRuntimeState (.acid)
+  result <- Refresh.refreshRepo refreshState supervisor acid repo
 
   case result of
     Left errorMsg ->
