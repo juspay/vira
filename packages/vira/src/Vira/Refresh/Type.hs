@@ -1,5 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RecordWildCards #-}
 
 -- | Types for the refresh system (internal)
 module Vira.Refresh.Type (
@@ -15,6 +16,7 @@ module Vira.Refresh.Type (
   RefreshPriority (..),
 ) where
 
+import Control.Concurrent.Async (Async)
 import Data.Map.Strict qualified as Map
 import Data.Time (NominalDiffTime, UTCTime)
 import Effectful.Git (RepoName)
@@ -22,8 +24,9 @@ import Effectful.Git (RepoName)
 -- * State
 
 -- | Opaque state container for the refresh system
-newtype RefreshState = RefreshState
+data RefreshState = RefreshState
   { statusMap :: TVar (Map RepoName RefreshStatus)
+  , daemonHandle :: TVar (Maybe (Async ()))
   }
   deriving stock (Generic)
 
@@ -31,7 +34,8 @@ newtype RefreshState = RefreshState
 newRefreshState :: IO RefreshState
 newRefreshState = do
   statusMap <- newTVarIO Map.empty
-  pure RefreshState {statusMap}
+  daemonHandle <- newTVarIO Nothing
+  pure RefreshState {..}
 
 -- | Get the current refresh status for a repository
 getRefreshStatus :: RefreshState -> RepoName -> IO RefreshStatus

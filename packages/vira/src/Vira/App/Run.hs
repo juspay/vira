@@ -15,6 +15,7 @@ import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
+import Vira.Refresh.Daemon qualified as Daemon
 import Vira.Refresh.Type qualified as Refresh
 import Vira.State.Core (closeViraState, openViraState, viraDbVersion)
 import Vira.State.JSON (getExportData, importViraState)
@@ -57,7 +58,9 @@ runVira = do
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
         let viraRuntimeState = App.ViraRuntimeState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.stateUpdated = stateUpdateBuffer, App.tools = toolsVar, App.refreshState = refreshState}
-            appServer = Server.runServer globalSettings webSettings
+            appServer = do
+              Daemon.startRefreshDaemon
+              Server.runServer globalSettings webSettings
         App.runApp globalSettings viraRuntimeState appServer
 
     runExport :: GlobalSettings -> IO ()

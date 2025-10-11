@@ -50,6 +50,7 @@ library
       Vira.Lib.STM
       Vira.Lib.TimeExtra
       Vira.Refresh.Core
+      Vira.Refresh.Daemon
       Vira.Refresh.Type
       Vira.State.Acid
       Vira.State.Core
