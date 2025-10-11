@@ -49,6 +49,8 @@ library
       Vira.Lib.Process
       Vira.Lib.STM
       Vira.Lib.TimeExtra
+      Vira.Refresh
+      Vira.Refresh.Type
       Vira.State.Acid
       Vira.State.Core
       Vira.State.JSON

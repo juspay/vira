@@ -9,6 +9,7 @@ import Control.Concurrent.STM (TChan)
 import Data.Acid (AcidState)
 import Servant.Links (Link)
 import Vira.App.InstanceInfo (InstanceInfo)
+import Vira.Refresh (RefreshState)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Vira.Tool.Type.Tools (Tools)
@@ -30,4 +31,6 @@ data ViraRuntimeState = ViraRuntimeState
     stateUpdated :: TChan (Text, ByteString)
   , -- Cached tools data (mutable for refreshing)
     tools :: TVar Tools
+  , -- Git repository auto-refresh state
+    refreshState :: RefreshState
   }
