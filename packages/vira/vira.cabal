@@ -44,7 +44,6 @@ library
       Vira.CI.Pipeline
       Vira.CI.Processes
       Vira.CI.Workspace
-      Vira.Lib.Cachix
       Vira.Lib.Logging
       Vira.Lib.Omnix
       Vira.Lib.Process
@@ -137,6 +136,7 @@ library
     , base16-bytestring
     , binary
     , bytestring
+    , cachix
     , cereal
     , co-log
     , co-log-core
@@ -250,6 +250,7 @@ executable vira
     , base16-bytestring
     , binary
     , bytestring
+    , cachix
     , cereal
     , co-log
     , co-log-core
@@ -366,6 +367,7 @@ executable vira-tests
     , base16-bytestring
     , binary
     , bytestring
+    , cachix
     , cereal
     , co-log
     , co-log-core

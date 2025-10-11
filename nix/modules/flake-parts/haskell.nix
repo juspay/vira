@@ -50,6 +50,7 @@
             config.settings.warp-tls-simple
             config.settings.gh
             config.settings.attic
+            config.settings.cachix
             config.settings.vira-ci-types
             config.settings.hint-nix
           ];
@@ -100,6 +101,11 @@
         attic = {
           extraBuildDepends = [
             pkgs.attic-client # For attic
+          ];
+        };
+        cachix = {
+          extraBuildDepends = [
+            pkgs.cachix # For cachix
           ];
         };
         safe-coloured-text-layout = {

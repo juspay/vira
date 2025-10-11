@@ -3,8 +3,8 @@ module Vira.Tool.Tools.Cachix (
   getToolData,
 ) where
 
+import Cachix qualified
 import Effectful (Eff, IOE, (:>))
-import Vira.Lib.Cachix qualified as Cachix
 import Vira.Tool.Type.ToolData (ToolData (..))
 
 -- | Get Cachix tool data with metadata and runtime info

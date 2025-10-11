@@ -33,6 +33,7 @@ dependencies:
   - aeson
   - async
   - attic
+  - cachix
   - base16-bytestring
   - bytestring
   - cereal
