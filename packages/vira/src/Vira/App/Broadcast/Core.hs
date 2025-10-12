@@ -10,8 +10,8 @@ to connected clients. Events are scoped to specific entities (e.g., "repo:my-rep
 Producer side (broadcasting updates):
 
 @
-broadcastUpdate "repo:my-repo"
-broadcastUpdate "job:123"
+broadcastUpdate (RepoScope "my-repo")
+broadcastUpdate (JobScope 123)
 @
 
 Consumer side (listening for updates):
@@ -39,7 +39,7 @@ import Control.Concurrent.STM (dupTChan, writeTChan)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Reader.Dynamic (Reader, asks)
-import Vira.App.Broadcast.Type (UpdateBroadcast)
+import Vira.App.Broadcast.Type (BroadcastScope, UpdateBroadcast)
 import Vira.App.Type (ViraRuntimeState (updateBroadcast))
 import Vira.Lib.Logging (log)
 import Vira.Lib.STM (drainRemainingTChan, drainTChan)
@@ -47,9 +47,9 @@ import Prelude hiding (Reader, ask, asks, runReader)
 
 {- | Broadcast an entity-scoped update event to SSE listeners
 
-Use this to notify clients when specific entities change. The event scope should be:
-- "repo:<repoName>" for repository updates
-- "job:<jobId>" for job updates
+Use this to notify clients when specific entities change:
+- JobScope for job updates
+- RepoScope for repository updates
 
 This triggers page reloads only for pages listening to that specific entity.
 -}
@@ -58,12 +58,12 @@ broadcastUpdate ::
   , IOE :> es
   , Log Message :> es
   ) =>
-  Text ->
+  BroadcastScope ->
   Eff es ()
-broadcastUpdate eventScope = do
+broadcastUpdate scope = do
   chan <- asks @ViraRuntimeState updateBroadcast
-  liftIO $ atomically $ writeTChan chan eventScope
-  log Info $ "📡 " <> eventScope
+  liftIO $ atomically $ writeTChan chan scope
+  log Info $ "📡 " <> show scope
 
 {- | Subscribe to broadcast updates by creating a duplicate channel
 
@@ -96,9 +96,9 @@ consumeBroadcasts ::
   , Log Message :> es
   ) =>
   UpdateBroadcast ->
-  Eff es [Text]
+  Eff es [BroadcastScope]
 consumeBroadcasts chan = do
-  eventScopes <- liftIO $ atomically $ drainTChan chan
-  forM (toList eventScopes) $ \eventScope -> do
-    log Debug $ "Update event received: " <> eventScope
-    pure eventScope
+  scopes <- liftIO $ atomically $ drainTChan chan
+  forM (toList scopes) $ \scope -> do
+    log Debug $ "Broadcast event received: scope=" <> show scope
+    pure scope

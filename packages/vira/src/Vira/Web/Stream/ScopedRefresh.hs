@@ -19,6 +19,7 @@ import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import Vira.App.Broadcast.Core qualified as Broadcast
+import Vira.App.Broadcast.Type (BroadcastScope (..))
 import Vira.App.Stack (AppStack)
 import Vira.Lib.Logging (log, tagCurrentThread)
 import Vira.Web.LinkTo.Type (LinkTo (..))
@@ -29,29 +30,29 @@ import Prelude hiding (Reader, ask, asks, runReader)
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO ScopedRefresh))
 
 -- A scoped refresh signal sent from server to client
-newtype ScopedRefresh = ScopedRefresh Text
+newtype ScopedRefresh = ScopedRefresh BroadcastScope
 
 instance ToServerEvent ScopedRefresh where
   toServerEvent (ScopedRefresh scope) =
     ServerEvent
-      (Just $ encodeUtf8 scope)
+      (Just $ show scope)
       Nothing
       "location.reload()"
 
 -- | Extract SSE event scope from breadcrumbs (rightmost entity wins)
-sseScope :: [LinkTo] -> Maybe Text
+sseScope :: [LinkTo] -> Maybe BroadcastScope
 sseScope crumbs = case reverse crumbs of
-  (Job jobId : _) -> Just $ "job:" <> show @Text jobId
-  (RepoBranch repoName _ : _) -> Just $ "repo:" <> toText repoName
-  (Repo repoName : _) -> Just $ "repo:" <> toText repoName
+  (Job jobId : _) -> Just $ JobScope jobId
+  (RepoBranch repoName _ : _) -> Just $ RepoScope repoName
+  (Repo repoName : _) -> Just $ RepoScope repoName
   _ -> Nothing
 
 -- | SSE listener scoped to specific entity (e.g., "repo:my-repo", "job:123")
-viewStreamScoped :: Text -> AppHtml ()
+viewStreamScoped :: BroadcastScope -> AppHtml ()
 viewStreamScoped scope = do
   link <- lift $ getLinkUrl LinkTo.Refresh
   div_ [hxExt_ "sse", hxSseConnect_ link] $ do
-    script_ [hxSseSwap_ scope] ("" :: Text)
+    script_ [hxSseSwap_ (show scope)] ("" :: Text)
 
 streamRouteHandler :: (HasCallStack) => SourceT (Eff AppStack) ScopedRefresh
 streamRouteHandler = S.fromStepT $ S.Effect $ do
