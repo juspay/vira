@@ -85,7 +85,7 @@ library
       Vira.Web.Server
       Vira.Web.Stack
       Vira.Web.Stream.Log
-      Vira.Web.Stream.Refresh
+      Vira.Web.Stream.ScopedRefresh
       Vira.Web.Widgets.Alert
       Vira.Web.Widgets.Button
       Vira.Web.Widgets.Card

@@ -47,7 +47,7 @@ import Vira.Tool.Status qualified as ToolStatus
 import Vira.Web.LinkTo.Type (LinkTo (..), linkShortTitle, linkTitle)
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Pages.Common.User qualified as User
-import Vira.Web.Stream.Refresh qualified as Stream
+import Vira.Web.Stream.ScopedRefresh qualified as Stream
 import Vira.Web.Widgets.Modal qualified as W
 import Vira.Web.Widgets.Status qualified as Status
 import Web.TablerIcons.Outline qualified as Icon

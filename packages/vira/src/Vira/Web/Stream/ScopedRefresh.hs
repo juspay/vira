@@ -1,5 +1,5 @@
 -- | Real-time status of the Vira system.
-module Vira.Web.Stream.Refresh (
+module Vira.Web.Stream.ScopedRefresh (
   -- * Routes and handlers
   StreamRoute,
   streamRouteHandler,
@@ -29,12 +29,12 @@ import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Prelude hiding (Reader, ask, asks, runReader)
 
-type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO Refresh))
+type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO ScopedRefresh))
 
--- A Refresh signal sent from server to client
-newtype Refresh = ScopedRefresh Text
+-- A scoped refresh signal sent from server to client
+newtype ScopedRefresh = ScopedRefresh Text
 
-instance ToServerEvent Refresh where
+instance ToServerEvent ScopedRefresh where
   toServerEvent (ScopedRefresh scope) =
     ServerEvent
       (Just $ encodeUtf8 scope)
@@ -66,7 +66,7 @@ waitForStateUpdate chan = do
     log Debug $ "Update event received: " <> eventName
     pure eventName
 
-streamRouteHandler :: (HasCallStack) => SourceT (Eff AppStack) Refresh
+streamRouteHandler :: (HasCallStack) => SourceT (Eff AppStack) ScopedRefresh
 streamRouteHandler = S.fromStepT $ S.Effect $ do
   tagCurrentThread "🐬"
   log Debug "Starting stream"
