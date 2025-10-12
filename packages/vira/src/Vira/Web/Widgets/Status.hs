@@ -33,12 +33,11 @@ module Vira.Web.Widgets.Status (
 
 import Data.Time (getCurrentTime)
 import Effectful.Git (RepoName (..))
-import Effectful.Reader.Dynamic (asks)
 import Lucid
 import Vira.App.AcidState qualified as App
-import Vira.App.Type (ViraRuntimeState (..))
 import Vira.Lib.TimeExtra (formatDuration, formatRelativeTime, formatTimestamp)
-import Vira.Refresh.Type (RefreshOutcome (..), RefreshResult (..), RefreshStatus (..), getRefreshStatus)
+import Vira.Refresh.Core (getRepoRefreshStatus)
+import Vira.Refresh.Type (RefreshOutcome (..), RefreshResult (..), RefreshStatus (..))
 import Vira.State.Acid qualified as Acid
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -155,9 +154,8 @@ Status.viraSmartRefreshButton_ repo.name
 -}
 viraSmartRefreshButton_ :: RepoName -> AppHtml ()
 viraSmartRefreshButton_ repo = do
-  st <- lift $ asks @ViraRuntimeState (.refreshState)
   updateLink <- lift $ getLink $ LinkTo.RepoUpdate repo
-  status <- liftIO $ getRefreshStatus st repo
+  status <- lift $ getRepoRefreshStatus repo
   now <- liftIO getCurrentTime
 
   case status of

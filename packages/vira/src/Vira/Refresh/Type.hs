@@ -9,7 +9,6 @@ module Vira.Refresh.Type (
   -- * State
   RefreshState (..),
   newRefreshState,
-  getRefreshStatus,
 
   -- * Status
   RefreshStatus (..),
@@ -22,7 +21,6 @@ module Vira.Refresh.Type (
 
 import Control.Concurrent.Async (Async)
 import Data.Data (Data)
-import Data.Map.Strict qualified as Map
 import Data.SafeCopy (base, deriveSafeCopy)
 import Data.Time (NominalDiffTime, UTCTime)
 import Effectful.Git (RepoName)
@@ -39,15 +37,9 @@ data RefreshState = RefreshState
 -- | Create a new refresh state (starts empty, populated by daemon on startup)
 newRefreshState :: IO RefreshState
 newRefreshState = do
-  statusMap <- newTVarIO Map.empty
+  statusMap <- newTVarIO mempty
   daemonHandle <- newTVarIO Nothing
   pure RefreshState {..}
-
--- | Get the current refresh status for a repository
-getRefreshStatus :: RefreshState -> RepoName -> IO RefreshStatus
-getRefreshStatus st repo = do
-  statusMap <- readTVarIO st.statusMap
-  pure $ Map.findWithDefault NeverRefreshed repo statusMap
 
 -- * Status
 

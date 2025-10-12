@@ -4,8 +4,9 @@
 -- | Core refresh logic for Git repositories
 module Vira.Refresh.Core (
   -- * Refresh operations
-  scheduleRefreshRepo,
+  scheduleRepoRefresh,
   initializeRefreshState,
+  getRepoRefreshStatus,
 ) where
 
 import Colog.Message (Message)
@@ -15,18 +16,38 @@ import Data.Time (getCurrentTime)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Git (RepoName)
-import Effectful.Reader.Dynamic (asks)
+import Effectful.Reader.Dynamic (Reader, asks)
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.Lib.Logging (Severity (Info), log)
 import Vira.Refresh.Type (RefreshPriority (..), RefreshState (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..))
-import Prelude hiding (asks)
+import Prelude hiding (Reader, ask, asks)
+
+-- | Get the current refresh status for a repository
+getRepoRefreshStatus ::
+  ( Reader ViraRuntimeState :> es
+  , IOE :> es
+  ) =>
+  RepoName ->
+  Eff es RefreshStatus
+getRepoRefreshStatus repo = do
+  st <- asks @ViraRuntimeState (.refreshState)
+  statusMap <- liftIO $ readTVarIO st.statusMap
+  pure $ Map.findWithDefault NeverRefreshed repo statusMap
 
 -- | Schedule a repository for refresh with given priority
-scheduleRefreshRepo :: (IOE :> es, Log Message :> es) => RefreshState -> RepoName -> RefreshPriority -> Eff es ()
-scheduleRefreshRepo st repo prio = do
+scheduleRepoRefresh ::
+  ( Reader ViraRuntimeState :> es
+  , IOE :> es
+  , Log Message :> es
+  ) =>
+  RepoName ->
+  RefreshPriority ->
+  Eff es ()
+scheduleRepoRefresh repo prio = do
+  st <- asks @ViraRuntimeState (.refreshState)
   now <- liftIO getCurrentTime
   atomically $ modifyTVar' st.statusMap $ Map.insert repo (Pending now prio)
   log Info $ "Queued refresh for " <> toText repo <> " (priority: " <> show prio <> ")"

@@ -11,7 +11,7 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (throwError)
 import Effectful.Git (RepoName)
 import Effectful.Git qualified as Git
-import Effectful.Reader.Dynamic (Reader, asks)
+import Effectful.Reader.Dynamic (Reader)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (..))
@@ -67,8 +67,7 @@ viewHandler name = do
 
 updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
-  refreshState <- asks @App.ViraRuntimeState (.refreshState)
-  Refresh.scheduleRefreshRepo refreshState name Now
+  Refresh.scheduleRepoRefresh name Now
   pure $ addHeader True Nothing
 
 deleteHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRedirect] Text)

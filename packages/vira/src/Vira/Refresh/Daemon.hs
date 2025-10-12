@@ -26,7 +26,7 @@ import Vira.App.Type (ViraRuntimeState (..))
 import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.Logging
 import Vira.Lib.TimeExtra (formatDuration)
-import Vira.Refresh.Core (initializeRefreshState, scheduleRefreshRepo)
+import Vira.Refresh.Core (initializeRefreshState, scheduleRepoRefresh)
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (..), RefreshResult (..), RefreshState (..), RefreshStatus (..))
 import Vira.State.Acid (GetAllReposA (..), GetRepoByNameA (..))
 import Vira.State.Acid qualified as St
@@ -54,12 +54,11 @@ startRefreshDaemon = do
 schedulerLoop :: Eff AppStack Void
 schedulerLoop = do
   tagCurrentThread "🔄"
-  st <- asks (.refreshState)
   infinitely $ do
     repos <- App.query GetAllReposA
     log Info $ "Scheduling refresh for " <> show (length repos) <> " repos"
     forM_ repos $ \repo ->
-      scheduleRefreshRepo st repo.name Normal
+      scheduleRepoRefresh repo.name Normal
     threadDelay (5 * 60 * 1000000) -- 5 minutes in microseconds
 
 -- | Worker loop: continuously process pending repos
