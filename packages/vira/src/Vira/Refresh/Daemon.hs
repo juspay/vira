@@ -53,11 +53,11 @@ schedulerLoop = do
   tagCurrentThread "🔄"
   st <- asks (.refreshState)
   infinitely $ do
-    threadDelay (5 * 60 * 1000000) -- 5 minutes in microseconds
     repos <- App.query GetAllReposA
     log Info $ "Scheduling refresh for " <> show (length repos) <> " repos"
     forM_ repos $ \repo ->
       scheduleRefreshRepo st repo.name Normal
+    threadDelay (5 * 60 * 1000000) -- 5 minutes in microseconds
 
 -- | Worker loop: continuously process pending repos
 workerLoop :: Eff AppStack Void
