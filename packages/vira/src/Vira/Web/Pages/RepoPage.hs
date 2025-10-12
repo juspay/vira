@@ -23,7 +23,7 @@ import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.Refresh.Core qualified as Refresh
-import Vira.Refresh.Type (RefreshPriority (Now), RefreshStatus (..), getRefreshStatus)
+import Vira.Refresh.Type (RefreshPriority (Now))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -83,44 +83,15 @@ deleteHandler name = do
 
 viewRepo :: St.Repo -> [St.Branch] -> [St.Job] -> AppHtml ()
 viewRepo repo branches _allJobs = do
-  -- Repository header with refresh button and status
-  updateLink <- lift $ getLink $ LinkTo.RepoUpdate repo.name
-  refreshState <- lift $ asks @App.ViraRuntimeState (.refreshState)
-  currentStatus <- liftIO $ getRefreshStatus refreshState repo.name
-
-  -- Check if refresh is in progress
-  let isRefreshing = case currentStatus of
-        Pending {} -> True
-        InProgress {} -> True
-        _ -> False
-
+  -- Repository header with smart refresh button
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.book_2)
     (toText $ toString repo.name)
     ( div_ [class_ "flex items-center justify-between"] $ do
         p_ [class_ "text-gray-600 dark:text-gray-300 text-sm font-mono break-all"] $
           toHtml repo.cloneUrl
-        div_ [class_ "flex items-center gap-3 ml-4"] $ do
-          -- Refresh status widget
-          Status.viraRefreshStatus_ refreshState repo.name
-
-          -- Refresh button (disabled when Pending or InProgress)
-          if isRefreshing
-            then button_
-              [ class_ "inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border transition-colors bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-600 cursor-not-allowed"
-              , disabled_ "disabled"
-              , title_ "Refresh in progress"
-              ]
-              $ do
-                W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
-                "Refresh"
-            else W.viraRequestButton_
-              W.ButtonSecondary
-              updateLink
-              [title_ "Refresh branches"]
-              $ do
-                W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
-                "Refresh"
+        div_ [class_ "ml-4"] $
+          Status.viraSmartRefreshButton_ repo.name
     )
 
   W.viraSection_ [] $ do
