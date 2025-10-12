@@ -29,7 +29,7 @@ scheduleRefreshRepo :: (IOE :> es, Log Message :> es) => RefreshState -> RepoNam
 scheduleRefreshRepo st repo prio = do
   now <- liftIO getCurrentTime
   atomically $ modifyTVar' st.statusMap $ Map.insert repo (Pending now prio)
-  log Info $ "🔄 Queued refresh for " <> toText repo <> " (priority: Now)"
+  log Info $ "🔄 Queued refresh for " <> toText repo <> " (priority: " <> show prio <> ")"
 
 {- | Initialize refresh state from acid-state
 
