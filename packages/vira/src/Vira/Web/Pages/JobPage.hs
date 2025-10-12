@@ -175,5 +175,7 @@ triggerNewBuild repoName branchName = do
             Left (Pipeline.PipelineTerminated Terminated) -> St.JobFinished St.JobKilled endTime
             Left _ -> St.JobFinished St.JobFailure endTime
       App.update $ St.JobUpdateStatusA job.jobId status
+      App.broadcastUpdate $ "job:" <> show @Text job.jobId
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
+    App.broadcastUpdate $ "job:" <> show @Text job.jobId
     log Info $ "Started task " <> show job.jobId

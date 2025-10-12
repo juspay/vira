@@ -47,7 +47,7 @@ import Vira.Tool.Status qualified as ToolStatus
 import Vira.Web.LinkTo.Type (LinkTo (..), linkShortTitle, linkTitle)
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Pages.Common.User qualified as User
-import Vira.Web.Stream.Refresh qualified as Refresh
+import Vira.Web.Stream.Refresh qualified as Stream
 import Vira.Web.Widgets.Modal qualified as W
 import Vira.Web.Widgets.Status qualified as Status
 import Web.TablerIcons.Outline qualified as Icon
@@ -99,7 +99,8 @@ layout crumbs content = do
           , ".transition-smooth { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }"
           ]
     body_ [class_ "bg-gray-50 dark:bg-gray-900 min-h-screen font-inter"] $ do
-      Refresh.viewStream
+      -- Add SSE listener based on page entity (if any)
+      forM_ (Stream.sseScope crumbs) Stream.viewStreamScoped
       -- Global modal container for all pages
       W.viraGlobalModalContainer_
       div_ [class_ "min-h-screen flex flex-col"] $ do
