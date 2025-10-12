@@ -32,6 +32,8 @@ library
   exposed-modules:
       Vira.App
       Vira.App.AcidState
+      Vira.App.Broadcast.Core
+      Vira.App.Broadcast.Type
       Vira.App.CLI
       Vira.App.GitRev
       Vira.App.InstanceInfo

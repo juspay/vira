@@ -19,6 +19,7 @@ import Effectful.Git qualified as Git
 import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Reader.Dynamic (asks)
 import Vira.App.AcidState qualified as App
+import Vira.App.Broadcast.Core qualified as Broadcast
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.CI.Workspace qualified as Workspace
@@ -130,7 +131,7 @@ refreshRepo repo = do
   -- Update repo.lastRefresh in acid-state and broadcast
   let updatedRepo = repo {lastRefresh = Just refreshResult}
   App.update (St.SetRepoA updatedRepo)
-  App.broadcastUpdate ("repo:" <> toText repo.name)
+  Broadcast.broadcastUpdate ("repo:" <> toText repo.name)
 
   -- Log completion
   case result of

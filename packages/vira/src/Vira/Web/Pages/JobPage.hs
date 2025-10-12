@@ -14,6 +14,7 @@ import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
+import Vira.App.Broadcast.Core qualified as Broadcast
 import Vira.App.CLI (WebSettings)
 import Vira.CI.Environment (environmentFor, workspacePath)
 import Vira.CI.Pipeline qualified as Pipeline
@@ -175,7 +176,7 @@ triggerNewBuild repoName branchName = do
             Left (Pipeline.PipelineTerminated Terminated) -> St.JobFinished St.JobKilled endTime
             Left _ -> St.JobFinished St.JobFailure endTime
       App.update $ St.JobUpdateStatusA job.jobId status
-      App.broadcastUpdate $ "job:" <> show @Text job.jobId
+      Broadcast.broadcastUpdate $ "job:" <> show @Text job.jobId
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
-    App.broadcastUpdate $ "job:" <> show @Text job.jobId
+    Broadcast.broadcastUpdate $ "job:" <> show @Text job.jobId
     log Info $ "Started task " <> show job.jobId

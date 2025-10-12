@@ -10,9 +10,7 @@ module Vira.Web.Stream.ScopedRefresh (
 ) where
 
 import Colog.Core (Severity (Debug))
-import Control.Concurrent.STM (TChan, dupTChan)
 import Effectful (Eff)
-import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
 import Lucid.Htmx.Contrib (hxSseConnect_, hxSseSwap_)
@@ -20,10 +18,9 @@ import Servant.API (SourceIO)
 import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
+import Vira.App.Broadcast.Core qualified as Broadcast
 import Vira.App.Stack (AppStack)
-import Vira.App.Type (ViraRuntimeState (stateUpdated))
 import Vira.Lib.Logging (log, tagCurrentThread)
-import Vira.Lib.STM (drainRemainingTChan, drainTChan)
 import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
@@ -56,29 +53,14 @@ viewStreamScoped scope = do
   div_ [hxExt_ "sse", hxSseConnect_ link] $ do
     script_ [hxSseSwap_ scope] ("" :: Text)
 
-{- | Check if state has been updated since the last check (non-blocking)
-Returns list of event scopes that were broadcast
--}
-waitForStateUpdate :: (HasCallStack) => TChan (Text, ByteString) -> Eff AppStack [Text]
-waitForStateUpdate chan = do
-  events <- liftIO $ atomically $ drainTChan chan
-  forM (toList events) $ \(eventName, _eventData) -> do
-    log Debug $ "Update event received: " <> eventName
-    pure eventName
-
 streamRouteHandler :: (HasCallStack) => SourceT (Eff AppStack) ScopedRefresh
 streamRouteHandler = S.fromStepT $ S.Effect $ do
   tagCurrentThread "🐬"
   log Debug "Starting stream"
-  chan <- asks stateUpdated
-  chanDup <- liftIO $ atomically $ do
-    dup <- dupTChan chan
-    void $ drainRemainingTChan dup
-    pure dup
-  pure $ step 0 chanDup
+  step 0 <$> Broadcast.subscribeToBroadcasts
   where
     step (n :: Int) chan = S.Effect $ do
-      scopes <- waitForStateUpdate chan
+      scopes <- Broadcast.consumeBroadcasts chan
       log Debug $ "Triggering refresh for scopes: " <> show scopes <> "; n=" <> show n
       -- Send multiple events, one per scope (allows HTMX to filter by event name)
       pure $ yieldAll scopes $ step (n + 1) chan
