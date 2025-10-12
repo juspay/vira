@@ -75,7 +75,7 @@ ensureMirror cloneUrl mirrorPath = do
   exists <- liftIO $ doesDirectoryExist mirrorPath
 
   if exists
-    then log Info $ "Git mirror already exists: " <> toText mirrorPath
+    then log Debug $ "Git mirror already exists: " <> toText mirrorPath
     else do
       -- Clone the repository with file lock protection
       log Info $ "Creating git mirror at " <> toText mirrorPath
@@ -122,13 +122,13 @@ updateMirror ::
   FilePath ->
   Eff es ()
 updateMirror mirrorPath = do
-  log Info $ "Updating git mirror at " <> toText mirrorPath
+  log Debug $ "Updating git mirror at " <> toText mirrorPath
 
   withFileLock mirrorPath $ do
     -- Use --force to handle forced pushes
     let fetchCmd = fetchAllBranches
 
-    log Info $ "Running git fetch: " <> show (cmdspec fetchCmd)
+    log Debug $ "Running git fetch: " <> show (cmdspec fetchCmd)
 
     (exitCode, stdoutStr, stderrStr) <-
       readCreateProcessWithExitCode
@@ -137,7 +137,7 @@ updateMirror mirrorPath = do
 
     case exitCode of
       ExitSuccess ->
-        log Info $ "Successfully updated git mirror at " <> toText mirrorPath
+        log Debug $ "Successfully updated git mirror at " <> toText mirrorPath
       ExitFailure code -> do
         let errorMsg =
               "Git fetch failed with exit code "

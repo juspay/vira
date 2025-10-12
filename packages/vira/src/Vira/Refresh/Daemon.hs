@@ -23,6 +23,7 @@ import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.Logging
+import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Refresh.Core (initializeRefreshState, scheduleRefreshRepo)
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (..), RefreshResult (..), RefreshState (..), RefreshStatus (..))
 import Vira.State.Acid (GetAllReposA (..), GetRepoByNameA (..))
@@ -70,10 +71,7 @@ workerLoop = do
     -- Fetch repo data and refresh
     App.query (GetRepoByNameA repoName) >>= \case
       Nothing -> log Warning $ "Repo not found: " <> show repoName
-      Just repo -> do
-        refreshRepo repo >>= \case
-          Left err -> log Error $ "Refresh failed for " <> show repoName <> ": " <> err
-          Right () -> log Info $ "Refresh succeeded for " <> show repoName
+      Just repo -> void $ refreshRepo repo
 
 {- | Atomically pop the next pending repo and mark it as InProgress
 Blocks (via STM retry) when no pending repos available
@@ -97,6 +95,8 @@ popNextPendingRepo = do
 -- | Refresh a single repository (expects repo to already be marked InProgress)
 refreshRepo :: Repo -> Eff AppStack (Either Text ())
 refreshRepo repo = do
+  log Info $ "Starting refresh for " <> show repo.name
+
   st <- asks (.refreshState)
   acid <- asks (.acid)
   supervisor <- asks (.supervisor)
@@ -112,6 +112,7 @@ refreshRepo repo = do
   -- Update status based on result
   endTime <- liftIO getCurrentTime
   let duration = diffUTCTime endTime startTime
+      durationText = formatDuration duration
       refreshResult =
         RefreshResult
           { completedAt = endTime
@@ -130,5 +131,10 @@ refreshRepo repo = do
   let updatedRepo = repo {lastRefresh = Just refreshResult}
   App.update (St.SetRepoA updatedRepo)
   App.broadcastUpdate ("repo:" <> toText repo.name)
+
+  -- Log completion
+  case result of
+    Left err -> log Error $ "❌ Refresh failed for " <> show repo.name <> " (took " <> durationText <> "): " <> err
+    Right () -> log Info $ "✅ Refresh succeeded for " <> show repo.name <> " (took " <> durationText <> ")"
 
   pure result

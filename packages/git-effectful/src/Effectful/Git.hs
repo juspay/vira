@@ -46,7 +46,7 @@ It parses branches from the existing clone without modifying it.
 -}
 remoteBranchesFromClone :: (Error Text :> es, Log Message :> es, Process :> es, IOE :> es) => FilePath -> Eff es (Map BranchName Commit)
 remoteBranchesFromClone clonePath = do
-  log Info $ "Running git for-each-ref in clone: " <> show (cmdspec forEachRefRemoteBranches)
+  log Debug $ "Running git for-each-ref in clone: " <> show (cmdspec forEachRefRemoteBranches)
 
   output <-
     readCreateProcess forEachRefRemoteBranches {cwd = Just clonePath} ""
