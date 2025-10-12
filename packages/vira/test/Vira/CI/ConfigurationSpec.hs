@@ -23,6 +23,7 @@ testRepo :: Repo
 testRepo =
   let name = RepoName "test-repo"
       cloneUrl = "https://github.com/test/repo.git"
+      lastRefresh = Nothing
    in Repo {..}
 
 testBranchStaging :: Branch

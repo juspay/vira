@@ -57,10 +57,10 @@ importSingleRepo acid name url = do
   case existingRepo of
     Nothing -> do
       -- Repository doesn't exist, add it
-      let newRepo = Repo name url
+      let newRepo = Repo name url Nothing -- lastRefresh starts as Nothing
       update acid (AddNewRepoA newRepo)
       pure $ Right ()
-    Just (Repo _ existingUrl) -> do
+    Just (Repo _ existingUrl _) -> do
       -- Repository exists, check if URL matches
       if existingUrl == url
         then pure $ Right () -- Same URL, no conflict

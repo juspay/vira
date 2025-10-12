@@ -35,7 +35,7 @@ import Effectful.Git (RepoName (..))
 import Lucid
 import Vira.App.AcidState qualified as App
 import Vira.Lib.TimeExtra (formatDuration, formatTimestamp)
-import Vira.Refresh.Type (RefreshState, RefreshStatus (..), getRefreshStatus)
+import Vira.Refresh.Type (RefreshOutcome (..), RefreshResult (..), RefreshState, RefreshStatus (..), getRefreshStatus)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -171,28 +171,28 @@ viraRefreshStatus_ refreshState repoName = do
           , text = "Refreshing (started " <> timeAgo <> ")"
           , tooltip = Nothing
           }
-    Success {completedAt, duration} -> do
+    Completed RefreshResult {completedAt, duration, outcome} -> do
       (timeAgo, _) <- formatTimestamp completedAt
       let durationText = formatDuration duration
-      refreshBadge
-        RefreshBadgeConfig
-          { colorClasses = "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800"
-          , icon = Icon.check
-          , iconExtraClasses = ""
-          , text = "Updated " <> timeAgo <> " (took " <> durationText <> ")"
-          , tooltip = Nothing
-          }
-    Failed {completedAt, duration, errorMsg} -> do
-      (timeAgo, _) <- formatTimestamp completedAt
-      let durationText = formatDuration duration
-      refreshBadge
-        RefreshBadgeConfig
-          { colorClasses = "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800"
-          , icon = Icon.x
-          , iconExtraClasses = ""
-          , text = "Failed " <> timeAgo <> " (took " <> durationText <> ")"
-          , tooltip = Just errorMsg
-          }
+      case outcome of
+        Success ->
+          refreshBadge
+            RefreshBadgeConfig
+              { colorClasses = "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800"
+              , icon = Icon.check
+              , iconExtraClasses = ""
+              , text = "Updated " <> timeAgo <> " (took " <> durationText <> ")"
+              , tooltip = Nothing
+              }
+        Failure errorMsg ->
+          refreshBadge
+            RefreshBadgeConfig
+              { colorClasses = "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800"
+              , icon = Icon.x
+              , iconExtraClasses = ""
+              , text = "Failed " <> timeAgo <> " (took " <> durationText <> ")"
+              , tooltip = Just errorMsg
+              }
 
 -- Helper to render refresh status badge
 refreshBadge :: (Monad m) => RefreshBadgeConfig -> HtmlT m ()

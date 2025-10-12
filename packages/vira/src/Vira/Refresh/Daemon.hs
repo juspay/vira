@@ -24,7 +24,7 @@ import Vira.App.Type (ViraRuntimeState (..))
 import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.Logging
 import Vira.Refresh.Core (scheduleRefreshRepo)
-import Vira.Refresh.Type (RefreshPriority (..), RefreshState (..), RefreshStatus (..))
+import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (..), RefreshResult (..), RefreshState (..), RefreshStatus (..))
 import Vira.State.Acid (GetAllReposA (..), GetRepoByNameA (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..))
@@ -107,11 +107,16 @@ refreshRepo repo = do
   -- Update status based on result
   endTime <- liftIO getCurrentTime
   let duration = diffUTCTime endTime startTime
+      refreshResult =
+        RefreshResult
+          { completedAt = endTime
+          , duration = duration
+          , outcome = case result of
+              Left err -> Failure err
+              Right () -> Success
+          }
   atomically $
     modifyTVar' st.statusMap $
-      Map.insert repo.name $
-        case result of
-          Left err -> Failed endTime duration err
-          Right () -> Success endTime duration
+      Map.insert repo.name (Completed refreshResult)
 
   pure result
