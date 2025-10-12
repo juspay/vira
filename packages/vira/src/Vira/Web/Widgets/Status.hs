@@ -25,6 +25,7 @@ Colors are automatically managed based on the status type for consistency.
 -}
 module Vira.Web.Widgets.Status (
   viraStatusBadge_,
+  viraRefreshStatus_,
   viewAllJobStatus,
   indicator,
   statusLabel,
@@ -33,6 +34,8 @@ module Vira.Web.Widgets.Status (
 import Effectful.Git (RepoName (..))
 import Lucid
 import Vira.App.AcidState qualified as App
+import Vira.Lib.TimeExtra (formatDuration, formatTimestamp)
+import Vira.Refresh.Type (RefreshState, RefreshStatus (..), getRefreshStatus)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -122,3 +125,80 @@ indicator active = do
           else (Icon.circle, "text-gray-500 dark:text-gray-400")
   div_ [class_ $ "w-4 h-4 flex items-center justify-center " <> classes] $
     toHtmlRaw iconSvg
+
+{- |
+Display refresh status for a repository.
+
+Shows current refresh status with appropriate badge and timestamp information:
+- **Never Refreshed**: Neutral indicator
+- **Pending**: Yellow badge with queued time
+- **In Progress**: Blue badge with spinner and start time
+- **Success**: Green badge with completion time and duration
+- **Failed**: Red badge with error message, completion time and duration
+-}
+data RefreshBadgeConfig = RefreshBadgeConfig
+  { colorClasses :: Text
+  , icon :: ByteString
+  , iconExtraClasses :: Text
+  , text :: Text
+  , tooltip :: Maybe Text
+  }
+
+viraRefreshStatus_ :: RefreshState -> RepoName -> AppHtml ()
+viraRefreshStatus_ refreshState repoName = do
+  status <- liftIO $ getRefreshStatus refreshState repoName
+
+  case status of
+    NeverRefreshed ->
+      span_ [class_ "text-xs text-gray-500 dark:text-gray-400"] "Never refreshed"
+    Pending {queuedAt} -> do
+      (timeAgo, _) <- formatTimestamp queuedAt
+      refreshBadge
+        RefreshBadgeConfig
+          { colorClasses = "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800"
+          , icon = Icon.clock
+          , iconExtraClasses = ""
+          , text = "Queued " <> timeAgo
+          , tooltip = Nothing
+          }
+    InProgress {startedAt} -> do
+      (timeAgo, _) <- formatTimestamp startedAt
+      refreshBadge
+        RefreshBadgeConfig
+          { colorClasses = "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+          , icon = Icon.loader_2
+          , iconExtraClasses = "animate-spin"
+          , text = "Refreshing (started " <> timeAgo <> ")"
+          , tooltip = Nothing
+          }
+    Success {completedAt, duration} -> do
+      (timeAgo, _) <- formatTimestamp completedAt
+      let durationText = formatDuration duration
+      refreshBadge
+        RefreshBadgeConfig
+          { colorClasses = "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800"
+          , icon = Icon.check
+          , iconExtraClasses = ""
+          , text = "Updated " <> timeAgo <> " (took " <> durationText <> ")"
+          , tooltip = Nothing
+          }
+    Failed {completedAt, duration, errorMsg} -> do
+      (timeAgo, _) <- formatTimestamp completedAt
+      let durationText = formatDuration duration
+      refreshBadge
+        RefreshBadgeConfig
+          { colorClasses = "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800"
+          , icon = Icon.x
+          , iconExtraClasses = ""
+          , text = "Failed " <> timeAgo <> " (took " <> durationText <> ")"
+          , tooltip = Just errorMsg
+          }
+
+-- Helper to render refresh status badge
+refreshBadge :: (Monad m) => RefreshBadgeConfig -> HtmlT m ()
+refreshBadge cfg =
+  let attrs = [class_ $ "inline-flex items-center px-2 py-1 rounded text-xs font-medium border " <> cfg.colorClasses]
+      attrsWithTooltip = maybe attrs (\t -> title_ t : attrs) cfg.tooltip
+   in span_ attrsWithTooltip $ do
+        div_ [class_ $ "w-3 h-3 mr-1.5 flex items-center justify-center " <> cfg.iconExtraClasses] $ toHtmlRaw cfg.icon
+        toHtml cfg.text
