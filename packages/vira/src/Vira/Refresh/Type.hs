@@ -26,7 +26,7 @@ import Effectful.Git (RepoName)
 -- | Opaque state container for the refresh system
 data RefreshState = RefreshState
   { statusMap :: TVar (Map RepoName RefreshStatus)
-  , daemonHandle :: TVar (Maybe (Async ()))
+  , daemonHandle :: TVar (Maybe (Async Void))
   }
   deriving stock (Generic)
 

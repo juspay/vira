@@ -23,6 +23,7 @@ import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.Refresh.Core qualified as Refresh
+import Vira.Refresh.Type (RefreshPriority (Now))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -66,18 +67,9 @@ viewHandler name = do
 
 updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
-  -- Get repo data
-  repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  -- Call refreshRepo directly (until daemon is implemented in Phase 3)
   refreshState <- asks @App.ViraRuntimeState (.refreshState)
-  supervisor <- asks @App.ViraRuntimeState (.supervisor)
-  acid <- asks @App.ViraRuntimeState (.acid)
-  result <- Refresh.refreshRepo refreshState supervisor acid repo
-
-  case result of
-    Left errorMsg ->
-      pure $ noHeader $ Just (ErrorModal errorMsg)
-    Right () -> pure $ addHeader True Nothing
+  Refresh.scheduleRefreshRepo refreshState name Now
+  pure $ addHeader True Nothing
 
 deleteHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do
