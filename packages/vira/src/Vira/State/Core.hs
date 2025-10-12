@@ -36,7 +36,9 @@ openViraState stateDir autoResetState = do
   checkSchemaVersion stateDir acidStateDir autoResetState
 
   -- Open the state
+  putStrLn "Opening ViraState database..."
   st <- openLocalStateFrom acidStateDir initialState
+  putStrLn $ "Opened ViraState; schema version = " <> show viraDbVersion
 
   -- Write current version after successful open
   writeSchemaVersion (stateDir </> "schema-version") viraDbVersion
