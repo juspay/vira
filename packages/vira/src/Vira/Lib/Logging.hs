@@ -88,9 +88,8 @@ Includes thread label (if any) as well as the ID.
 -}
 threadDesc :: ThreadId -> IO Text
 threadDesc tid = do
-  threadLabel tid >>= \case
-    Nothing -> pure $ threadIdToInt tid
-    Just label -> pure $ toText label <> ";thread=" <> threadIdToInt tid
+  label <- threadLabel tid <&> maybe "🧵" toText
+  pure $ toText label <> ";" <> threadIdToInt tid
 
 showProps :: Map Text Text -> Text
 showProps prop =
