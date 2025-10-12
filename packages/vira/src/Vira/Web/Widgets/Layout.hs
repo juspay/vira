@@ -70,14 +70,6 @@ appLogoUrl = do
     "darwin" -> pure "vira-logo-apple.svg"
     _ -> pure "vira-logo.svg"
 
--- | Extract SSE event scope from breadcrumbs (rightmost entity wins)
-sseScope :: [LinkTo] -> Maybe Text
-sseScope crumbs = case reverse crumbs of
-  (Job jobId : _) -> Just $ "job:" <> show @Text jobId
-  (RepoBranch repoName _ : _) -> Just $ "repo:" <> toText repoName
-  (Repo repoName : _) -> Just $ "repo:" <> toText repoName
-  _ -> Nothing
-
 -- | Common HTML layout for all routes.
 layout :: [LinkTo] -> AppHtml () -> AppHtml ()
 layout crumbs content = do
@@ -108,7 +100,7 @@ layout crumbs content = do
           ]
     body_ [class_ "bg-gray-50 dark:bg-gray-900 min-h-screen font-inter"] $ do
       -- Add SSE listener based on page entity (if any)
-      forM_ (sseScope crumbs) Stream.viewStreamScoped
+      forM_ (Stream.sseScope crumbs) Stream.viewStreamScoped
       -- Global modal container for all pages
       W.viraGlobalModalContainer_
       div_ [class_ "min-h-screen flex flex-col"] $ do

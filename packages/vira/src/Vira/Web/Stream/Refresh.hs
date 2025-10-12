@@ -6,6 +6,7 @@ module Vira.Web.Stream.Refresh (
 
   -- * Views
   viewStreamScoped,
+  sseScope,
 ) where
 
 import Colog.Core (Severity (Debug))
@@ -23,6 +24,7 @@ import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (stateUpdated))
 import Vira.Lib.Logging (log, tagCurrentThread)
 import Vira.Lib.STM (drainRemainingTChan, drainTChan)
+import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Prelude hiding (Reader, ask, asks, runReader)
@@ -38,6 +40,14 @@ instance ToServerEvent Refresh where
       (Just $ encodeUtf8 scope)
       Nothing
       "location.reload()"
+
+-- | Extract SSE event scope from breadcrumbs (rightmost entity wins)
+sseScope :: [LinkTo] -> Maybe Text
+sseScope crumbs = case reverse crumbs of
+  (Job jobId : _) -> Just $ "job:" <> show @Text jobId
+  (RepoBranch repoName _ : _) -> Just $ "repo:" <> toText repoName
+  (Repo repoName : _) -> Just $ "repo:" <> toText repoName
+  _ -> Nothing
 
 -- | SSE listener scoped to specific entity (e.g., "repo:my-repo", "job:123")
 viewStreamScoped :: Text -> AppHtml ()
