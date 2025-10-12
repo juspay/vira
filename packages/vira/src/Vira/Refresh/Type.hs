@@ -36,7 +36,7 @@ data RefreshState = RefreshState
   }
   deriving stock (Generic)
 
--- | Create a new refresh state
+-- | Create a new refresh state (starts empty, populated by daemon on startup)
 newRefreshState :: IO RefreshState
 newRefreshState = do
   statusMap <- newTVarIO Map.empty

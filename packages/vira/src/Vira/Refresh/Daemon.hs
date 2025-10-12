@@ -23,7 +23,7 @@ import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.Logging
-import Vira.Refresh.Core (scheduleRefreshRepo)
+import Vira.Refresh.Core (initializeRefreshState, scheduleRefreshRepo)
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (..), RefreshResult (..), RefreshState (..), RefreshStatus (..))
 import Vira.State.Acid (GetAllReposA (..), GetRepoByNameA (..))
 import Vira.State.Acid qualified as St
@@ -34,6 +34,11 @@ import Prelude hiding (asks, atomically)
 startRefreshDaemon :: Eff AppStack ()
 startRefreshDaemon = do
   log Info "🔄 Refresh daemon starting..."
+
+  -- Initialize refresh state from persisted data
+  initializeRefreshState
+  log Info "🔄 Loaded refresh status from acid-state"
+
   void $ async schedulerLoop
   workerHandle <- async workerLoop
 

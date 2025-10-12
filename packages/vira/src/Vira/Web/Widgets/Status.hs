@@ -171,7 +171,10 @@ viraRefreshStatus_ refreshState repoName = do
           , text = "Refreshing (started " <> timeAgo <> ")"
           , tooltip = Nothing
           }
-    Completed RefreshResult {completedAt, duration, outcome} -> do
+    Completed result ->
+      renderCompletedStatus result
+  where
+    renderCompletedStatus RefreshResult {completedAt, duration, outcome} = do
       (timeAgo, _) <- formatTimestamp completedAt
       let durationText = formatDuration duration
       case outcome of
