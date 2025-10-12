@@ -1,4 +1,11 @@
--- | Real-time status of the Vira system.
+{- |
+Entity-scoped Server-Sent Events for automatic page refresh.
+
+Bridges breadcrumbs to broadcast events: extracts entity scope from page hierarchy,
+subscribes to updates, triggers page reload when matching events occur.
+
+Flow: breadcrumbs → 'sseScope' → 'viewStreamScoped' → SSE → 'streamRouteHandler' → reload
+-}
 module Vira.Web.Stream.ScopedRefresh (
   -- * Routes and handlers
   StreamRoute,
