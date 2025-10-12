@@ -56,7 +56,7 @@ in
 
     autoResetState = mkOption {
       type = types.bool;
-      default = false;
+      default = true;
       description = "Automatically reset state on schema mismatch (removes ViraState and job workspaces)";
     };
 

@@ -38,3 +38,21 @@ Failed to start agent 'gui/502/org.vira.service' with error: Bootstrap failed: 1
 ### Configuration
 
 See the [Home Manager configuration example](https://github.com/juspay/vira/blob/main/nix/examples/home-manager/flake.nix) for usage.
+
+### Available Options
+
+Both NixOS and Home Manager modules support the following configuration options:
+
+- `enable` - Enable the Vira service (default: `false`)
+- `package` - The Vira package to use
+- `hostname` - Hostname to bind Vira to (default: `"localhost"`)
+- `port` - Port to bind Vira to (default: `5005`)
+- `https` - Enable HTTPS (default: `true`)
+- `stateDir` - Directory to store Vira state data
+- `basePath` - Base URL path for the HTTP server (default: `"/"`)
+- `autoResetState` - Automatically reset state on schema mismatch, removing ViraState and job workspaces (default: `true`)
+- `extraPackages` - Extra packages to add to the Vira service PATH
+- `initialState.repositories` - Map of repository names to clone URLs for initial state
+
+> [!note]
+> The `autoResetState` option is enabled by default to ensure smooth upgrades when Vira's internal state schema changes. If you prefer to preserve state across schema changes (and handle migrations manually), set this to `false`.
