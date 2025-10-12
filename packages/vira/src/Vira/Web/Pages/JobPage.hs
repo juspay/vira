@@ -29,6 +29,7 @@ import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
 import Vira.Web.Pages.JobLog qualified as JobLog
 import Vira.Web.Stack qualified as Web
+import Vira.Web.Stream.Refresh qualified as Stream
 import Vira.Web.Widgets.Button qualified as W
 import Vira.Web.Widgets.Card qualified as W
 import Vira.Web.Widgets.Commit qualified as W
@@ -83,6 +84,9 @@ killHandler jobId = do
 
 viewJob :: St.Job -> AppHtml ()
 viewJob job = do
+  -- Add SSE listener for this specific job
+  Stream.viewStreamScoped $ "job:" <> show @Text job.jobId
+
   let jobActive = St.jobIsActive job
 
   W.viraSection_ [] $ do
@@ -175,5 +179,7 @@ triggerNewBuild repoName branchName = do
             Left (Pipeline.PipelineTerminated Terminated) -> St.JobFinished St.JobKilled endTime
             Left _ -> St.JobFinished St.JobFailure endTime
       App.update $ St.JobUpdateStatusA job.jobId status
+      App.broadcastUpdate $ "job:" <> show @Text job.jobId
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
+    App.broadcastUpdate $ "job:" <> show @Text job.jobId
     log Info $ "Started task " <> show job.jobId

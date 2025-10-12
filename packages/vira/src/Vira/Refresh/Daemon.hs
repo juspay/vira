@@ -14,7 +14,7 @@ import Effectful.Concurrent (threadDelay)
 import Effectful.Concurrent.Async (async)
 import Effectful.Concurrent.STM (atomically)
 import Effectful.Error.Static (runErrorNoCallStack)
-import Effectful.Git (RepoName)
+import Effectful.Git (RepoName (..))
 import Effectful.Git qualified as Git
 import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Reader.Dynamic (asks)
@@ -115,8 +115,15 @@ refreshRepo repo = do
               Left err -> Failure err
               Right () -> Success
           }
+
+  -- Update TVar status
   atomically $
     modifyTVar' st.statusMap $
       Map.insert repo.name (Completed refreshResult)
+
+  -- Update repo.lastRefresh in acid-state and broadcast
+  let updatedRepo = repo {lastRefresh = Just refreshResult}
+  App.update (St.SetRepoA updatedRepo)
+  App.broadcastUpdate ("repo:" <> toText repo.name)
 
   pure result

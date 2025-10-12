@@ -6,6 +6,7 @@ module Vira.Web.Stream.Refresh (
 
   -- * Views
   viewStream,
+  viewStreamScoped,
 ) where
 
 import Colog.Core (Severity (Debug))
@@ -30,13 +31,18 @@ import Prelude hiding (Reader, ask, asks, runReader)
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO Refresh))
 
 -- A Refresh signal sent from server to client
-data Refresh = Refresh
+data Refresh = Refresh | ScopedRefresh Text
 
 instance ToServerEvent Refresh where
   toServerEvent = \case
     Refresh ->
       ServerEvent
         (Just "refresh")
+        Nothing
+        "location.reload()"
+    ScopedRefresh scope ->
+      ServerEvent
+        (Just $ encodeUtf8 scope)
         Nothing
         "location.reload()"
 
@@ -46,12 +52,22 @@ viewStream = do
   div_ [hxExt_ "sse", hxSseConnect_ link] $ do
     script_ [hxSseSwap_ "refresh"] ("" :: Text)
 
--- | Check if state has been updated since the last check (non-blocking)
-waitForStateUpdate :: (HasCallStack) => TChan (Text, ByteString) -> Eff AppStack ()
+-- | SSE listener scoped to specific entity (e.g., "repo:my-repo", "job:123")
+viewStreamScoped :: Text -> AppHtml ()
+viewStreamScoped scope = do
+  link <- lift $ getLinkUrl LinkTo.Refresh
+  div_ [hxExt_ "sse", hxSseConnect_ link] $ do
+    script_ [hxSseSwap_ scope] ("" :: Text)
+
+{- | Check if state has been updated since the last check (non-blocking)
+Returns list of event scopes that were broadcast
+-}
+waitForStateUpdate :: (HasCallStack) => TChan (Text, ByteString) -> Eff AppStack [Text]
 waitForStateUpdate chan = do
   events <- liftIO $ atomically $ drainTChan chan
-  forM_ events $ \(eventName, _eventData) -> do
+  forM (toList events) $ \(eventName, _eventData) -> do
     log Debug $ "Update event received: " <> eventName
+    pure eventName
 
 streamRouteHandler :: (HasCallStack) => SourceT (Eff AppStack) Refresh
 streamRouteHandler = S.fromStepT $ S.Effect $ do
@@ -65,6 +81,11 @@ streamRouteHandler = S.fromStepT $ S.Effect $ do
   pure $ step 0 chanDup
   where
     step (n :: Int) chan = S.Effect $ do
-      waitForStateUpdate chan
-      log Debug $ "Triggering refresh; n=" <> show n
-      pure $ S.Yield Refresh $ step (n + 1) chan
+      scopes <- waitForStateUpdate chan
+      log Debug $ "Triggering refresh for scopes: " <> show scopes <> "; n=" <> show n
+      -- Send multiple events, one per scope (allows HTMX to filter by event name)
+      pure $ yieldAll scopes $ step (n + 1) chan
+
+    yieldAll [] next = next
+    yieldAll (scope : rest) next =
+      S.Yield (ScopedRefresh scope) (yieldAll rest next)

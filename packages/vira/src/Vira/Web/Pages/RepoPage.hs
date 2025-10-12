@@ -30,6 +30,7 @@ import Vira.State.Type
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
 import Vira.Web.Stack qualified as Web
+import Vira.Web.Stream.Refresh qualified as Stream
 import Vira.Web.Widgets.Button qualified as W
 import Vira.Web.Widgets.Commit qualified as W
 import Vira.Web.Widgets.Form qualified as W
@@ -83,6 +84,9 @@ deleteHandler name = do
 
 viewRepo :: St.Repo -> [St.Branch] -> [St.Job] -> AppHtml ()
 viewRepo repo branches _allJobs = do
+  -- Add SSE listener for this specific repo
+  Stream.viewStreamScoped $ "repo:" <> toText repo.name
+
   -- Repository header with refresh button and status
   updateLink <- lift $ getLink $ LinkTo.RepoUpdate repo.name
   refreshState <- lift $ asks @App.ViraRuntimeState (.refreshState)
