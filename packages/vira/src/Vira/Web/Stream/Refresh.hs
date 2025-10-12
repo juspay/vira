@@ -5,7 +5,6 @@ module Vira.Web.Stream.Refresh (
   streamRouteHandler,
 
   -- * Views
-  viewStream,
   viewStreamScoped,
 ) where
 
@@ -31,26 +30,14 @@ import Prelude hiding (Reader, ask, asks, runReader)
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO Refresh))
 
 -- A Refresh signal sent from server to client
-data Refresh = Refresh | ScopedRefresh Text
+newtype Refresh = ScopedRefresh Text
 
 instance ToServerEvent Refresh where
-  toServerEvent = \case
-    Refresh ->
-      ServerEvent
-        (Just "refresh")
-        Nothing
-        "location.reload()"
-    ScopedRefresh scope ->
-      ServerEvent
-        (Just $ encodeUtf8 scope)
-        Nothing
-        "location.reload()"
-
-viewStream :: AppHtml ()
-viewStream = do
-  link <- lift $ getLinkUrl LinkTo.Refresh
-  div_ [hxExt_ "sse", hxSseConnect_ link] $ do
-    script_ [hxSseSwap_ "refresh"] ("" :: Text)
+  toServerEvent (ScopedRefresh scope) =
+    ServerEvent
+      (Just $ encodeUtf8 scope)
+      Nothing
+      "location.reload()"
 
 -- | SSE listener scoped to specific entity (e.g., "repo:my-repo", "job:123")
 viewStreamScoped :: Text -> AppHtml ()
