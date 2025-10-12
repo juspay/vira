@@ -15,7 +15,7 @@ import Vira.Web.Pages.RegistryPage qualified as RegistryPage
 import Vira.Web.Pages.ToolsPage qualified as ToolsPage
 import Vira.Web.Servant (mapSourceT, (//))
 import Vira.Web.Stack qualified as Web
-import Vira.Web.Stream.Refresh qualified as Refresh
+import Vira.Web.Stream.ScopedRefresh qualified as Refresh
 import Vira.Web.Widgets.Card qualified as W
 import Vira.Web.Widgets.Layout qualified as W
 import Prelude hiding (Reader, ask, runReader)

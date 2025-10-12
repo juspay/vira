@@ -7,12 +7,11 @@ module Vira.Web.Pages.RepoPage (
 
 import Data.Time (UTCTime (..), diffUTCTime)
 import Data.Time.Calendar (fromGregorian)
-import Effectful (Eff, IOE, raise, (:>))
-import Effectful.Error.Static (runErrorNoCallStack, throwError)
+import Effectful (Eff, IOE, (:>))
+import Effectful.Error.Static (throwError)
 import Effectful.Git (RepoName)
 import Effectful.Git qualified as Git
-import Effectful.Git.Mirror qualified as Mirror
-import Effectful.Reader.Dynamic (Reader, asks)
+import Effectful.Reader.Dynamic (Reader)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (..))
@@ -23,7 +22,8 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
-import Vira.CI.Workspace qualified as Workspace
+import Vira.Refresh.Core qualified as Refresh
+import Vira.Refresh.Type (RefreshPriority (Now))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
@@ -67,19 +67,8 @@ viewHandler name = do
 
 updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
-  repo <- App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  supervisor <- asks @App.ViraRuntimeState (.supervisor)
-  let mirrorPath = Workspace.mirrorPath supervisor repo.name
-  result <- runErrorNoCallStack @Text $ do
-    -- Ensure mirror exists and update it
-    Mirror.syncMirror repo.cloneUrl mirrorPath
-    allBranches <- Git.remoteBranchesFromClone mirrorPath
-    raise $ App.update $ St.SetRepoBranchesA repo.name allBranches
-
-  case result of
-    Left errorMsg ->
-      pure $ noHeader $ Just (ErrorModal errorMsg)
-    Right () -> pure $ addHeader True Nothing
+  Refresh.scheduleRepoRefresh name Now
+  pure $ addHeader True Nothing
 
 deleteHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do
@@ -93,22 +82,15 @@ deleteHandler name = do
 
 viewRepo :: St.Repo -> [St.Branch] -> [St.Job] -> AppHtml ()
 viewRepo repo branches _allJobs = do
-  -- Repository header with only refresh button
-  updateLink <- lift $ getLink $ LinkTo.RepoUpdate repo.name
+  -- Repository header with smart refresh button
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.book_2)
     (toText $ toString repo.name)
     ( div_ [class_ "flex items-center justify-between"] $ do
         p_ [class_ "text-gray-600 dark:text-gray-300 text-sm font-mono break-all"] $
           toHtml repo.cloneUrl
-        div_ [class_ "flex items-center gap-2 ml-4"] $ do
-          W.viraRequestButton_
-            W.ButtonSecondary
-            updateLink
-            [title_ "Refresh branches"]
-            $ do
-              W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
-              "Refresh"
+        div_ [class_ "ml-4"] $
+          Status.viraSmartRefreshButton_ repo.name
     )
 
   W.viraSection_ [] $ do

@@ -46,7 +46,7 @@ viewHandler repoName branchName = do
 
 viewBranch :: St.Repo -> St.Branch -> [St.Job] -> AppHtml ()
 viewBranch repo branch jobs = do
-  -- Branch header with refresh button
+  -- Branch header with build and refresh buttons
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.git_branch)
     (toText $ toString repo.name <> " → " <> toString branch.branchName)
@@ -58,7 +58,6 @@ viewBranch repo branch jobs = do
             div_ [class_ "min-w-0"] $ W.viraCommitInfo_ branch.headCommit
         div_ [class_ "flex items-center gap-2"] $ do
           buildLink <- lift $ getLink $ LinkTo.Build repo.name branch.branchName
-          updateLink <- lift $ getLink $ LinkTo.RepoUpdate repo.name
           W.viraRequestButton_
             W.ButtonPrimary
             buildLink
@@ -66,13 +65,7 @@ viewBranch repo branch jobs = do
             $ do
               W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
               "Build"
-          W.viraRequestButton_
-            W.ButtonSecondary
-            updateLink
-            [title_ "Refresh branches"]
-            $ do
-              W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
-              "Refresh"
+          Status.viraSmartRefreshButton_ repo.name
     )
 
   W.viraSection_ [] $ do

@@ -5,10 +5,11 @@ module Vira.App.Type (
   ViraRuntimeState (..),
 ) where
 
-import Control.Concurrent.STM (TChan)
 import Data.Acid (AcidState)
 import Servant.Links (Link)
+import Vira.App.Broadcast.Type (UpdateBroadcast)
 import Vira.App.InstanceInfo (InstanceInfo)
+import Vira.Refresh.Type (RefreshState)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Vira.Tool.Type.Tools (Tools)
@@ -26,8 +27,10 @@ data ViraRuntimeState = ViraRuntimeState
     --
     -- This is decoupled from servant types deliberately to avoid cyclic imports.
     linkTo :: LinkTo -> Link
-  , -- Broadcast channel to track when state is updated
-    stateUpdated :: TChan (Text, ByteString)
+  , -- Broadcast channel for entity-scoped update events (SSE)
+    updateBroadcast :: UpdateBroadcast
   , -- Cached tools data (mutable for refreshing)
     tools :: TVar Tools
+  , -- Git repository auto-refresh state
+    refreshState :: RefreshState
   }

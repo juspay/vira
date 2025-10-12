@@ -1,9 +1,19 @@
 {
   "repositories": {
+    "nixos-config": "https://github.com/srid/nixos-config.git",
     "nixos-unified-template": "https://github.com/juspay/nixos-unified-template.git",
-    "omnix": "https://github.com/juspay/omnix.git",
-    "superposition": "https://github.com/juspay/superposition.git",
+    "nixos-unified": "https://github.com/srid/nixos-unified.git",
+    "haskell-flake": "https://github.com/srid/haskell-flake.git",
+    "rust-flake": "https://github.com/juspay/rust-flake.git",
+    "services-flake": "https://github.com/juspay/services-flake.git",
+    "process-compose-flake": "https://github.com/Platonic-Systems/process-compose-flake.git",
+    "mission-control": "https://github.com/Platonic-Systems/mission-control.git",
     "vira": "https://github.com/juspay/vira.git",
-    "nammayatri": "https://github.com/nammayatri/nammayatri.git"
+    "imako": "https://github.com/srid/imako.git",
+    "emanote": "https://github.com/srid/emanote.git",
+    "ny": "https://github.com/nammayatri/nammayatri.git",
+    "vertex": "https://github.com/juspay/vertex.git",
+    "omnix": "https://github.com/juspay/omnix.git",
+    "superposition": "https://github.com/juspay/superposition.git"
   }
 }

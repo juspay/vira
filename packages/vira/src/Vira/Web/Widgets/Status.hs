@@ -25,20 +25,27 @@ Colors are automatically managed based on the status type for consistency.
 -}
 module Vira.Web.Widgets.Status (
   viraStatusBadge_,
+  viraSmartRefreshButton_,
   viewAllJobStatus,
   indicator,
   statusLabel,
 ) where
 
+import Data.Time (getCurrentTime)
 import Effectful.Git (RepoName (..))
 import Lucid
 import Vira.App.AcidState qualified as App
+import Vira.Lib.TimeExtra (formatDuration, formatRelativeTime, formatTimestamp)
+import Vira.Refresh.Core (getRepoRefreshStatus)
+import Vira.Refresh.Type (RefreshOutcome (..), RefreshResult (..), RefreshStatus (..))
 import Vira.State.Acid qualified as Acid
 import Vira.State.Core qualified as St
 import Vira.State.Type
 import Vira.Web.LinkTo.Type qualified as LinkTo
-import Vira.Web.Lucid (AppHtml, getLinkUrl)
+import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl)
+import Vira.Web.Widgets.Button qualified as W
 import Web.TablerIcons.Outline qualified as Icon
+import Prelude hiding (asks)
 
 {- |
 Status badge component with semantic color variants.
@@ -122,3 +129,87 @@ indicator active = do
           else (Icon.circle, "text-gray-500 dark:text-gray-400")
   div_ [class_ $ "w-4 h-4 flex items-center justify-center " <> classes] $
     toHtmlRaw iconSvg
+
+{- |
+Smart refresh button that adapts appearance based on refresh status.
+
+Combines status display and refresh action into a single button that:
+- Shows current refresh state in the label
+- Changes color based on status (blue when refreshing, green after success, red after failure)
+- Automatically disables during Pending/InProgress states
+- Displays appropriate icons (spinner, check, alert)
+
+= Usage Example
+
+@
+Status.viraSmartRefreshButton_ repo.name
+@
+
+= Visual States
+
+- **Never Refreshed**: Gray secondary button "Refresh Branches"
+- **Pending/In Progress**: Blue button with spinner "Refreshing..." (disabled)
+- **Success**: Secondary button with subtle green tint "Refresh (updated 5m ago)"
+- **Failed**: Secondary button with red tint "Retry Refresh (failed 2m ago)"
+-}
+viraSmartRefreshButton_ :: RepoName -> AppHtml ()
+viraSmartRefreshButton_ repo = do
+  updateLink <- lift $ getLink $ LinkTo.RepoUpdate repo
+  status <- lift $ getRepoRefreshStatus repo
+  now <- liftIO getCurrentTime
+
+  case status of
+    NeverRefreshed ->
+      W.viraRequestButton_
+        W.ButtonSecondary
+        updateLink
+        [title_ "Refresh branches from remote"]
+        $ do
+          W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
+          "Refresh Branches"
+    Pending {queuedAt} -> do
+      (fullTime, _) <- formatTimestamp queuedAt
+      button_
+        [ class_ "inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border transition-colors bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800 cursor-not-allowed"
+        , disabled_ "disabled"
+        , title_ $ "Queued at " <> fullTime
+        ]
+        $ do
+          div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center animate-spin"] $ toHtmlRaw Icon.loader_2
+          "Queued..."
+    InProgress {startedAt} -> do
+      (fullTime, _) <- formatTimestamp startedAt
+      button_
+        [ class_ "inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border transition-colors bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800 cursor-not-allowed"
+        , disabled_ "disabled"
+        , title_ $ "Started at " <> fullTime
+        ]
+        $ do
+          div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center animate-spin"] $ toHtmlRaw Icon.loader_2
+          "Refreshing..."
+    Completed result ->
+      renderCompletedButton now updateLink result
+  where
+    renderCompletedButton now updateLink RefreshResult {completedAt, duration, outcome} = do
+      (fullTime, _) <- formatTimestamp completedAt
+      let relativeTime = formatRelativeTime now completedAt
+          durationText = formatDuration duration
+      case outcome of
+        Success ->
+          W.viraRequestButton_
+            W.ButtonSecondary
+            updateLink
+            [title_ $ "Last refresh: " <> fullTime <> " (took " <> durationText <> ")"]
+            $ do
+              W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
+              toHtml $ "Refresh (" <> relativeTime <> ")"
+        Failure errorMsg ->
+          W.viraRequestButton_
+            W.ButtonSecondary
+            updateLink
+            [ title_ $ errorMsg <> " (failed at " <> fullTime <> ", took " <> durationText <> ")"
+            , class_ "!bg-red-50 dark:!bg-red-900/20 !text-red-700 dark:!text-red-300 !border-red-200 dark:!border-red-800 hover:!bg-red-100 dark:hover:!bg-red-900/30"
+            ]
+            $ do
+              div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.alert_triangle
+              toHtml $ "Retry (" <> relativeTime <> ")"

@@ -32,6 +32,8 @@ library
   exposed-modules:
       Vira.App
       Vira.App.AcidState
+      Vira.App.Broadcast.Core
+      Vira.App.Broadcast.Type
       Vira.App.CLI
       Vira.App.GitRev
       Vira.App.InstanceInfo
@@ -49,6 +51,9 @@ library
       Vira.Lib.Process
       Vira.Lib.STM
       Vira.Lib.TimeExtra
+      Vira.Refresh.Core
+      Vira.Refresh.Daemon
+      Vira.Refresh.Type
       Vira.State.Acid
       Vira.State.Core
       Vira.State.JSON
@@ -82,7 +87,7 @@ library
       Vira.Web.Server
       Vira.Web.Stack
       Vira.Web.Stream.Log
-      Vira.Web.Stream.Refresh
+      Vira.Web.Stream.ScopedRefresh
       Vira.Web.Widgets.Alert
       Vira.Web.Widgets.Button
       Vira.Web.Widgets.Card

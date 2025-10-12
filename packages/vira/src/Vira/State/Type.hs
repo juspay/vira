@@ -11,6 +11,7 @@ import Data.SafeCopy
 import Data.Time (UTCTime)
 import Effectful.Git (BranchName, CommitID, IxCommit, RepoName (..))
 import Servant.API (FromHttpApiData, ToHttpApiData)
+import Vira.Refresh.Type (RefreshResult)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
 
 -- | A project's git repository
@@ -19,6 +20,8 @@ data Repo = Repo
   -- ^ An unique name identifying this repository
   , cloneUrl :: Text
   -- ^ The git clone URL of the repository
+  , lastRefresh :: Maybe RefreshResult
+  -- ^ Metadata about the last refresh operation (persisted across restarts)
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
@@ -28,6 +31,7 @@ instance FromForm Repo where
     Repo
       <$> parseUnique "name" f
       <*> parseUnique "cloneUrl" f
+      <*> pure Nothing -- lastRefresh not set via form
 
 type RepoIxs = '[RepoName]
 type IxRepo = IxSet RepoIxs Repo
@@ -137,15 +141,16 @@ data ViraState = ViraState
   }
   deriving stock (Generic, Typeable)
 
-{- | IMPORTANT: Increment the version number when making breaking changes to ViraState or its indexed types.
-The version is automatically used by the --auto-reset-state feature to detect schema changes.
-When enabled, auto-reset will remove ViraState/ and workspace/*/jobs directories on mismatch.
-Run `vira info` to see the current schema version.
--}
 $(deriveSafeCopy 0 'base ''JobResult)
 $(deriveSafeCopy 0 'base ''JobStatus)
 $(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
 $(deriveSafeCopy 0 'base ''Branch)
 $(deriveSafeCopy 0 'base ''Repo)
+
+{- | IMPORTANT: Increment the version number when making breaking changes to ViraState or its indexed types.
+The version is automatically used by the --auto-reset-state feature to detect schema changes.
+When enabled, auto-reset will remove ViraState/ and workspace/*/jobs directories on mismatch.
+Run `vira info` to see the current schema version.
+-}
 $(deriveSafeCopy 0 'base ''ViraState)

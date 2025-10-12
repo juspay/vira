@@ -15,6 +15,15 @@ See README.md for general project information.
   - ✗ Bad: `data User = User { userName :: Text, userEmail :: Text }`
   - The type provides context; OverloadedRecordDot makes prefixes redundant
   - Enable `{-# LANGUAGE DuplicateRecordFields #-}` when field name conflicts occur
+- **Variable naming**: Use concise names, not verbose
+  - ✓ Good: `getRefreshStatus st repo`
+  - ✗ Bad: `getRefreshStatus refreshState repoName`
+- **Module structure**: Order types from most dependent (top) to foundation (bottom)
+  - Export list and implementation body should match this order
+- **Effectful over IO**: Prefer Effectful functions to avoid `liftIO`
+  - ✓ Good: Use `Effectful.Concurrent.Async.async`, `Effectful.Concurrent.threadDelay`, `Effectful.Concurrent.STM.atomically`
+  - ✗ Bad: Use `liftIO $ Control.Concurrent.Async.async`, `liftIO $ threadDelay`, etc.
+  - Hide conflicting Prelude imports: `import Prelude hiding (asks, atomically)`
 - Sync code changes with DESIGN.md
 
 ### Build instructions

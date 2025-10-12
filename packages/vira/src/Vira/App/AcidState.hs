@@ -3,18 +3,11 @@
 -- | Effectful stack for our app.
 module Vira.App.AcidState where
 
-import Colog (Message, Severity (Info))
-import Control.Concurrent.STM (writeTChan)
 import Data.Acid (EventResult, EventState, QueryEvent, UpdateEvent)
 import Data.Acid qualified as Acid
-import Data.SafeCopy (SafeCopy, safePut)
-import Data.Serialize (runPut)
-import Data.Typeable (typeOf)
 import Effectful (Eff, IOE, (:>))
-import Effectful.Colog (Log)
 import Effectful.Reader.Dynamic (Reader, asks)
-import Vira.App.Type (ViraRuntimeState (acid, stateUpdated))
-import Vira.Lib.Logging (log)
+import Vira.App.Type (ViraRuntimeState (acid))
 import Vira.State.Core (ViraState)
 import Prelude hiding (Reader, ask, asks, runReader)
 
@@ -32,41 +25,21 @@ query event = do
   liftIO $ Acid.query acid event
 
 {- | Like `Acid.update`, but runs in effectful monad, whilst looking up the acid-state in Reader
-Also records the serialized update event in the stateUpdated broadcast channel
+
+NOTE: This does NOT automatically broadcast events. Use `Vira.App.Broadcast.broadcastUpdate`
+explicitly when you want to notify SSE listeners of entity changes.
 -}
 update ::
   ( UpdateEvent event
   , EventState event ~ ViraState
-  , SafeCopy event
-  , Typeable event
   , Reader ViraRuntimeState :> es
   , IOE :> es
-  , Log Message :> es
-  , HasCallStack
   ) =>
   event ->
   Eff es (EventResult event)
 update event = do
   acid <- asks acid
-  liftIO (Acid.update acid event) <* broadcastStateUpdate event
-
--- | Broadcast state update event to listeners
-broadcastStateUpdate ::
-  ( SafeCopy event
-  , Typeable event
-  , Reader ViraRuntimeState :> es
-  , IOE :> es
-  , Log Message :> es
-  ) =>
-  event ->
-  Eff es ()
-broadcastStateUpdate event = do
-  stateUpdated <- asks @ViraRuntimeState stateUpdated
-  -- Serialize event name and data for logging
-  let eventName = show $ typeOf event
-      eventData = runPut $ safePut event
-  liftIO $ atomically $ writeTChan stateUpdated (eventName, eventData)
-  log Info $ "📝 State updated (" <> eventName <> "), notified listeners"
+  liftIO (Acid.update acid event)
 
 createCheckpoint :: (Reader ViraRuntimeState :> es, IOE :> es) => Eff es ()
 createCheckpoint = do

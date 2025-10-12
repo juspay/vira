@@ -28,10 +28,11 @@ formatDuration diffTime =
         (h, m, s) -> show h <> "h " <> show m <> "m " <> show s <> "s"
 
 {- |
-Format relative time for display (e.g., "2 minutes ago", "3 hours ago", "just now").
+Format relative time for display (e.g., "2min ago", "3hr ago", "just now").
 
 Converts the difference between two UTCTime values to a human-readable relative time string.
 For differences greater than a week, shows the absolute date instead.
+Uses concise abbreviations for space-constrained UIs.
 -}
 formatRelativeTime :: UTCTime -> UTCTime -> Text
 formatRelativeTime now commitTime =
@@ -43,13 +44,13 @@ formatRelativeTime now commitTime =
         then "just now"
         else
           if minutes < 60
-            then toText (show @Text minutes) <> " minutes ago"
+            then toText (show @Text minutes) <> "min ago"
             else
               if hours < 24
-                then toText (show @Text hours) <> " hours ago"
+                then toText (show @Text hours) <> "hr ago"
                 else
                   if days < 7
-                    then toText (show @Text days) <> " days ago"
+                    then toText (show @Text days) <> "d ago"
                     else toText $ formatTime defaultTimeLocale "%b %d, %Y" commitTime
 
 {- |
