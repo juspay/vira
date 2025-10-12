@@ -47,6 +47,7 @@ import Vira.Tool.Status qualified as ToolStatus
 import Vira.Web.LinkTo.Type (LinkTo (..), linkShortTitle, linkTitle)
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Pages.Common.User qualified as User
+import Vira.Web.Stream.Refresh qualified as Stream
 import Vira.Web.Widgets.Modal qualified as W
 import Vira.Web.Widgets.Status qualified as Status
 import Web.TablerIcons.Outline qualified as Icon
@@ -68,6 +69,14 @@ appLogoUrl = do
     "linux" -> pure "vira-logo-penguin.svg"
     "darwin" -> pure "vira-logo-apple.svg"
     _ -> pure "vira-logo.svg"
+
+-- | Extract SSE event scope from breadcrumbs (rightmost entity wins)
+sseScope :: [LinkTo] -> Maybe Text
+sseScope crumbs = case reverse crumbs of
+  (Job jobId : _) -> Just $ "job:" <> show @Text jobId
+  (RepoBranch repoName _ : _) -> Just $ "repo:" <> toText repoName
+  (Repo repoName : _) -> Just $ "repo:" <> toText repoName
+  _ -> Nothing
 
 -- | Common HTML layout for all routes.
 layout :: [LinkTo] -> AppHtml () -> AppHtml ()
@@ -98,6 +107,8 @@ layout crumbs content = do
           , ".transition-smooth { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }"
           ]
     body_ [class_ "bg-gray-50 dark:bg-gray-900 min-h-screen font-inter"] $ do
+      -- Add SSE listener based on page entity (if any)
+      forM_ (sseScope crumbs) Stream.viewStreamScoped
       -- Global modal container for all pages
       W.viraGlobalModalContainer_
       div_ [class_ "min-h-screen flex flex-col"] $ do

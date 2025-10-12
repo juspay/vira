@@ -17,7 +17,6 @@ import Vira.State.Type
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
 import Vira.Web.Stack qualified as Web
-import Vira.Web.Stream.Refresh qualified as Stream
 import Vira.Web.Widgets.Button qualified as W
 import Vira.Web.Widgets.Commit qualified as W
 import Vira.Web.Widgets.Layout qualified as W
@@ -47,9 +46,6 @@ viewHandler repoName branchName = do
 
 viewBranch :: St.Repo -> St.Branch -> [St.Job] -> AppHtml ()
 viewBranch repo branch jobs = do
-  -- Add SSE listener for this specific repo
-  Stream.viewStreamScoped $ "repo:" <> toText repo.name
-
   -- Branch header with refresh button
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.git_branch)
