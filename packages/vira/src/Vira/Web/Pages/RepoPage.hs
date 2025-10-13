@@ -206,18 +206,18 @@ data BranchStatus = BranchStatus
   }
   deriving stock (Show, Eq)
 
-{- | Prioritizes branches with CI jobs (built/building) over never-built branches.
-Within each group, sorts by commit date descending (most recent first) to surface
-recently active branches. This helps users quickly identify branches that need
-attention or are actively being worked on.
--}
+-- | Sorts branches by head commit date descending (most recent first).
 instance Ord BranchStatus where
   compare a b = compare (sortingKey a) (sortingKey b)
     where
-      sortingKey bs = (Down bs.mHeadCommit, Down $ isJust bs.mLatestJob)
+      sortingKey bs = Down bs.mHeadCommit
 
 -- | Create a 'BranchStatus' for a given branch, fetching required data.
-mkBranchStatus :: (Reader App.ViraRuntimeState Effectful.:> es, IOE Effectful.:> es) => RepoName -> St.Branch -> Eff es BranchStatus
+mkBranchStatus ::
+  (Reader App.ViraRuntimeState Effectful.:> es, IOE Effectful.:> es) =>
+  RepoName ->
+  St.Branch ->
+  Eff es BranchStatus
 mkBranchStatus repoName branch = do
   jobs <- App.query $ St.GetJobsByBranchA repoName branch.branchName
   let mLatestJob = viaNonEmpty head jobs
