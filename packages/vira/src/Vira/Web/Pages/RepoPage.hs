@@ -191,7 +191,7 @@ viewBranchListing repo branches = do
                   span_ [class_ "text-xs text-gray-500 dark:text-gray-400"] "No builds"
 
               -- Status badge
-              viewBranchEffectiveStatus branchStatus.effectiveStatus
+              viewBranchEffectiveStatus (getBranchEffectiveStatus branchStatus)
 
 -- | Data type to hold branch information for sorting and display
 data BranchStatus = BranchStatus
@@ -199,8 +199,6 @@ data BranchStatus = BranchStatus
   -- ^ The branch information from the database
   , mLatestJob :: Maybe St.Job
   -- ^ The most recent CI job for this branch, if any
-  , effectiveStatus :: BranchEffectiveStatus
-  -- ^ The computed status of the branch (built, building, never built, or out of date)
   , mHeadCommit :: Maybe Git.Commit
   -- ^ The commit at the head of the branch, if available
   }
@@ -221,9 +219,8 @@ mkBranchStatus ::
 mkBranchStatus repoName branch = do
   jobs <- App.query $ St.GetJobsByBranchA repoName branch.branchName
   let mLatestJob = viaNonEmpty head jobs
-      effectiveStatus = getBranchEffectiveStatus branch mLatestJob
   mHeadCommit <- App.query $ St.GetCommitByIdA branch.headCommit
-  pure BranchStatus {branchData = branch, mLatestJob, effectiveStatus, mHeadCommit}
+  pure BranchStatus {branchData = branch, mLatestJob, mHeadCommit}
 
 {- | The effective build-status of a branch.
 
@@ -240,12 +237,12 @@ data BranchEffectiveStatus
     OutOfDate
   deriving stock (Show, Eq, Ord)
 
--- | Determine the 'BranchEffectiveStatus' based on its latest job.
-getBranchEffectiveStatus :: St.Branch -> Maybe St.Job -> BranchEffectiveStatus
-getBranchEffectiveStatus branch = \case
+-- | Determine the 'BranchEffectiveStatus' for a branch.
+getBranchEffectiveStatus :: BranchStatus -> BranchEffectiveStatus
+getBranchEffectiveStatus branchStatus = case branchStatus.mLatestJob of
   Nothing -> NeverBuilt
   Just job ->
-    if branch.headCommit == job.commit
+    if branchStatus.branchData.headCommit == job.commit
       then JobStatus job.jobStatus
       else OutOfDate
 
