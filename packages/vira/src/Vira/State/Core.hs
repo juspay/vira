@@ -12,11 +12,14 @@ module Vira.State.Core (
   -- * App initialization
   openViraState,
   closeViraState,
+  startPeriodicArchival,
 
   -- * Version utilities
   viraDbVersion,
 ) where
 
+import Control.Concurrent (forkIO, threadDelay)
+import Control.Exception (IOException, handle)
 import Data.Acid
 import Data.Typeable (typeOf)
 import System.FilePath ((</>))
@@ -52,4 +55,16 @@ It is imperative to call this before shutting down the application, else the sta
 -}
 closeViraState :: AcidState ViraState -> IO ()
 closeViraState st = do
+  putStrLn "Creating checkpoint and archiving..."
+  createCheckpoint st
+  createArchive st
   closeAcidState st
+
+-- | Start background thread for periodic checkpointing and archival
+startPeriodicArchival :: AcidState ViraState -> IO ()
+startPeriodicArchival st = void $ forkIO $ void $ infinitely $ do
+  threadDelay (6 * 3600 * 1000000) -- 6 hours
+  putStrLn "Creating checkpoint and archiving..."
+  handle (\(e :: IOException) -> putStrLn $ "Archive failed: " <> show e) $ do
+    createCheckpoint st
+    createArchive st

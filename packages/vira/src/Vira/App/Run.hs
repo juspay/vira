@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 module Vira.App.Run (
   runVira,
 ) where
@@ -17,7 +19,7 @@ import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.Refresh.Daemon qualified as Daemon
 import Vira.Refresh.Type qualified as Refresh
-import Vira.State.Core (closeViraState, openViraState, viraDbVersion)
+import Vira.State.Core (closeViraState, openViraState, startPeriodicArchival, viraDbVersion)
 import Vira.State.JSON (getExportData, importViraState)
 import Vira.State.Type (ViraState)
 import Vira.Supervisor.Core qualified as Supervisor
@@ -59,6 +61,7 @@ runVira = do
         refreshState <- Refresh.newRefreshState
         let viraRuntimeState = App.ViraRuntimeState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.updateBroadcast = stateUpdateBuffer, App.tools = toolsVar, App.refreshState = refreshState}
             appServer = do
+              liftIO $ startPeriodicArchival acid
               Daemon.startRefreshDaemon
               Server.runServer globalSettings webSettings
         App.runApp globalSettings viraRuntimeState appServer
@@ -91,5 +94,6 @@ runVira = do
         Right () -> do
           putTextLn $ "Imported from: " <> maybe "stdin" toText mFilePath
 
-    withViraState globalSettings action = do
-      bracket (openViraState (stateDir globalSettings) (autoResetState globalSettings)) closeViraState action
+    withViraState gs =
+      openViraState gs.stateDir gs.autoResetState
+        `bracket` closeViraState
