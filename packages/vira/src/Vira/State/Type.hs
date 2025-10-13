@@ -44,12 +44,12 @@ data Branch = Branch
   -- ^ The name of the repository this branch belongs to
   , branchName :: BranchName
   -- ^ The name of the branch
-  , headCommit :: CommitID
+  , headCommit :: Commit
   -- ^ The commit at the head of the branch
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
-type BranchIxs = '[RepoName, BranchName, CommitID]
+type BranchIxs = '[RepoName, BranchName]
 type IxBranch = IxSet BranchIxs Branch
 
 instance Indexable BranchIxs Branch where
@@ -57,7 +57,6 @@ instance Indexable BranchIxs Branch where
     ixList
       (ixFun $ \Branch {repoName} -> [repoName])
       (ixFun $ \Branch {branchName} -> [branchName])
-      (ixFun $ \Branch {headCommit} -> [headCommit])
 
 -- | Branch with enriched metadata for display
 data BranchDetails = BranchDetails
@@ -65,8 +64,6 @@ data BranchDetails = BranchDetails
   -- ^ The branch information from the database
   , mLatestJob :: Maybe Job
   -- ^ The most recent CI job for this branch, if any
-  , mHeadCommit :: Maybe Commit
-  -- ^ The commit at the head of the branch, if available
   , jobsCount :: Natural
   -- ^ Total number of jobs for this branch
   }
@@ -74,7 +71,7 @@ data BranchDetails = BranchDetails
 
 -- | Sorts branches by head commit date descending (most recent first).
 instance Ord BranchDetails where
-  compare a b = compare (Down a.mHeadCommit) (Down b.mHeadCommit)
+  compare a b = compare (Down a.branch.headCommit) (Down b.branch.headCommit)
 
 newtype JobId = JobId {unJobId :: Natural}
   deriving stock (Generic, Data)
@@ -171,4 +168,4 @@ The version is automatically used by the --auto-reset-state feature to detect sc
 When enabled, auto-reset will remove ViraState/ and workspace/*/jobs directories on mismatch.
 Run `vira info` to see the current schema version.
 -}
-$(deriveSafeCopy 0 'base ''ViraState)
+$(deriveSafeCopy 1 'base ''ViraState)

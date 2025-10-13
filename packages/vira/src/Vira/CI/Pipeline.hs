@@ -3,8 +3,11 @@
 
 module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
 
+import Prelude hiding (id)
+
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
+import Effectful.Git (Commit (..))
 import Effectful.Git qualified as Git
 import Language.Haskell.Interpreter (InterpreterError (..))
 import Shower qualified
@@ -17,7 +20,7 @@ import Vira.CI.Environment qualified as Env
 import Vira.CI.Error
 import Vira.CI.Pipeline.Type
 import Vira.CI.Processes (pipelineProcesses)
-import Vira.State.Type (cloneUrl, headCommit)
+import Vira.State.Type (Branch (..), cloneUrl)
 import Vira.Supervisor.Task qualified as Task
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
@@ -28,7 +31,7 @@ runPipeline ::
 runPipeline env = do
   -- 1. Setup workspace and clone
   let setupProcs =
-        one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit Env.projectDirName
+        one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit.id Env.projectDirName
   Task.runProcesses setupProcs >>= \case
     Left err ->
       pure $ Left $ PipelineTerminated err

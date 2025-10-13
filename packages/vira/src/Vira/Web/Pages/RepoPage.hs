@@ -8,7 +8,7 @@ module Vira.Web.Pages.RepoPage (
 import Data.Time (diffUTCTime)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
-import Effectful.Git (RepoName)
+import Effectful.Git (Commit (..), RepoName)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (..))
@@ -165,7 +165,7 @@ viewBranchListing repo branchDetails = do
 
             -- Column 2: Last update info (5 columns)
             div_ [class_ "col-span-5 min-w-0"] $ do
-              W.viraCommitInfoCompact_ details.mHeadCommit
+              W.viraCommitInfoCompact_ (Just details.branch.headCommit)
 
             -- Column 3: Build info and status (3 columns)
             div_ [class_ "col-span-3 flex items-center justify-end space-x-2"] $ do
@@ -206,7 +206,7 @@ getBranchEffectiveStatus :: BranchDetails -> BranchEffectiveStatus
 getBranchEffectiveStatus details = case details.mLatestJob of
   Nothing -> NeverBuilt
   Just job ->
-    if details.branch.headCommit == job.commit
+    if details.branch.headCommit.id == job.commit
       then JobStatus job.jobStatus
       else OutOfDate
 

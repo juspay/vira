@@ -5,7 +5,7 @@ module Vira.Web.Pages.JobPage where
 import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
-import Effectful.Git (BranchName, RepoName)
+import Effectful.Git (BranchName, Commit (..), RepoName)
 import Effectful.Reader.Dynamic (asks)
 import GHC.IO.Exception (ExitCode (..))
 import Htmx.Servant.Response
@@ -166,7 +166,7 @@ triggerNewBuild repoName branchName = do
   asks App.supervisor >>= \supervisor -> do
     creationTime <- liftIO getCurrentTime
     let baseDir = Workspace.repoJobsDir supervisor repo.name
-    job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit baseDir creationTime
+    job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit.id baseDir creationTime
     log Info $ "Added job " <> show job
     viraEnv <- environmentFor repo branch job.jobWorkingDir
     Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (Pipeline.runPipeline viraEnv) $ \result -> do

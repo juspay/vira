@@ -4,7 +4,7 @@ module Vira.Web.Pages.BranchPage where
 
 import Data.Time (diffUTCTime)
 import Effectful.Error.Static (throwError)
-import Effectful.Git (BranchName, RepoName)
+import Effectful.Git (BranchName, Commit (..), RepoName)
 import Lucid
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -55,7 +55,7 @@ viewBranch repo branch jobs = do
           span_ [class_ "text-sm shrink-0"] "Latest commit:"
           div_ [class_ "flex items-center space-x-2 min-w-0"] $ do
             div_ [class_ "w-4 h-4 flex items-center justify-center shrink-0"] $ toHtmlRaw Icon.git_commit
-            div_ [class_ "min-w-0"] $ W.viraCommitInfo_ branch.headCommit
+            div_ [class_ "min-w-0"] $ W.viraCommitInfo_ branch.headCommit.id
         div_ [class_ "flex items-center gap-2"] $ do
           buildLink <- lift $ getLink $ LinkTo.Build repo.name branch.branchName
           W.viraRequestButton_
@@ -82,7 +82,7 @@ viewCommitTimeline branch jobs = do
         div_ [class_ "w-5 h-5 mr-3 flex items-center justify-center text-gray-500 dark:text-gray-400"] $ toHtmlRaw Icon.git_commit
         div_ [class_ "flex-1"] $ do
           div_ [class_ "flex items-center space-x-4"] $ do
-            W.viraCommitInfo_ branch.headCommit
+            W.viraCommitInfo_ branch.headCommit.id
             span_ [class_ "text-sm text-gray-500 dark:text-gray-400"] "No builds yet"
 
     -- Show all jobs for this branch

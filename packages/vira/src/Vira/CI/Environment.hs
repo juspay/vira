@@ -10,6 +10,7 @@ module Vira.CI.Environment (
 ) where
 
 import Effectful (Eff, IOE, (:>))
+import Effectful.Git (Commit (..))
 import Effectful.Reader.Dynamic qualified as Reader
 import System.FilePath ((</>))
 import Vira.App.Type (ViraRuntimeState)
@@ -52,8 +53,7 @@ environmentFor repo branch workspacePath = do
 -- | Extract ViraContext from ViraEnvironment
 viraContext :: ViraEnvironment -> ViraContext
 viraContext env =
-  let envBranch = env.branch
-   in ViraContext
-        { branch = envBranch.branchName
-        , commit = envBranch.headCommit
-        }
+  ViraContext
+    { branch = env.branch.branchName
+    , commit = env.branch.headCommit.id
+    }

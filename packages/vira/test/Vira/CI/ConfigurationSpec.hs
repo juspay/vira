@@ -6,7 +6,8 @@ module Vira.CI.ConfigurationSpec (spec) where
 
 import Attic.Config (AtticConfig (..))
 import Data.Map.Strict qualified as Map
-import Effectful.Git (BranchName (..), CommitID (..), RepoName (..))
+import Data.Time (UTCTime (UTCTime), fromGregorian, secondsToDiffTime)
+import Effectful.Git (BranchName (..), Commit (..), CommitID (..), RepoName (..))
 import GH.Auth.Status (AuthStatus (..))
 import Paths_vira (getDataFileName)
 import Test.Hspec
@@ -31,7 +32,14 @@ testBranchStaging =
   Branch
     { repoName = RepoName "test-repo"
     , branchName = BranchName "staging"
-    , headCommit = CommitID "abc123"
+    , headCommit =
+        Commit
+          { id = CommitID "abc123"
+          , message = "Test commit"
+          , date = UTCTime (fromGregorian 2024 1 1) (secondsToDiffTime 0)
+          , author = "Test Author"
+          , authorEmail = "test@example.com"
+          }
     }
 
 -- Empty test tools
