@@ -52,7 +52,7 @@ handlers globalSettings viraRuntimeState webSettings name = do
     { _view = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml $ viewHandler name
     , _update = Web.runAppInServant globalSettings viraRuntimeState webSettings $ updateHandler name
     , _delete = Web.runAppInServant globalSettings viraRuntimeState webSettings $ deleteHandler name
-    , _filterBranches = \mQuery -> Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml $ filterBranchesHandler name mQuery
+    , _filterBranches = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml . filterBranchesHandler name
     }
 
 viewHandler :: RepoName -> AppHtml ()

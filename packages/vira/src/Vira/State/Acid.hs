@@ -13,8 +13,8 @@ import Data.Acid (Query, Update, makeAcidic)
 import Data.IxSet.Typed
 import Data.IxSet.Typed qualified as Ix
 import Data.List (maximum)
-import Data.Text qualified as T
 import Data.Map.Strict qualified as Map
+import Data.Text qualified as T
 import Data.Time (UTCTime)
 import Effectful.Git (BranchName, Commit (..), CommitID, RepoName)
 import System.FilePath ((</>))
@@ -56,7 +56,7 @@ getRepoByNameA name = do
   ViraState {repos} <- ask
   pure $ Ix.getOne $ repos @= name
 
--- | Get all branches of a repository with enriched metadata
+-- | Get all branches of a repository with enriched metadata, sorted by branch name
 getBranchesByRepoA :: RepoName -> Maybe Text -> Maybe Int -> Query ViraState [BranchDetails]
 getBranchesByRepoA name mFilter mLimit = do
   ViraState {branches, jobs} <- ask
@@ -66,15 +66,17 @@ getBranchesByRepoA name mFilter mLimit = do
         Just filterText ->
           let lowerFilter = T.toLower filterText
            in filter (\b -> T.isInfixOf lowerFilter (T.toLower (toText b.branchName))) repoBranches
+      enriched =
+        filtered <&> \branch ->
+          let branchJobs = Ix.toDescList (Proxy @JobId) $ jobs @= name @= branch.branchName
+              mLatestJob = viaNonEmpty head branchJobs
+              jobsCount = fromIntegral $ length branchJobs
+           in BranchDetails {branch, mLatestJob, jobsCount}
+      sorted = sort enriched
       limited = case mLimit of
-        Nothing -> filtered
-        Just limit -> take limit filtered
-  pure $
-    limited <&> \branch ->
-      let branchJobs = Ix.toDescList (Proxy @JobId) $ jobs @= name @= branch.branchName
-          mLatestJob = viaNonEmpty head branchJobs
-          jobsCount = fromIntegral $ length branchJobs
-       in BranchDetails {branch, mLatestJob, jobsCount}
+        Nothing -> sorted
+        Just limit -> take limit sorted
+  pure limited
 
 -- | Get a repo's branch by name
 getBranchByNameA :: RepoName -> BranchName -> Query ViraState (Maybe Branch)
