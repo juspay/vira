@@ -60,20 +60,24 @@ getRepoByNameA name = do
 getBranchesByRepoA :: RepoName -> Maybe Text -> Query ViraState [BranchDetails]
 getBranchesByRepoA name mFilter = do
   ViraState {branches, jobs} <- ask
-  let repoBranches = Ix.toList $ branches @= name
-      filtered = case mFilter of
-        Nothing -> repoBranches
-        Just filterText ->
-          let lowerFilter = T.toLower filterText
-           in filter (\b -> T.isInfixOf lowerFilter (T.toLower (toText b.branchName))) repoBranches
-      enriched =
-        filtered <&> \branch ->
-          let branchJobs = Ix.toDescList (Proxy @JobId) $ jobs @= name @= branch.branchName
-              mLatestJob = viaNonEmpty head branchJobs
-              jobsCount = fromIntegral $ length branchJobs
-           in BranchDetails {branch, mLatestJob, jobsCount}
-      sorted = sort enriched
-  pure sorted
+  pure
+    . sort
+    . fmap (enrichBranch jobs)
+    . filter (matchesFilter mFilter)
+    . Ix.toList
+    $ branches @= name
+  where
+    matchesFilter Nothing _ = True
+    matchesFilter (Just s) branch =
+      T.toLower s `T.isInfixOf` T.toLower (toText branch.branchName)
+
+    enrichBranch jobsIx branch =
+      let branchJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= name @= branch.branchName
+       in BranchDetails
+            { branch
+            , mLatestJob = viaNonEmpty head branchJobs
+            , jobsCount = fromIntegral $ length branchJobs
+            }
 
 -- | Get a repo's branch by name
 getBranchByNameA :: RepoName -> BranchName -> Query ViraState (Maybe Branch)

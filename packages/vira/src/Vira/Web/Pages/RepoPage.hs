@@ -46,6 +46,10 @@ data Routes mode = Routes
 crumbs :: [LinkTo.LinkTo]
 crumbs = [LinkTo.RepoListing]
 
+-- | Maximum number of branches to display
+maxBranchesDisplayed :: Int
+maxBranchesDisplayed = 20
+
 handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> RepoName -> Routes AsServer
 handlers globalSettings viraRuntimeState webSettings name = do
   Routes
@@ -59,15 +63,15 @@ viewHandler :: RepoName -> AppHtml ()
 viewHandler name = do
   repo <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   allBranches <- lift $ App.query (St.GetBranchesByRepoA name Nothing)
-  let branchDetails = take 20 allBranches
-      isPruned = length allBranches > 20
+  let branchDetails = take maxBranchesDisplayed allBranches
+      isPruned = length allBranches > maxBranchesDisplayed
   W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branchDetails isPruned
 
 filterBranchesHandler :: RepoName -> Maybe Text -> AppHtml ()
 filterBranchesHandler name mQuery = do
   allBranches <- lift $ App.query (St.GetBranchesByRepoA name mQuery)
-  let branchDetails = take 20 allBranches
-      isPruned = length allBranches > 20
+  let branchDetails = take maxBranchesDisplayed allBranches
+      isPruned = length allBranches > maxBranchesDisplayed
   repo <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   viewBranchListing repo branchDetails isPruned
 
@@ -169,7 +173,7 @@ viewBranchListing repo branchDetails isPruned = do
     div_ [class_ "mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"] $ do
       div_ [class_ "flex items-center text-sm text-yellow-800 dark:text-yellow-200"] $ do
         div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.alert_circle
-        span_ "Showing first 20 branches. Use the filter to narrow results."
+        span_ $ toHtml $ "Showing first " <> show @Text maxBranchesDisplayed <> " branches. Use the filter to narrow results."
 
   div_ [class_ "space-y-2"] $ do
     forM_ branchDetails $ \details -> do
