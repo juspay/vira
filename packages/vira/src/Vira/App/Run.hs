@@ -61,7 +61,7 @@ runVira = do
         refreshState <- Refresh.newRefreshState
         let viraRuntimeState = App.ViraRuntimeState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.updateBroadcast = stateUpdateBuffer, App.tools = toolsVar, App.refreshState = refreshState}
             appServer = do
-              liftIO $ startPeriodicArchival acid
+              startPeriodicArchival acid
               Daemon.startRefreshDaemon
               Server.runServer globalSettings webSettings
         App.runApp globalSettings viraRuntimeState appServer

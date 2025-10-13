@@ -18,11 +18,18 @@ module Vira.State.Core (
   viraDbVersion,
 ) where
 
-import Control.Concurrent (forkIO, threadDelay)
+import Colog.Core (Severity (..))
+import Colog.Message (Message)
 import Control.Exception (IOException, handle)
 import Data.Acid
+import Data.Acid.Local (createCheckpointAndClose)
 import Data.Typeable (typeOf)
+import Effectful (Eff, IOE, (:>))
+import Effectful.Colog (Log)
+import Effectful.Concurrent (Concurrent, threadDelay)
+import Effectful.Concurrent.Async (async)
 import System.FilePath ((</>))
+import Vira.Lib.Logging (log)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Reset (checkSchemaVersion, viraDbVersion, writeSchemaVersion)
 import Vira.State.Type
@@ -51,20 +58,23 @@ openViraState stateDir autoResetState = do
 
 {- | Close vira database
 
-It is imperative to call this before shutting down the application, else the state can remain locked.
+It is imperative to call this before shutting down the application, else the
+state can remain locked.
 -}
 closeViraState :: AcidState ViraState -> IO ()
 closeViraState st = do
-  putStrLn "Creating checkpoint and archiving..."
-  createCheckpoint st
-  createArchive st
-  closeAcidState st
+  putStrLn "Creating checkpoint before closing..."
+  createCheckpointAndClose st
 
 -- | Start background thread for periodic checkpointing and archival
-startPeriodicArchival :: AcidState ViraState -> IO ()
-startPeriodicArchival st = void $ forkIO $ void $ infinitely $ do
-  threadDelay (6 * 3600 * 1000000) -- 6 hours
-  putStrLn "Creating checkpoint and archiving..."
-  handle (\(e :: IOException) -> putStrLn $ "Archive failed: " <> show e) $ do
-    createCheckpoint st
-    createArchive st
+startPeriodicArchival ::
+  (IOE :> es, Log Message :> es, Concurrent :> es) =>
+  AcidState ViraState ->
+  Eff es ()
+startPeriodicArchival st =
+  void $ async $ infinitely $ do
+    threadDelay (6 * 3600 * 1000000) -- 6 hours
+    log Info "Creating checkpoint and archiving..."
+    liftIO $ handle (\(e :: IOException) -> putStrLn $ "Archive failed: " <> show e) $ do
+      createCheckpoint st
+      createArchive st
