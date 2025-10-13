@@ -15,6 +15,7 @@ data LinkTo
   | RepoUpdate RepoName
   | RepoDelete RepoName
   | RepoAdd
+  | RepoBranchFilter RepoName
   | Build RepoName BranchName
   | RepoBranch RepoName BranchName
   | Job JobId
@@ -32,6 +33,7 @@ linkShortTitle = \case
   RepoUpdate _ -> "Update" -- unused
   RepoDelete _ -> "Delete Repository"
   RepoAdd -> "Add Repository"
+  RepoBranchFilter _ -> "Filter Branches" -- unused
   Build _ _ -> "Build" -- unused
   RepoBranch _ branchName -> toStringText branchName
   Job jobId -> "Job " <> show jobId

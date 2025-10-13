@@ -14,6 +14,7 @@ import Data.IxSet.Typed
 import Data.IxSet.Typed qualified as Ix
 import Data.List (maximum)
 import Data.Map.Strict qualified as Map
+import Data.Text qualified as T
 import Data.Time (UTCTime)
 import Effectful.Git (BranchName, Commit (..), CommitID, RepoName)
 import System.FilePath ((</>))
@@ -55,17 +56,28 @@ getRepoByNameA name = do
   ViraState {repos} <- ask
   pure $ Ix.getOne $ repos @= name
 
--- | Get all branches of a repository with enriched metadata
-getBranchesByRepoA :: RepoName -> Query ViraState [BranchDetails]
-getBranchesByRepoA name = do
+-- | Get all branches (sorted) of a repository with enriched metadata
+getBranchesByRepoA :: RepoName -> Maybe Text -> Query ViraState [BranchDetails]
+getBranchesByRepoA name mFilter = do
   ViraState {branches, jobs} <- ask
-  let repoBranches = Ix.toList $ branches @= name
-  pure $
-    repoBranches <&> \branch ->
-      let branchJobs = Ix.toDescList (Proxy @JobId) $ jobs @= name @= branch.branchName
-          mLatestJob = viaNonEmpty head branchJobs
-          jobsCount = fromIntegral $ length branchJobs
-       in BranchDetails {branch, mLatestJob, jobsCount}
+  pure
+    . sort
+    . fmap (enrichBranch jobs)
+    . filter (matchesFilter mFilter)
+    . Ix.toList
+    $ branches @= name
+  where
+    matchesFilter Nothing _ = True
+    matchesFilter (Just s) branch =
+      T.toLower s `T.isInfixOf` T.toLower (toText branch.branchName)
+
+    enrichBranch jobsIx branch =
+      let branchJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= name @= branch.branchName
+       in BranchDetails
+            { branch
+            , mLatestJob = viaNonEmpty head branchJobs
+            , jobsCount = fromIntegral $ length branchJobs
+            }
 
 -- | Get a repo's branch by name
 getBranchByNameA :: RepoName -> BranchName -> Query ViraState (Maybe Branch)
