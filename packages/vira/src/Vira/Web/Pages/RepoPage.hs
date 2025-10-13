@@ -35,7 +35,6 @@ import Vira.Web.Widgets.Modal (ErrorModal (..))
 import Vira.Web.Widgets.Status qualified as Status
 import Vira.Web.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
-import Prelude hiding (Reader, ask, asks)
 
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
