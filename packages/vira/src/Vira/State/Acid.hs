@@ -56,7 +56,7 @@ getRepoByNameA name = do
   ViraState {repos} <- ask
   pure $ Ix.getOne $ repos @= name
 
--- | Get all branches of a repository with enriched metadata, sorted by branch name
+-- | Get all branches (sorted) of a repository with enriched metadata
 getBranchesByRepoA :: RepoName -> Maybe Text -> Query ViraState [BranchDetails]
 getBranchesByRepoA name mFilter = do
   ViraState {branches, jobs} <- ask
