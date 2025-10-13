@@ -6,11 +6,9 @@ module Vira.Web.Pages.RepoPage (
 ) where
 
 import Data.Time (diffUTCTime)
-import Effectful (Eff, IOE, (:>))
+import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (RepoName)
-import Effectful.Git qualified as Git
-import Effectful.Reader.Dynamic (Reader)
 import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (..))
@@ -25,7 +23,7 @@ import Vira.Refresh.Core qualified as Refresh
 import Vira.Refresh.Type (RefreshPriority (Now))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type
+import Vira.State.Type (BranchDetails (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
 import Vira.Web.Stack qualified as Web
@@ -60,9 +58,8 @@ handlers globalSettings viraRuntimeState webSettings name = do
 viewHandler :: RepoName -> AppHtml ()
 viewHandler name = do
   repo <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  branches <- lift $ App.query $ St.GetBranchesByRepoA name
-  allJobs <- lift $ App.query $ St.GetJobsByRepoA repo.name
-  W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branches allJobs
+  branchDetails <- lift $ App.query $ St.GetBranchesByRepoA name
+  W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branchDetails
 
 updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
@@ -79,8 +76,8 @@ deleteHandler name = do
     Nothing ->
       throwError err404
 
-viewRepo :: St.Repo -> [St.Branch] -> [St.Job] -> AppHtml ()
-viewRepo repo branches _allJobs = do
+viewRepo :: St.Repo -> [BranchDetails] -> AppHtml ()
+viewRepo repo branchDetails = do
   -- Repository header with smart refresh button
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.book_2)
@@ -102,7 +99,7 @@ viewRepo repo branches _allJobs = do
           h2_ [class_ "text-2xl font-bold text-gray-800 dark:text-gray-100"] "Branches"
           div_ [class_ "ml-auto text-sm text-gray-500 dark:text-gray-400"] $
             toHtml $
-              show @Text (length branches) <> " branches"
+              show @Text (length branchDetails) <> " branches"
         div_ [class_ "h-px bg-gray-200 dark:bg-gray-700"] mempty
 
       -- Branch filter input
@@ -115,11 +112,11 @@ viewRepo repo branches _allJobs = do
         div_ [class_ "mt-2 text-xs text-gray-600 dark:text-gray-400", id_ "branch-count"] mempty
 
       -- Branch listing
-      if null branches
+      if null branchDetails
         then div_ [class_ "text-center py-12"] $ do
           div_ [class_ "text-gray-500 dark:text-gray-400 mb-4"] "No branches found"
           div_ [class_ "text-sm text-gray-400 dark:text-gray-500"] "Click Refresh to fetch branches from remote"
-        else viewBranchListing repo branches
+        else viewBranchListing repo branchDetails
 
     -- Delete button at bottom
     div_ [class_ "mt-8 pt-8 border-t border-gray-200 dark:border-gray-700"] $ do
@@ -147,17 +144,15 @@ viewRepo repo branches _allJobs = do
                 "Delete Repository"
 
 -- Branch listing component for repository page
-viewBranchListing :: St.Repo -> [St.Branch] -> AppHtml ()
-viewBranchListing repo branches = do
-  branchStatuses <- lift $ mkBranchStatus repo.name `mapM` branches
-
+viewBranchListing :: St.Repo -> [BranchDetails] -> AppHtml ()
+viewBranchListing repo branchDetails = do
   div_ [class_ "space-y-2"] $ do
-    forM_ (sort branchStatuses) $ \branchStatus -> do
-      branchUrl <- lift $ getLinkUrl $ LinkTo.RepoBranch repo.name branchStatus.branchData.branchName
+    forM_ (sort branchDetails) $ \details -> do
+      branchUrl <- lift $ getLinkUrl $ LinkTo.RepoBranch repo.name details.branch.branchName
       a_
         [ href_ branchUrl
         , class_ "block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-        , data_ "branch-item" (toText branchStatus.branchData.branchName)
+        , data_ "branch-item" (toText details.branch.branchName)
         ]
         $ do
           -- Single-line columnar layout for easy scanning
@@ -167,18 +162,17 @@ viewBranchListing repo branches = do
               div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"] $ toHtmlRaw Icon.git_branch
               h3_ [class_ "text-sm font-semibold text-gray-900 dark:text-gray-100 truncate"] $
                 toHtml $
-                  toText branchStatus.branchData.branchName
+                  toText details.branch.branchName
 
             -- Column 2: Last update info (5 columns)
             div_ [class_ "col-span-5 min-w-0"] $ do
-              W.viraCommitInfoCompact_ branchStatus.mHeadCommit
+              W.viraCommitInfoCompact_ details.mHeadCommit
 
             -- Column 3: Build info and status (3 columns)
             div_ [class_ "col-span-3 flex items-center justify-end space-x-2"] $ do
               -- Build duration and metadata
-              case branchStatus.mLatestJob of
+              case details.mLatestJob of
                 Just latestJob -> do
-                  jobs <- lift $ App.query $ St.GetJobsByBranchA repo.name branchStatus.branchData.branchName
                   div_ [class_ "flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400"] $ do
                     case St.jobEndTime latestJob of
                       Just endTime -> do
@@ -186,46 +180,17 @@ viewBranchListing repo branches = do
                         Time.viraDuration_ duration
                       Nothing -> mempty
                     span_ $ "#" <> toHtml (show @Text latestJob.jobId)
-                    span_ $ "(" <> toHtml (show @Text (length jobs)) <> ")"
+                    span_ $ "(" <> toHtml (show @Text details.jobsCount) <> ")"
                 Nothing ->
                   span_ [class_ "text-xs text-gray-500 dark:text-gray-400"] "No builds"
 
               -- Status badge
-              viewBranchEffectiveStatus (getBranchEffectiveStatus branchStatus)
-
--- | Data type to hold branch information for sorting and display
-data BranchStatus = BranchStatus
-  { branchData :: St.Branch
-  -- ^ The branch information from the database
-  , mLatestJob :: Maybe St.Job
-  -- ^ The most recent CI job for this branch, if any
-  , mHeadCommit :: Maybe Git.Commit
-  -- ^ The commit at the head of the branch, if available
-  }
-  deriving stock (Show, Eq)
-
--- | Sorts branches by head commit date descending (most recent first).
-instance Ord BranchStatus where
-  compare a b = compare (sortingKey a) (sortingKey b)
-    where
-      sortingKey bs = Down bs.mHeadCommit
-
--- | Create a 'BranchStatus' for a given branch, fetching required data.
-mkBranchStatus ::
-  (Reader App.ViraRuntimeState Effectful.:> es, IOE Effectful.:> es) =>
-  RepoName ->
-  St.Branch ->
-  Eff es BranchStatus
-mkBranchStatus repoName branch = do
-  jobs <- App.query $ St.GetJobsByBranchA repoName branch.branchName
-  let mLatestJob = viaNonEmpty head jobs
-  mHeadCommit <- App.query $ St.GetCommitByIdA branch.headCommit
-  pure BranchStatus {branchData = branch, mLatestJob, mHeadCommit}
+              viewBranchEffectiveStatus (getBranchEffectiveStatus details)
 
 {- | The effective build-status of a branch.
 
 This type represents the computed status of a branch based on its CI job history
-and current head commit. Used in 'BranchStatus' and computed by
+and current head commit. Used in 'BranchDetails' and computed by
 'getBranchEffectiveStatus'.
 -}
 data BranchEffectiveStatus
@@ -238,11 +203,11 @@ data BranchEffectiveStatus
   deriving stock (Show, Eq, Ord)
 
 -- | Determine the 'BranchEffectiveStatus' for a branch.
-getBranchEffectiveStatus :: BranchStatus -> BranchEffectiveStatus
-getBranchEffectiveStatus branchStatus = case branchStatus.mLatestJob of
+getBranchEffectiveStatus :: BranchDetails -> BranchEffectiveStatus
+getBranchEffectiveStatus details = case details.mLatestJob of
   Nothing -> NeverBuilt
   Just job ->
-    if branchStatus.branchData.headCommit == job.commit
+    if details.branch.headCommit == job.commit
       then JobStatus job.jobStatus
       else OutOfDate
 

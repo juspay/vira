@@ -9,7 +9,7 @@ import Data.Data (Data)
 import Data.IxSet.Typed
 import Data.SafeCopy
 import Data.Time (UTCTime)
-import Effectful.Git (BranchName, CommitID, IxCommit, RepoName (..))
+import Effectful.Git (BranchName, Commit, CommitID, IxCommit, RepoName (..))
 import Servant.API (FromHttpApiData, ToHttpApiData)
 import Vira.Refresh.Type (RefreshResult)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
@@ -58,6 +58,23 @@ instance Indexable BranchIxs Branch where
       (ixFun $ \Branch {repoName} -> [repoName])
       (ixFun $ \Branch {branchName} -> [branchName])
       (ixFun $ \Branch {headCommit} -> [headCommit])
+
+-- | Branch with enriched metadata for display
+data BranchDetails = BranchDetails
+  { branch :: Branch
+  -- ^ The branch information from the database
+  , mLatestJob :: Maybe Job
+  -- ^ The most recent CI job for this branch, if any
+  , mHeadCommit :: Maybe Commit
+  -- ^ The commit at the head of the branch, if available
+  , jobsCount :: Natural
+  -- ^ Total number of jobs for this branch
+  }
+  deriving stock (Generic, Show, Eq)
+
+-- | Sorts branches by head commit date descending (most recent first).
+instance Ord BranchDetails where
+  compare a b = compare (Down a.mHeadCommit) (Down b.mHeadCommit)
 
 newtype JobId = JobId {unJobId :: Natural}
   deriving stock (Generic, Data)
@@ -146,6 +163,7 @@ $(deriveSafeCopy 0 'base ''JobStatus)
 $(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
 $(deriveSafeCopy 0 'base ''Branch)
+$(deriveSafeCopy 0 'base ''BranchDetails)
 $(deriveSafeCopy 0 'base ''Repo)
 
 {- | IMPORTANT: Increment the version number when making breaking changes to ViraState or its indexed types.
