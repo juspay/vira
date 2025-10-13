@@ -55,11 +55,17 @@ getRepoByNameA name = do
   ViraState {repos} <- ask
   pure $ Ix.getOne $ repos @= name
 
--- | Get all branches of a repository
-getBranchesByRepoA :: RepoName -> Query ViraState [Branch]
+-- | Get all branches of a repository with enriched metadata
+getBranchesByRepoA :: RepoName -> Query ViraState [BranchDetails]
 getBranchesByRepoA name = do
-  ViraState {branches} <- ask
-  pure $ Ix.toList $ branches @= name
+  ViraState {branches, jobs} <- ask
+  let repoBranches = Ix.toList $ branches @= name
+  pure $
+    repoBranches <&> \branch ->
+      let branchJobs = Ix.toDescList (Proxy @JobId) $ jobs @= name @= branch.branchName
+          mLatestJob = viaNonEmpty head branchJobs
+          jobsCount = fromIntegral $ length branchJobs
+       in BranchDetails {branch, mLatestJob, jobsCount}
 
 -- | Get a repo's branch by name
 getBranchByNameA :: RepoName -> BranchName -> Query ViraState (Maybe Branch)
@@ -80,7 +86,7 @@ setRepoBranchesA :: RepoName -> Map BranchName Commit -> Update ViraState ()
 setRepoBranchesA repo branches = do
   modify $ \s ->
     let
-      repoBranches = Map.toList branches <&> \(branchName, commit) -> Branch repo branchName commit.id
+      repoBranches = Map.toList branches <&> uncurry (Branch repo)
       commits = Map.elems branches
      in
       s
@@ -107,12 +113,6 @@ getJobsByBranchA :: RepoName -> BranchName -> Query ViraState [Job]
 getJobsByBranchA repo branch = do
   ViraState {jobs} <- ask
   pure $ Ix.toDescList (Proxy @JobId) $ jobs @= repo @= branch
-
--- | Get all jobs of a repository (across all branches) in descending order by JobId
-getJobsByRepoA :: RepoName -> Query ViraState [Job]
-getJobsByRepoA repo = do
-  ViraState {jobs} <- ask
-  pure $ Ix.toDescList (Proxy @JobId) $ jobs @= repo
 
 -- | Get all running jobs
 getRunningJobs :: Query ViraState [Job]
@@ -192,7 +192,6 @@ $( makeAcidic
     , 'getCommitByIdA
     , 'storeCommitA
     , 'getJobsByBranchA
-    , 'getJobsByRepoA
     , 'getRunningJobs
     , 'getJobA
     , 'addNewJobA
