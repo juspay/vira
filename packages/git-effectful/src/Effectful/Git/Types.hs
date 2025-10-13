@@ -37,7 +37,10 @@ data Commit = Commit
   , authorEmail :: Text
   -- ^ The commit author email
   }
-  deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
+  deriving stock (Generic, Show, Typeable, Data, Eq)
+
+instance Ord Commit where
+  compare a b = compare a.date b.date
 
 -- | Git commit hash
 newtype CommitID = CommitID {unCommitID :: Text}

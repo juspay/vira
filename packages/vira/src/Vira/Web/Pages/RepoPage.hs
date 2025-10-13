@@ -5,8 +5,7 @@ module Vira.Web.Pages.RepoPage (
   handlers,
 ) where
 
-import Data.Time (UTCTime (..), diffUTCTime)
-import Data.Time.Calendar (fromGregorian)
+import Data.Time (diffUTCTime)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (throwError)
 import Effectful.Git (RepoName)
@@ -215,8 +214,7 @@ attention or are actively being worked on.
 instance Ord BranchStatus where
   compare a b = compare (sortingKey a) (sortingKey b)
     where
-      sortingKey bs = (Down $ isJust bs.mLatestJob, Down $ maybe defaultTime (.date) bs.mHeadCommit)
-      defaultTime = UTCTime (fromGregorian 1900 1 1) 0
+      sortingKey bs = (Down bs.mHeadCommit, Down $ isJust bs.mLatestJob)
 
 -- | Create a 'BranchStatus' for a given branch, fetching required data.
 mkBranchStatus :: (Reader App.ViraRuntimeState Effectful.:> es, IOE Effectful.:> es) => RepoName -> St.Branch -> Eff es BranchStatus
