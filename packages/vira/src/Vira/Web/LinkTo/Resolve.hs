@@ -21,6 +21,7 @@ linkTo = \case
   RepoUpdate name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._update
   RepoDelete name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._delete
   RepoAdd -> fieldLink _repos // RegistryPage._addRepo
+  RepoBranchFilter name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._filterBranches /: (Nothing :: Maybe Text)
   Build repo branch -> fieldLink _jobs // JobPage._build /: repo /: branch
   RepoBranch repo branch -> fieldLink _repos // RegistryPage._branch /: repo /: branch // BranchPage._view
   Job jobId -> fieldLink _jobs // JobPage._view /: jobId

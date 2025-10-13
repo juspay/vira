@@ -13,6 +13,7 @@ import Data.Acid (Query, Update, makeAcidic)
 import Data.IxSet.Typed
 import Data.IxSet.Typed qualified as Ix
 import Data.List (maximum)
+import Data.Text qualified as T
 import Data.Map.Strict qualified as Map
 import Data.Time (UTCTime)
 import Effectful.Git (BranchName, Commit (..), CommitID, RepoName)
@@ -56,12 +57,20 @@ getRepoByNameA name = do
   pure $ Ix.getOne $ repos @= name
 
 -- | Get all branches of a repository with enriched metadata
-getBranchesByRepoA :: RepoName -> Query ViraState [BranchDetails]
-getBranchesByRepoA name = do
+getBranchesByRepoA :: RepoName -> Maybe Text -> Maybe Int -> Query ViraState [BranchDetails]
+getBranchesByRepoA name mFilter mLimit = do
   ViraState {branches, jobs} <- ask
   let repoBranches = Ix.toList $ branches @= name
+      filtered = case mFilter of
+        Nothing -> repoBranches
+        Just filterText ->
+          let lowerFilter = T.toLower filterText
+           in filter (\b -> T.isInfixOf lowerFilter (T.toLower (toText b.branchName))) repoBranches
+      limited = case mLimit of
+        Nothing -> filtered
+        Just limit -> take limit filtered
   pure $
-    repoBranches <&> \branch ->
+    limited <&> \branch ->
       let branchJobs = Ix.toDescList (Proxy @JobId) $ jobs @= name @= branch.branchName
           mLatestJob = viaNonEmpty head branchJobs
           jobsCount = fromIntegral $ length branchJobs
