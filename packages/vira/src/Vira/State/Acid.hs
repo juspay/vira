@@ -57,8 +57,8 @@ getRepoByNameA name = do
   pure $ Ix.getOne $ repos @= name
 
 -- | Get all branches of a repository with enriched metadata, sorted by branch name
-getBranchesByRepoA :: RepoName -> Maybe Text -> Maybe Int -> Query ViraState [BranchDetails]
-getBranchesByRepoA name mFilter mLimit = do
+getBranchesByRepoA :: RepoName -> Maybe Text -> Query ViraState [BranchDetails]
+getBranchesByRepoA name mFilter = do
   ViraState {branches, jobs} <- ask
   let repoBranches = Ix.toList $ branches @= name
       filtered = case mFilter of
@@ -73,10 +73,7 @@ getBranchesByRepoA name mFilter mLimit = do
               jobsCount = fromIntegral $ length branchJobs
            in BranchDetails {branch, mLatestJob, jobsCount}
       sorted = sort enriched
-      limited = case mLimit of
-        Nothing -> sorted
-        Just limit -> take limit sorted
-  pure limited
+  pure sorted
 
 -- | Get a repo's branch by name
 getBranchByNameA :: RepoName -> BranchName -> Query ViraState (Maybe Branch)

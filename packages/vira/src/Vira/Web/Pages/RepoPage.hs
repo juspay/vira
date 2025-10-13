@@ -58,14 +58,18 @@ handlers globalSettings viraRuntimeState webSettings name = do
 viewHandler :: RepoName -> AppHtml ()
 viewHandler name = do
   repo <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  branchDetails <- lift $ App.query (St.GetBranchesByRepoA name Nothing (Just 20))
-  W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branchDetails
+  allBranches <- lift $ App.query (St.GetBranchesByRepoA name Nothing)
+  let branchDetails = take 20 allBranches
+      isPruned = length allBranches > 20
+  W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo branchDetails isPruned
 
 filterBranchesHandler :: RepoName -> Maybe Text -> AppHtml ()
 filterBranchesHandler name mQuery = do
-  branchDetails <- lift $ App.query (St.GetBranchesByRepoA name mQuery (Just 20))
+  allBranches <- lift $ App.query (St.GetBranchesByRepoA name mQuery)
+  let branchDetails = take 20 allBranches
+      isPruned = length allBranches > 20
   repo <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  viewBranchListing repo branchDetails
+  viewBranchListing repo branchDetails isPruned
 
 updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
@@ -82,8 +86,8 @@ deleteHandler name = do
     Nothing ->
       throwError err404
 
-viewRepo :: St.Repo -> [BranchDetails] -> AppHtml ()
-viewRepo repo branchDetails = do
+viewRepo :: St.Repo -> [BranchDetails] -> Bool -> AppHtml ()
+viewRepo repo branchDetails isPruned = do
   -- Repository header with smart refresh button
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.book_2)
@@ -125,12 +129,12 @@ viewRepo repo branchDetails = do
             div_ [class_ "text-gray-500 dark:text-gray-400 w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.search
 
       -- Branch listing
-      div_ [id_ "branch-listing"] $
+      div_ [id_ "branch-listing"] $ do
         if null branchDetails
           then div_ [class_ "text-center py-12"] $ do
             div_ [class_ "text-gray-500 dark:text-gray-400 mb-4"] "No branches found"
             div_ [class_ "text-sm text-gray-400 dark:text-gray-500"] "Click Refresh to fetch branches from remote"
-          else viewBranchListing repo branchDetails
+          else viewBranchListing repo branchDetails isPruned
 
     -- Delete button at bottom
     div_ [class_ "mt-8 pt-8 border-t border-gray-200 dark:border-gray-700"] $ do
@@ -158,10 +162,17 @@ viewRepo repo branchDetails = do
                 "Delete Repository"
 
 -- Branch listing component for repository page
-viewBranchListing :: St.Repo -> [BranchDetails] -> AppHtml ()
-viewBranchListing repo branchDetails = do
+viewBranchListing :: St.Repo -> [BranchDetails] -> Bool -> AppHtml ()
+viewBranchListing repo branchDetails isPruned = do
+  -- Pruning indicator
+  when isPruned $
+    div_ [class_ "mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"] $ do
+      div_ [class_ "flex items-center text-sm text-yellow-800 dark:text-yellow-200"] $ do
+        div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.alert_circle
+        span_ "Showing first 20 branches. Use the filter to narrow results."
+
   div_ [class_ "space-y-2"] $ do
-    forM_ (sort branchDetails) $ \details -> do
+    forM_ branchDetails $ \details -> do
       branchUrl <- lift $ getLinkUrl $ LinkTo.RepoBranch repo.name details.branch.branchName
       a_
         [ href_ branchUrl
