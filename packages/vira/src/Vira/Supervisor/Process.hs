@@ -2,7 +2,8 @@ module Vira.Supervisor.Process (
   runProcesses,
 ) where
 
-import Colog (Message, Severity (..))
+import Colog (Severity (..))
+import Colog.Message (RichMessage)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Concurrent.Async (Concurrent)
@@ -21,7 +22,7 @@ runProcesses ::
   forall es.
   ( Concurrent :> es
   , Process :> es
-  , Log Message :> es
+  , Log (RichMessage IO) :> es
   , IOE :> es
   , FileSystem :> es
   ) =>

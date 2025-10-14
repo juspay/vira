@@ -5,7 +5,7 @@ module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
 
 import Prelude hiding (id)
 
-import Colog (Message)
+import Colog.Message (RichMessage)
 import Effectful.Colog (Log)
 import Effectful.Process (Process)
 
@@ -34,7 +34,7 @@ import Vira.Supervisor.Type (TaskId)
 runPipeline ::
   ( Concurrent :> es
   , Process :> es
-  , Log Message :> es
+  , Log (RichMessage IO) :> es
   , IOE :> es
   , FileSystem :> es
   ) =>

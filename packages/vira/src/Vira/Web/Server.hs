@@ -4,7 +4,7 @@ module Vira.Web.Server (
   runServer,
 ) where
 
-import Colog (Message)
+import Colog.Message (RichMessage)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.FileSystem (FileSystem, doesDirectoryExist)
@@ -63,7 +63,7 @@ runServer globalSettings webSettings = do
         & Warp.setPort ws.port
 
 -- Like Paths_vira.getDataDir but GHC multi-home friendly
-getDataDirMultiHome :: (IOE :> es, FileSystem :> es, Log Message :> es) => Eff es FilePath
+getDataDirMultiHome :: (IOE :> es, FileSystem :> es, Log (RichMessage IO) :> es) => Eff es FilePath
 getDataDirMultiHome = do
   p <- liftIO Paths_vira.getDataDir
   doesDirectoryExist p >>= \case

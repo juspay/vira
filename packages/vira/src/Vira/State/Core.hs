@@ -19,7 +19,7 @@ module Vira.State.Core (
 ) where
 
 import Colog.Core (Severity (..))
-import Colog.Message (Message)
+import Colog.Message (RichMessage)
 import Control.Exception (IOException, handle)
 import Data.Acid
 import Data.Acid.Local (createCheckpointAndClose)
@@ -68,7 +68,7 @@ closeViraState st = do
 
 -- | Start background thread for periodic checkpointing and archival
 startPeriodicArchival ::
-  (IOE :> es, Log Message :> es, Concurrent :> es) =>
+  (IOE :> es, Log (RichMessage IO) :> es, Concurrent :> es) =>
   AcidState ViraState ->
   Eff es ()
 startPeriodicArchival st =

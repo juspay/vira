@@ -10,7 +10,8 @@ module Vira.Supervisor.Task (
   logToWorkspaceOutput,
 ) where
 
-import Colog (Message, Severity (..))
+import Colog (Severity (..))
+import Colog.Message (RichMessage)
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
@@ -43,7 +44,7 @@ startTask ::
   forall es err.
   ( Concurrent :> es
   , Process :> es
-  , Log Message :> es
+  , Log (RichMessage IO) :> es
   , IOE :> es
   , FileSystem :> es
   , HasCallStack
@@ -55,7 +56,7 @@ startTask ::
   ( forall es1.
     ( Concurrent :> es1
     , Process :> es1
-    , Log Message :> es1
+    , Log (RichMessage IO) :> es1
     , IOE :> es1
     , FileSystem :> es1
     ) =>
@@ -97,7 +98,7 @@ startTask supervisor taskId workDir orchestrator onFinish = do
         pure $ Map.insert taskId task tasks
 
 -- | Kill an active task
-killTask :: (Concurrent :> es, Log Message :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
+killTask :: (Concurrent :> es, Log (RichMessage IO) :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
 killTask supervisor taskId = do
   modifyMVar_ (tasks supervisor) $ \tasks -> do
     case Map.lookup taskId tasks of
@@ -121,7 +122,7 @@ taskState Task {..} = do
 outputLogFile :: FilePath -> FilePath
 outputLogFile base = base </> "output.log"
 
-logSupervisorState :: (HasCallStack, Concurrent :> es, Log Message :> es) => TaskSupervisor -> Eff es ()
+logSupervisorState :: (HasCallStack, Concurrent :> es, Log (RichMessage IO) :> es) => TaskSupervisor -> Eff es ()
 logSupervisorState supervisor = do
   tasks <- readMVar (tasks supervisor)
   withFrozenCallStack $ log Debug $ "Current tasks: " <> show (Map.keys tasks)

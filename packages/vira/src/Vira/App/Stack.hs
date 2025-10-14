@@ -1,7 +1,7 @@
 -- | Effectful stack for our app.
 module Vira.App.Stack where
 
-import Colog (Message)
+import Colog.Message (RichMessage)
 import Effectful (Eff, IOE, runEff)
 import Effectful.Colog (Log)
 import Effectful.Concurrent.Async (Concurrent, runConcurrent)
@@ -18,7 +18,7 @@ type AppStack =
    , Concurrent
    , Process
    , FileSystem
-   , Log Message
+   , Log (RichMessage IO)
    , IOE
    ]
 

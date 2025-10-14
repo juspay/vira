@@ -34,7 +34,8 @@ module Vira.App.Broadcast.Core (
   consumeBroadcasts,
 ) where
 
-import Colog (Message, Severity (Debug, Info))
+import Colog (Severity (Debug, Info))
+import Colog.Message (RichMessage)
 import Control.Concurrent.STM (dupTChan, writeTChan)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
@@ -56,7 +57,7 @@ This triggers page reloads only for pages listening to that specific entity.
 broadcastUpdate ::
   ( Reader ViraRuntimeState :> es
   , IOE :> es
-  , Log Message :> es
+  , Log (RichMessage IO) :> es
   ) =>
   BroadcastScope ->
   Eff es ()
@@ -93,7 +94,7 @@ Each event is logged at Debug level.
 -}
 consumeBroadcasts ::
   ( IOE :> es
-  , Log Message :> es
+  , Log (RichMessage IO) :> es
   ) =>
   UpdateBroadcast ->
   Eff es [BroadcastScope]

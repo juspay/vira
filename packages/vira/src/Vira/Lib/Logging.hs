@@ -17,7 +17,7 @@ module Vira.Lib.Logging (
 where
 
 import Colog.Core (Severity (..))
-import Colog.Message (Message, Msg (..))
+import Colog.Message (Msg (..), RichMessage, RichMsg (..), defaultFieldMap)
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
@@ -40,23 +40,24 @@ Ref: https://github.com/eldritch-cookie/co-log-effectful/issues/1
 >>> import Vira.Lib.Logging (log, Severity(Info))
 >>> log Info "Hello, world!"
 -}
-log :: forall es. (HasCallStack, Log Message :> es) => Severity -> Text -> Eff es ()
+log :: forall es. (HasCallStack, Log (RichMessage IO) :> es) => Severity -> Text -> Eff es ()
 log msgSeverity msgText =
-  withFrozenCallStack $ logMsg $ Msg {msgStack = callStack, ..}
+  withFrozenCallStack $ logMsg $ RichMsg {richMsgMsg = Msg {msgStack = callStack, ..}, richMsgMap = defaultFieldMap}
 
--- | Like `runLogAction` but works with `Message`, writes to `Stdout`, and filters by severity
-runLogActionStdout :: Severity -> Eff '[Log Message, IOE] a -> Eff '[IOE] a
+-- | Like `runLogAction` but works with `RichMessage`, writes to `Stdout`, and filters by severity
+runLogActionStdout :: Severity -> Eff '[Log (RichMessage IO), IOE] a -> Eff '[IOE] a
 runLogActionStdout minSeverity =
   runLogAction logAction
   where
-    logAction = LogAction $ \m -> do
-      when (msgSeverity m >= minSeverity) $ do
-        formatted <- unsafeEff_ $ fmtRichMessage m
+    logAction = LogAction $ \richMsg -> do
+      when (msgSeverity richMsg.richMsgMsg >= minSeverity) $ do
+        formatted <- unsafeEff_ $ fmtRichMessage richMsg
         putTextLn formatted
 
 -- | Custom rich message formatter that includes timestamp, severity with colors, and call stack info
-fmtRichMessage :: Message -> IO Text
-fmtRichMessage Msg {..} = do
+fmtRichMessage :: RichMessage IO -> IO Text
+fmtRichMessage RichMsg {..} = do
+  let Msg {..} = richMsgMsg
   threadIdText <- threadDesc =<< myThreadId
   let severityText = case msgSeverity of
         Debug -> "🐛 DEBUG"
@@ -67,7 +68,7 @@ fmtRichMessage Msg {..} = do
         Map.fromList $
           catMaybes
             [ ("mod",) <$> getNonLogCaller msgStack
-            -- More properties can be added here.
+            -- More properties can be added here via richMsgMap field
             ]
       message = severityText <> " [" <> threadIdText <> "] " <> msgText <> showProps props
   pure $ case msgSeverity of

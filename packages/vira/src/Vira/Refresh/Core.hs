@@ -9,7 +9,7 @@ module Vira.Refresh.Core (
   getRepoRefreshStatus,
 ) where
 
-import Colog.Message (Message)
+import Colog.Message (RichMessage)
 import Data.Acid qualified as Acid
 import Data.Map.Strict qualified as Map
 import Data.Time (getCurrentTime)
@@ -41,7 +41,7 @@ getRepoRefreshStatus repo = do
 scheduleRepoRefresh ::
   ( Reader ViraRuntimeState :> es
   , IOE :> es
-  , Log Message :> es
+  , Log (RichMessage IO) :> es
   ) =>
   RepoName ->
   RefreshPriority ->
