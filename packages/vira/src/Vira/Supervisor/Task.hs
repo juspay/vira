@@ -21,15 +21,13 @@ import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.FileSystem.IO (hClose, openFile)
 import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
-import Effectful.Reader.Dynamic (Reader)
-import Effectful.Reader.Dynamic qualified as Reader
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Tail qualified as Tail
 import Vira.Lib.Logging (log, tagCurrentThread)
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type (Task (..), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..), Terminated (Terminated))
-import Prelude hiding (Reader, readMVar, runReader)
+import Prelude hiding (readMVar)
 
 {- | Start a task in the supervisor
 
@@ -64,8 +62,8 @@ startTask ::
     , Log Message :> es1
     , IOE :> es1
     , FileSystem :> es1
-    , Reader TaskInfo :> es1
     ) =>
+    TaskId ->
     Eff es1 (Either err ExitCode)
   ) ->
   -- Handler to call after the task finishes
@@ -87,17 +85,17 @@ startTask supervisor taskId workDir orchestrator onFinish = do
         createDirectoryIfMissing True workDir
         appendFileText (outputLogFile workDir) "" -- Create empty log file before tail starts
         tailHandle <- liftIO $ Tail.tailFile 1000 (outputLogFile workDir)
-        let info = TaskInfo {..}
-        Reader.runReader info $ logToWorkspaceOutput msg
+        logToWorkspaceOutput taskId workDir msg
         asyncHandle <- async $ do
-          result <- Reader.runReader info orchestrator
+          result <- orchestrator taskId
           -- Log the errors if any
           whenLeft_ result $ \err -> do
-            Reader.runReader info $ logToWorkspaceOutput $ "❌ ERROR: " <> show err
+            logToWorkspaceOutput taskId workDir $ "❌ ERROR: " <> show err
           -- Stop the tail when task finishes for any reason
           liftIO $ Tail.tailStop tailHandle
           -- Then call the original handler
           onFinish result
+        let info = TaskInfo {..}
         let task = Task {..}
         pure $ Map.insert taskId task tasks
 
@@ -109,13 +107,13 @@ runProcesses ::
   , Log Message :> es
   , IOE :> es
   , FileSystem :> es
-  , Reader TaskInfo :> es
   ) =>
+  TaskId ->
+  FilePath ->
   -- List of processes to run in sequence
   NonEmpty CreateProcess ->
   Eff es (Either Terminated ExitCode)
-runProcesses procs = do
-  taskId <- Reader.asks taskId
+runProcesses taskId workDir procs = do
   tagCurrentThread $ "🪜 ;task=" <> show taskId
   runProcs $ toList procs
   where
@@ -138,11 +136,9 @@ runProcesses procs = do
 
     runProc :: CreateProcess -> Eff es (Maybe Pid, Either Terminated ExitCode)
     runProc process = do
-      taskId <- Reader.asks taskId
-      workDir <- Reader.asks workDir
       tagCurrentThread $ "🪜 ;task=" <> show taskId
       log Debug $ "Starting task: " <> show (cmdspec process)
-      logToWorkspaceOutput $ "Starting task: " <> show (cmdspec process)
+      logToWorkspaceOutput taskId workDir $ "Starting task: " <> show (cmdspec process)
       withFileHandle (outputLogFile workDir) AppendMode $ \outputHandle -> do
         let processSettings =
               Process.alwaysUnderPath workDir
@@ -166,7 +162,7 @@ runProcesses procs = do
                   _ <- waitForProcess ph -- Reap to prevent zombies
                   pure $ Left Terminated
         log Debug $ "Task finished: " <> show (cmdspec process)
-        logToWorkspaceOutput $
+        logToWorkspaceOutput taskId workDir $
           "A task (pid=" <> show pid <> ") finished with " <> either (("exception: " <>) . toText . displayException) (("exitcode: " <>) . show) result
         log Debug "Workspace log done"
         pure (pid, result)
@@ -211,9 +207,7 @@ logSupervisorState supervisor = do
     withFrozenCallStack $ log Debug $ "Task " <> show taskId <> " state: " <> show st
 
 -- TODO: In lieu of https://github.com/juspay/vira/issues/6
-logToWorkspaceOutput :: (IOE :> es, Reader TaskInfo :> es) => Text -> Eff es ()
-logToWorkspaceOutput (msg :: Text) = do
-  taskId <- Reader.asks taskId
-  workDir <- Reader.asks workDir
+logToWorkspaceOutput :: (IOE :> es) => TaskId -> FilePath -> Text -> Eff es ()
+logToWorkspaceOutput taskId workDir (msg :: Text) = do
   let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
   appendFileText (outputLogFile workDir) s

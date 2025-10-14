@@ -169,7 +169,7 @@ triggerNewBuild repoName branchName = do
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit.id baseDir creationTime
     log Info $ "Added job " <> show job
     viraEnv <- environmentFor repo branch job.jobWorkingDir
-    Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (Pipeline.runPipeline viraEnv) $ \result -> do
+    Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (`Pipeline.runPipeline` viraEnv) $ \result -> do
       endTime <- liftIO getCurrentTime
       let status = case result of
             Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
