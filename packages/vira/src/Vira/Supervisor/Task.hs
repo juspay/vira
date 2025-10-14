@@ -64,6 +64,7 @@ startTask ::
     , FileSystem :> es1
     ) =>
     TaskId ->
+    (forall es2. (IOE :> es2) => Text -> Eff es2 ()) ->
     Eff es1 (Either err ExitCode)
   ) ->
   -- Handler to call after the task finishes
@@ -87,7 +88,7 @@ startTask supervisor taskId workDir orchestrator onFinish = do
         tailHandle <- liftIO $ Tail.tailFile 1000 (outputLogFile workDir)
         logToWorkspaceOutput taskId workDir msg
         asyncHandle <- async $ do
-          result <- orchestrator taskId
+          result <- orchestrator taskId (logToWorkspaceOutput taskId workDir)
           -- Log the errors if any
           whenLeft_ result $ \err -> do
             logToWorkspaceOutput taskId workDir $ "❌ ERROR: " <> show err
