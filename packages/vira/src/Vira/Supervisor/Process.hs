@@ -11,9 +11,10 @@ import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem)
 import Effectful.FileSystem.IO (hClose, openFile)
 import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
+import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
-import Vira.Lib.Logging (log, tagCurrentThread)
+import Vira.Lib.Logging (LogContext, log, tagCurrentThread)
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type (TaskId, Terminated (Terminated))
 
@@ -25,6 +26,7 @@ runProcesses ::
   , Log (RichMessage IO) :> es
   , IOE :> es
   , FileSystem :> es
+  , ER.Reader LogContext :> es
   ) =>
   TaskId ->
   FilePath ->

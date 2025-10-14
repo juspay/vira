@@ -17,9 +17,10 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Git (RepoName)
 import Effectful.Reader.Dynamic (Reader, asks)
+import Effectful.Reader.Static qualified as ER
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
-import Vira.Lib.Logging (Severity (Info), log)
+import Vira.Lib.Logging (LogContext, Severity (Info), log)
 import Vira.Refresh.Type (RefreshPriority (..), RefreshState (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..))
@@ -42,6 +43,7 @@ scheduleRepoRefresh ::
   ( Reader ViraRuntimeState :> es
   , IOE :> es
   , Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
   ) =>
   RepoName ->
   RefreshPriority ->

@@ -15,6 +15,7 @@ import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.FileSystem (FileSystem)
 import Effectful.Git (Commit (..))
 import Effectful.Git qualified as Git
+import Effectful.Reader.Static qualified as ER
 import Language.Haskell.Interpreter (InterpreterError (..))
 import Shower qualified
 import System.Directory (doesFileExist)
@@ -26,6 +27,7 @@ import Vira.CI.Environment qualified as Env
 import Vira.CI.Error
 import Vira.CI.Pipeline.Type
 import Vira.CI.Processes (pipelineProcesses)
+import Vira.Lib.Logging (LogContext)
 import Vira.State.Type (Branch (..), cloneUrl)
 import Vira.Supervisor.Process (runProcesses)
 import Vira.Supervisor.Type (TaskId)
@@ -37,6 +39,7 @@ runPipeline ::
   , Log (RichMessage IO) :> es
   , IOE :> es
   , FileSystem :> es
+  , ER.Reader LogContext :> es
   ) =>
   ViraEnvironment ->
   TaskId ->

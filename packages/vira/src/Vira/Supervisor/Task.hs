@@ -19,10 +19,11 @@ import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar_, readMVar)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.Process (Process)
+import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Tail qualified as Tail
-import Vira.Lib.Logging (log)
+import Vira.Lib.Logging (LogContext, log)
 import Vira.Supervisor.Type (Task (..), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..), Terminated (Terminated))
 import Prelude hiding (readMVar)
 
@@ -49,6 +50,7 @@ startTask ::
   , FileSystem :> es
   , HasCallStack
   , Show err
+  , ER.Reader LogContext :> es
   ) =>
   TaskSupervisor ->
   TaskId ->
@@ -59,6 +61,7 @@ startTask ::
     , Log (RichMessage IO) :> es1
     , IOE :> es1
     , FileSystem :> es1
+    , ER.Reader LogContext :> es1
     ) =>
     TaskId ->
     (forall es2. (IOE :> es2) => Text -> Eff es2 ()) ->
@@ -98,7 +101,7 @@ startTask supervisor taskId workDir orchestrator onFinish = do
         pure $ Map.insert taskId task tasks
 
 -- | Kill an active task
-killTask :: (Concurrent :> es, Log (RichMessage IO) :> es, IOE :> es) => TaskSupervisor -> TaskId -> Eff es ()
+killTask :: (Concurrent :> es, Log (RichMessage IO) :> es, IOE :> es, ER.Reader LogContext :> es) => TaskSupervisor -> TaskId -> Eff es ()
 killTask supervisor taskId = do
   modifyMVar_ (tasks supervisor) $ \tasks -> do
     case Map.lookup taskId tasks of
@@ -122,7 +125,7 @@ taskState Task {..} = do
 outputLogFile :: FilePath -> FilePath
 outputLogFile base = base </> "output.log"
 
-logSupervisorState :: (HasCallStack, Concurrent :> es, Log (RichMessage IO) :> es) => TaskSupervisor -> Eff es ()
+logSupervisorState :: (HasCallStack, Concurrent :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es) => TaskSupervisor -> Eff es ()
 logSupervisorState supervisor = do
   tasks <- readMVar (tasks supervisor)
   withFrozenCallStack $ log Debug $ "Current tasks: " <> show (Map.keys tasks)

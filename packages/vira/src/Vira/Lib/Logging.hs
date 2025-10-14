@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 {- | To use logging, import this module unqualified.
 
@@ -8,8 +9,10 @@
 module Vira.Lib.Logging (
   -- * Logging
   log,
+  withLogContext,
   tagCurrentThread,
   Severity (..), -- Add this
+  LogContext,
 
   -- * Runner
   runLogActionStdout,
@@ -17,17 +20,21 @@ module Vira.Lib.Logging (
 where
 
 import Colog.Core (Severity (..))
-import Colog.Message (Msg (..), RichMessage, RichMsg (..), defaultFieldMap, extractField)
+import Colog.Message (FieldType, MessageField (..), Msg (..), RichMessage, RichMsg (..), defaultFieldMap, extractField)
 import Data.Dependent.Map qualified as DMap
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log, LogAction (LogAction), logMsg, runLogAction)
 import Effectful.Dispatch.Static (unsafeEff_)
+import Effectful.Reader.Static qualified as ER
 import GHC.Conc (ThreadId, labelThread, myThreadId)
 import GHC.Conc.Sync (threadLabel)
 import GHC.Stack (SrcLoc (srcLocModule))
 import Type.Reflection (typeRep)
+
+-- | Custom field type for storing logging context (key-value pairs)
+type instance FieldType "context" = Map Text Text
 
 -- | Add a label to the current thread
 tagCurrentThread :: (MonadIO m) => String -> m ()
@@ -42,14 +49,37 @@ Ref: https://github.com/eldritch-cookie/co-log-effectful/issues/1
 >>> import Vira.Lib.Logging (log, Severity(Info))
 >>> log Info "Hello, world!"
 -}
-log :: forall es. (HasCallStack, Log (RichMessage IO) :> es) => Severity -> Text -> Eff es ()
-log msgSeverity msgText =
-  withFrozenCallStack $ logMsg $ RichMsg {richMsgMsg = Msg {msgStack = callStack, ..}, richMsgMap = defaultFieldMap}
+log :: forall es. (HasCallStack, ER.Reader LogContext :> es, Log (RichMessage IO) :> es) => Severity -> Text -> Eff es ()
+log msgSeverity msgText = do
+  -- Get context from Reader
+  ctx <- ER.ask @LogContext
+  -- Create field map with context
+  let contextField = MessageField (pure ctx) :: MessageField IO "context"
+      fieldMap = DMap.insert (typeRep @"context") contextField defaultFieldMap
+  withFrozenCallStack $ logMsg $ RichMsg {richMsgMsg = Msg {msgStack = callStack, ..}, richMsgMap = fieldMap}
+
+{- | Add context field to all log messages within the given action.
+
+Context accumulates: nested calls will merge their contexts together.
+
+>>> withLogContext "taskId" "42" $ do
+>>>   log Info "Starting"  -- Will have {taskId=42} in props
+>>>   withLogContext "step" "compile" $ do
+>>>     log Info "Compiling"  -- Will have {taskId=42, step=compile}
+-}
+
+-- | Type alias for logging context stored in Reader
+type LogContext = Map Text Text
+
+withLogContext :: forall es a. (ER.Reader LogContext :> es, Log (RichMessage IO) :> es) => Text -> Text -> Eff es a -> Eff es a
+withLogContext key val action = do
+  -- Modify the context in the Reader effect
+  ER.local (Map.insert key val) action
 
 -- | Like `runLogAction` but works with `RichMessage`, writes to `Stdout`, and filters by severity
-runLogActionStdout :: Severity -> Eff '[Log (RichMessage IO), IOE] a -> Eff '[IOE] a
-runLogActionStdout minSeverity =
-  runLogAction logAction
+runLogActionStdout :: Severity -> Eff '[ER.Reader LogContext, Log (RichMessage IO), IOE] a -> Eff '[IOE] a
+runLogActionStdout minSeverity action =
+  runLogAction logAction (ER.runReader Map.empty action)
   where
     logAction = LogAction $ \richMsg -> do
       when (msgSeverity richMsg.richMsgMsg >= minSeverity) $ do
@@ -66,19 +96,17 @@ fmtRichMessage RichMsg {..} = do
     Just tid -> threadDesc tid
     Nothing -> pure "🧵;?"
 
+  -- Extract context from the field map
+  mContext <- extractField $ DMap.lookup (typeRep @"context") richMsgMap
+
   let severityText = case msgSeverity of
         Debug -> "🐛 DEBUG"
         Info -> "ℹ️  INFO "
         Warning -> "⚠️  WARN "
         Error -> "❌ ERROR"
       props =
-        Map.fromList $
-          catMaybes
-            [ ("mod",) <$> getNonLogCaller msgStack
-            -- Note: richMsgMap contains threadId and utcTime fields via defaultFieldMap
-            -- ThreadId is extracted above for display in the message
-            -- Additional custom fields can be added via the field map in the future
-            ]
+        Map.fromList (catMaybes [("mod",) <$> getNonLogCaller msgStack])
+          <> fromMaybe Map.empty mContext -- Merge in context fields
       message = severityText <> " [" <> threadIdText <> "] " <> msgText <> showProps props
   pure $ case msgSeverity of
     Debug -> "\ESC[90m" <> message <> "\ESC[0m"

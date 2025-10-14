@@ -8,9 +8,10 @@ import Effectful.Concurrent.Async (Concurrent, runConcurrent)
 import Effectful.FileSystem (FileSystem, runFileSystem)
 import Effectful.Process (Process, runProcess)
 import Effectful.Reader.Dynamic (Reader, runReader)
+import Effectful.Reader.Static qualified as ER
 import Vira.App.CLI (GlobalSettings (..))
 import Vira.App.Type (ViraRuntimeState)
-import Vira.Lib.Logging (runLogActionStdout)
+import Vira.Lib.Logging (LogContext, runLogActionStdout)
 import Prelude hiding (Reader, ask, asks, runReader)
 
 type AppStack =
@@ -18,6 +19,7 @@ type AppStack =
    , Concurrent
    , Process
    , FileSystem
+   , ER.Reader LogContext
    , Log (RichMessage IO)
    , IOE
    ]

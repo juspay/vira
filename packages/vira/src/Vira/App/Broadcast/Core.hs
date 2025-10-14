@@ -40,9 +40,10 @@ import Control.Concurrent.STM (dupTChan, writeTChan)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Reader.Dynamic (Reader, asks)
+import Effectful.Reader.Static qualified as ER
 import Vira.App.Broadcast.Type (BroadcastScope, UpdateBroadcast)
 import Vira.App.Type (ViraRuntimeState (updateBroadcast))
-import Vira.Lib.Logging (log)
+import Vira.Lib.Logging (LogContext, log)
 import Vira.Lib.STM (drainRemainingTChan, drainTChan)
 import Prelude hiding (Reader, ask, asks, runReader)
 
@@ -58,6 +59,7 @@ broadcastUpdate ::
   ( Reader ViraRuntimeState :> es
   , IOE :> es
   , Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
   ) =>
   BroadcastScope ->
   Eff es ()
@@ -95,6 +97,7 @@ Each event is logged at Debug level.
 consumeBroadcasts ::
   ( IOE :> es
   , Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
   ) =>
   UpdateBroadcast ->
   Eff es [BroadcastScope]

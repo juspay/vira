@@ -28,8 +28,9 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Concurrent (Concurrent, threadDelay)
 import Effectful.Concurrent.Async (async)
+import Effectful.Reader.Static qualified as ER
 import System.FilePath ((</>))
-import Vira.Lib.Logging (log)
+import Vira.Lib.Logging (LogContext, log)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Reset (checkSchemaVersion, viraDbVersion, writeSchemaVersion)
 import Vira.State.Type
@@ -68,7 +69,7 @@ closeViraState st = do
 
 -- | Start background thread for periodic checkpointing and archival
 startPeriodicArchival ::
-  (IOE :> es, Log (RichMessage IO) :> es, Concurrent :> es) =>
+  (IOE :> es, Log (RichMessage IO) :> es, Concurrent :> es, ER.Reader LogContext :> es) =>
   AcidState ViraState ->
   Eff es ()
 startPeriodicArchival st =

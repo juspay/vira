@@ -9,6 +9,7 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.FileSystem (FileSystem, doesDirectoryExist)
 import Effectful.Reader.Dynamic qualified as Reader
+import Effectful.Reader.Static qualified as ER
 import Network.HTTP.Types (status404)
 import Network.Wai (Middleware, responseLBS, responseStatus)
 import Network.Wai.Handler.Warp qualified as Warp
@@ -63,7 +64,7 @@ runServer globalSettings webSettings = do
         & Warp.setPort ws.port
 
 -- Like Paths_vira.getDataDir but GHC multi-home friendly
-getDataDirMultiHome :: (IOE :> es, FileSystem :> es, Log (RichMessage IO) :> es) => Eff es FilePath
+getDataDirMultiHome :: (IOE :> es, FileSystem :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es) => Eff es FilePath
 getDataDirMultiHome = do
   p <- liftIO Paths_vira.getDataDir
   doesDirectoryExist p >>= \case
