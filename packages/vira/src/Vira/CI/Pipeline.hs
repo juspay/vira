@@ -46,7 +46,7 @@ runPipeline env taskId logger = do
   -- 1. Setup workspace and clone
   let setupProcs =
         one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit.id Env.projectDirName
-  runProcesses taskId env.workspacePath setupProcs >>= \case
+  runProcesses taskId env.workspacePath logger setupProcs >>= \case
     Left err ->
       pure $ Left $ PipelineTerminated err
     Right ExitSuccess -> do
@@ -61,7 +61,7 @@ runPipeline env taskId logger = do
               pure $ Left err
             Right pipelineProcs -> do
               -- 3. Run the actual CI pipeline.
-              runProcesses taskId env.workspacePath pipelineProcs <&> first PipelineTerminated
+              runProcesses taskId env.workspacePath logger pipelineProcs <&> first PipelineTerminated
     Right exitCode -> do
       pure $ Right exitCode
 

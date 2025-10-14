@@ -111,10 +111,11 @@ runProcesses ::
   ) =>
   TaskId ->
   FilePath ->
+  (forall es1. (IOE :> es1) => Text -> Eff es1 ()) ->
   -- List of processes to run in sequence
   NonEmpty CreateProcess ->
   Eff es (Either Terminated ExitCode)
-runProcesses taskId workDir procs = do
+runProcesses taskId workDir logger procs = do
   tagCurrentThread $ "🪜 ;task=" <> show taskId
   runProcs $ toList procs
   where
@@ -139,7 +140,7 @@ runProcesses taskId workDir procs = do
     runProc process = do
       tagCurrentThread $ "🪜 ;task=" <> show taskId
       log Debug $ "Starting task: " <> show (cmdspec process)
-      logToWorkspaceOutput taskId workDir $ "Starting task: " <> show (cmdspec process)
+      logger $ "Starting task: " <> show (cmdspec process)
       withFileHandle (outputLogFile workDir) AppendMode $ \outputHandle -> do
         let processSettings =
               Process.alwaysUnderPath workDir
@@ -163,7 +164,7 @@ runProcesses taskId workDir procs = do
                   _ <- waitForProcess ph -- Reap to prevent zombies
                   pure $ Left Terminated
         log Debug $ "Task finished: " <> show (cmdspec process)
-        logToWorkspaceOutput taskId workDir $
+        logger $
           "A task (pid=" <> show pid <> ") finished with " <> either (("exception: " <>) . toText . displayException) (("exitcode: " <>) . show) result
         log Debug "Workspace log done"
         pure (pid, result)
