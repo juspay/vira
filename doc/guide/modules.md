@@ -2,15 +2,14 @@
 slug: modules
 ---
 
-# Nix Modules
-
-## NixOS Module
-
-Vira provides a NixOS module for easy deployment. See the [NixOS configuration example](https://github.com/juspay/vira/blob/main/nix/examples/nixos/flake.nix) for usage.
+# Nix Module
 
 ## Home Manager Module
 
 Vira provides a Home Manager module for running Vira as a user service. Supports Linux (systemd user services) and macOS (launchd agents).
+
+> [!note]
+> Vira is only supported as a user-space service via Home Manager. System-wide deployment via NixOS modules is no longer supported, as Vira relies on user-space tools (attic, git, ssh, etc.) and user-space configuration (attic authentication tokens, SSH keys, git credentials, etc.).
 
 ### macOS Limitations
 
@@ -41,7 +40,7 @@ See the [Home Manager configuration example](https://github.com/juspay/vira/blob
 
 ### Available Options
 
-Both NixOS and Home Manager modules support the following configuration options:
+The Home Manager module supports the following configuration options:
 
 - `enable` - Enable the Vira service (default: `false`)
 - `package` - The Vira package to use
