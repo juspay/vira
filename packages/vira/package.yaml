@@ -43,6 +43,7 @@ dependencies:
   - co-log-effectful
   - containers
   - dani-servant-lucid2
+  - dependent-map
   - data-default
   - deriving-aeson
   - directory

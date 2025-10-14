@@ -17,7 +17,8 @@ module Vira.Lib.Logging (
 where
 
 import Colog.Core (Severity (..))
-import Colog.Message (Msg (..), RichMessage, RichMsg (..), defaultFieldMap)
+import Colog.Message (Msg (..), RichMessage, RichMsg (..), defaultFieldMap, extractField)
+import Data.Dependent.Map qualified as DMap
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
@@ -26,6 +27,7 @@ import Effectful.Dispatch.Static (unsafeEff_)
 import GHC.Conc (ThreadId, labelThread, myThreadId)
 import GHC.Conc.Sync (threadLabel)
 import GHC.Stack (SrcLoc (srcLocModule))
+import Type.Reflection (typeRep)
 
 -- | Add a label to the current thread
 tagCurrentThread :: (MonadIO m) => String -> m ()
@@ -58,7 +60,12 @@ runLogActionStdout minSeverity =
 fmtRichMessage :: RichMessage IO -> IO Text
 fmtRichMessage RichMsg {..} = do
   let Msg {..} = richMsgMsg
-  threadIdText <- threadDesc =<< myThreadId
+  -- Extract ThreadId from the field map
+  mThreadId <- extractField $ DMap.lookup (typeRep @"threadId") richMsgMap
+  threadIdText <- case mThreadId of
+    Just tid -> threadDesc tid
+    Nothing -> pure "🧵;?"
+
   let severityText = case msgSeverity of
         Debug -> "🐛 DEBUG"
         Info -> "ℹ️  INFO "
@@ -68,7 +75,9 @@ fmtRichMessage RichMsg {..} = do
         Map.fromList $
           catMaybes
             [ ("mod",) <$> getNonLogCaller msgStack
-            -- More properties can be added here via richMsgMap field
+            -- Note: richMsgMap contains threadId and utcTime fields via defaultFieldMap
+            -- ThreadId is extracted above for display in the message
+            -- Additional custom fields can be added via the field map in the future
             ]
       message = severityText <> " [" <> threadIdText <> "] " <> msgText <> showProps props
   pure $ case msgSeverity of
