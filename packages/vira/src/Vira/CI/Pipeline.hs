@@ -27,7 +27,7 @@ import Vira.CI.Error
 import Vira.CI.Pipeline.Type
 import Vira.CI.Processes (pipelineProcesses)
 import Vira.State.Type (Branch (..), cloneUrl)
-import Vira.Supervisor.Task (runProcesses)
+import Vira.Supervisor.Process (runProcesses)
 import Vira.Supervisor.Type (TaskId)
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
