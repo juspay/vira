@@ -35,7 +35,7 @@ runProcesses ::
   NonEmpty CreateProcess ->
   Eff es (Either Terminated ExitCode)
 runProcesses taskId workDir logger procs =
-  withLogContext "task" (show taskId) $ do
+  withLogContext "task" taskId $ do
     tagCurrentThread "🪜"
     runProcs $ toList procs
   where

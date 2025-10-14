@@ -71,10 +71,19 @@ Context accumulates: nested calls will merge their contexts together.
 -- | Type alias for logging context stored in Reader
 type LogContext = Map Text Text
 
-withLogContext :: forall es a. (ER.Reader LogContext :> es, Log (RichMessage IO) :> es) => Text -> Text -> Eff es a -> Eff es a
+withLogContext ::
+  forall es a v.
+  ( Show v
+  , ER.Reader LogContext :> es
+  , Log (RichMessage IO) :> es
+  ) =>
+  Text ->
+  v ->
+  Eff es a ->
+  Eff es a
 withLogContext key val action = do
   -- Modify the context in the Reader effect
-  ER.local (Map.insert key val) action
+  ER.local (Map.insert key $ show val) action
 
 -- | Like `runLogAction` but works with `RichMessage`, writes to `Stdout`, and filters by severity
 runLogActionStdout :: Severity -> Eff '[ER.Reader LogContext, Log (RichMessage IO), IOE] a -> Eff '[IOE] a
