@@ -7,7 +7,6 @@ module Vira.Supervisor.Task (
   killTask,
 
   -- * Utilities for individual task orchestrators
-  AppTaskStack,
   runProcesses,
   logToWorkspaceOutput,
 ) where
@@ -31,15 +30,6 @@ import Vira.Lib.Logging (log, tagCurrentThread)
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type (Task (..), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..), Terminated (Terminated))
 import Prelude hiding (Reader, readMVar, runReader)
-
-type AppTaskStack es =
-  ( Concurrent :> es
-  , Process :> es
-  , Log Message :> es
-  , IOE :> es
-  , FileSystem :> es
-  , Reader TaskInfo :> es
-  )
 
 {- | Start a task in the supervisor
 
@@ -69,7 +59,12 @@ startTask ::
   TaskId ->
   FilePath ->
   ( forall es1.
-    ( AppTaskStack es1
+    ( Concurrent :> es1
+    , Process :> es1
+    , Log Message :> es1
+    , IOE :> es1
+    , FileSystem :> es1
+    , Reader TaskInfo :> es1
     ) =>
     Eff es1 (Either err ExitCode)
   ) ->
@@ -109,7 +104,12 @@ startTask supervisor taskId workDir orchestrator onFinish = do
 -- | Run a sequence of processes, stopping on first failure
 runProcesses ::
   forall es.
-  ( AppTaskStack es
+  ( Concurrent :> es
+  , Process :> es
+  , Log Message :> es
+  , IOE :> es
+  , FileSystem :> es
+  , Reader TaskInfo :> es
   ) =>
   -- List of processes to run in sequence
   NonEmpty CreateProcess ->

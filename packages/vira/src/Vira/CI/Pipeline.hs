@@ -3,12 +3,19 @@
 
 module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
 
-import Prelude hiding (id)
+import Prelude hiding (Reader, id)
+
+import Colog (Message)
+import Effectful.Colog (Log)
+import Effectful.Process (Process)
 
 import Effectful (Eff, IOE, (:>))
+import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
+import Effectful.FileSystem (FileSystem)
 import Effectful.Git (Commit (..))
 import Effectful.Git qualified as Git
+import Effectful.Reader.Dynamic (Reader)
 import Language.Haskell.Interpreter (InterpreterError (..))
 import Shower qualified
 import System.Directory (doesFileExist)
@@ -22,10 +29,17 @@ import Vira.CI.Pipeline.Type
 import Vira.CI.Processes (pipelineProcesses)
 import Vira.State.Type (Branch (..), cloneUrl)
 import Vira.Supervisor.Task qualified as Task
+import Vira.Supervisor.Type (TaskInfo)
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
-  (Task.AppTaskStack es) =>
+  ( Concurrent :> es
+  , Process :> es
+  , Log Message :> es
+  , IOE :> es
+  , FileSystem :> es
+  , Reader TaskInfo :> es
+  ) =>
   ViraEnvironment ->
   Eff es (Either PipelineError ExitCode)
 runPipeline env = do
