@@ -14,7 +14,7 @@ import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, c
 import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
-import Vira.Lib.Logging (LogContext, log, tagCurrentThread)
+import Vira.Lib.Logging (LogContext, log, tagCurrentThread, withLogContext)
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type (TaskId, Terminated (Terminated))
 
@@ -34,9 +34,10 @@ runProcesses ::
   -- List of processes to run in sequence
   NonEmpty CreateProcess ->
   Eff es (Either Terminated ExitCode)
-runProcesses taskId workDir logger procs = do
-  tagCurrentThread $ "🪜 ;task=" <> show taskId
-  runProcs $ toList procs
+runProcesses taskId workDir logger procs =
+  withLogContext "task" (show taskId) $ do
+    tagCurrentThread "🪜"
+    runProcs $ toList procs
   where
     -- Run each process one after another; exiting immediately if any fails
     runProcs :: [CreateProcess] -> Eff es (Either Terminated ExitCode)
@@ -57,7 +58,6 @@ runProcesses taskId workDir logger procs = do
 
     runProc :: CreateProcess -> Eff es (Maybe Pid, Either Terminated ExitCode)
     runProc process = do
-      tagCurrentThread $ "🪜 ;task=" <> show taskId
       log Debug $ "Starting task: " <> show (cmdspec process)
       logger $ "Starting task: " <> show (cmdspec process)
       withFileHandle (outputLogFile workDir) AppendMode $ \outputHandle -> do
@@ -67,7 +67,6 @@ runProcesses taskId workDir logger procs = do
                 >>> (\cp -> cp {create_group = True}) -- For `interruptProcessGroupOf`, when the process is `Terminated`
         (_, _, _, ph) <- createProcess $ process & processSettings
         pid <- getPid ph
-        tagCurrentThread $ "🪜 ;task=" <> show taskId <> ";pid=" <> maybe "?" show pid
         log Info $ "Task spawned : " <> show (cmdspec process)
 
         result <-
