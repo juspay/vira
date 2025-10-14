@@ -38,10 +38,10 @@ runPipeline ::
   , IOE :> es
   , FileSystem :> es
   ) =>
-  TaskId ->
   ViraEnvironment ->
+  TaskId ->
   Eff es (Either PipelineError ExitCode)
-runPipeline taskId env = do
+runPipeline env taskId = do
   -- 1. Setup workspace and clone
   let setupProcs =
         one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit.id Env.projectDirName
