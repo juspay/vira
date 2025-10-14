@@ -93,7 +93,10 @@ threadDesc tid = do
 
 showProps :: Map Text Text -> Text
 showProps prop =
-  "\ESC[37m  {" <> T.intercalate ", " (map showKeyValue (Map.toAscList prop)) <> "}\ESC[0m"
+  if null prop
+    then ""
+    else
+      "\ESC[37m  {" <> T.intercalate ", " (map showKeyValue (Map.toAscList prop)) <> "}\ESC[0m"
   where
     showKeyValue (k, v) = k <> "=" <> v
 
