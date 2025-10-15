@@ -18,7 +18,7 @@ import Effectful.FileSystem (runFileSystem)
 import Effectful.Process (runProcess)
 import Main.Utf8 qualified as Utf8
 import Paths_vira qualified
-import System.Directory (getCurrentDirectory)
+import System.Directory (getCurrentDirectory, makeAbsolute)
 import System.Exit (ExitCode (..))
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
@@ -94,7 +94,7 @@ runVira = do
 
     runCI :: Maybe FilePath -> IO ()
     runCI mDir = do
-      dir <- maybe getCurrentDirectory pure mDir
+      dir <- maybe getCurrentDirectory makeAbsolute mDir
       result <- runCIEffects dir
       case result of
         Left err -> do
