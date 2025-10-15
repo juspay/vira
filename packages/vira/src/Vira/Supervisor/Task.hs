@@ -24,6 +24,7 @@ import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Tail qualified as Tail
+import Vira.CI.Log (ViraLog (..), encodeViraLog)
 import Vira.Supervisor.Type (Task (..), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..), Terminated (Terminated))
 import Prelude hiding (readMVar)
 
@@ -135,14 +136,10 @@ logSupervisorState supervisor = do
 -- TODO: In lieu of https://github.com/juspay/vira/issues/6
 -- FIXME: Don't complect with Vira
 logToWorkspaceOutput :: (Log (RichMessage IO) :> es, ER.Reader LogContext :> es, IOE :> es) => Severity -> FilePath -> Text -> Eff es ()
-logToWorkspaceOutput severity workDir (msg :: Text) = do
-  let severityStr = case severity of
-        Debug -> "🐛 DEBUG"
-        Info -> "ℹ️  INFO"
-        Warning -> "⚠️  WARN"
-        Error -> "❌ ERROR"
-      s = "viralog:[" <> severityStr <> "] " <> msg <> "\n"
-  appendFileText (outputLogFile workDir) s
+logToWorkspaceOutput severity workDir msg = do
+  let viraLog = ViraLog {level = severity, message = msg}
+      jsonLog = encodeViraLog viraLog <> "\n"
+  appendFileText (outputLogFile workDir) jsonLog
 
 -- Send all output to a file under working directory.
 -- FIXME: Don't complect with Vira

@@ -17,7 +17,6 @@ import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import Data.Map qualified as Map
-import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
@@ -32,6 +31,7 @@ import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
+import Vira.CI.Log (ViraLog (..), decodeViraLog)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
@@ -67,7 +67,7 @@ logChunkMsg = \case
       Status.indicator False
       span_ [class_ "font-medium"] "Build completed"
 
--- | Render log lines with special styling for viralog lines
+-- | Render log lines with special styling for viralog lines (JSON format)
 renderLogLines :: (Monad m) => [Text] -> HtmlT m ()
 renderLogLines ls =
   -- Use `lines . unlines` to normalize: each Text may contain embedded newlines,
@@ -75,11 +75,21 @@ renderLogLines ls =
   mconcat $ map renderLine $ lines $ unlines ls
   where
     renderLine line =
-      if "viralog:" `T.isPrefixOf` line
-        then
-          let stripped = T.drop (T.length "viralog:") line
-           in span_ [class_ "viralog-line bg-indigo-50 dark:bg-indigo-900/50 text-indigo-900 dark:text-indigo-200 font-semibold block -mx-4 px-4 py-0.5"] $ toHtml stripped <> br_ []
-        else toHtml line <> br_ []
+      case decodeViraLog line of
+        Right viraLog ->
+          let (emoji :: Text, bgClass, textClass) = case viraLog.level of
+                Debug -> ("🐛", "bg-gray-50 dark:bg-gray-800/50", "text-gray-700 dark:text-gray-300")
+                Info -> ("ℹ️", "bg-blue-50 dark:bg-blue-900/50", "text-blue-900 dark:text-blue-200")
+                Warning -> ("⚠️", "bg-yellow-50 dark:bg-yellow-900/50", "text-yellow-900 dark:text-yellow-200")
+                Error -> ("❌", "bg-red-50 dark:bg-red-900/50", "text-red-900 dark:text-red-200")
+           in -- Block element creates its own line break, no <br> needed
+              span_ [class_ $ "viralog-line font-semibold block -mx-4 px-4 py-0.5 " <> bgClass <> " " <> textClass] $ do
+                toHtml (emoji :: Text)
+                " "
+                toHtml viraLog.message
+        Left _ -> renderLineWithBr $ toHtml line
+
+    renderLineWithBr content = content <> br_ []
 
 -- | Render multiline lines for placing under a <pre> such that newlines are preserved & rendered
 rawMultiLine :: (Monad m) => [Text] -> HtmlT m ()
