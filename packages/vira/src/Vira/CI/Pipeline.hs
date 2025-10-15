@@ -44,10 +44,11 @@ runPipeline ::
   (forall es1. (IOE :> es1) => Text -> Eff es1 ()) ->
   Eff es (Either PipelineError ExitCode)
 runPipeline env logger = do
+  let outputLog = Just $ env.workspacePath </> "output.log"
   -- 1. Setup workspace and clone
   let setupProcs =
         one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit.id Env.projectDirName
-  runProcesses env.workspacePath logger setupProcs >>= \case
+  runProcesses env.workspacePath outputLog logger setupProcs >>= \case
     Left err ->
       pure $ Left $ PipelineTerminated err
     Right ExitSuccess -> do
@@ -62,7 +63,7 @@ runPipeline env logger = do
               pure $ Left err
             Right pipelineProcs -> do
               -- 3. Run the actual CI pipeline.
-              runProcesses env.workspacePath logger pipelineProcs <&> first PipelineTerminated
+              runProcesses env.workspacePath outputLog logger pipelineProcs <&> first PipelineTerminated
     Right exitCode -> do
       pure $ Right exitCode
 
