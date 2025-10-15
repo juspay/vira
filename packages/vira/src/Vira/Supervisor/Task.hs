@@ -129,12 +129,13 @@ logSupervisorState supervisor = do
     withFrozenCallStack $ log Debug $ "Task state: " <> show st
 
 -- TODO: In lieu of https://github.com/juspay/vira/issues/6
+-- FIXME: Don't complect with Vira
 logToWorkspaceOutput :: (IOE :> es) => TaskId -> FilePath -> Text -> Eff es ()
 logToWorkspaceOutput taskId workDir (msg :: Text) = do
   let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
   appendFileText (outputLogFile workDir) s
 
 -- Send all output to a file under working directory.
--- TODO: Yuck!
+-- FIXME: Don't complect with Vira
 outputLogFile :: FilePath -> FilePath
 outputLogFile base = base </> "output.log"

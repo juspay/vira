@@ -37,9 +37,7 @@ runProcesses ::
   FilePath ->
   -- | Optional output log file path
   Maybe FilePath ->
-  {- | Logger callback for user-facing messages
-  TODO: This is just logging start/end to 'output.log'. Yuck.
-  -}
+  -- | Logger callback for user-facing messages
   (forall es1. (IOE :> es1) => Text -> Eff es1 ()) ->
   -- | Processes to run in sequence
   NonEmpty CreateProcess ->
