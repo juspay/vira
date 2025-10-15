@@ -29,11 +29,8 @@ import Effectful.Dispatch.Static (unsafeEff_)
 import Effectful.Reader.Static qualified as ER
 import GHC.Conc (ThreadId, labelThread, myThreadId)
 import GHC.Conc.Sync (threadLabel)
-import GHC.Stack (SrcLoc (srcLocModule))
+import Text.Show qualified as Show
 import Type.Reflection (typeRep)
-
--- | Custom field type for storing logging context (key-value pairs)
-type instance FieldType "context" = [(Text, Text)]
 
 -- | Add a label to the current thread
 tagCurrentThread :: (MonadIO m) => String -> m ()
@@ -68,7 +65,20 @@ Context accumulates: nested calls will merge their contexts together.
 -}
 
 -- | Type alias for logging context stored in Reader
-type LogContext = [(Text, Text)]
+newtype LogContext = LogContext [(Text, Text)]
+  deriving newtype (Semigroup, Monoid, Eq)
+
+-- | Custom field type for storing logging context (key-value pairs)
+type instance FieldType "context" = LogContext
+
+instance Show LogContext where
+  show (LogContext ctx) =
+    if null ctx
+      then ""
+      else
+        "\ESC[37m  {" <> intercalate ", " (showKeyValue <$> ctx) <> "}\ESC[0m"
+    where
+      showKeyValue (k, v) = toString $ k <> "=" <> v
 
 withLogContext ::
   forall es a.
@@ -80,12 +90,12 @@ withLogContext ::
   Eff es a
 withLogContext pairs action = do
   -- Modify the context in the Reader effect (append to preserve order)
-  ER.local (++ pairs) action
+  ER.local (<> LogContext pairs) action
 
 -- | Like `runLogAction` but works with `RichMessage`, writes to `Stdout`, and filters by severity
 runLogActionStdout :: Severity -> Eff '[ER.Reader LogContext, Log (RichMessage IO), IOE] a -> Eff '[IOE] a
 runLogActionStdout minSeverity action =
-  runLogAction logAction (ER.runReader [] action)
+  runLogAction logAction (ER.runReader mempty action)
   where
     logAction = LogAction $ \richMsg -> do
       when (msgSeverity richMsg.richMsgMsg >= minSeverity) $ do
@@ -103,28 +113,19 @@ fmtRichMessage RichMsg {..} = do
     Nothing -> pure "🧵;?"
 
   -- Extract context from the field map
-  mContext <- extractField $ DMap.lookup (typeRep @"context") richMsgMap
+  mContext :: Maybe LogContext <- extractField $ DMap.lookup (typeRep @"context") richMsgMap
 
   let severityText = case msgSeverity of
         Debug -> "🐛 DEBUG"
         Info -> "ℹ️  INFO "
         Warning -> "⚠️  WARN "
         Error -> "❌ ERROR"
-      props =
-        catMaybes [("mod",) <$> getNonLogCaller msgStack]
-          <> fromMaybe [] mContext -- Merge in context fields
-      message = severityText <> " [" <> threadIdText <> "] " <> msgText <> showProps props
+      message = severityText <> " [" <> threadIdText <> "] " <> msgText <> maybe mempty show mContext
   pure $ case msgSeverity of
     Debug -> "\ESC[90m" <> message <> "\ESC[0m"
     Info -> message
     Warning -> "\ESC[33m" <> message <> "\ESC[0m"
     Error -> "\ESC[31m" <> message <> "\ESC[0m"
-
--- Unfortunately there is no way to get the integer out of `ThreadId`, so must HACK around it.
-threadIdToInt :: ThreadId -> Text
-threadIdToInt tid =
-  let s = show tid
-   in fromMaybe s $ T.stripPrefix "ThreadId " s
 
 {- | A short descriptive identifier for ThreadId
 
@@ -133,23 +134,10 @@ Includes thread label (if any) as well as the ID.
 threadDesc :: ThreadId -> IO Text
 threadDesc tid = do
   label <- threadLabel tid <&> maybe "🧵" toText
-  pure $ toText label <> ";" <> threadIdToInt tid
-
-showProps :: [(Text, Text)] -> Text
-showProps prop =
-  if null prop
-    then ""
-    else
-      "\ESC[37m  {" <> T.intercalate ", " (map showKeyValue prop) <> "}\ESC[0m"
+  pure $ toText label <> ";" <> threadIdToInt
   where
-    showKeyValue (k, v) = k <> "=" <> v
-
--- HACK: Show 'effective' caller, ignoring immediate logging functions.
-getNonLogCaller :: CallStack -> Maybe Text
-getNonLogCaller stack =
-  go $ getCallStack stack
-  where
-    go = \case
-      [] -> Nothing
-      ("log", _) : rest -> go rest -- HACK: Ignore the `log` function below
-      (funcName, loc) : _ -> Just $ toText $ loc.srcLocModule <> ":" <> funcName
+    -- Unfortunately there is no way to get the integer out of `ThreadId`, so must HACK around it.
+    threadIdToInt :: Text
+    threadIdToInt =
+      let s = show tid
+       in fromMaybe s $ T.stripPrefix "ThreadId " s
