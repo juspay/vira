@@ -83,7 +83,7 @@ runPipelineIn tools ctx repoDir outputLog logger = do
     Left err -> do
       pure $ Left $ PipelineConfigurationError $ InterpreterError err
     Right pipeline -> do
-      logger Info $ toText $ "ℹ️ Pipeline configuration:\n" <> Shower.shower pipeline
+      logger Info $ toText $ "Pipeline configuration:\n" <> Shower.shower pipeline
       case pipelineProcesses tools pipeline of
         Left err -> do
           pure $ Left err
