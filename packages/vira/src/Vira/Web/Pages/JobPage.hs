@@ -64,7 +64,7 @@ handlers globalSettings viraRuntimeState webSettings = do
 buildHandler :: App.GlobalSettings -> RepoName -> BranchName -> Eff Web.AppServantStack (Headers '[HXRefresh] Text)
 buildHandler globalSettings repoName branch =
   withLogContext [("repo", show repoName), ("branch", show branch)] $ do
-    triggerNewBuild globalSettings repoName branch
+    triggerNewBuild globalSettings.logLevel repoName branch
     pure $ addHeader True "Ok"
 
 viewHandler :: JobId -> AppHtml ()
@@ -159,8 +159,8 @@ viewJobStatus status = do
 -- TODO:
 -- 1. Fail if a build is already happening (until we support queuing)
 -- 2. Contact supervisor to spawn a new build, with it status going to DB.
-triggerNewBuild :: (HasCallStack) => App.GlobalSettings -> RepoName -> BranchName -> Eff Web.AppServantStack ()
-triggerNewBuild globalSettings repoName branchName = do
+triggerNewBuild :: (HasCallStack) => Severity -> RepoName -> BranchName -> Eff Web.AppServantStack ()
+triggerNewBuild minSeverity repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
   supervisor <- asks App.supervisor
@@ -174,19 +174,18 @@ triggerNewBuild globalSettings repoName branchName = do
     Supervisor.startTask
       supervisor
       job.jobId
-      globalSettings.logLevel
+      minSeverity
       viraEnv.workspacePath
       (Pipeline.runPipeline viraEnv)
-      ( \result -> do
-          endTime <- liftIO getCurrentTime
-          let status = case result of
-                Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
-                Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
-                Left (Pipeline.PipelineTerminated Terminated) -> St.JobFinished St.JobKilled endTime
-                Left _ -> St.JobFinished St.JobFailure endTime
-          App.update $ St.JobUpdateStatusA job.jobId status
-          Broadcast.broadcastUpdate (JobScope job.jobId)
-      )
+      $ \result -> do
+        endTime <- liftIO getCurrentTime
+        let status = case result of
+              Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
+              Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
+              Left (Pipeline.PipelineTerminated Terminated) -> St.JobFinished St.JobKilled endTime
+              Left _ -> St.JobFinished St.JobFailure endTime
+        App.update $ St.JobUpdateStatusA job.jobId status
+        Broadcast.broadcastUpdate (JobScope job.jobId)
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     Broadcast.broadcastUpdate (JobScope job.jobId)
     log Info "Started task"
