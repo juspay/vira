@@ -100,13 +100,19 @@ fmtRichMessage msg = do
       Just tid -> Thread.threadDesc tid
       Nothing -> pure Thread.defaultThreadLabel
 
-  mContext :: Maybe LogContext <- extractField $ DMap.lookup (typeRep @"context") msg.richMsgMap
+  mContext :: Maybe LogContext <-
+    extractField $ DMap.lookup (typeRep @"context") msg.richMsgMap
 
-  let severity = msg.richMsgMsg.msgSeverity
-      text = msg.richMsgMsg.msgText
-      severityText = formatSeverity severity
-      message = timeStr <> " " <> severityText <> " [" <> threadIdText <> "] " <> text <> maybe mempty show mContext
-  pure $ case severity of
+  let message =
+        timeStr
+          <> " "
+          <> formatSeverity msg.richMsgMsg.msgSeverity
+          <> " ["
+          <> threadIdText
+          <> "] "
+          <> msg.richMsgMsg.msgText
+          <> maybe mempty show mContext
+  pure $ case msg.richMsgMsg.msgSeverity of
     Debug -> "\ESC[90m" <> message <> "\ESC[0m"
     Info -> message
     Warning -> "\ESC[33m" <> message <> "\ESC[0m"
