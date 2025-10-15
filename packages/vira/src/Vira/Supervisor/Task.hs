@@ -63,7 +63,6 @@ startTask ::
     , FileSystem :> es1
     , ER.Reader LogContext :> es1
     ) =>
-    TaskId ->
     (forall es2. (IOE :> es2) => Text -> Eff es2 ()) ->
     Eff es1 (Either err ExitCode)
   ) ->
@@ -73,7 +72,7 @@ startTask ::
     Eff es ()
   ) ->
   Eff es ()
-startTask supervisor taskId workDir orchestrator onFinish = withLogContext [("task", show taskId)] $ do
+startTask supervisor taskId workDir orchestrator onFinish = do
   logSupervisorState supervisor
   let msg = "Starting Vira pipeline in " <> toText workDir
   log Info msg
@@ -88,7 +87,7 @@ startTask supervisor taskId workDir orchestrator onFinish = withLogContext [("ta
         tailHandle <- liftIO $ Tail.tailFile 1000 (outputLogFile workDir)
         logToWorkspaceOutput taskId workDir msg
         asyncHandle <- async $ do
-          result <- orchestrator taskId (logToWorkspaceOutput taskId workDir)
+          result <- orchestrator (logToWorkspaceOutput taskId workDir)
           -- Log the errors if any
           whenLeft_ result $ \err -> do
             logToWorkspaceOutput taskId workDir $ "❌ ERROR: " <> show err

@@ -27,10 +27,9 @@ import Vira.CI.Environment qualified as Env
 import Vira.CI.Error
 import Vira.CI.Pipeline.Type
 import Vira.CI.Processes (pipelineProcesses)
-import Vira.Lib.Logging (LogContext, withLogContext)
+import Vira.Lib.Logging (LogContext)
 import Vira.State.Type (Branch (..), Repo (..), cloneUrl)
 import Vira.Supervisor.Process (runProcesses)
-import Vira.Supervisor.Type (TaskId)
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
@@ -42,32 +41,30 @@ runPipeline ::
   , ER.Reader LogContext :> es
   ) =>
   ViraEnvironment ->
-  TaskId ->
   (forall es1. (IOE :> es1) => Text -> Eff es1 ()) ->
   Eff es (Either PipelineError ExitCode)
-runPipeline env taskId logger =
-  withLogContext [("repo", show env.repo.name), ("branch", show env.branch.branchName), ("task", show taskId)] $ do
-    -- 1. Setup workspace and clone
-    let setupProcs =
-          one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit.id Env.projectDirName
-    runProcesses env.workspacePath logger setupProcs >>= \case
-      Left err ->
-        pure $ Left $ PipelineTerminated err
-      Right ExitSuccess -> do
-        -- 2. Configure the pipeline, looking for optional vira.hs
-        runErrorNoCallStack @InterpreterError (environmentPipeline env logger) >>= \case
-          Left err -> do
-            pure $ Left $ PipelineConfigurationError $ InterpreterError err
-          Right pipeline -> do
-            logger $ toText $ "ℹ️ Pipeline configuration:\n" <> Shower.shower pipeline
-            case pipelineProcesses env pipeline of
-              Left err -> do
-                pure $ Left err
-              Right pipelineProcs -> do
-                -- 3. Run the actual CI pipeline.
-                runProcesses env.workspacePath logger pipelineProcs <&> first PipelineTerminated
-      Right exitCode -> do
-        pure $ Right exitCode
+runPipeline env logger = do
+  -- 1. Setup workspace and clone
+  let setupProcs =
+        one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit.id Env.projectDirName
+  runProcesses env.workspacePath logger setupProcs >>= \case
+    Left err ->
+      pure $ Left $ PipelineTerminated err
+    Right ExitSuccess -> do
+      -- 2. Configure the pipeline, looking for optional vira.hs
+      runErrorNoCallStack @InterpreterError (environmentPipeline env logger) >>= \case
+        Left err -> do
+          pure $ Left $ PipelineConfigurationError $ InterpreterError err
+        Right pipeline -> do
+          logger $ toText $ "ℹ️ Pipeline configuration:\n" <> Shower.shower pipeline
+          case pipelineProcesses env pipeline of
+            Left err -> do
+              pure $ Left err
+            Right pipelineProcs -> do
+              -- 3. Run the actual CI pipeline.
+              runProcesses env.workspacePath logger pipelineProcs <&> first PipelineTerminated
+    Right exitCode -> do
+      pure $ Right exitCode
 
 {- | Load pipeline configuration for the given project environment.
 
