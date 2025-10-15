@@ -12,13 +12,12 @@ import Effectful.Process (Process)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
-import Effectful.FileSystem (FileSystem)
+import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git (Commit (..))
 import Effectful.Git qualified as Git
 import Effectful.Reader.Static qualified as ER
 import Language.Haskell.Interpreter (InterpreterError (..))
 import Shower qualified
-import System.Directory (doesFileExist)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import Vira.CI.Configuration qualified as Configuration
@@ -96,7 +95,10 @@ runPipelineIn tools ctx repoDir outputLog logger = do
 Returns Nothing if vira.hs is not found, or Just pipeline if found and successfully loaded.
 -}
 loadViraHsConfiguration ::
-  (Error InterpreterError :> es, IOE :> es) =>
+  ( Error InterpreterError :> es
+  , FileSystem :> es
+  , IOE :> es
+  ) =>
   -- | Path to vira.hs configuration file
   FilePath ->
   -- | Vira context
@@ -104,20 +106,18 @@ loadViraHsConfiguration ::
   -- | Logger function
   (forall es1. (IOE :> es1) => Text -> Eff es1 ()) ->
   Eff es ViraPipeline
-loadViraHsConfiguration viraConfigPath ctx logger = do
-  configExists <- liftIO $ doesFileExist viraConfigPath
-
-  if configExists
-    then do
+loadViraHsConfiguration path ctx logger = do
+  doesFileExist path >>= \case
+    True -> do
       logger "Found vira.hs configuration file, applying customizations..."
-      content <- liftIO $ readFileBS viraConfigPath
-      liftIO (Configuration.applyConfig (decodeUtf8 content) ctx defaultPipeline) >>= \case
+      content <- liftIO $ decodeUtf8 <$> readFileBS path
+      Configuration.applyConfig content ctx defaultPipeline >>= \case
         Left err -> do
           throwError err
-        Right customPipeline -> do
+        Right p -> do
           logger "Successfully applied vira.hs configuration"
-          pure customPipeline
-    else do
+          pure p
+    False -> do
       logger "No vira.hs found - using default pipeline"
       pure defaultPipeline
 

@@ -55,5 +55,5 @@ viraContext :: ViraEnvironment -> ViraContext
 viraContext env =
   ViraContext
     { branch = env.branch.branchName
-    , commit = env.branch.headCommit.id
+    , dirty = False
     }

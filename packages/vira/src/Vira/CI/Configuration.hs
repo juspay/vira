@@ -12,15 +12,16 @@ import Vira.CI.Pipeline.Type (ViraPipeline)
 
 -- | Apply a Haskell configuration file to modify a pipeline
 applyConfig ::
+  (MonadIO m) =>
   -- | Contents of Haskell config file
   Text ->
   -- | Current context
   ViraContext ->
   -- | Default pipeline configuration
   ViraPipeline ->
-  IO (Either InterpreterError ViraPipeline)
+  m (Either InterpreterError ViraPipeline)
 applyConfig configContent ctx pipeline = do
-  result <- runInterpreterWithNixPackageDb $ do
+  result <- liftIO $ runInterpreterWithNixPackageDb $ do
     -- Set up the interpreter context
     Hint.set
       [ Hint.languageExtensions
