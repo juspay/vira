@@ -165,8 +165,8 @@ runPipelineCLI repoDir = do
     pure Tools {..}
   -- No output log for CLI execution (logs go to stdout via logger)
   let outputLog = Nothing
-      logger :: forall es1. (IOE :> es1) => Text -> Eff es1 ()
-      logger msg = liftIO $ putTextLn msg
+      logger :: forall es1. (IOE :> es1) => Severity -> Text -> Eff es1 ()
+      logger _severity msg = liftIO $ putTextLn msg
   runPipelineIn tools ctx repoDir outputLog logger
 
 -- | Create a default pipeline configuration
