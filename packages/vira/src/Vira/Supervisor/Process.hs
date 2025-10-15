@@ -37,12 +37,14 @@ runProcesses ::
   FilePath ->
   -- | Optional output log file path
   Maybe FilePath ->
-  -- | Logger callback for user-facing messages
+  {- | Logger callback for user-facing messages
+  TODO: This is just logging start/end to 'output.log'. Yuck.
+  -}
   (forall es1. (IOE :> es1) => Text -> Eff es1 ()) ->
   -- | Processes to run in sequence
   NonEmpty CreateProcess ->
   Eff es (Either Terminated ExitCode)
-runProcesses workDir mOutputFile logger procs = do
+runProcesses workDir mOutputFile taskLogger procs = do
   tagCurrentThread "🛞 "
   runProcs $ toList procs
   where
@@ -66,7 +68,7 @@ runProcesses workDir mOutputFile logger procs = do
     runProc :: CreateProcess -> Eff es (Maybe Pid, Either Terminated ExitCode)
     runProc process = do
       log Debug $ "Starting task: " <> show (cmdspec process)
-      logger $ "Starting task: " <> show (cmdspec process)
+      taskLogger $ "Starting task: " <> show (cmdspec process)
       case mOutputFile of
         Nothing -> runProcWithSettings process id
         Just outputFile ->
@@ -96,7 +98,7 @@ runProcesses workDir mOutputFile logger procs = do
                 _ <- waitForProcess ph -- Reap to prevent zombies
                 pure $ Left Terminated
       log Debug $ "Task finished: " <> show (cmdspec process)
-      logger $
+      taskLogger $
         "A task (pid=" <> show pid <> ") finished with " <> either (("exception: " <>) . toText . displayException) (("exitcode: " <>) . show) result
       log Debug "Workspace log done"
       pure (pid, result)

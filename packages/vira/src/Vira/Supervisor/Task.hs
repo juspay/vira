@@ -120,10 +120,6 @@ taskState Task {..} = do
     Just (Right _) -> pure $ Finished ExitSuccess
     Just (Left _) -> pure Killed
 
--- Send all output to a file under working directory.
-outputLogFile :: FilePath -> FilePath
-outputLogFile base = base </> "output.log"
-
 logSupervisorState :: (HasCallStack, Concurrent :> es, Log (RichMessage IO) :> es, IOE :> es, ER.Reader LogContext :> es) => TaskSupervisor -> Eff es ()
 logSupervisorState supervisor = do
   tasks <- readMVar (tasks supervisor)
@@ -137,3 +133,8 @@ logToWorkspaceOutput :: (IOE :> es) => TaskId -> FilePath -> Text -> Eff es ()
 logToWorkspaceOutput taskId workDir (msg :: Text) = do
   let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
   appendFileText (outputLogFile workDir) s
+
+-- Send all output to a file under working directory.
+-- TODO: Yuck!
+outputLogFile :: FilePath -> FilePath
+outputLogFile base = base </> "output.log"

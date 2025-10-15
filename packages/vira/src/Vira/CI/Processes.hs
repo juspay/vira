@@ -12,7 +12,6 @@ import Control.Monad.Writer.Strict (MonadWriter (tell), WriterT (..))
 import Effectful.Process (CreateProcess)
 import GH.Signoff qualified as Signoff
 import System.Info qualified as SysInfo
-import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.CI.Environment qualified as Env
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Pipeline.Type
@@ -21,16 +20,16 @@ import Vira.Lib.Process (alwaysUnderPath)
 import Vira.Tool.Core (ToolError (..))
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type.ToolData (status)
-import Vira.Tool.Type.Tools (attic)
+import Vira.Tool.Type.Tools (Tools, attic)
 
 {- | Get all the processes to run as part of this Pipeline
 
 TODO: To be rewritten during https://github.com/juspay/vira/issues/6
 -}
-pipelineProcesses :: ViraEnvironment -> ViraPipeline -> Either PipelineError (NonEmpty CreateProcess)
-pipelineProcesses env pipeline = do
+pipelineProcesses :: Tools -> ViraPipeline -> Either PipelineError (NonEmpty CreateProcess)
+pipelineProcesses tools pipeline = do
   (_, postBuildProcs) <- runWriterT $ do
-    tell <=< lift $ cacheProcs env pipeline.cache
+    tell <=< lift $ cacheProcs tools pipeline.cache
     tell $ signoffProcs pipeline.signoff
   let procs = buildProc pipeline.build :| postBuildProcs
   pure $ procs <&> alwaysUnderPath Env.projectDirName
@@ -42,9 +41,9 @@ buildProc stage =
     args = flip concatMap stage.overrideInputs $ \(k, v) ->
       ["--override-input", toString k, toString v]
 
-cacheProcs :: ViraEnvironment -> CacheStage -> Either PipelineError [CreateProcess]
-cacheProcs env stage =
-  go env.tools.attic stage.url
+cacheProcs :: Tools -> CacheStage -> Either PipelineError [CreateProcess]
+cacheProcs tools stage =
+  go tools.attic stage.url
   where
     go _ Nothing = pure []
     go attic (Just urlText) = do
