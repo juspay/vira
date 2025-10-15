@@ -151,6 +151,7 @@ library
     , dani-servant-lucid2
     , data-default
     , dependent-map
+    , dependent-sum
     , deriving-aeson
     , directory
     , effectful
@@ -266,6 +267,7 @@ executable vira
     , dani-servant-lucid2
     , data-default
     , dependent-map
+    , dependent-sum
     , deriving-aeson
     , directory
     , effectful
@@ -384,6 +386,7 @@ executable vira-tests
     , dani-servant-lucid2
     , data-default
     , dependent-map
+    , dependent-sum
     , deriving-aeson
     , directory
     , effectful

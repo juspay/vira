@@ -124,7 +124,7 @@ taskState Task {..} = do
 outputLogFile :: FilePath -> FilePath
 outputLogFile base = base </> "output.log"
 
-logSupervisorState :: (HasCallStack, Concurrent :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es) => TaskSupervisor -> Eff es ()
+logSupervisorState :: (HasCallStack, Concurrent :> es, Log (RichMessage IO) :> es, IOE :> es, ER.Reader LogContext :> es) => TaskSupervisor -> Eff es ()
 logSupervisorState supervisor = do
   tasks <- readMVar (tasks supervisor)
   withFrozenCallStack $ log Debug $ "Current tasks: " <> show (Map.keys tasks)

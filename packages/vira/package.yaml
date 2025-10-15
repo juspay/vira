@@ -44,6 +44,7 @@ dependencies:
   - containers
   - dani-servant-lucid2
   - dependent-map
+  - dependent-sum
   - data-default
   - deriving-aeson
   - directory

@@ -18,7 +18,12 @@ import Vira.Lib.Logging (LogContext, log, tagCurrentThread)
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type (Terminated (Terminated))
 
--- | Run a sequence of processes, stopping on first failure
+{- | Run a sequence of processes sequentially in the given working directory.
+
+Processes run one after another, stopping on the first non-zero exit code.
+All process output is logged to @output.log@ in the working directory.
+Returns 'Left Terminated' if interrupted, or 'Right ExitCode' on completion.
+-}
 runProcesses ::
   forall es.
   ( Concurrent :> es
@@ -28,9 +33,11 @@ runProcesses ::
   , FileSystem :> es
   , ER.Reader LogContext :> es
   ) =>
+  -- | Working directory for processes
   FilePath ->
+  -- | Logger callback for user-facing messages
   (forall es1. (IOE :> es1) => Text -> Eff es1 ()) ->
-  -- List of processes to run in sequence
+  -- | Processes to run in sequence
   NonEmpty CreateProcess ->
   Eff es (Either Terminated ExitCode)
 runProcesses workDir logger procs = do
