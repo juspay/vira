@@ -2,13 +2,13 @@
 module Vira.Web.Stack where
 
 import Effectful (Eff)
+import Effectful.Colog.Simple (tagCurrentThread)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.Reader.Dynamic (Reader, runReader)
 import Servant (Handler (Handler), ServerError)
 import Vira.App.CLI (GlobalSettings (..), WebSettings)
 import Vira.App.Stack (AppStack, runApp)
 import Vira.App.Type (ViraRuntimeState)
-import Vira.Lib.Logging (tagCurrentThread)
 import Prelude hiding (Reader, ask, asks, runReader)
 
 type AppServantStack = (Error ServerError : Reader WebSettings : AppStack)

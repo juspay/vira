@@ -7,6 +7,7 @@ module Vira.Web.Pages.RepoPage (
 
 import Data.Time (diffUTCTime)
 import Effectful (Eff)
+import Effectful.Colog.Simple (withLogContext)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (Commit (..), RepoName)
 import Htmx.Lucid.Core (hxGet_, hxSwapS_, hxTarget_, hxTrigger_)
@@ -19,7 +20,6 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
-import Vira.Lib.Logging (withLogContext)
 import Vira.Refresh.Core qualified as Refresh
 import Vira.Refresh.Type (RefreshPriority (Now))
 import Vira.State.Acid qualified as St

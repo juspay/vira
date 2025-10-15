@@ -39,11 +39,11 @@ import Colog.Message (RichMessage)
 import Control.Concurrent.STM (dupTChan, writeTChan)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext, log)
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful.Reader.Static qualified as ER
 import Vira.App.Broadcast.Type (BroadcastScope, UpdateBroadcast)
 import Vira.App.Type (ViraRuntimeState (updateBroadcast))
-import Vira.Lib.Logging (LogContext, log)
 import Vira.Lib.STM (drainRemainingTChan, drainTChan)
 import Prelude hiding (Reader, ask, asks, runReader)
 

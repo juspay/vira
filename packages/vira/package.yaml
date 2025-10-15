@@ -41,6 +41,7 @@ dependencies:
   - co-log >= 0.7
   - co-log-core
   - co-log-effectful
+  - co-log-effectful-simple
   - containers
   - dani-servant-lucid2
   - dependent-map

@@ -2,11 +2,11 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-{- | To use logging, import this module unqualified.
+{- | Simple context-aware logging for co-log with effectful.
 
->>> import Vira.Lib.Logging
+>>> import Effectful.Colog.Simple
 -}
-module Vira.Lib.Logging (
+module Effectful.Colog.Simple (
   -- * Logging
   log,
   withLogContext,
@@ -46,7 +46,7 @@ tagCurrentThread tag = do
 
 Ref: https://github.com/eldritch-cookie/co-log-effectful/issues/1
 
->>> import Vira.Lib.Logging (log, Severity(Info))
+>>> import Effectful.Colog.Simple (log, Severity(Info))
 >>> log Info "Hello, world!"
 -}
 log :: forall es. (HasCallStack, ER.Reader LogContext :> es, Log (RichMessage IO) :> es, IOE :> es) => Severity -> Text -> Eff es ()

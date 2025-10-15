@@ -4,6 +4,7 @@
 module Vira.Web.Pages.RegistryPage where
 
 import Effectful (Eff)
+import Effectful.Colog.Simple
 import Effectful.Git (BranchName, RepoName (..))
 import GHC.Records (HasField)
 import GHC.TypeLits (KnownSymbol, symbolVal)
@@ -16,7 +17,6 @@ import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
-import Vira.Lib.Logging
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo

@@ -15,12 +15,12 @@ import Data.Map.Strict qualified as Map
 import Data.Time (getCurrentTime)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext, Severity (Info), log)
 import Effectful.Git (RepoName)
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful.Reader.Static qualified as ER
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
-import Vira.Lib.Logging (LogContext, Severity (Info), log)
 import Vira.Refresh.Type (RefreshPriority (..), RefreshState (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..))

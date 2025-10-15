@@ -1,0 +1,71 @@
+cabal-version: 2.2
+
+-- This file has been generated from package.yaml by hpack version 0.38.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           co-log-effectful-simple
+version:        0.1.0.0
+synopsis:       Simple context-aware logging for co-log with effectful
+description:    A simple logging library that combines co-log's RichMessage with effectful's Reader for context-aware logging
+category:       Logging
+author:         Sridhar Ratnakumar
+maintainer:     srid@srid.ca
+copyright:      2025 Juspay
+license:        AGPL-3.0-or-later
+build-type:     Simple
+
+library
+  exposed-modules:
+      Effectful.Colog.Simple
+  other-modules:
+      Paths_co_log_effectful_simple
+  autogen-modules:
+      Paths_co_log_effectful_simple
+  hs-source-dirs:
+      src
+  default-extensions:
+      DataKinds
+      DeriveDataTypeable
+      DeriveGeneric
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      ExplicitForAll
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoStarIsType
+      NumericUnderscores
+      OverloadedStrings
+      ScopedTypeVariables
+      StrictData
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      TypeSynonymInstances
+      ViewPatterns
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -fplugin=Effectful.Plugin
+  build-depends:
+      base ==4.*
+    , co-log >=0.7
+    , co-log-core
+    , co-log-effectful
+    , dependent-map
+    , dependent-sum
+    , effectful
+    , effectful-core
+    , effectful-plugin
+    , relude >=1.0
+    , text
+    , time
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2021

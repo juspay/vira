@@ -1,0 +1,31 @@
+defaults:
+  - local: ../../hpack-common.yaml
+  - local: ../../hpack-relude.yaml
+
+name: co-log-effectful-simple
+version: 0.1.0.0
+license: AGPL-3.0-or-later
+copyright: 2025 Juspay
+maintainer: srid@srid.ca
+author: Sridhar Ratnakumar
+category: Logging
+synopsis: Simple context-aware logging for co-log with effectful
+description: A simple logging library that combines co-log's RichMessage with effectful's Reader for context-aware logging
+
+ghc-options:
+  - -fplugin=Effectful.Plugin
+
+dependencies:
+  - co-log >= 0.7
+  - co-log-core
+  - co-log-effectful
+  - dependent-map
+  - dependent-sum
+  - effectful
+  - effectful-core
+  - effectful-plugin
+  - text
+  - time
+
+library:
+  source-dirs: src

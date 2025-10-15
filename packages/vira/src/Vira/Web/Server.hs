@@ -7,6 +7,7 @@ module Vira.Web.Server (
 import Colog.Message (RichMessage)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
+import Effectful.Colog.Simple
 import Effectful.FileSystem (FileSystem, doesDirectoryExist)
 import Effectful.Reader.Dynamic qualified as Reader
 import Effectful.Reader.Static qualified as ER
@@ -25,7 +26,6 @@ import Servant.Server.Generic (genericServe)
 import Vira.App (AppStack)
 import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
 import Vira.App.Type (ViraRuntimeState)
-import Vira.Lib.Logging
 import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
 

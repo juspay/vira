@@ -46,7 +46,6 @@ library
       Vira.CI.Pipeline
       Vira.CI.Processes
       Vira.CI.Workspace
-      Vira.Lib.Logging
       Vira.Lib.Omnix
       Vira.Lib.Process
       Vira.Lib.STM
@@ -147,6 +146,7 @@ library
     , co-log >=0.7
     , co-log-core
     , co-log-effectful
+    , co-log-effectful-simple
     , containers
     , dani-servant-lucid2
     , data-default
@@ -262,6 +262,7 @@ executable vira
     , co-log >=0.7
     , co-log-core
     , co-log-effectful
+    , co-log-effectful-simple
     , containers
     , dani-servant-lucid2
     , data-default
@@ -380,6 +381,7 @@ executable vira-tests
     , co-log >=0.7
     , co-log-core
     , co-log-effectful
+    , co-log-effectful-simple
     , containers
     , dani-servant-lucid2
     , data-default

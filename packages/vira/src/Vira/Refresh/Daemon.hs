@@ -10,6 +10,7 @@ import Data.Acid qualified as Acid
 import Data.Map.Strict qualified as Map
 import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff)
+import Effectful.Colog.Simple (Severity (..), log, tagCurrentThread, withLogContext)
 import Effectful.Concurrent (threadDelay)
 import Effectful.Concurrent.Async (async)
 import Effectful.Concurrent.STM (atomically)
@@ -24,7 +25,6 @@ import Vira.App.Broadcast.Type (BroadcastScope (..))
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.CI.Workspace qualified as Workspace
-import Vira.Lib.Logging (Severity (..), log, tagCurrentThread, withLogContext)
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Refresh.Core (initializeRefreshState, scheduleRepoRefresh)
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (..), RefreshResult (..), RefreshState (..), RefreshStatus (..))

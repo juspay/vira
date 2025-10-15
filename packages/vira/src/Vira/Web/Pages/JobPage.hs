@@ -4,6 +4,7 @@ module Vira.Web.Pages.JobPage where
 
 import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff)
+import Effectful.Colog.Simple (Severity (..), log, withLogContext)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName, Commit (..), RepoName)
 import Effectful.Reader.Dynamic (asks)
@@ -20,7 +21,6 @@ import Vira.App.CLI (WebSettings)
 import Vira.CI.Environment (ViraEnvironment (..), environmentFor)
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Workspace qualified as Workspace
-import Vira.Lib.Logging (Severity (..), log, withLogContext)
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St

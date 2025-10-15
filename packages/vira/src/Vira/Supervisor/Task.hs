@@ -15,6 +15,7 @@ import Colog.Message (RichMessage)
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext, log, withLogContext)
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar_, readMVar)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
@@ -23,7 +24,6 @@ import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Tail qualified as Tail
-import Vira.Lib.Logging (LogContext, log, withLogContext)
 import Vira.Supervisor.Type (Task (..), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..), Terminated (Terminated))
 import Prelude hiding (readMVar)
 

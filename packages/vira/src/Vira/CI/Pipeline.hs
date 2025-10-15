@@ -10,6 +10,7 @@ import Effectful.Colog (Log)
 import Effectful.Process (Process)
 
 import Effectful (Eff, IOE, (:>))
+import Effectful.Colog.Simple (LogContext)
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
@@ -27,7 +28,6 @@ import Vira.CI.Environment qualified as Env
 import Vira.CI.Error
 import Vira.CI.Pipeline.Type
 import Vira.CI.Processes (pipelineProcesses)
-import Vira.Lib.Logging (LogContext)
 import Vira.State.Type (Branch (..), Repo (..), cloneUrl)
 import Vira.Supervisor.Process (runProcesses)
 import Vira.Tool.Core (Tools)

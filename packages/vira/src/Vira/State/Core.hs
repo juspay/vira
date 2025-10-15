@@ -26,11 +26,11 @@ import Data.Acid.Local (createCheckpointAndClose)
 import Data.Typeable (typeOf)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext, log)
 import Effectful.Concurrent (Concurrent, threadDelay)
 import Effectful.Concurrent.Async (async)
 import Effectful.Reader.Static qualified as ER
 import System.FilePath ((</>))
-import Vira.Lib.Logging (LogContext, log)
 import Vira.State.Acid qualified as Acid
 import Vira.State.Reset (checkSchemaVersion, viraDbVersion, writeSchemaVersion)
 import Vira.State.Type
