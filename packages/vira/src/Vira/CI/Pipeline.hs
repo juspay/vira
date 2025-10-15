@@ -140,11 +140,17 @@ runPipelineCLI ::
   FilePath ->
   Eff es (Either PipelineError ExitCode)
 runPipelineCLI repoDir = do
-  -- Create a placeholder ViraContext for CLI execution
+  -- Detect git branch and dirty status (fail if not in a git repo)
+  branch <-
+    runErrorNoCallStack (Git.getCurrentBranch repoDir) >>= \case
+      Left err -> error $ toText $ "Not a git repository: " <> toString err
+      Right b -> pure b
+  dirty <- Git.isWorkingTreeDirty repoDir
+
   let ctx =
         ViraContext
-          { Vira.CI.Context.branch = "unknown"
-          , Vira.CI.Context.dirty = False
+          { Vira.CI.Context.branch = branch
+          , Vira.CI.Context.dirty = dirty
           }
   -- Get all tools (directly calling tool functions)
   tools <- liftIO $ runEff $ do

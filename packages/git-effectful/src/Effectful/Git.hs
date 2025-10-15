@@ -17,6 +17,8 @@ module Effectful.Git (
   -- * Operations
   remoteBranchesFromClone,
   cloneAtCommit,
+  getCurrentBranch,
+  isWorkingTreeDirty,
 ) where
 
 import Colog (Severity (..))
@@ -84,6 +86,28 @@ cloneAtCommit url commit path =
     , toString url
     , path
     ]
+
+-- | Get the current branch name in a git repository
+getCurrentBranch :: (Error Text :> es, Log (RichMessage IO) :> es, Process :> es, IOE :> es) => FilePath -> Eff es BranchName
+getCurrentBranch repoPath = do
+  log Debug $ "Getting current branch in: " <> show repoPath
+  output <-
+    readCreateProcess (proc git ["branch", "--show-current"]) {cwd = Just repoPath} ""
+      `catchIO` \ex -> do
+        let errorMsg = "Git branch --show-current failed: " <> show ex
+        log Error errorMsg
+        throwError $ toText errorMsg
+  pure $ BranchName $ T.strip $ toText output
+
+-- | Check if the working tree has uncommitted changes (ignores untracked files)
+isWorkingTreeDirty :: (Log (RichMessage IO) :> es, Process :> es, IOE :> es) => FilePath -> Eff es Bool
+isWorkingTreeDirty repoPath = do
+  log Debug $ "Checking if working tree is dirty in: " <> show repoPath
+  output <-
+    readCreateProcess (proc git ["status", "--porcelain", "--untracked-files=no"]) {cwd = Just repoPath} ""
+      `catchIO` \_ -> pure ""
+  let result = T.strip $ toText output
+  pure $ not $ T.null result
 
 -- | Return the `CreateProcess` to list remote branches with metadata
 forEachRefRemoteBranches :: CreateProcess
