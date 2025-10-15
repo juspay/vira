@@ -18,6 +18,8 @@ build-type:     Simple
 library
   exposed-modules:
       Effectful.Colog.Simple
+      Effectful.Colog.Simple.Context
+      Effectful.Colog.Simple.Thread
   other-modules:
       Paths_co_log_effectful_simple
   autogen-modules:
