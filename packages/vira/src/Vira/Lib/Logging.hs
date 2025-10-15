@@ -20,11 +20,11 @@ module Vira.Lib.Logging (
 where
 
 import Colog.Core (Severity (..))
-import Colog.Message (FieldType, MessageField (..), Msg (..), RichMessage, RichMsg (..), extractField)
+import Colog.Message (FieldType, MessageField (..), Msg (..), RichMessage, RichMsg (..), defaultFieldMap, extractField)
 import Data.Dependent.Map qualified as DMap
 import Data.Dependent.Sum (DSum ((:=>)))
 import Data.Text qualified as T
-import Data.Time (UTCTime, formatTime, getCurrentTime, utcToLocalTime)
+import Data.Time (UTCTime, formatTime, utcToLocalTime)
 import Data.Time.Format (defaultTimeLocale)
 import Data.Time.LocalTime (TimeZone, getCurrentTimeZone)
 import Effectful (Eff, IOE, (:>))
@@ -59,11 +59,11 @@ log msgSeverity msgText = do
 -- | Build field map with context, timestamp and timezone
 buildFieldMap :: LogContext -> DMap.DMap TypeRep (MessageField IO)
 buildFieldMap ctx =
-  DMap.fromList
-    [ typeRep @"context" :=> MessageField (pure ctx)
-    , typeRep @"utcTime" :=> MessageField (liftIO getCurrentTime)
-    , typeRep @"timezone" :=> MessageField (liftIO getCurrentTimeZone)
-    ]
+  defaultFieldMap
+    <> DMap.fromList
+      [ typeRep @"context" :=> MessageField (pure ctx)
+      , typeRep @"timezone" :=> MessageField (liftIO getCurrentTimeZone)
+      ]
 
 {- | Add context field to all log messages within the given action.
 

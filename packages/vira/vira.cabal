@@ -1,6 +1,6 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.37.0.
+-- This file has been generated from package.yaml by hpack version 0.38.2.
 --
 -- see: https://github.com/sol/hpack
 
@@ -144,7 +144,7 @@ library
     , bytestring
     , cachix
     , cereal
-    , co-log
+    , co-log >=0.7
     , co-log-core
     , co-log-effectful
     , containers
@@ -162,7 +162,6 @@ library
     , filepath
     , gh
     , git-effectful
-    , gitlib
     , hint
     , hint-nix
     , hostname
@@ -260,7 +259,7 @@ executable vira
     , bytestring
     , cachix
     , cereal
-    , co-log
+    , co-log >=0.7
     , co-log-core
     , co-log-effectful
     , containers
@@ -278,7 +277,6 @@ executable vira
     , filepath
     , gh
     , git-effectful
-    , gitlib
     , hint
     , hint-nix
     , hostname
@@ -379,7 +377,7 @@ executable vira-tests
     , bytestring
     , cachix
     , cereal
-    , co-log
+    , co-log >=0.7
     , co-log-core
     , co-log-effectful
     , containers
@@ -397,7 +395,6 @@ executable vira-tests
     , filepath
     , gh
     , git-effectful
-    , gitlib
     , hint
     , hint-nix
     , hostname
