@@ -323,6 +323,9 @@
   .m-0 {
     margin: calc(var(--spacing) * 0);
   }
+  .-mx-4 {
+    margin-inline: calc(var(--spacing) * -4);
+  }
   .mx-1 {
     margin-inline: calc(var(--spacing) * 1);
   }
@@ -765,6 +768,12 @@
   .bg-indigo-600 {
     background-color: var(--color-indigo-600);
   }
+  .bg-indigo-900\/50 {
+    background-color: color-mix(in srgb, oklch(35.9% 0.144 278.697) 50%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-indigo-900) 50%, transparent);
+    }
+  }
   .bg-orange-100 {
     background-color: var(--color-orange-100);
   }
@@ -830,6 +839,9 @@
   }
   .px-8 {
     padding-inline: calc(var(--spacing) * 8);
+  }
+  .py-0\.5 {
+    padding-block: calc(var(--spacing) * 0.5);
   }
   .py-1 {
     padding-block: calc(var(--spacing) * 1);
@@ -979,6 +991,9 @@
   }
   .text-green-800 {
     color: var(--color-green-800);
+  }
+  .text-indigo-200 {
+    color: var(--color-indigo-200);
   }
   .text-indigo-600 {
     color: var(--color-indigo-600);
@@ -1435,6 +1450,14 @@
       background-color: color-mix(in srgb, oklch(35.9% 0.144 278.697) 20%, transparent);
       @supports (color: color-mix(in lab, red, red)) {
         background-color: color-mix(in oklab, var(--color-indigo-900) 20%, transparent);
+      }
+    }
+  }
+  .dark\:bg-indigo-900\/50 {
+    @media (prefers-color-scheme: dark) {
+      background-color: color-mix(in srgb, oklch(35.9% 0.144 278.697) 50%, transparent);
+      @supports (color: color-mix(in lab, red, red)) {
+        background-color: color-mix(in oklab, var(--color-indigo-900) 50%, transparent);
       }
     }
   }

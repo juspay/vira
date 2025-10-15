@@ -9,6 +9,7 @@ module Vira.Web.Stream.Log (
   -- * View
   viewStream,
   logViewerWidget,
+  renderLogLines,
 ) where
 
 import Colog (Severity (..))
@@ -66,9 +67,23 @@ logChunkMsg = \case
       Status.indicator False
       span_ [class_ "font-medium"] "Build completed"
 
+-- | Render log lines with special styling for viralog lines
+renderLogLines :: (Monad m) => [Text] -> HtmlT m ()
+renderLogLines ls =
+  -- Use `lines . unlines` to normalize: each Text may contain embedded newlines,
+  -- so we flatten them into individual lines to check each for viralog prefix
+  mconcat $ map renderLine $ lines $ unlines ls
+  where
+    renderLine line =
+      if "viralog:" `T.isPrefixOf` line
+        then
+          let stripped = T.drop (T.length "viralog:") line
+           in span_ [class_ "viralog-line bg-indigo-50 dark:bg-indigo-900/50 text-indigo-900 dark:text-indigo-200 font-semibold block -mx-4 px-4 py-0.5"] $ toHtml stripped <> br_ []
+        else toHtml line <> br_ []
+
 -- | Render multiline lines for placing under a <pre> such that newlines are preserved & rendered
-rawMultiLine :: [Text] -> Html ()
-rawMultiLine ls = toHtmlRaw $ T.replace "\n" "<br>" $ unlines ls
+rawMultiLine :: (Monad m) => [Text] -> HtmlT m ()
+rawMultiLine = renderLogLines
 
 instance ToServerEvent LogChunk where
   toServerEvent chunk =

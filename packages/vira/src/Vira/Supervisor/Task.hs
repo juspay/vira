@@ -94,7 +94,7 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
               logToWorkspaceOutput msgSeverity workDir msgText
           -- Log the errors if any
           whenLeft_ result $ \err -> do
-            logToWorkspaceOutput Error workDir $ "❌ ERROR: " <> show err
+            logToWorkspaceOutput Error workDir $ show err
           -- Stop the tail when task finishes for any reason
           liftIO $ Tail.tailStop tailHandle
           -- Then call the original handler
@@ -137,11 +137,11 @@ logSupervisorState supervisor = do
 logToWorkspaceOutput :: (Log (RichMessage IO) :> es, ER.Reader LogContext :> es, IOE :> es) => Severity -> FilePath -> Text -> Eff es ()
 logToWorkspaceOutput severity workDir (msg :: Text) = do
   let severityStr = case severity of
-        Debug -> "DEBUG"
-        Info -> "INFO"
-        Warning -> "WARN"
-        Error -> "ERROR"
-      s = "[" <> severityStr <> "] " <> msg <> "\n"
+        Debug -> "🐛 DEBUG"
+        Info -> "ℹ️  INFO"
+        Warning -> "⚠️  WARN"
+        Error -> "❌ ERROR"
+      s = "viralog:[" <> severityStr <> "] " <> msg <> "\n"
   appendFileText (outputLogFile workDir) s
 
 -- Send all output to a file under working directory.
