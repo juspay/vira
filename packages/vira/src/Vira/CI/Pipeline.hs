@@ -1,7 +1,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RecordWildCards #-}
 
-module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
+module Vira.CI.Pipeline (runPipeline, runPipelineCLI, defaultPipeline, PipelineError (..)) where
 
 import Prelude hiding (id)
 
@@ -9,7 +10,7 @@ import Colog.Message (RichMessage)
 import Effectful.Colog (Log)
 import Effectful.Process (Process)
 
-import Effectful (Eff, IOE, (:>))
+import Effectful (Eff, IOE, runEff, (:>))
 import Effectful.Colog.Simple (LogContext)
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
@@ -22,7 +23,7 @@ import Shower qualified
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import Vira.CI.Configuration qualified as Configuration
-import Vira.CI.Context (ViraContext)
+import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.CI.Environment qualified as Env
 import Vira.CI.Error
@@ -31,6 +32,12 @@ import Vira.CI.Processes (pipelineProcesses)
 import Vira.State.Type (Branch (..), Repo (..), cloneUrl)
 import Vira.Supervisor.Process (runProcesses)
 import Vira.Tool.Core (Tools)
+import Vira.Tool.Tools.Attic qualified as AtticTool
+import Vira.Tool.Tools.Cachix qualified as CachixTool
+import Vira.Tool.Tools.Git qualified as GitTool
+import Vira.Tool.Tools.GitHub qualified as GitHubTool
+import Vira.Tool.Tools.Omnix qualified as OmnixTool
+import Vira.Tool.Type.Tools (Tools (..))
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
@@ -120,6 +127,38 @@ loadViraHsConfiguration path ctx logger = do
     False -> do
       logger "No vira.hs found - using default pipeline"
       pure defaultPipeline
+
+-- | CLI wrapper for running a pipeline in the current directory
+runPipelineCLI ::
+  ( Concurrent :> es
+  , Process :> es
+  , Log (RichMessage IO) :> es
+  , IOE :> es
+  , FileSystem :> es
+  , ER.Reader LogContext :> es
+  ) =>
+  FilePath ->
+  Eff es (Either PipelineError ExitCode)
+runPipelineCLI repoDir = do
+  -- Create a placeholder ViraContext for CLI execution
+  let ctx =
+        ViraContext
+          { Vira.CI.Context.branch = "unknown"
+          , Vira.CI.Context.dirty = False
+          }
+  -- Get all tools (directly calling tool functions)
+  tools <- liftIO $ runEff $ do
+    attic <- AtticTool.getToolData
+    github <- GitHubTool.getToolData
+    omnix <- OmnixTool.getToolData
+    git <- GitTool.getToolData
+    cachix <- CachixTool.getToolData
+    pure Tools {..}
+  -- No output log for CLI execution (logs go to stdout via logger)
+  let outputLog = Nothing
+      logger :: forall es1. (IOE :> es1) => Text -> Eff es1 ()
+      logger msg = liftIO $ putTextLn msg
+  runPipelineIn tools ctx repoDir outputLog logger
 
 -- | Create a default pipeline configuration
 defaultPipeline :: ViraPipeline

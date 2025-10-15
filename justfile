@@ -12,6 +12,19 @@ docs:
 run:
     nix run .#vira-dev -- --no-server --tui=false
 
+# Run ghcid with vira in development mode
+[group('1. vira')]
+run2 ARGS='web --host 0.0.0.0 --base-path ${BASE_PATH:-/} --import ./sample.json':
+    #!/usr/bin/env bash
+    set -x
+    # Workaround cabal/ghcid bug with $PATH mangling.
+    export PATH=$(echo "$PATH" | tr ':' '\n' | grep '^/nix/store' | tr '\n' ':' | sed 's/:$//')
+    # Vira now auto-generates TLS certificates as needed
+    ghcid -T Main.main -c './cabal-repl vira:exe:vira' \
+        --setup ":set args --state-dir ./state --auto-reset-state {{ ARGS }}"
+
+
+
 # Run cabal tests (Pass, for example, `tail-test` to run for different component)
 [group('2. haskell')]
 test COMPONENT='vira-tests':
