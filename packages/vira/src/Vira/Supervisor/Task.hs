@@ -54,6 +54,7 @@ startTask ::
   ) =>
   TaskSupervisor ->
   TaskId ->
+  Severity ->
   FilePath ->
   ( forall es1.
     ( Concurrent :> es1
@@ -63,7 +64,7 @@ startTask ::
     , FileSystem :> es1
     , ER.Reader LogContext :> es1
     ) =>
-    (forall es2. (IOE :> es2) => Text -> Eff es2 ()) ->
+    (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ()) ->
     Eff es1 (Either err ExitCode)
   ) ->
   -- Handler to call after the task finishes
@@ -72,7 +73,7 @@ startTask ::
     Eff es ()
   ) ->
   Eff es ()
-startTask supervisor taskId workDir orchestrator onFinish = do
+startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
   logSupervisorState supervisor
   let msg = "Starting Vira pipeline in " <> toText workDir
   log Info msg
@@ -85,12 +86,15 @@ startTask supervisor taskId workDir orchestrator onFinish = do
         createDirectoryIfMissing True workDir
         appendFileText (outputLogFile workDir) "" -- Create empty log file before tail starts
         tailHandle <- liftIO $ Tail.tailFile 1000 (outputLogFile workDir)
-        logToWorkspaceOutput taskId workDir msg
+        logToWorkspaceOutput Info workDir msg
         asyncHandle <- async $ do
-          result <- orchestrator (logToWorkspaceOutput taskId workDir)
+          result <- orchestrator $ \msgSeverity msgText -> do
+            log msgSeverity msgText -- co-log to stdout
+            when (msgSeverity >= minSeverity) $ -- only write to file if severity is high enough
+              logToWorkspaceOutput msgSeverity workDir msgText
           -- Log the errors if any
           whenLeft_ result $ \err -> do
-            logToWorkspaceOutput taskId workDir $ "❌ ERROR: " <> show err
+            logToWorkspaceOutput Error workDir $ "❌ ERROR: " <> show err
           -- Stop the tail when task finishes for any reason
           liftIO $ Tail.tailStop tailHandle
           -- Then call the original handler
@@ -130,9 +134,14 @@ logSupervisorState supervisor = do
 
 -- TODO: In lieu of https://github.com/juspay/vira/issues/6
 -- FIXME: Don't complect with Vira
-logToWorkspaceOutput :: (IOE :> es) => TaskId -> FilePath -> Text -> Eff es ()
-logToWorkspaceOutput taskId workDir (msg :: Text) = do
-  let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
+logToWorkspaceOutput :: (Log (RichMessage IO) :> es, ER.Reader LogContext :> es, IOE :> es) => Severity -> FilePath -> Text -> Eff es ()
+logToWorkspaceOutput severity workDir (msg :: Text) = do
+  let severityStr = case severity of
+        Debug -> "DEBUG"
+        Info -> "INFO"
+        Warning -> "WARN"
+        Error -> "ERROR"
+      s = "[" <> severityStr <> "] " <> msg <> "\n"
   appendFileText (outputLogFile workDir) s
 
 -- Send all output to a file under working directory.

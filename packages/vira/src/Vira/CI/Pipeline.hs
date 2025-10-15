@@ -5,6 +5,7 @@ module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
 
 import Prelude hiding (id)
 
+import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Effectful.Colog (Log)
 import Effectful.Process (Process)
@@ -42,7 +43,7 @@ runPipeline ::
   , ER.Reader LogContext :> es
   ) =>
   ViraEnvironment ->
-  (forall es1. (IOE :> es1) => Text -> Eff es1 ()) ->
+  (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es (Either PipelineError ExitCode)
 runPipeline env logger = do
   let outputLog = Just $ env.workspacePath </> "output.log"
@@ -73,7 +74,7 @@ runPipelineIn ::
   ViraContext ->
   FilePath ->
   Maybe FilePath ->
-  (forall es1. (IOE :> es1) => Text -> Eff es1 ()) ->
+  (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es (Either PipelineError ExitCode)
 runPipelineIn tools ctx repoDir outputLog logger = do
   -- 2. Configure the pipeline, looking for optional vira.hs
@@ -82,7 +83,7 @@ runPipelineIn tools ctx repoDir outputLog logger = do
     Left err -> do
       pure $ Left $ PipelineConfigurationError $ InterpreterError err
     Right pipeline -> do
-      logger $ toText $ "ℹ️ Pipeline configuration:\n" <> Shower.shower pipeline
+      logger Info $ toText $ "ℹ️ Pipeline configuration:\n" <> Shower.shower pipeline
       case pipelineProcesses tools pipeline of
         Left err -> do
           pure $ Left err
@@ -98,27 +99,29 @@ loadViraHsConfiguration ::
   ( Error InterpreterError :> es
   , FileSystem :> es
   , IOE :> es
+  , Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
   ) =>
   -- | Path to vira.hs configuration file
   FilePath ->
   -- | Vira context
   ViraContext ->
   -- | Logger function
-  (forall es1. (IOE :> es1) => Text -> Eff es1 ()) ->
+  (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es ViraPipeline
 loadViraHsConfiguration path ctx logger = do
   doesFileExist path >>= \case
     True -> do
-      logger "Found vira.hs configuration file, applying customizations..."
+      logger Info "Found vira.hs configuration file, applying customizations..."
       content <- liftIO $ decodeUtf8 <$> readFileBS path
       Configuration.applyConfig content ctx defaultPipeline >>= \case
         Left err -> do
           throwError err
         Right p -> do
-          logger "Successfully applied vira.hs configuration"
+          logger Info "Successfully applied vira.hs configuration"
           pure p
     False -> do
-      logger "No vira.hs found - using default pipeline"
+      logger Info "No vira.hs found - using default pipeline"
       pure defaultPipeline
 
 -- | Create a default pipeline configuration

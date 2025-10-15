@@ -19,9 +19,7 @@ This library combines `co-log`'s `RichMessage` with `effectful`'s `Reader` effec
 import Effectful.Colog.Simple
 
 main :: IO ()
-main = runEff
-     . runLogActionStdout Info
-     $ do
+main = runEff . runLogActionStdout Info $ do
   log Info "Starting application"
 
   withLogContext [("user", "alice"), ("action", "login")] $ do
@@ -54,5 +52,3 @@ Rather than creating a custom effect, this library composes two orthogonal conce
 
 1. **`Log (RichMessage IO)`** - The logging mechanism (from co-log-effectful)
 2. **`Reader LogContext`** - The contextual data (from effectful)
-
-This keeps the implementation simple and maintains compatibility with the broader effectful ecosystem.
