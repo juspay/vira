@@ -24,7 +24,7 @@ import Vira.App.Broadcast.Type (BroadcastScope (..))
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.CI.Workspace qualified as Workspace
-import Vira.Lib.Logging
+import Vira.Lib.Logging (Severity (..), log, tagCurrentThread, withLogContext)
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Refresh.Core (initializeRefreshState, scheduleRepoRefresh)
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (..), RefreshResult (..), RefreshState (..), RefreshStatus (..))
@@ -95,8 +95,8 @@ popNextPendingRepo = do
 
 -- | Refresh a single repository (expects repo to already be marked InProgress)
 refreshRepo :: Repo -> Eff AppStack (Either Text ())
-refreshRepo repo = do
-  log Info $ "Starting refresh for " <> show repo.name
+refreshRepo repo = withLogContext "repo" repo.name $ do
+  log Info "Starting refresh"
 
   st <- asks (.refreshState)
   acid <- asks (.acid)
@@ -135,7 +135,7 @@ refreshRepo repo = do
 
   -- Log completion
   case result of
-    Left err -> log Error $ "❌ Refresh failed for " <> show repo.name <> " (took " <> durationText <> "): " <> err
-    Right () -> log Info $ "✅ Refresh succeeded for " <> show repo.name <> " (took " <> durationText <> ")"
+    Left err -> log Error $ "❌ Refresh failed (took " <> durationText <> "): " <> err
+    Right () -> log Info $ "✅ Refresh succeeded (took " <> durationText <> ")"
 
   pure result

@@ -27,8 +27,8 @@ import Vira.CI.Environment qualified as Env
 import Vira.CI.Error
 import Vira.CI.Pipeline.Type
 import Vira.CI.Processes (pipelineProcesses)
-import Vira.Lib.Logging (LogContext)
-import Vira.State.Type (Branch (..), cloneUrl)
+import Vira.Lib.Logging (LogContext, withLogContext)
+import Vira.State.Type (Branch (..), Repo (..), cloneUrl)
 import Vira.Supervisor.Process (runProcesses)
 import Vira.Supervisor.Type (TaskId)
 
@@ -45,7 +45,7 @@ runPipeline ::
   TaskId ->
   (forall es1. (IOE :> es1) => Text -> Eff es1 ()) ->
   Eff es (Either PipelineError ExitCode)
-runPipeline env taskId logger = do
+runPipeline env taskId logger = withLogContext "repo" env.repo.name $ withLogContext "branch" env.branch.branchName $ do
   -- 1. Setup workspace and clone
   let setupProcs =
         one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit.id Env.projectDirName

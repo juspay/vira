@@ -23,7 +23,7 @@ import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Tail qualified as Tail
-import Vira.Lib.Logging (LogContext, log)
+import Vira.Lib.Logging (LogContext, log, withLogContext)
 import Vira.Supervisor.Type (Task (..), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..), Terminated (Terminated))
 import Prelude hiding (readMVar)
 
@@ -73,15 +73,15 @@ startTask ::
     Eff es ()
   ) ->
   Eff es ()
-startTask supervisor taskId workDir orchestrator onFinish = do
+startTask supervisor taskId workDir orchestrator onFinish = withLogContext "task" taskId $ do
   logSupervisorState supervisor
   let msg = "Starting Vira pipeline in " <> toText workDir
   log Info msg
   modifyMVar_ (tasks supervisor) $ \tasks -> do
     if Map.member taskId tasks
       then do
-        log Error $ "Task " <> show taskId <> " already exists"
-        die $ "Task " <> show taskId <> " already exists"
+        log Error "Task already exists"
+        die "Task already exists"
       else do
         createDirectoryIfMissing True workDir
         appendFileText (outputLogFile workDir) "" -- Create empty log file before tail starts
@@ -102,14 +102,14 @@ startTask supervisor taskId workDir orchestrator onFinish = do
 
 -- | Kill an active task
 killTask :: (Concurrent :> es, Log (RichMessage IO) :> es, IOE :> es, ER.Reader LogContext :> es) => TaskSupervisor -> TaskId -> Eff es ()
-killTask supervisor taskId = do
+killTask supervisor taskId = withLogContext "task" taskId $ do
   modifyMVar_ (tasks supervisor) $ \tasks -> do
     case Map.lookup taskId tasks of
       Nothing -> do
-        log Warning $ "Attempted to kill non-existent task " <> show taskId
+        log Warning "Attempted to kill non-existent task"
         pure tasks -- Don't modify the map if task doesn't exist
       Just task -> do
-        log Info $ "Killing task " <> show taskId
+        log Info "Killing task"
         cancelWith task.asyncHandle Terminated
         pure $ Map.delete taskId tasks
 
@@ -129,9 +129,9 @@ logSupervisorState :: (HasCallStack, Concurrent :> es, Log (RichMessage IO) :> e
 logSupervisorState supervisor = do
   tasks <- readMVar (tasks supervisor)
   withFrozenCallStack $ log Debug $ "Current tasks: " <> show (Map.keys tasks)
-  forM_ (Map.toList tasks) $ \(taskId, task) -> do
+  forM_ (Map.toList tasks) $ \(_, task) -> do
     st <- taskState task
-    withFrozenCallStack $ log Debug $ "Task " <> show taskId <> " state: " <> show st
+    withFrozenCallStack $ log Debug $ "Task state: " <> show st
 
 -- TODO: In lieu of https://github.com/juspay/vira/issues/6
 logToWorkspaceOutput :: (IOE :> es) => TaskId -> FilePath -> Text -> Eff es ()

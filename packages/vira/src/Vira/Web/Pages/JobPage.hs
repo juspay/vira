@@ -17,10 +17,10 @@ import Vira.App qualified as App
 import Vira.App.Broadcast.Core qualified as Broadcast
 import Vira.App.Broadcast.Type (BroadcastScope (..))
 import Vira.App.CLI (WebSettings)
-import Vira.CI.Environment (environmentFor, workspacePath)
+import Vira.CI.Environment (ViraEnvironment (..), environmentFor)
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Workspace qualified as Workspace
-import Vira.Lib.Logging
+import Vira.Lib.Logging (Severity (..), log, withLogContext)
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
@@ -159,25 +159,26 @@ viewJobStatus status = do
 -- 1. Fail if a build is already happening (until we support queuing)
 -- 2. Contact supervisor to spawn a new build, with it status going to DB.
 triggerNewBuild :: (HasCallStack) => RepoName -> BranchName -> Eff Web.AppServantStack ()
-triggerNewBuild repoName branchName = do
+triggerNewBuild repoName branchName = withLogContext "repo" repoName $ do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
-  log Info $ "Building commit " <> show (repoName, branch.headCommit)
+  log Info $ "Building commit " <> show branch.headCommit
   asks App.supervisor >>= \supervisor -> do
     creationTime <- liftIO getCurrentTime
     let baseDir = Workspace.repoJobsDir supervisor repo.name
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit.id baseDir creationTime
-    log Info $ "Added job " <> show job
-    viraEnv <- environmentFor repo branch job.jobWorkingDir
-    Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (Pipeline.runPipeline viraEnv) $ \result -> do
-      endTime <- liftIO getCurrentTime
-      let status = case result of
-            Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
-            Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
-            Left (Pipeline.PipelineTerminated Terminated) -> St.JobFinished St.JobKilled endTime
-            Left _ -> St.JobFinished St.JobFailure endTime
-      App.update $ St.JobUpdateStatusA job.jobId status
+    withLogContext "job" job.jobId $ do
+      log Info "Added job"
+      viraEnv <- environmentFor repo branch job.jobWorkingDir
+      Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (Pipeline.runPipeline viraEnv) $ \result -> do
+        endTime <- liftIO getCurrentTime
+        let status = case result of
+              Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
+              Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
+              Left (Pipeline.PipelineTerminated Terminated) -> St.JobFinished St.JobKilled endTime
+              Left _ -> St.JobFinished St.JobFailure endTime
+        App.update $ St.JobUpdateStatusA job.jobId status
+        Broadcast.broadcastUpdate (JobScope job.jobId)
+      App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
       Broadcast.broadcastUpdate (JobScope job.jobId)
-    App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
-    Broadcast.broadcastUpdate (JobScope job.jobId)
-    log Info $ "Started task " <> show job.jobId
+      log Info "Started task"
