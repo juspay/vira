@@ -34,7 +34,7 @@ runProcesses ::
   NonEmpty CreateProcess ->
   Eff es (Either Terminated ExitCode)
 runProcesses workDir logger procs = do
-  tagCurrentThread "🪜"
+  tagCurrentThread "🪜 "
   runProcs $ toList procs
   where
     -- Run each process one after another; exiting immediately if any fails

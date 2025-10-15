@@ -58,7 +58,8 @@ schedulerLoop = do
     repos <- App.query GetAllReposA
     log Info $ "Scheduling refresh for " <> show (length repos) <> " repos"
     forM_ repos $ \repo ->
-      scheduleRepoRefresh repo.name Normal
+      withLogContext [("repo", show repo.name)] $ do
+        scheduleRepoRefresh repo.name Normal
     threadDelay (5 * 60 * 1000000) -- 5 minutes in microseconds
 
 -- | Worker loop: continuously process pending repos

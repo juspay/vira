@@ -52,7 +52,7 @@ scheduleRepoRefresh repo prio = do
   st <- asks @ViraRuntimeState (.refreshState)
   now <- liftIO getCurrentTime
   atomically $ modifyTVar' st.statusMap $ Map.insert repo (Pending now prio)
-  log Info $ "Queued refresh for " <> toText repo <> " (priority: " <> show prio <> ")"
+  log Info $ "Queued refresh with prio: " <> show prio
 
 {- | Initialize refresh state from acid-state
 

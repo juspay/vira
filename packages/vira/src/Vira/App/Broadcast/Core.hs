@@ -34,7 +34,7 @@ module Vira.App.Broadcast.Core (
   consumeBroadcasts,
 ) where
 
-import Colog (Severity (Debug, Info))
+import Colog (Severity (Debug))
 import Colog.Message (RichMessage)
 import Control.Concurrent.STM (dupTChan, writeTChan)
 import Effectful (Eff, IOE, (:>))
@@ -66,7 +66,7 @@ broadcastUpdate ::
 broadcastUpdate scope = do
   chan <- asks @ViraRuntimeState updateBroadcast
   liftIO $ atomically $ writeTChan chan scope
-  log Info $ "📡 " <> show scope
+  log Debug $ "📡 Broadcasting scope: " <> show scope
 
 {- | Subscribe to broadcast updates by creating a duplicate channel
 

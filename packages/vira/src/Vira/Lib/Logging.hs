@@ -110,7 +110,7 @@ fmtRichMessage RichMsg {..} = do
   mThreadId <- extractField $ DMap.lookup (typeRep @"threadId") richMsgMap
   threadIdText <- case mThreadId of
     Just tid -> threadDesc tid
-    Nothing -> pure "🧵;?"
+    Nothing -> pure defaultThreadLabel
 
   -- Extract context from the field map
   mContext :: Maybe LogContext <- extractField $ DMap.lookup (typeRep @"context") richMsgMap
@@ -133,7 +133,7 @@ Includes thread label (if any) as well as the ID.
 -}
 threadDesc :: ThreadId -> IO Text
 threadDesc tid = do
-  label <- threadLabel tid <&> maybe "🧵" toText
+  label <- threadLabel tid <&> maybe defaultThreadLabel toText
   pure $ toText label <> ";" <> threadIdToInt
   where
     -- Unfortunately there is no way to get the integer out of `ThreadId`, so must HACK around it.
@@ -141,3 +141,6 @@ threadDesc tid = do
     threadIdToInt =
       let s = show tid
        in fromMaybe s $ T.stripPrefix "ThreadId " s
+
+defaultThreadLabel :: Text
+defaultThreadLabel = "🧵"

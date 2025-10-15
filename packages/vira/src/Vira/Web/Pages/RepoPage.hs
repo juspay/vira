@@ -19,6 +19,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
+import Vira.Lib.Logging (withLogContext)
 import Vira.Refresh.Core qualified as Refresh
 import Vira.Refresh.Type (RefreshPriority (Now))
 import Vira.State.Acid qualified as St
@@ -77,8 +78,9 @@ filterBranchesHandler name mQuery = do
 
 updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
-  Refresh.scheduleRepoRefresh name Now
-  pure $ addHeader True Nothing
+  withLogContext [("repo", show name)] $ do
+    Refresh.scheduleRepoRefresh name Now
+    pure $ addHeader True Nothing
 
 deleteHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do
