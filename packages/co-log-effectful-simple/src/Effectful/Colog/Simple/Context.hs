@@ -11,7 +11,6 @@ module Effectful.Colog.Simple.Context (
 ) where
 
 import Colog.Message (FieldType, RichMessage)
-import Data.Time (UTCTime)
 import Data.Time.LocalTime (TimeZone)
 import Effectful (Eff, (:>))
 import Effectful.Colog (Log)
@@ -24,9 +23,6 @@ newtype LogContext = LogContext [(Text, Text)]
 
 -- | Custom field type for storing logging context (key-value pairs)
 type instance FieldType "context" = LogContext
-
--- | Field type for UTC timestamp
-type instance FieldType "utcTime" = UTCTime
 
 -- | Field type for timezone
 type instance FieldType "timezone" = TimeZone
