@@ -9,6 +9,7 @@ module Vira.Web.Stream.Log (
   -- * View
   viewStream,
   logViewerWidget,
+  renderLogLines,
 ) where
 
 import Colog (Severity (..))
@@ -16,7 +17,6 @@ import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import Data.Map qualified as Map
-import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
@@ -31,6 +31,7 @@ import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
+import Vira.CI.Log (ViraLog (..), decodeViraLog)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
@@ -66,9 +67,36 @@ logChunkMsg = \case
       Status.indicator False
       span_ [class_ "font-medium"] "Build completed"
 
+-- | Render log lines with special styling for viralog lines (JSON format)
+renderLogLines :: (Monad m) => [Text] -> HtmlT m ()
+renderLogLines ls =
+  -- Use `lines . unlines` to normalize: each Text may contain embedded newlines,
+  -- so we flatten them into individual lines to check each for viralog prefix
+  let allLines = lines $ unlines ls
+   in mconcat $ map renderLine allLines
+  where
+    renderLine :: (Monad m) => Text -> HtmlT m ()
+    renderLine line =
+      case decodeViraLog line of
+        Right viraLog -> renderViraLog viraLog
+        Left _ -> toHtml line <> br_ []
+
+    renderViraLog :: (Monad m) => ViraLog -> HtmlT m ()
+    renderViraLog viraLog =
+      let (emoji :: Text, textClass) = case viraLog.level of
+            Debug -> ("🐛", "text-slate-400 dark:text-slate-500")
+            Info -> ("ℹ️", "text-cyan-400 dark:text-cyan-500")
+            Warning -> ("⚠️", "text-amber-400 dark:text-amber-500")
+            Error -> ("❌", "text-rose-400 dark:text-rose-500")
+       in span_ [class_ textClass] $ do
+            toHtml (emoji :: Text)
+            toHtml (" " :: Text)
+            toHtml viraLog.message
+            br_ []
+
 -- | Render multiline lines for placing under a <pre> such that newlines are preserved & rendered
-rawMultiLine :: [Text] -> Html ()
-rawMultiLine ls = toHtmlRaw $ T.replace "\n" "<br>" $ unlines ls
+rawMultiLine :: (Monad m) => [Text] -> HtmlT m ()
+rawMultiLine = renderLogLines
 
 instance ToServerEvent LogChunk where
   toServerEvent chunk =
@@ -151,6 +179,7 @@ viewStream job = do
 
       logViewerWidget job $ do
         "Loading log ..."
+        br_ mempty
 
       -- Streaming status area
       div_

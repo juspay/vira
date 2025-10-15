@@ -4,7 +4,6 @@ module Vira.Web.Pages.JobLog where
 
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
-import Lucid
 import Servant hiding (throwError)
 import Servant.API.EventStream (recommendedEventSourceHeaders)
 import Servant.Server.Generic (AsServer)
@@ -53,7 +52,7 @@ viewStaticLog :: Job -> AppHtml ()
 viewStaticLog job = do
   logText <- readJobLogFull job
   Log.logViewerWidget job $ do
-    toHtml logText
+    Log.renderLogLines $ lines logText
 
 readJobLogFull :: (MonadIO m) => Job -> m Text
 readJobLogFull job = do
