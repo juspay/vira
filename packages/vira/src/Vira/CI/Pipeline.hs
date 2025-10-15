@@ -1,6 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Vira.CI.Pipeline (runPipeline, runPipelineCLI, defaultPipeline, PipelineError (..)) where
 
@@ -33,13 +32,7 @@ import Vira.CI.Pipeline.Type
 import Vira.CI.Processes (pipelineProcesses)
 import Vira.State.Type (Branch (..), Repo (..), cloneUrl)
 import Vira.Supervisor.Process (runProcesses)
-import Vira.Tool.Core (Tools)
-import Vira.Tool.Tools.Attic qualified as AtticTool
-import Vira.Tool.Tools.Cachix qualified as CachixTool
-import Vira.Tool.Tools.Git qualified as GitTool
-import Vira.Tool.Tools.GitHub qualified as GitHubTool
-import Vira.Tool.Tools.Omnix qualified as OmnixTool
-import Vira.Tool.Type.Tools (Tools (..))
+import Vira.Tool.Core (Tools, getAllTools)
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
@@ -157,14 +150,8 @@ runPipelineCLI minSeverity repoDir = do
           { Vira.CI.Context.branch = branch
           , Vira.CI.Context.dirty = dirty
           }
-  -- Get all tools (directly calling tool functions)
-  tools <- liftIO $ runEff $ do
-    attic <- AtticTool.getToolData
-    github <- GitHubTool.getToolData
-    omnix <- OmnixTool.getToolData
-    git <- GitTool.getToolData
-    cachix <- CachixTool.getToolData
-    pure Tools {..}
+  -- Get all tools
+  tools <- liftIO $ runEff getAllTools
   -- No output log for CLI execution (logs go to stdout via logger)
   let outputLog = Nothing
       logger :: forall es1. (IOE :> es1) => Severity -> Text -> Eff es1 ()
