@@ -1,7 +1,8 @@
 -- Pipeline configuration for Vira
 \ctx pipeline ->
-  let isMain = ctx.branch == "main"
+  let 
+    isMain = ctx.branch == "main"
   in pipeline
     { signoff.enable = True
-    , cache.url = if isMain then Just "https://cache.nixos.asia/oss" else Nothing
+    , cache.url = if isMain && not ctx.dirty then Just "https://cache.nixos.asia/oss" else Nothing
     }
