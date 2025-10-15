@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 {- | Structured logging for Vira pipeline messages
@@ -11,11 +12,19 @@ module Vira.CI.Log (
   ViraLog (..),
   encodeViraLog,
   decodeViraLog,
+  renderViraLogCLI,
 ) where
 
-import Colog (Severity)
+import Colog (Severity (..))
 import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON), decode, encode)
 import Data.Text qualified as T
+import System.Console.ANSI (
+  Color (..),
+  ColorIntensity (..),
+  ConsoleLayer (..),
+  SGR (..),
+  setSGRCode,
+ )
 
 -- Standalone JSON instances for Severity using Show/Read
 instance ToJSON Severity where
@@ -51,3 +60,27 @@ decodeViraLog line =
       case decode (encodeUtf8 jsonStr) of
         Nothing -> Left line -- Invalid JSON, return original for raw printing
         Just viraLog -> Right viraLog
+
+{- | Render ViraLog for CLI with ANSI colors
+
+Renders viralog entries with emoji and colored text matching the web UI styling.
+Non-viralog lines are returned as-is for raw printing.
+-}
+renderViraLogCLI :: Severity -> Text -> Text
+renderViraLogCLI severity msg =
+  let viraLog = ViraLog {level = severity, message = msg}
+      jsonLog = encodeViraLog viraLog
+   in case decodeViraLog jsonLog of
+        Left rawLine -> rawLine -- Fallback to raw (should not happen)
+        Right vlog -> formatViraLog vlog
+  where
+    formatViraLog :: ViraLog -> Text
+    formatViraLog vlog =
+      let (emoji :: Text, intensity, clr) = case vlog.level of
+            Debug -> ("🐛", Dull, White)
+            Info -> ("ℹ️", Vivid, Cyan)
+            Warning -> ("⚠️", Vivid, Yellow)
+            Error -> ("❌", Vivid, Red)
+          colorCode = setSGRCode [SetColor Foreground intensity clr]
+          resetCode = setSGRCode [Reset]
+       in toText colorCode <> emoji <> " " <> vlog.message <> toText resetCode

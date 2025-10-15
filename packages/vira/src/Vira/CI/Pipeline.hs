@@ -28,6 +28,7 @@ import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.CI.Environment qualified as Env
 import Vira.CI.Error
+import Vira.CI.Log (renderViraLogCLI)
 import Vira.CI.Pipeline.Type
 import Vira.CI.Processes (pipelineProcesses)
 import Vira.State.Type (Branch (..), Repo (..), cloneUrl)
@@ -140,9 +141,10 @@ runPipelineCLI ::
   , FileSystem :> es
   , ER.Reader LogContext :> es
   ) =>
+  Severity ->
   FilePath ->
   Eff es (Either PipelineError ExitCode)
-runPipelineCLI repoDir = do
+runPipelineCLI minSeverity repoDir = do
   -- Detect git branch and dirty status (fail if not in a git repo)
   branch <-
     runErrorNoCallStack (Git.getCurrentBranch repoDir) >>= \case
@@ -166,7 +168,11 @@ runPipelineCLI repoDir = do
   -- No output log for CLI execution (logs go to stdout via logger)
   let outputLog = Nothing
       logger :: forall es1. (IOE :> es1) => Severity -> Text -> Eff es1 ()
-      logger _severity msg = liftIO $ putTextLn msg
+      logger severity msg =
+        when (severity >= minSeverity) $
+          liftIO $
+            putTextLn $
+              renderViraLogCLI severity msg
   runPipelineIn tools ctx repoDir outputLog logger
 
 -- | Create a default pipeline configuration

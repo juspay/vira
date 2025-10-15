@@ -4,7 +4,6 @@ module Vira.App.Run (
   runVira,
 ) where
 
-import Colog.Core (Severity (..))
 import Control.Concurrent.STM (newBroadcastTChan)
 import Control.Exception (bracket)
 import Data.Acid (AcidState)
@@ -51,7 +50,7 @@ runVira = do
         ExportCommand -> runExport globalSettings
         ImportCommand -> runImport globalSettings
         InfoCommand -> runInfo
-        CICommand mDir -> runCI mDir
+        CICommand mDir -> runCI globalSettings mDir
 
     runWebServer :: GlobalSettings -> WebSettings -> IO ()
     runWebServer globalSettings webSettings = do
@@ -92,10 +91,10 @@ runVira = do
       putTextLn $ "Vira version: " <> toText viraVersion
       putTextLn $ "Schema version: " <> show viraDbVersion
 
-    runCI :: Maybe FilePath -> IO ()
-    runCI mDir = do
+    runCI :: GlobalSettings -> Maybe FilePath -> IO ()
+    runCI gs mDir = do
       dir <- maybe getCurrentDirectory makeAbsolute mDir
-      result <- runCIEffects dir
+      result <- runCIEffects gs dir
       case result of
         Left err -> do
           putTextLn $ "CI pipeline failed: " <> show err
@@ -107,14 +106,14 @@ runVira = do
               putTextLn $ "CI pipeline failed with exit code: " <> show code
               exitWith exitCode
 
-    runCIEffects :: FilePath -> IO (Either Pipeline.PipelineError ExitCode)
-    runCIEffects repoDir =
+    runCIEffects :: GlobalSettings -> FilePath -> IO (Either Pipeline.PipelineError ExitCode)
+    runCIEffects gs repoDir =
       runEff
-        . runLogActionStdout Info
+        . runLogActionStdout gs.logLevel
         . runFileSystem
         . runProcess
         . runConcurrent
-        $ Pipeline.runPipelineCLI repoDir
+        $ Pipeline.runPipelineCLI gs.logLevel repoDir
 
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()
     importFromFileOrStdin acid mFilePath = do
