@@ -14,9 +14,9 @@ import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, c
 import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
-import Vira.Lib.Logging (LogContext, log, tagCurrentThread, withLogContext)
+import Vira.Lib.Logging (LogContext, log, tagCurrentThread)
 import Vira.Lib.Process qualified as Process
-import Vira.Supervisor.Type (TaskId, Terminated (Terminated))
+import Vira.Supervisor.Type (Terminated (Terminated))
 
 -- | Run a sequence of processes, stopping on first failure
 runProcesses ::
@@ -28,16 +28,14 @@ runProcesses ::
   , FileSystem :> es
   , ER.Reader LogContext :> es
   ) =>
-  TaskId ->
   FilePath ->
   (forall es1. (IOE :> es1) => Text -> Eff es1 ()) ->
   -- List of processes to run in sequence
   NonEmpty CreateProcess ->
   Eff es (Either Terminated ExitCode)
-runProcesses taskId workDir logger procs =
-  withLogContext "task" taskId $ do
-    tagCurrentThread "🪜"
-    runProcs $ toList procs
+runProcesses workDir logger procs = do
+  tagCurrentThread "🪜"
+  runProcs $ toList procs
   where
     -- Run each process one after another; exiting immediately if any fails
     runProcs :: [CreateProcess] -> Eff es (Either Terminated ExitCode)
