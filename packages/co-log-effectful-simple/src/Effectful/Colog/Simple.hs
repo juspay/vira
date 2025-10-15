@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 {- | Simple context-aware logging for co-log with effectful.
@@ -23,7 +24,7 @@ module Effectful.Colog.Simple (
 where
 
 import Colog.Core (Severity (..))
-import Colog.Message (MessageField (..), Msg (..), RichMessage, RichMsg (..), defaultFieldMap, extractField)
+import Colog.Message (FieldType, MessageField (..), Msg (..), RichMessage, RichMsg (..), defaultFieldMap, extractField)
 import Data.Dependent.Map qualified as DMap
 import Data.Dependent.Sum (DSum ((:=>)))
 import Data.Time (UTCTime, utcToLocalTime)
@@ -37,6 +38,7 @@ import Effectful.Colog.Simple.Thread (tagCurrentThread)
 import Effectful.Colog.Simple.Thread qualified as Thread
 import Effectful.Dispatch.Static (unsafeEff_)
 import Effectful.Reader.Static qualified as ER
+import GHC.TypeLits (KnownSymbol, Symbol)
 import Type.Reflection (TypeRep, typeRep)
 
 {- | Log a message with the given severity.
@@ -90,18 +92,14 @@ runLogActionStdout minSeverity action =
 -- | Custom rich message formatter that includes timestamp, severity with colors, and call stack info
 fmtRichMessage :: RichMessage IO -> IO Text
 fmtRichMessage msg = do
-  timeStr <-
-    formatTime
-      <$> extractField (DMap.lookup (typeRep @"utcTime") msg.richMsgMap)
-      <*> extractField (DMap.lookup (typeRep @"timezone") msg.richMsgMap)
+  timeStr <- formatTime <$> getField @"utcTime" <*> getField @"timezone"
 
   threadIdText <-
-    extractField (DMap.lookup (typeRep @"threadId") msg.richMsgMap) >>= \case
+    getField @"threadId" >>= \case
       Just tid -> Thread.threadDesc tid
       Nothing -> pure Thread.defaultThreadLabel
 
-  mContext :: Maybe LogContext <-
-    extractField $ DMap.lookup (typeRep @"context") msg.richMsgMap
+  mContext :: Maybe LogContext <- getField @"context"
 
   let message =
         timeStr
@@ -117,3 +115,6 @@ fmtRichMessage msg = do
     Info -> message
     Warning -> "\ESC[33m" <> message <> "\ESC[0m"
     Error -> "\ESC[31m" <> message <> "\ESC[0m"
+  where
+    getField :: forall (fieldName :: Symbol). (KnownSymbol fieldName) => IO (Maybe (FieldType fieldName))
+    getField = extractField (DMap.lookup (typeRep @fieldName) msg.richMsgMap)
