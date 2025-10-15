@@ -1,16 +1,17 @@
 -- | Effectful stack for our app.
 module Vira.App.Stack where
 
-import Colog (Message)
+import Colog.Message (RichMessage)
 import Effectful (Eff, IOE, runEff)
 import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext, runLogActionStdout)
 import Effectful.Concurrent.Async (Concurrent, runConcurrent)
 import Effectful.FileSystem (FileSystem, runFileSystem)
 import Effectful.Process (Process, runProcess)
 import Effectful.Reader.Dynamic (Reader, runReader)
+import Effectful.Reader.Static qualified as ER
 import Vira.App.CLI (GlobalSettings (..))
 import Vira.App.Type (ViraRuntimeState)
-import Vira.Lib.Logging (runLogActionStdout)
 import Prelude hiding (Reader, ask, asks, runReader)
 
 type AppStack =
@@ -18,7 +19,8 @@ type AppStack =
    , Concurrent
    , Process
    , FileSystem
-   , Log Message
+   , ER.Reader LogContext
+   , Log (RichMessage IO)
    , IOE
    ]
 

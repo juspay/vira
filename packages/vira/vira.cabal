@@ -1,6 +1,6 @@
 cabal-version: 2.2
 
--- This file has been generated from package.yaml by hpack version 0.37.0.
+-- This file has been generated from package.yaml by hpack version 0.38.2.
 --
 -- see: https://github.com/sol/hpack
 
@@ -46,7 +46,6 @@ library
       Vira.CI.Pipeline
       Vira.CI.Processes
       Vira.CI.Workspace
-      Vira.Lib.Logging
       Vira.Lib.Omnix
       Vira.Lib.Process
       Vira.Lib.STM
@@ -60,6 +59,7 @@ library
       Vira.State.Reset
       Vira.State.Type
       Vira.Supervisor.Core
+      Vira.Supervisor.Process
       Vira.Supervisor.Task
       Vira.Supervisor.Type
       Vira.Tool.Core
@@ -143,12 +143,15 @@ library
     , bytestring
     , cachix
     , cereal
-    , co-log
+    , co-log >=0.7
     , co-log-core
     , co-log-effectful
+    , co-log-effectful-simple
     , containers
     , dani-servant-lucid2
     , data-default
+    , dependent-map
+    , dependent-sum
     , deriving-aeson
     , directory
     , effectful
@@ -159,7 +162,6 @@ library
     , filepath
     , gh
     , git-effectful
-    , gitlib
     , hint
     , hint-nix
     , hostname
@@ -257,12 +259,15 @@ executable vira
     , bytestring
     , cachix
     , cereal
-    , co-log
+    , co-log >=0.7
     , co-log-core
     , co-log-effectful
+    , co-log-effectful-simple
     , containers
     , dani-servant-lucid2
     , data-default
+    , dependent-map
+    , dependent-sum
     , deriving-aeson
     , directory
     , effectful
@@ -273,7 +278,6 @@ executable vira
     , filepath
     , gh
     , git-effectful
-    , gitlib
     , hint
     , hint-nix
     , hostname
@@ -374,12 +378,15 @@ executable vira-tests
     , bytestring
     , cachix
     , cereal
-    , co-log
+    , co-log >=0.7
     , co-log-core
     , co-log-effectful
+    , co-log-effectful-simple
     , containers
     , dani-servant-lucid2
     , data-default
+    , dependent-map
+    , dependent-sum
     , deriving-aeson
     , directory
     , effectful
@@ -390,7 +397,6 @@ executable vira-tests
     , filepath
     , gh
     , git-effectful
-    , gitlib
     , hint
     , hint-nix
     , hostname

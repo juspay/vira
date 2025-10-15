@@ -38,11 +38,14 @@ dependencies:
   - bytestring
   - cereal
   - tabler-icons
-  - co-log
+  - co-log >= 0.7
   - co-log-core
   - co-log-effectful
+  - co-log-effectful-simple
   - containers
   - dani-servant-lucid2
+  - dependent-map
+  - dependent-sum
   - data-default
   - deriving-aeson
   - directory
@@ -55,7 +58,6 @@ dependencies:
   - filepath
   - gh
   - git-effectful
-  - gitlib
   - hostname
   - hint
   - hspec

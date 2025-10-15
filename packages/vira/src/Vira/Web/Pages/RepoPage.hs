@@ -7,6 +7,7 @@ module Vira.Web.Pages.RepoPage (
 
 import Data.Time (diffUTCTime)
 import Effectful (Eff)
+import Effectful.Colog.Simple (withLogContext)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (Commit (..), RepoName)
 import Htmx.Lucid.Core (hxGet_, hxSwapS_, hxTarget_, hxTrigger_)
@@ -77,8 +78,9 @@ filterBranchesHandler name mQuery = do
 
 updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
-  Refresh.scheduleRepoRefresh name Now
-  pure $ addHeader True Nothing
+  withLogContext [("repo", show name)] $ do
+    Refresh.scheduleRepoRefresh name Now
+    pure $ addHeader True Nothing
 
 deleteHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do

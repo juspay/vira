@@ -193,23 +193,23 @@ deleteIxMulti r rels =
    in flipfoldl' Ix.delete rels candidates
 
 $( makeAcidic
-    ''ViraState
-    [ 'setAllReposA
-    , 'getAllReposA
-    , 'getRepoByNameA
-    , 'getBranchesByRepoA
-    , 'getBranchByNameA
-    , 'setRepoA
-    , 'setRepoBranchesA
-    , 'getCommitByIdA
-    , 'storeCommitA
-    , 'getJobsByBranchA
-    , 'getRunningJobs
-    , 'getJobA
-    , 'addNewJobA
-    , 'jobUpdateStatusA
-    , 'markUnfinishedJobsAsStaleA
-    , 'addNewRepoA
-    , 'deleteRepoByNameA
-    ]
+     ''ViraState
+     [ 'setAllReposA
+     , 'getAllReposA
+     , 'getRepoByNameA
+     , 'getBranchesByRepoA
+     , 'getBranchByNameA
+     , 'setRepoA
+     , 'setRepoBranchesA
+     , 'getCommitByIdA
+     , 'storeCommitA
+     , 'getJobsByBranchA
+     , 'getRunningJobs
+     , 'getJobA
+     , 'addNewJobA
+     , 'jobUpdateStatusA
+     , 'markUnfinishedJobsAsStaleA
+     , 'addNewRepoA
+     , 'deleteRepoByNameA
+     ]
  )

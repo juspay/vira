@@ -20,7 +20,8 @@ module Effectful.Git.Mirror (
   syncMirror,
 ) where
 
-import Colog (Message, Severity (..))
+import Colog (Severity (..))
+import Colog.Message (RichMessage)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Error.Static (Error, throwError)
@@ -42,7 +43,7 @@ On error, caller may need to delete the mirror directory and retry.
 -}
 syncMirror ::
   ( Error Text :> es
-  , Log Message :> es
+  , Log (RichMessage IO) :> es
   , Process :> es
   , IOE :> es
   ) =>
@@ -63,7 +64,7 @@ but file lock ensures only one actually clones.
 -}
 ensureMirror ::
   ( Error Text :> es
-  , Log Message :> es
+  , Log (RichMessage IO) :> es
   , Process :> es
   , IOE :> es
   ) =>
@@ -115,7 +116,7 @@ Acquires file lock before fetching to prevent concurrent updates to same mirror.
 -}
 updateMirror ::
   ( Error Text :> es
-  , Log Message :> es
+  , Log (RichMessage IO) :> es
   , Process :> es
   , IOE :> es
   ) =>

@@ -4,6 +4,7 @@ module Vira.Web.Pages.JobPage where
 
 import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff)
+import Effectful.Colog.Simple (Severity (..), log, withLogContext)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName, Commit (..), RepoName)
 import Effectful.Reader.Dynamic (asks)
@@ -17,10 +18,9 @@ import Vira.App qualified as App
 import Vira.App.Broadcast.Core qualified as Broadcast
 import Vira.App.Broadcast.Type (BroadcastScope (..))
 import Vira.App.CLI (WebSettings)
-import Vira.CI.Environment (environmentFor, workspacePath)
+import Vira.CI.Environment (ViraEnvironment (..), environmentFor)
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Workspace qualified as Workspace
-import Vira.Lib.Logging
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
@@ -62,9 +62,10 @@ handlers globalSettings viraRuntimeState webSettings = do
     }
 
 buildHandler :: RepoName -> BranchName -> Eff Web.AppServantStack (Headers '[HXRefresh] Text)
-buildHandler repoName branch = do
-  triggerNewBuild repoName branch
-  pure $ addHeader True "Ok"
+buildHandler repoName branch =
+  withLogContext [("repo", show repoName), ("branch", show branch)] $ do
+    triggerNewBuild repoName branch
+    pure $ addHeader True "Ok"
 
 viewHandler :: JobId -> AppHtml ()
 viewHandler jobId = do
@@ -162,22 +163,23 @@ triggerNewBuild :: (HasCallStack) => RepoName -> BranchName -> Eff Web.AppServan
 triggerNewBuild repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
-  log Info $ "Building commit " <> show (repoName, branch.headCommit)
   asks App.supervisor >>= \supervisor -> do
     creationTime <- liftIO getCurrentTime
     let baseDir = Workspace.repoJobsDir supervisor repo.name
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit.id baseDir creationTime
-    log Info $ "Added job " <> show job
-    viraEnv <- environmentFor repo branch job.jobWorkingDir
-    Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (Pipeline.runPipeline viraEnv) $ \result -> do
-      endTime <- liftIO getCurrentTime
-      let status = case result of
-            Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
-            Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
-            Left (Pipeline.PipelineTerminated Terminated) -> St.JobFinished St.JobKilled endTime
-            Left _ -> St.JobFinished St.JobFailure endTime
-      App.update $ St.JobUpdateStatusA job.jobId status
+    withLogContext [("job", show job.jobId)] $ do
+      log Info $ "Building commit " <> show branch.headCommit
+      log Info "Added job"
+      viraEnv <- environmentFor repo branch job.jobWorkingDir
+      Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (Pipeline.runPipeline viraEnv) $ \result -> do
+        endTime <- liftIO getCurrentTime
+        let status = case result of
+              Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
+              Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
+              Left (Pipeline.PipelineTerminated Terminated) -> St.JobFinished St.JobKilled endTime
+              Left _ -> St.JobFinished St.JobFailure endTime
+        App.update $ St.JobUpdateStatusA job.jobId status
+        Broadcast.broadcastUpdate (JobScope job.jobId)
+      App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
       Broadcast.broadcastUpdate (JobScope job.jobId)
-    App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
-    Broadcast.broadcastUpdate (JobScope job.jobId)
-    log Info $ "Started task " <> show job.jobId
+      log Info "Started task"

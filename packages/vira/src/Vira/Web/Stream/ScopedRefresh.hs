@@ -18,6 +18,7 @@ module Vira.Web.Stream.ScopedRefresh (
 
 import Colog.Core (Severity (Debug))
 import Effectful (Eff)
+import Effectful.Colog.Simple (log, tagCurrentThread)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
 import Lucid.Htmx.Contrib (hxSseConnect_, hxSseSwap_)
@@ -28,7 +29,6 @@ import Servant.Types.SourceT qualified as S
 import Vira.App.Broadcast.Core qualified as Broadcast
 import Vira.App.Broadcast.Type (BroadcastScope (..))
 import Vira.App.Stack (AppStack)
-import Vira.Lib.Logging (log, tagCurrentThread)
 import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)

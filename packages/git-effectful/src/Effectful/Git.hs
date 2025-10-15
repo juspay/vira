@@ -19,7 +19,8 @@ module Effectful.Git (
   cloneAtCommit,
 ) where
 
-import Colog (Message, Severity (..))
+import Colog (Severity (..))
+import Colog.Message (RichMessage)
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
@@ -44,7 +45,7 @@ git = $(staticWhich "git")
 This function expects the clone to already exist and be updated.
 It parses branches from the existing clone without modifying it.
 -}
-remoteBranchesFromClone :: (Error Text :> es, Log Message :> es, Process :> es, IOE :> es) => FilePath -> Eff es (Map BranchName Commit)
+remoteBranchesFromClone :: (Error Text :> es, Log (RichMessage IO) :> es, Process :> es, IOE :> es) => FilePath -> Eff es (Map BranchName Commit)
 remoteBranchesFromClone clonePath = do
   log Debug $ "Running git for-each-ref in clone: " <> show (cmdspec forEachRefRemoteBranches)
 

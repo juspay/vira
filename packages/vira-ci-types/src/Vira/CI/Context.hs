@@ -9,7 +9,7 @@ module Vira.CI.Context (
   ViraContext (..),
 ) where
 
-import Effectful.Git (BranchName, CommitID)
+import Effectful.Git (BranchName)
 import GHC.Records.Compat
 
 {- | Essential context information available in user configurations.
@@ -23,12 +23,13 @@ and focused on what users actually need for conditional logic in vira.hs files.
 -}
 data ViraContext = ViraContext
   { branch :: BranchName
-  , commit :: CommitID
+  , -- Whether the working directory has uncommitted changes
+    dirty :: Bool
   }
 
 -- HasField instances for ViraContext
 instance HasField "branch" ViraContext BranchName where
-  hasField (ViraContext branch commit) = (\x -> ViraContext x commit, branch)
+  hasField (ViraContext branch dirty) = (\x -> ViraContext x dirty, branch)
 
-instance HasField "commit" ViraContext CommitID where
-  hasField (ViraContext branch commit) = (\x -> ViraContext branch x, commit)
+instance HasField "dirty" ViraContext Bool where
+  hasField (ViraContext branch dirty) = (\x -> ViraContext branch x, dirty)

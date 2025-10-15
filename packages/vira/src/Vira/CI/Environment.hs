@@ -10,7 +10,6 @@ module Vira.CI.Environment (
 ) where
 
 import Effectful (Eff, IOE, (:>))
-import Effectful.Git (Commit (..))
 import Effectful.Reader.Dynamic qualified as Reader
 import System.FilePath ((</>))
 import Vira.App.Type (ViraRuntimeState)
@@ -55,5 +54,5 @@ viraContext :: ViraEnvironment -> ViraContext
 viraContext env =
   ViraContext
     { branch = env.branch.branchName
-    , commit = env.branch.headCommit.id
+    , dirty = False
     }

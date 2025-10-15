@@ -34,14 +34,16 @@ module Vira.App.Broadcast.Core (
   consumeBroadcasts,
 ) where
 
-import Colog (Message, Severity (Debug, Info))
+import Colog (Severity (Debug))
+import Colog.Message (RichMessage)
 import Control.Concurrent.STM (dupTChan, writeTChan)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext, log)
 import Effectful.Reader.Dynamic (Reader, asks)
+import Effectful.Reader.Static qualified as ER
 import Vira.App.Broadcast.Type (BroadcastScope, UpdateBroadcast)
 import Vira.App.Type (ViraRuntimeState (updateBroadcast))
-import Vira.Lib.Logging (log)
 import Vira.Lib.STM (drainRemainingTChan, drainTChan)
 import Prelude hiding (Reader, ask, asks, runReader)
 
@@ -56,14 +58,15 @@ This triggers page reloads only for pages listening to that specific entity.
 broadcastUpdate ::
   ( Reader ViraRuntimeState :> es
   , IOE :> es
-  , Log Message :> es
+  , Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
   ) =>
   BroadcastScope ->
   Eff es ()
 broadcastUpdate scope = do
   chan <- asks @ViraRuntimeState updateBroadcast
   liftIO $ atomically $ writeTChan chan scope
-  log Info $ "📡 " <> show scope
+  log Debug $ "📡 Broadcasting scope: " <> show scope
 
 {- | Subscribe to broadcast updates by creating a duplicate channel
 
@@ -93,7 +96,8 @@ Each event is logged at Debug level.
 -}
 consumeBroadcasts ::
   ( IOE :> es
-  , Log Message :> es
+  , Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
   ) =>
   UpdateBroadcast ->
   Eff es [BroadcastScope]
