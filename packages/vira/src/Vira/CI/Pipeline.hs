@@ -31,6 +31,7 @@ import Vira.CI.Processes (pipelineProcesses)
 import Vira.Lib.Logging (LogContext)
 import Vira.State.Type (Branch (..), Repo (..), cloneUrl)
 import Vira.Supervisor.Process (runProcesses)
+import Vira.Tool.Core (Tools)
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
@@ -52,13 +53,16 @@ runPipeline env logger = do
   runProcesses env.workspacePath outputLog logger setupProcs >>= \case
     Left err ->
       pure $ Left $ PipelineTerminated err
-    Right ExitSuccess ->
-      configureAndRunPipeline env outputLog logger
+    Right ExitSuccess -> do
+      let repoDir = env.workspacePath </> Env.projectDirName
+          ctx = Env.viraContext env
+          tools = env.tools
+      runPipelineIn tools ctx repoDir outputLog logger
     Right exitCode -> do
       pure $ Right exitCode
 
--- | Configure and execute the pipeline
-configureAndRunPipeline ::
+-- | Like `runPipeline`, but in a specific directory with given context and tools.
+runPipelineIn ::
   ( Concurrent :> es
   , Process :> es
   , Log (RichMessage IO) :> es
@@ -66,24 +70,26 @@ configureAndRunPipeline ::
   , FileSystem :> es
   , ER.Reader LogContext :> es
   ) =>
-  ViraEnvironment ->
+  Tools ->
+  ViraContext ->
+  FilePath ->
   Maybe FilePath ->
   (forall es1. (IOE :> es1) => Text -> Eff es1 ()) ->
   Eff es (Either PipelineError ExitCode)
-configureAndRunPipeline env outputLog logger = do
+runPipelineIn tools ctx repoDir outputLog logger = do
   -- 2. Configure the pipeline, looking for optional vira.hs
-  let viraConfigPath = Env.projectDir env </> "vira.hs"
-  runErrorNoCallStack (loadViraHsConfiguration viraConfigPath (Env.viraContext env) logger) >>= \case
+  let viraConfigPath = repoDir </> "vira.hs"
+  runErrorNoCallStack (loadViraHsConfiguration viraConfigPath ctx logger) >>= \case
     Left err -> do
       pure $ Left $ PipelineConfigurationError $ InterpreterError err
     Right pipeline -> do
       logger $ toText $ "ℹ️ Pipeline configuration:\n" <> Shower.shower pipeline
-      case pipelineProcesses env.tools pipeline of
+      case pipelineProcesses tools pipeline of
         Left err -> do
           pure $ Left err
         Right pipelineProcs -> do
           -- 3. Run the actual CI pipeline.
-          runProcesses env.workspacePath outputLog logger pipelineProcs <&> first PipelineTerminated
+          runProcesses repoDir outputLog logger pipelineProcs <&> first PipelineTerminated
 
 {- | Load vira.hs configuration if it exists.
 

@@ -12,11 +12,9 @@ import Control.Monad.Writer.Strict (MonadWriter (tell), WriterT (..))
 import Effectful.Process (CreateProcess)
 import GH.Signoff qualified as Signoff
 import System.Info qualified as SysInfo
-import Vira.CI.Environment qualified as Env
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Pipeline.Type
 import Vira.Lib.Omnix qualified as Omnix
-import Vira.Lib.Process (alwaysUnderPath)
 import Vira.Tool.Core (ToolError (..))
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type.ToolData (status)
@@ -31,8 +29,7 @@ pipelineProcesses tools pipeline = do
   (_, postBuildProcs) <- runWriterT $ do
     tell <=< lift $ cacheProcs tools pipeline.cache
     tell $ signoffProcs pipeline.signoff
-  let procs = buildProc pipeline.build :| postBuildProcs
-  pure $ procs <&> alwaysUnderPath Env.projectDirName
+  pure $ buildProc pipeline.build :| postBuildProcs
 
 buildProc :: BuildStage -> CreateProcess
 buildProc stage =
