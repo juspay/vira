@@ -55,16 +55,16 @@ data Routes mode = Routes
 handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> Routes AsServer
 handlers globalSettings viraRuntimeState webSettings = do
   Routes
-    { _build = \x -> Web.runAppInServant globalSettings viraRuntimeState webSettings . buildHandler x
+    { _build = \x y -> Web.runAppInServant globalSettings viraRuntimeState webSettings (buildHandler globalSettings x y)
     , _view = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml . viewHandler
     , _log = JobLog.handlers globalSettings viraRuntimeState webSettings
     , _kill = Web.runAppInServant globalSettings viraRuntimeState webSettings . killHandler
     }
 
-buildHandler :: RepoName -> BranchName -> Eff Web.AppServantStack (Headers '[HXRefresh] Text)
-buildHandler repoName branch =
+buildHandler :: App.GlobalSettings -> RepoName -> BranchName -> Eff Web.AppServantStack (Headers '[HXRefresh] Text)
+buildHandler globalSettings repoName branch =
   withLogContext [("repo", show repoName), ("branch", show branch)] $ do
-    triggerNewBuild repoName branch
+    triggerNewBuild globalSettings.logLevel repoName branch
     pure $ addHeader True "Ok"
 
 viewHandler :: JobId -> AppHtml ()
@@ -159,19 +159,25 @@ viewJobStatus status = do
 -- TODO:
 -- 1. Fail if a build is already happening (until we support queuing)
 -- 2. Contact supervisor to spawn a new build, with it status going to DB.
-triggerNewBuild :: (HasCallStack) => RepoName -> BranchName -> Eff Web.AppServantStack ()
-triggerNewBuild repoName branchName = do
+triggerNewBuild :: (HasCallStack) => Severity -> RepoName -> BranchName -> Eff Web.AppServantStack ()
+triggerNewBuild minSeverity repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
-  asks App.supervisor >>= \supervisor -> do
-    creationTime <- liftIO getCurrentTime
-    let baseDir = Workspace.repoJobsDir supervisor repo.name
-    job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit.id baseDir creationTime
-    withLogContext [("job", show job.jobId)] $ do
-      log Info $ "Building commit " <> show branch.headCommit
-      log Info "Added job"
-      viraEnv <- environmentFor repo branch job.jobWorkingDir
-      Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (Pipeline.runPipeline viraEnv) $ \result -> do
+  supervisor <- asks App.supervisor
+  creationTime <- liftIO getCurrentTime
+  let baseDir = Workspace.repoJobsDir supervisor repo.name
+  job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit.id baseDir creationTime
+  withLogContext [("job", show job.jobId)] $ do
+    log Info $ "Building commit " <> show branch.headCommit
+    log Info "Added job"
+    viraEnv <- environmentFor repo branch job.jobWorkingDir
+    Supervisor.startTask
+      supervisor
+      job.jobId
+      minSeverity
+      viraEnv.workspacePath
+      (Pipeline.runPipeline viraEnv)
+      $ \result -> do
         endTime <- liftIO getCurrentTime
         let status = case result of
               Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
@@ -180,6 +186,6 @@ triggerNewBuild repoName branchName = do
               Left _ -> St.JobFinished St.JobFailure endTime
         App.update $ St.JobUpdateStatusA job.jobId status
         Broadcast.broadcastUpdate (JobScope job.jobId)
-      App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
-      Broadcast.broadcastUpdate (JobScope job.jobId)
-      log Info "Started task"
+    App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
+    Broadcast.broadcastUpdate (JobScope job.jobId)
+    log Info "Started task"

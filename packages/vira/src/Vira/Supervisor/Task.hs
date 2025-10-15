@@ -5,9 +5,6 @@ module Vira.Supervisor.Task (
   -- * Main supervisor operations
   startTask,
   killTask,
-
-  -- * Utilities for individual task orchestrators
-  logToWorkspaceOutput,
 ) where
 
 import Colog (Severity (..))
@@ -24,6 +21,7 @@ import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Tail qualified as Tail
+import Vira.CI.Log (ViraLog (..), encodeViraLog)
 import Vira.Supervisor.Type (Task (..), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..), Terminated (Terminated))
 import Prelude hiding (readMVar)
 
@@ -54,6 +52,7 @@ startTask ::
   ) =>
   TaskSupervisor ->
   TaskId ->
+  Severity ->
   FilePath ->
   ( forall es1.
     ( Concurrent :> es1
@@ -63,7 +62,7 @@ startTask ::
     , FileSystem :> es1
     , ER.Reader LogContext :> es1
     ) =>
-    (forall es2. (IOE :> es2) => Text -> Eff es2 ()) ->
+    (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ()) ->
     Eff es1 (Either err ExitCode)
   ) ->
   -- Handler to call after the task finishes
@@ -72,7 +71,7 @@ startTask ::
     Eff es ()
   ) ->
   Eff es ()
-startTask supervisor taskId workDir orchestrator onFinish = do
+startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
   logSupervisorState supervisor
   let msg = "Starting Vira pipeline in " <> toText workDir
   log Info msg
@@ -85,12 +84,18 @@ startTask supervisor taskId workDir orchestrator onFinish = do
         createDirectoryIfMissing True workDir
         appendFileText (outputLogFile workDir) "" -- Create empty log file before tail starts
         tailHandle <- liftIO $ Tail.tailFile 1000 (outputLogFile workDir)
-        logToWorkspaceOutput taskId workDir msg
+        let
+          logger :: (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ())
+          logger msgSeverity msgText = do
+            log msgSeverity msgText -- co-log to stdout
+            when (msgSeverity >= minSeverity) $ -- only write to file if severity is high enough
+              logToWorkspaceOutput msgSeverity msgText
+        logger Info msg
         asyncHandle <- async $ do
-          result <- orchestrator (logToWorkspaceOutput taskId workDir)
+          result <- orchestrator logger
           -- Log the errors if any
           whenLeft_ result $ \err -> do
-            logToWorkspaceOutput taskId workDir $ "❌ ERROR: " <> show err
+            logger Error $ show err
           -- Stop the tail when task finishes for any reason
           liftIO $ Tail.tailStop tailHandle
           -- Then call the original handler
@@ -98,6 +103,19 @@ startTask supervisor taskId workDir orchestrator onFinish = do
         let info = TaskInfo {..}
         let task = Task {..}
         pure $ Map.insert taskId task tasks
+  where
+    -- TODO: In lieu of https://github.com/juspay/vira/issues/6
+    -- FIXME: Don't complect with Vira
+    logToWorkspaceOutput :: forall es'. (Log (RichMessage IO) :> es', ER.Reader LogContext :> es', IOE :> es') => Severity -> Text -> Eff es' ()
+    logToWorkspaceOutput severity msg = do
+      let viraLog = ViraLog {level = severity, message = msg}
+          jsonLog = encodeViraLog viraLog <> "\n"
+      appendFileText (outputLogFile workDir) jsonLog
+
+    -- Send all output to a file under working directory.
+    -- FIXME: Don't complect with Vira
+    outputLogFile :: FilePath -> FilePath
+    outputLogFile base = base </> "output.log"
 
 -- | Kill an active task
 killTask :: (Concurrent :> es, Log (RichMessage IO) :> es, IOE :> es, ER.Reader LogContext :> es) => TaskSupervisor -> TaskId -> Eff es ()
@@ -127,15 +145,3 @@ logSupervisorState supervisor = do
   forM_ (Map.toList tasks) $ \(_, task) -> do
     st <- taskState task
     withFrozenCallStack $ log Debug $ "Task state: " <> show st
-
--- TODO: In lieu of https://github.com/juspay/vira/issues/6
--- FIXME: Don't complect with Vira
-logToWorkspaceOutput :: (IOE :> es) => TaskId -> FilePath -> Text -> Eff es ()
-logToWorkspaceOutput taskId workDir (msg :: Text) = do
-  let s = "🥕 [vira:job:" <> show taskId <> "] " <> msg <> "\n"
-  appendFileText (outputLogFile workDir) s
-
--- Send all output to a file under working directory.
--- FIXME: Don't complect with Vira
-outputLogFile :: FilePath -> FilePath
-outputLogFile base = base </> "output.log"

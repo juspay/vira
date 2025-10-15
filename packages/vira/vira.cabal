@@ -43,6 +43,7 @@ library
       Vira.CI.Configuration
       Vira.CI.Environment
       Vira.CI.Error
+      Vira.CI.Log
       Vira.CI.Pipeline
       Vira.CI.Processes
       Vira.CI.Workspace
