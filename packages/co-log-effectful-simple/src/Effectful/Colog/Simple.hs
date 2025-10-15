@@ -65,20 +65,6 @@ buildFieldMap ctx =
       , typeRep @"timezone" :=> MessageField (liftIO getCurrentTimeZone)
       ]
 
-formatSeverity :: Severity -> Text
-formatSeverity = \case
-  Debug -> "🐛 DEBUG"
-  Info -> "ℹ️  INFO"
-  Warning -> "⚠️  WARN"
-  Error -> "❌ ERROR"
-
-formatTime :: Maybe UTCTime -> Maybe TimeZone -> Text
-formatTime mUtcTime mTimeZone = case (mUtcTime, mTimeZone) of
-  (Just t, Just tz) ->
-    let localTime = utcToLocalTime tz t
-     in toText $ Data.Time.Format.formatTime defaultTimeLocale "%H:%M" localTime
-  _ -> "??:??"
-
 -- | Like `runLogAction` but works with `RichMessage`, writes to `Stdout`, and filters by severity
 runLogActionStdout :: Severity -> Eff '[ER.Reader LogContext, Log (RichMessage IO), IOE] a -> Eff '[IOE] a
 runLogActionStdout minSeverity action =
@@ -118,3 +104,17 @@ fmtRichMessage msg = do
   where
     getField :: forall (fieldName :: Symbol). (KnownSymbol fieldName) => IO (Maybe (FieldType fieldName))
     getField = extractField (DMap.lookup (typeRep @fieldName) msg.richMsgMap)
+
+    formatSeverity :: Severity -> Text
+    formatSeverity = \case
+      Debug -> "🐛 DEBUG"
+      Info -> "ℹ️  INFO"
+      Warning -> "⚠️  WARN"
+      Error -> "❌ ERROR"
+
+    formatTime :: Maybe UTCTime -> Maybe TimeZone -> Text
+    formatTime mUtcTime mTimeZone = case (mUtcTime, mTimeZone) of
+      (Just t, Just tz) ->
+        let localTime = utcToLocalTime tz t
+         in toText $ Data.Time.Format.formatTime defaultTimeLocale "%H:%M" localTime
+      _ -> "??:??"
