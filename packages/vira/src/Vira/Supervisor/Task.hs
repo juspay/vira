@@ -5,9 +5,6 @@ module Vira.Supervisor.Task (
   -- * Main supervisor operations
   startTask,
   killTask,
-
-  -- * Utilities for individual task orchestrators
-  logToWorkspaceOutput,
 ) where
 
 import Colog (Severity (..))
@@ -87,15 +84,18 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
         createDirectoryIfMissing True workDir
         appendFileText (outputLogFile workDir) "" -- Create empty log file before tail starts
         tailHandle <- liftIO $ Tail.tailFile 1000 (outputLogFile workDir)
-        logToWorkspaceOutput Info workDir msg
-        asyncHandle <- async $ do
-          result <- orchestrator $ \msgSeverity msgText -> do
+        let
+          logger :: (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ())
+          logger msgSeverity msgText = do
             log msgSeverity msgText -- co-log to stdout
             when (msgSeverity >= minSeverity) $ -- only write to file if severity is high enough
-              logToWorkspaceOutput msgSeverity workDir msgText
+              logToWorkspaceOutput msgSeverity msgText
+        logger Info msg
+        asyncHandle <- async $ do
+          result <- orchestrator logger
           -- Log the errors if any
           whenLeft_ result $ \err -> do
-            logToWorkspaceOutput Error workDir $ show err
+            logger Error $ show err
           -- Stop the tail when task finishes for any reason
           liftIO $ Tail.tailStop tailHandle
           -- Then call the original handler
@@ -103,6 +103,19 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
         let info = TaskInfo {..}
         let task = Task {..}
         pure $ Map.insert taskId task tasks
+  where
+    -- TODO: In lieu of https://github.com/juspay/vira/issues/6
+    -- FIXME: Don't complect with Vira
+    logToWorkspaceOutput :: forall es'. (Log (RichMessage IO) :> es', ER.Reader LogContext :> es', IOE :> es') => Severity -> Text -> Eff es' ()
+    logToWorkspaceOutput severity msg = do
+      let viraLog = ViraLog {level = severity, message = msg}
+          jsonLog = encodeViraLog viraLog <> "\n"
+      appendFileText (outputLogFile workDir) jsonLog
+
+    -- Send all output to a file under working directory.
+    -- FIXME: Don't complect with Vira
+    outputLogFile :: FilePath -> FilePath
+    outputLogFile base = base </> "output.log"
 
 -- | Kill an active task
 killTask :: (Concurrent :> es, Log (RichMessage IO) :> es, IOE :> es, ER.Reader LogContext :> es) => TaskSupervisor -> TaskId -> Eff es ()
@@ -132,16 +145,3 @@ logSupervisorState supervisor = do
   forM_ (Map.toList tasks) $ \(_, task) -> do
     st <- taskState task
     withFrozenCallStack $ log Debug $ "Task state: " <> show st
-
--- TODO: In lieu of https://github.com/juspay/vira/issues/6
--- FIXME: Don't complect with Vira
-logToWorkspaceOutput :: (Log (RichMessage IO) :> es, ER.Reader LogContext :> es, IOE :> es) => Severity -> FilePath -> Text -> Eff es ()
-logToWorkspaceOutput severity workDir msg = do
-  let viraLog = ViraLog {level = severity, message = msg}
-      jsonLog = encodeViraLog viraLog <> "\n"
-  appendFileText (outputLogFile workDir) jsonLog
-
--- Send all output to a file under working directory.
--- FIXME: Don't complect with Vira
-outputLogFile :: FilePath -> FilePath
-outputLogFile base = base </> "output.log"
