@@ -46,7 +46,7 @@ runPipeline ::
   (forall es1. (IOE :> es1) => Text -> Eff es1 ()) ->
   Eff es (Either PipelineError ExitCode)
 runPipeline env taskId logger =
-  withLogContext "repo" env.repo.name $ withLogContext "branch" env.branch.branchName $ withLogContext "task" taskId $ do
+  withLogContext [("repo", show env.repo.name), ("branch", show env.branch.branchName), ("task", show taskId)] $ do
     -- 1. Setup workspace and clone
     let setupProcs =
           one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit.id Env.projectDirName

@@ -73,7 +73,7 @@ startTask ::
     Eff es ()
   ) ->
   Eff es ()
-startTask supervisor taskId workDir orchestrator onFinish = withLogContext "task" taskId $ do
+startTask supervisor taskId workDir orchestrator onFinish = withLogContext [("task", show taskId)] $ do
   logSupervisorState supervisor
   let msg = "Starting Vira pipeline in " <> toText workDir
   log Info msg
@@ -102,7 +102,7 @@ startTask supervisor taskId workDir orchestrator onFinish = withLogContext "task
 
 -- | Kill an active task
 killTask :: (Concurrent :> es, Log (RichMessage IO) :> es, IOE :> es, ER.Reader LogContext :> es) => TaskSupervisor -> TaskId -> Eff es ()
-killTask supervisor taskId = withLogContext "task" taskId $ do
+killTask supervisor taskId = withLogContext [("task", show taskId)] $ do
   modifyMVar_ (tasks supervisor) $ \tasks -> do
     case Map.lookup taskId tasks of
       Nothing -> do

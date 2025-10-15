@@ -95,7 +95,7 @@ popNextPendingRepo = do
 
 -- | Refresh a single repository (expects repo to already be marked InProgress)
 refreshRepo :: Repo -> Eff AppStack (Either Text ())
-refreshRepo repo = withLogContext "repo" repo.name $ do
+refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
   log Info "Starting refresh"
 
   st <- asks (.refreshState)

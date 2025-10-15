@@ -159,7 +159,7 @@ viewJobStatus status = do
 -- 1. Fail if a build is already happening (until we support queuing)
 -- 2. Contact supervisor to spawn a new build, with it status going to DB.
 triggerNewBuild :: (HasCallStack) => RepoName -> BranchName -> Eff Web.AppServantStack ()
-triggerNewBuild repoName branchName = withLogContext "repo" repoName $ do
+triggerNewBuild repoName branchName = withLogContext [("repo", show repoName)] $ do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
   log Info $ "Building commit " <> show branch.headCommit
@@ -167,7 +167,7 @@ triggerNewBuild repoName branchName = withLogContext "repo" repoName $ do
     creationTime <- liftIO getCurrentTime
     let baseDir = Workspace.repoJobsDir supervisor repo.name
     job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit.id baseDir creationTime
-    withLogContext "job" job.jobId $ do
+    withLogContext [("job", show job.jobId)] $ do
       log Info "Added job"
       viraEnv <- environmentFor repo branch job.jobWorkingDir
       Supervisor.startTask supervisor job.jobId viraEnv.workspacePath (Pipeline.runPipeline viraEnv) $ \result -> do

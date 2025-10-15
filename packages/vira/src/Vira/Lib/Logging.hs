@@ -22,7 +22,6 @@ where
 import Colog.Core (Severity (..))
 import Colog.Message (FieldType, MessageField (..), Msg (..), RichMessage, RichMsg (..), defaultFieldMap, extractField)
 import Data.Dependent.Map qualified as DMap
-import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log, LogAction (LogAction), logMsg, runLogAction)
@@ -34,7 +33,7 @@ import GHC.Stack (SrcLoc (srcLocModule))
 import Type.Reflection (typeRep)
 
 -- | Custom field type for storing logging context (key-value pairs)
-type instance FieldType "context" = Map Text Text
+type instance FieldType "context" = [(Text, Text)]
 
 -- | Add a label to the current thread
 tagCurrentThread :: (MonadIO m) => String -> m ()
@@ -62,33 +61,31 @@ log msgSeverity msgText = do
 
 Context accumulates: nested calls will merge their contexts together.
 
->>> withLogContext "taskId" "42" $ do
+>>> withLogContext [("taskId", "42")] $ do
 >>>   log Info "Starting"  -- Will have {taskId=42} in props
->>>   withLogContext "step" "compile" $ do
+>>>   withLogContext [("step", "compile")] $ do
 >>>     log Info "Compiling"  -- Will have {taskId=42, step=compile}
 -}
 
 -- | Type alias for logging context stored in Reader
-type LogContext = Map Text Text
+type LogContext = [(Text, Text)]
 
 withLogContext ::
-  forall es a v.
-  ( Show v
-  , ER.Reader LogContext :> es
+  forall es a.
+  ( ER.Reader LogContext :> es
   , Log (RichMessage IO) :> es
   ) =>
-  Text ->
-  v ->
+  [(Text, Text)] ->
   Eff es a ->
   Eff es a
-withLogContext key val action = do
-  -- Modify the context in the Reader effect
-  ER.local (Map.insert key $ show val) action
+withLogContext pairs action = do
+  -- Modify the context in the Reader effect (append to preserve order)
+  ER.local (++ pairs) action
 
 -- | Like `runLogAction` but works with `RichMessage`, writes to `Stdout`, and filters by severity
 runLogActionStdout :: Severity -> Eff '[ER.Reader LogContext, Log (RichMessage IO), IOE] a -> Eff '[IOE] a
 runLogActionStdout minSeverity action =
-  runLogAction logAction (ER.runReader Map.empty action)
+  runLogAction logAction (ER.runReader [] action)
   where
     logAction = LogAction $ \richMsg -> do
       when (msgSeverity richMsg.richMsgMsg >= minSeverity) $ do
@@ -114,8 +111,8 @@ fmtRichMessage RichMsg {..} = do
         Warning -> "⚠️  WARN "
         Error -> "❌ ERROR"
       props =
-        Map.fromList (catMaybes [("mod",) <$> getNonLogCaller msgStack])
-          <> fromMaybe Map.empty mContext -- Merge in context fields
+        catMaybes [("mod",) <$> getNonLogCaller msgStack]
+          <> fromMaybe [] mContext -- Merge in context fields
       message = severityText <> " [" <> threadIdText <> "] " <> msgText <> showProps props
   pure $ case msgSeverity of
     Debug -> "\ESC[90m" <> message <> "\ESC[0m"
@@ -138,12 +135,12 @@ threadDesc tid = do
   label <- threadLabel tid <&> maybe "🧵" toText
   pure $ toText label <> ";" <> threadIdToInt tid
 
-showProps :: Map Text Text -> Text
+showProps :: [(Text, Text)] -> Text
 showProps prop =
   if null prop
     then ""
     else
-      "\ESC[37m  {" <> T.intercalate ", " (map showKeyValue (Map.toAscList prop)) <> "}\ESC[0m"
+      "\ESC[37m  {" <> T.intercalate ", " (map showKeyValue prop) <> "}\ESC[0m"
   where
     showKeyValue (k, v) = k <> "=" <> v
 
