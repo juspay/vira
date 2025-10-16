@@ -5,7 +5,6 @@ module Vira.Web.Pages.JobLog where
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Servant hiding (throwError)
-import Servant.API.EventStream (recommendedEventSourceHeaders)
 import Servant.Server.Generic (AsServer)
 import System.FilePath ((</>))
 import Vira.App qualified as App
@@ -14,7 +13,6 @@ import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
 import Vira.Web.Lucid (AppHtml)
-import Vira.Web.Servant (mapSourceT)
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Stream.Log qualified as Log
 import Prelude hiding (ask, asks)
@@ -31,7 +29,7 @@ handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> JobId -
 handlers globalSettings viraRuntimeState webSettings jobId = do
   Routes
     { _rawLog = Web.runAppInServant globalSettings viraRuntimeState webSettings $ rawLogHandler jobId
-    , _streamLog = pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp globalSettings viraRuntimeState) $ Log.streamRouteHandler jobId
+    , _streamLog = Web.runStreamHandler globalSettings viraRuntimeState $ Log.streamRouteHandler jobId
     }
 
 rawLogHandler :: JobId -> Eff Web.AppServantStack Text

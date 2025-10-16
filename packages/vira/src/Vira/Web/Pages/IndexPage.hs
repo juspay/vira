@@ -4,7 +4,6 @@ module Vira.Web.Pages.IndexPage where
 import Lucid
 import Servant.API (Get, NamedRoutes, (:>))
 import Servant.API.ContentTypes.Lucid (HTML)
-import Servant.API.EventStream (recommendedEventSourceHeaders)
 import Servant.API.Generic (GenericMode (type (:-)))
 import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
@@ -13,7 +12,7 @@ import Vira.Web.Lucid (runAppHtml)
 import Vira.Web.Pages.JobPage qualified as JobPage
 import Vira.Web.Pages.RegistryPage qualified as RegistryPage
 import Vira.Web.Pages.ToolsPage qualified as ToolsPage
-import Vira.Web.Servant (mapSourceT, (//))
+import Vira.Web.Servant ((//))
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Stream.ScopedRefresh qualified as Refresh
 import Vira.Web.Widgets.Card qualified as W
@@ -43,7 +42,7 @@ handlers globalSettings viraRuntimeState webSettings =
     , _jobs = JobPage.handlers globalSettings viraRuntimeState webSettings
     , _tools = ToolsPage.handlers globalSettings viraRuntimeState webSettings
     , _refresh =
-        pure $ recommendedEventSourceHeaders $ mapSourceT (App.runApp globalSettings viraRuntimeState) Refresh.streamRouteHandler
+        Web.runStreamHandler globalSettings viraRuntimeState Refresh.streamRouteHandler
     }
   where
     linkText = show . linkURI
