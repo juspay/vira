@@ -9,6 +9,7 @@ import Data.Acid (AcidState)
 import Servant.Links (Link)
 import Vira.App.Broadcast.Type (UpdateBroadcast)
 import Vira.App.InstanceInfo (InstanceInfo)
+import Vira.AutoBuild.Type (AutoBuildState)
 import Vira.Refresh.Type (RefreshState)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
@@ -33,4 +34,6 @@ data ViraRuntimeState = ViraRuntimeState
     tools :: TVar Tools
   , -- Git repository auto-refresh state
     refreshState :: RefreshState
+  , -- Auto-build state
+    autoBuildState :: AutoBuildState
   }

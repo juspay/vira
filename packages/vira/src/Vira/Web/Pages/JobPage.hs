@@ -18,6 +18,8 @@ import Vira.App qualified as App
 import Vira.App.Broadcast.Core qualified as Broadcast
 import Vira.App.Broadcast.Type (BroadcastScope (..))
 import Vira.App.CLI (WebSettings)
+import Vira.AutoBuild.Core qualified as AutoBuild
+import Vira.AutoBuild.Type (BuildPriority (..))
 import Vira.CI.Environment (ViraEnvironment (..), environmentFor)
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Workspace qualified as Workspace
@@ -62,9 +64,13 @@ handlers globalSettings viraRuntimeState webSettings = do
     }
 
 buildHandler :: App.GlobalSettings -> RepoName -> BranchName -> Eff Web.AppServantStack (Headers '[HXRefresh] Text)
-buildHandler globalSettings repoName branch =
+buildHandler _globalSettings repoName branch =
   withLogContext [("repo", show repoName), ("branch", show branch)] $ do
-    triggerNewBuild globalSettings.logLevel repoName branch
+    -- For manual builds, schedule with Manual priority (higher than Auto)
+    _repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
+    branchData <- App.query (St.GetBranchByNameA repoName branch) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
+    AutoBuild.scheduleAutoBuild repoName branch branchData.headCommit.id Manual
+    log Info "Scheduled manual build"
     pure $ addHeader True "Ok"
 
 viewHandler :: JobId -> AppHtml ()

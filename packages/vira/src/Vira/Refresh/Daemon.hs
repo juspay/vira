@@ -24,6 +24,7 @@ import Vira.App.Broadcast.Core qualified as Broadcast
 import Vira.App.Broadcast.Type (BroadcastScope (..))
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
+import Vira.AutoBuild.Core qualified as AutoBuild
 import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Refresh.Core (initializeRefreshState, scheduleRepoRefresh)
@@ -110,6 +111,8 @@ refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
     Mirror.syncMirror repo.cloneUrl mirrorPath
     allBranches <- Git.remoteBranchesFromClone mirrorPath
     liftIO $ Acid.update acid $ St.SetRepoBranchesA repo.name allBranches
+    -- Detect branch changes and trigger auto-builds
+    AutoBuild.detectBranchChanges repo.name allBranches
 
   -- Update status based on result
   endTime <- liftIO getCurrentTime

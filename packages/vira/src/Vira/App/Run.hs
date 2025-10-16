@@ -23,6 +23,8 @@ import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
+import Vira.AutoBuild.Daemon qualified as AutoBuildDaemon
+import Vira.AutoBuild.Type qualified as AutoBuild
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.Refresh.Daemon qualified as Daemon
 import Vira.Refresh.Type qualified as Refresh
@@ -67,10 +69,13 @@ runVira = do
         toolsVar <- runEff Tool.newToolsTVar
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
-        let viraRuntimeState = App.ViraRuntimeState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.updateBroadcast = stateUpdateBuffer, App.tools = toolsVar, App.refreshState = refreshState}
+        -- Initialize auto-build state (default: max 5 concurrent builds)
+        autoBuildState <- AutoBuild.newAutoBuildState 5 globalSettings.logLevel
+        let viraRuntimeState = App.ViraRuntimeState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.updateBroadcast = stateUpdateBuffer, App.tools = toolsVar, App.refreshState = refreshState, App.autoBuildState = autoBuildState}
             appServer = do
               startPeriodicArchival acid
               Daemon.startRefreshDaemon
+              AutoBuildDaemon.startAutoBuildDaemon
               Server.runServer globalSettings webSettings
         App.runApp globalSettings viraRuntimeState appServer
 
