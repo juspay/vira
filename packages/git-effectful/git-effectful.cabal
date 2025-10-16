@@ -22,7 +22,6 @@ library
       Effectful.Git.Command.ForEachRef
       Effectful.Git.Command.Status
       Effectful.Git.Core
-      Effectful.Git.Logging
       Effectful.Git.Mirror
       Effectful.Git.Types
   other-modules:
@@ -64,6 +63,7 @@ library
     , co-log
     , co-log-core
     , co-log-effectful
+    , co-log-effectful-simple
     , containers
     , directory
     , effectful
@@ -132,6 +132,7 @@ executable git-effectful-test
     , co-log
     , co-log-core
     , co-log-effectful
+    , co-log-effectful-simple
     , containers
     , directory
     , effectful

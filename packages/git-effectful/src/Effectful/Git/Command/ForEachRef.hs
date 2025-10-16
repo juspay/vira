@@ -22,12 +22,14 @@ import Data.Text qualified as T
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext, log)
+import Effectful.Colog.Simple.Process (logCommand)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (catchIO)
 import Effectful.Git.Core (git)
-import Effectful.Git.Logging (log, logCommand)
 import Effectful.Git.Types (BranchName (..), Commit (..))
 import Effectful.Process (CreateProcess (..), Process, proc, readCreateProcess)
+import Effectful.Reader.Static qualified as ER
 import Text.Megaparsec (Parsec, anySingle, manyTill, parse, takeRest)
 import Text.Megaparsec.Char (tab)
 
@@ -35,7 +37,7 @@ import Text.Megaparsec.Char (tab)
 This function expects the clone to already exist and be updated.
 It parses branches from the existing clone without modifying it.
 -}
-remoteBranchesFromClone :: (Error Text :> es, Log (RichMessage IO) :> es, Process :> es, IOE :> es) => FilePath -> Eff es (Map BranchName Commit)
+remoteBranchesFromClone :: (Error Text :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es, Process :> es, IOE :> es) => FilePath -> Eff es (Map BranchName Commit)
 remoteBranchesFromClone clonePath = do
   logCommand Debug "Running git for-each-ref in clone" forEachRefRemoteBranches
 

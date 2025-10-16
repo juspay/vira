@@ -24,11 +24,13 @@ import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext, log)
+import Effectful.Colog.Simple.Process (logCommand)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (finally)
 import Effectful.Git (git)
-import Effectful.Git.Logging (log, logCommand)
 import Effectful.Process (CreateProcess (..), Process, proc, readCreateProcessWithExitCode)
+import Effectful.Reader.Static qualified as ER
 import Lukko (LockMode (ExclusiveLock))
 import Lukko qualified
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist)
@@ -44,6 +46,7 @@ On error, caller may need to delete the mirror directory and retry.
 syncMirror ::
   ( Error Text :> es
   , Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
   , Process :> es
   , IOE :> es
   ) =>
@@ -65,6 +68,7 @@ but file lock ensures only one actually clones.
 ensureMirror ::
   ( Error Text :> es
   , Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
   , Process :> es
   , IOE :> es
   ) =>
@@ -117,6 +121,7 @@ Acquires file lock before fetching to prevent concurrent updates to same mirror.
 updateMirror ::
   ( Error Text :> es
   , Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
   , Process :> es
   , IOE :> es
   ) =>
