@@ -17,6 +17,7 @@ module Effectful.Colog.Simple (
 
   -- * Severity
   Severity (..),
+  severityEmoji,
 
   -- * Runner
   runLogActionStdout,
@@ -65,6 +66,14 @@ buildFieldMap ctx =
       , typeRep @"timezone" :=> MessageField (liftIO getCurrentTimeZone)
       ]
 
+-- | Get emoji for severity level
+severityEmoji :: Severity -> Text
+severityEmoji = \case
+  Debug -> "🐛"
+  Info -> "ℹ️"
+  Warning -> "⚠️"
+  Error -> "❌"
+
 -- | Like `runLogAction` but works with `RichMessage`, writes to `Stdout`, and filters by severity
 runLogActionStdout :: Severity -> Eff '[ER.Reader LogContext, Log (RichMessage IO), IOE] a -> Eff '[IOE] a
 runLogActionStdout minSeverity action =
@@ -106,11 +115,11 @@ fmtRichMessage msg = do
     getField = extractField (DMap.lookup (typeRep @fieldName) msg.richMsgMap)
 
     formatSeverity :: Severity -> Text
-    formatSeverity = \case
-      Debug -> "🐛 DEBUG"
-      Info -> "ℹ️  INFO"
-      Warning -> "⚠️  WARN"
-      Error -> "❌ ERROR"
+    formatSeverity sev = case sev of
+      Debug -> severityEmoji sev <> " DEBUG"
+      Info -> severityEmoji sev <> "  INFO"
+      Warning -> severityEmoji sev <> "  WARN"
+      Error -> severityEmoji sev <> " ERROR"
 
     formatTime :: Maybe UTCTime -> Maybe TimeZone -> Text
     formatTime mUtcTime mTimeZone = case (mUtcTime, mTimeZone) of

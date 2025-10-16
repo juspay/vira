@@ -18,7 +18,8 @@ module Vira.CI.Log (
 import Colog (Severity (..))
 import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON), decode, encode)
 import Data.Text qualified as T
-import Effectful.Colog.Simple (LogContext (..))
+import Effectful.Colog.Simple (LogContext (..), severityEmoji)
+import Lucid (ToHtml (..), br_, class_, span_, toHtml)
 import System.Console.ANSI (
   Color (..),
   ColorIntensity (..),
@@ -77,11 +78,12 @@ Displays context key-value pairs if present.
 -}
 renderViraLogCLI :: ViraLog -> Text
 renderViraLogCLI vlog =
-  let (emoji :: Text, intensity, clr) = case vlog.level of
-        Debug -> ("🐛", Dull, White)
-        Info -> ("ℹ️", Vivid, Cyan)
-        Warning -> ("⚠️", Vivid, Yellow)
-        Error -> ("❌", Vivid, Red)
+  let emoji = severityEmoji vlog.level
+      (intensity, clr) = case vlog.level of
+        Debug -> (Dull, White)
+        Info -> (Vivid, Cyan)
+        Warning -> (Vivid, Yellow)
+        Error -> (Vivid, Red)
       colorCode = setSGRCode [SetColor Foreground intensity clr]
       resetCode = setSGRCode [Reset]
       LogContext ctx = vlog.context
@@ -91,3 +93,32 @@ renderViraLogCLI vlog =
           else " " <> toText (setSGRCode [SetColor Foreground Dull White]) <> "{" <> T.intercalate ", " (map renderPair ctx) <> "}" <> toText resetCode
       renderPair (k, v) = k <> "=" <> v
    in toText colorCode <> emoji <> "  " <> vlog.message <> toText resetCode <> contextStr
+
+{- | Render ViraLog for web UI with TailwindCSS
+
+Renders viralog entries with emoji and colored text.
+Displays context key-value pairs if present.
+-}
+instance ToHtml ViraLog where
+  toHtml viraLog =
+    let emoji = severityEmoji viraLog.level
+        textClass = case viraLog.level of
+          Debug -> "text-slate-400 dark:text-slate-500"
+          Info -> "text-cyan-400 dark:text-cyan-500"
+          Warning -> "text-amber-400 dark:text-amber-500"
+          Error -> "text-rose-400 dark:text-rose-500"
+        LogContext ctx = viraLog.context
+     in span_ [class_ textClass] $ do
+          toHtml emoji
+          toHtml (" " :: Text)
+          toHtml viraLog.message
+          unless (null ctx) $ do
+            toHtml (" " :: Text)
+            span_ [class_ "text-slate-500 dark:text-slate-600"] $ do
+              toHtml ("{" :: Text)
+              forM_ (intersperse Nothing $ map Just ctx) $ \case
+                Nothing -> toHtml (", " :: Text)
+                Just (k, v) -> toHtml $ k <> "=" <> v
+              toHtml ("}" :: Text)
+          br_ []
+  toHtmlRaw = toHtml

@@ -18,7 +18,6 @@ import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import Data.Map qualified as Map
 import Effectful (Eff)
-import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
@@ -32,7 +31,7 @@ import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
-import Vira.CI.Log (ViraLog (..), decodeViraLog)
+import Vira.CI.Log (decodeViraLog)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
@@ -80,30 +79,8 @@ renderLogLines ls =
     renderLine :: (Monad m) => Text -> HtmlT m ()
     renderLine line =
       case decodeViraLog line of
-        Right viraLog -> renderViraLog viraLog
+        Right viraLog -> toHtml viraLog
         Left _ -> toHtml line <> br_ []
-
-    renderViraLog :: (Monad m) => ViraLog -> HtmlT m ()
-    renderViraLog viraLog =
-      let (emoji :: Text, textClass) = case viraLog.level of
-            Debug -> ("🐛", "text-slate-400 dark:text-slate-500")
-            Info -> ("ℹ️", "text-cyan-400 dark:text-cyan-500")
-            Warning -> ("⚠️", "text-amber-400 dark:text-amber-500")
-            Error -> ("❌", "text-rose-400 dark:text-rose-500")
-          LogContext ctx = viraLog.context
-       in span_ [class_ textClass] $ do
-            toHtml (emoji :: Text)
-            toHtml (" " :: Text)
-            toHtml viraLog.message
-            unless (null ctx) $ do
-              toHtml (" " :: Text)
-              span_ [class_ "text-slate-500 dark:text-slate-600"] $ do
-                toHtml ("{" :: Text)
-                forM_ (intersperse Nothing $ map Just ctx) $ \case
-                  Nothing -> toHtml (", " :: Text)
-                  Just (k, v) -> toHtml $ k <> "=" <> v
-                toHtml ("}" :: Text)
-            br_ []
 
 -- | Render multiline lines for placing under a <pre> such that newlines are preserved & rendered
 rawMultiLine :: (Monad m) => [Text] -> HtmlT m ()
