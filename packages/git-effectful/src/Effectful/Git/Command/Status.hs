@@ -16,7 +16,7 @@ import Effectful.Colog (Log)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (catchIO)
 import Effectful.Git.Core (git)
-import Effectful.Git.Logging (log)
+import Effectful.Git.Logging (logCommand)
 import Effectful.Git.Types (BranchName (..))
 import Effectful.Process (CreateProcess (..), Process, proc, readCreateProcess)
 
@@ -37,13 +37,12 @@ avoiding race conditions and reducing git process overhead.
 -}
 gitStatusPorcelain :: (Error Text :> es, Log (RichMessage IO) :> es, Process :> es, IOE :> es) => FilePath -> Eff es GitStatusPorcelain
 gitStatusPorcelain repoPath = do
-  log Debug $ "Getting branch status in: " <> show repoPath
+  let statusCmd = proc git ["status", "--porcelain=v2", "--branch", "--untracked-files=no"]
+  logCommand Debug "Running git status" statusCmd
   output <-
-    readCreateProcess (proc git ["status", "--porcelain=v2", "--branch", "--untracked-files=no"]) {cwd = Just repoPath} ""
+    readCreateProcess statusCmd {cwd = Just repoPath} ""
       `catchIO` \ex -> do
-        let errorMsg = "Git status --porcelain=v2 failed: " <> show ex
-        log Error errorMsg
-        throwError $ toText errorMsg
+        throwError $ "Git status --porcelain=v2 failed: " <> show ex
 
   case parseGitStatusPorcelain (toText output) of
     Left err -> throwError err
