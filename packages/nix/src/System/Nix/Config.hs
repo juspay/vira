@@ -30,34 +30,42 @@ data NixConfig = NixConfig
   deriving stock (Show, Eq)
 
 -- | Parse the output of `nix config show`
-nixConfigShow :: (MonadIO m) => m NixConfig
+nixConfigShow :: (MonadIO m) => m (Either Text NixConfig)
 nixConfigShow = do
   output <- P.readProcessStdout_ $ P.proc nix ["config", "show"]
-  let rawConfig = parseConfigOutput output
-  builders <- case Map.lookup "builders" rawConfig of
-    Nothing -> pure []
-    Just val
-      | T.isPrefixOf "@" val -> do
-          let filePath = toString $ T.drop 1 val
-          buildersContent <- decodeUtf8 <$> readFileBS filePath
-          case parse pBuilders filePath buildersContent of
-            Left err -> error $ "Failed to parse builders file: " <> show err
-            Right bs -> pure bs
-      | otherwise -> case parse pBuilders "<inline>" val of
-          Left err -> error $ "Failed to parse builders: " <> show err
-          Right bs -> pure bs
-  pure NixConfig {builders, rawConfig}
+  case parseConfigOutput output of
+    Left err -> pure $ Left err
+    Right rawConfig -> do
+      builders <- case Map.lookup "builders" rawConfig of
+        Nothing -> pure $ Right []
+        Just val
+          | T.isPrefixOf "@" val -> do
+              let filePath = toString $ T.drop 1 val
+              buildersContent <- decodeUtf8 <$> readFileBS filePath
+              case parse pBuilders filePath buildersContent of
+                Left err -> pure $ Left $ "Failed to parse builders file: " <> show err
+                Right bs -> pure $ Right bs
+          | otherwise -> case parse pBuilders "<inline>" val of
+              Left err -> pure $ Left $ "Failed to parse builders: " <> show err
+              Right bs -> pure $ Right bs
+      case builders of
+        Left err -> pure $ Left err
+        Right bs -> pure $ Right NixConfig {builders = bs, rawConfig}
 
 -- | Parse the key-value output from `nix config show`
-parseConfigOutput :: LByteString -> Map Text Text
+parseConfigOutput :: LByteString -> Either Text (Map Text Text)
 parseConfigOutput output =
   case parse pConfigFile "<nix config show>" (decodeUtf8 output) of
-    Left _ -> Map.empty
-    Right cfg -> cfg
+    Left err -> Left $ "Failed to parse nix config show output: " <> show err
+    Right cfg -> Right cfg
 
 -- | Parser for nix config show output
 pConfigFile :: Parser (Map Text Text)
-pConfigFile = Map.fromList <$> many pConfigLine <* eof
+pConfigFile = do
+  pairs <- many (try pConfigLine)
+  space
+  eof
+  pure $ Map.fromList pairs
 
 -- | Parser for a single config line: "key = value"
 pConfigLine :: Parser (Text, Text)

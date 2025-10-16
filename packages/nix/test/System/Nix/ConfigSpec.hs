@@ -39,3 +39,11 @@ spec = do
         Right cfg -> do
           Map.lookup "access-tokens" cfg `shouldBe` Just ""
           Map.lookup "build-users-group" cfg `shouldBe` Just ""
+
+    it "handles trailing newlines" $ do
+      let input = "foo = bar\nbaz = qux\n\n"
+      case parse pConfigFile "<test>" input of
+        Left err -> expectationFailure $ show err
+        Right cfg -> do
+          Map.lookup "foo" cfg `shouldBe` Just "bar"
+          Map.lookup "baz" cfg `shouldBe` Just "qux"

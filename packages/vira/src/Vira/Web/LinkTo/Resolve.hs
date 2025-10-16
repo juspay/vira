@@ -5,6 +5,7 @@ import Servant.Links (Link, fieldLink)
 import Vira.Web.LinkTo.Type
 import Vira.Web.Pages.BranchPage qualified as BranchPage
 import Vira.Web.Pages.EnvironmentPage qualified as EnvironmentPage
+import Vira.Web.Pages.EnvironmentPage.Builders qualified as Builders
 import Vira.Web.Pages.EnvironmentPage.Tools qualified as Tools
 import Vira.Web.Pages.IndexPage
 import Vira.Web.Pages.JobLog qualified as JobLog
@@ -30,4 +31,6 @@ linkTo = \case
   JobLogStream jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._streamLog
   Kill jobId -> fieldLink _jobs // JobPage._kill /: jobId
   Environment -> fieldLink _environment // EnvironmentPage._tools // Tools._view
+  EnvironmentTools -> fieldLink _environment // EnvironmentPage._tools // Tools._view
+  EnvironmentBuilders -> fieldLink _environment // EnvironmentPage._builders // Builders._view
   Refresh -> fieldLink _refresh

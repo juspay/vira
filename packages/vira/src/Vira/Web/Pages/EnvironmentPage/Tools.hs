@@ -20,6 +20,7 @@ import Vira.Tool.Tools.GitHub qualified as GitHubTool
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, runAppHtml)
 import Vira.Web.Pages.Common.User qualified as User
+import Vira.Web.Pages.EnvironmentPage.Navigation qualified as Navigation
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Widgets.Card qualified as W
 import Vira.Web.Widgets.Layout qualified as W
@@ -49,6 +50,9 @@ viewEnvironment = do
       div_ [class_ "flex items-center justify-between"] $ do
         p_ [class_ "text-gray-600 dark:text-gray-300"] "Runtime environment and infrastructure"
         span_ [class_ "text-indigo-800 dark:text-indigo-300 font-semibold"] User.viewUserInfo
+
+    -- Navigation tabs
+    Navigation.viewEnvironmentTabs True
 
     -- Tools Section
     h2_ [class_ "text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center"] $ do

@@ -78,6 +78,8 @@ library
       Vira.Web.Pages.BranchPage
       Vira.Web.Pages.Common.User
       Vira.Web.Pages.EnvironmentPage
+      Vira.Web.Pages.EnvironmentPage.Builders
+      Vira.Web.Pages.EnvironmentPage.Navigation
       Vira.Web.Pages.EnvironmentPage.Tools
       Vira.Web.Pages.IndexPage
       Vira.Web.Pages.JobLog
