@@ -79,4 +79,4 @@ signoffProcs :: SignoffStage -> [CreateProcess]
 signoffProcs stage =
   [Signoff.create Signoff.Force statusTitle | stage.enable]
   where
-    statusTitle = "vira/" <> nixSystem <> "/ci"
+    statusTitle = toString $ "vira/" <> nixSystem <> "/ci"
