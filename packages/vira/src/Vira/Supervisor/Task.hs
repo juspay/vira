@@ -12,7 +12,7 @@ import Colog.Message (RichMessage)
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext (..), log, withLogContext)
+import Effectful.Colog.Simple (LogContext (..), log, withLogContext, withoutLogContext)
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar_, readMVar)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
@@ -72,6 +72,11 @@ startTask ::
   ) ->
   Eff es ()
 startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
+  -- Capture workspace-level context keys at entry (e.g., repo, branch, job)
+  -- These will be filtered out when writing to workspace-specific log
+  LogContext workspaceCtx <- ER.ask
+  let workspaceKeys = map fst workspaceCtx
+
   logSupervisorState supervisor
   let msg = "Starting Vira pipeline in " <> toText workDir
   log Info msg
@@ -89,7 +94,7 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
           logger msgSeverity msgText = do
             log msgSeverity msgText -- co-log to stdout
             when (msgSeverity >= minSeverity) $ -- only write to file if severity is high enough
-              logToWorkspaceOutput msgSeverity msgText
+              logToWorkspaceOutput workspaceKeys msgSeverity msgText
         logger Info msg
         asyncHandle <- async $ do
           result <- orchestrator logger
@@ -106,12 +111,15 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
   where
     -- TODO: In lieu of https://github.com/juspay/vira/issues/6
     -- FIXME: Don't complect with Vira
-    logToWorkspaceOutput :: forall es'. (Log (RichMessage IO) :> es', ER.Reader LogContext :> es', IOE :> es') => Severity -> Text -> Eff es' ()
-    logToWorkspaceOutput severity msg = do
-      ctx <- ER.ask
-      let viraLog = ViraLog {level = severity, message = msg, context = ctx}
-          jsonLog = encodeViraLog viraLog <> "\n"
-      appendFileText (outputLogFile workDir) jsonLog
+    logToWorkspaceOutput :: forall es'. (Log (RichMessage IO) :> es', ER.Reader LogContext :> es', IOE :> es') => [Text] -> Severity -> Text -> Eff es' ()
+    logToWorkspaceOutput excludeKeys severity msg = do
+      -- Filter out workspace-level context (repo, branch, job) since it's redundant
+      -- in workspace-scoped log file (already encoded in file path)
+      withoutLogContext excludeKeys $ do
+        ctx <- ER.ask
+        let viraLog = ViraLog {level = severity, message = msg, context = ctx}
+            jsonLog = encodeViraLog viraLog <> "\n"
+        appendFileText (outputLogFile workDir) jsonLog
 
     -- Send all output to a file under working directory.
     -- FIXME: Don't complect with Vira
