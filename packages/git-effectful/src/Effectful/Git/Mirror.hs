@@ -27,7 +27,7 @@ import Effectful.Colog (Log)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (finally)
 import Effectful.Git (git)
-import Effectful.Git.Logging (log)
+import Effectful.Git.Logging (log, logCommand)
 import Effectful.Process (CreateProcess (..), Process, proc, readCreateProcessWithExitCode)
 import Lukko (LockMode (ExclusiveLock))
 import Lukko qualified
@@ -89,7 +89,7 @@ ensureMirror cloneUrl mirrorPath = do
         let cloneCmd = cloneAllBranches cloneUrl (takeFileName mirrorPath)
             parentDir = takeDirectory mirrorPath
 
-        log Info $ "Running git clone: " <> show (cmdspec cloneCmd)
+        logCommand Info "Running git clone" cloneCmd
 
         (exitCode, stdoutStr, stderrStr) <-
           readCreateProcessWithExitCode
@@ -129,7 +129,7 @@ updateMirror mirrorPath = do
     -- Use --force to handle forced pushes
     let fetchCmd = fetchAllBranches
 
-    log Debug $ "Running git fetch: " <> show (cmdspec fetchCmd)
+    logCommand Debug "Running git fetch" fetchCmd
 
     (exitCode, stdoutStr, stderrStr) <-
       readCreateProcessWithExitCode

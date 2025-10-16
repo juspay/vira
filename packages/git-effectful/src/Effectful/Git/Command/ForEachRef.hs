@@ -25,7 +25,7 @@ import Effectful.Colog (Log)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (catchIO)
 import Effectful.Git.Core (git)
-import Effectful.Git.Logging (log)
+import Effectful.Git.Logging (log, logCommand)
 import Effectful.Git.Types (BranchName (..), Commit (..))
 import Effectful.Process (CreateProcess (..), Process, proc, readCreateProcess)
 import Text.Megaparsec (Parsec, anySingle, manyTill, parse, takeRest)
@@ -37,7 +37,7 @@ It parses branches from the existing clone without modifying it.
 -}
 remoteBranchesFromClone :: (Error Text :> es, Log (RichMessage IO) :> es, Process :> es, IOE :> es) => FilePath -> Eff es (Map BranchName Commit)
 remoteBranchesFromClone clonePath = do
-  log Debug $ "Running git for-each-ref in clone: " <> show (cmdspec forEachRefRemoteBranches)
+  logCommand Debug "Running git for-each-ref in clone" forEachRefRemoteBranches
 
   output <-
     readCreateProcess forEachRefRemoteBranches {cwd = Just clonePath} ""
