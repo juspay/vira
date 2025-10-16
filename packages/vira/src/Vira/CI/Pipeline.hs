@@ -122,10 +122,21 @@ loadViraHsConfiguration path ctx logger = do
           throwError err
         Right p -> do
           logger Info "Successfully applied vira.hs configuration"
-          pure p
+          pure $ patchPipelineForDirty ctx p
     False -> do
       logger Info "No vira.hs found - using default pipeline"
-      pure defaultPipeline
+      pure $ patchPipelineForDirty ctx defaultPipeline
+  where
+    -- Certain stages don't make sense when running CI on a dirty working copy
+    patchPipelineForDirty :: ViraContext -> ViraPipeline -> ViraPipeline
+    patchPipelineForDirty ViraContext {dirty = True} pipeline =
+      pipeline
+        { -- Can't signoff on commit when build was on dirty working copy
+          signoff = pipeline.signoff {enable = False}
+        , -- Don't push unless on clean branch
+          cache = pipeline.cache {url = Nothing}
+        }
+    patchPipelineForDirty _ pipeline = pipeline
 
 -- | CLI wrapper for running a pipeline in the current directory
 runPipelineCLI ::
