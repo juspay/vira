@@ -64,23 +64,14 @@ decodeViraLog line =
 {- | Render ViraLog for CLI with ANSI colors
 
 Renders viralog entries with emoji and colored text matching the web UI styling.
-Non-viralog lines are returned as-is for raw printing.
 -}
-renderViraLogCLI :: Severity -> Text -> Text
-renderViraLogCLI severity msg =
-  let viraLog = ViraLog {level = severity, message = msg}
-      jsonLog = encodeViraLog viraLog
-   in case decodeViraLog jsonLog of
-        Left rawLine -> rawLine -- Fallback to raw (should not happen)
-        Right vlog -> formatViraLog vlog
-  where
-    formatViraLog :: ViraLog -> Text
-    formatViraLog vlog =
-      let (emoji :: Text, intensity, clr) = case vlog.level of
-            Debug -> ("🐛", Dull, White)
-            Info -> ("ℹ️", Vivid, Cyan)
-            Warning -> ("⚠️", Vivid, Yellow)
-            Error -> ("❌", Vivid, Red)
-          colorCode = setSGRCode [SetColor Foreground intensity clr]
-          resetCode = setSGRCode [Reset]
-       in toText colorCode <> emoji <> " " <> vlog.message <> toText resetCode
+renderViraLogCLI :: ViraLog -> Text
+renderViraLogCLI vlog =
+  let (emoji :: Text, intensity, clr) = case vlog.level of
+        Debug -> ("🐛", Dull, White)
+        Info -> ("ℹ️", Vivid, Cyan)
+        Warning -> ("⚠️", Vivid, Yellow)
+        Error -> ("❌", Vivid, Red)
+      colorCode = setSGRCode [SetColor Foreground intensity clr]
+      resetCode = setSGRCode [Reset]
+   in toText colorCode <> emoji <> "  " <> vlog.message <> toText resetCode

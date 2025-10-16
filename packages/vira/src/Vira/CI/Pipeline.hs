@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
@@ -27,7 +28,7 @@ import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.CI.Environment qualified as Env
 import Vira.CI.Error
-import Vira.CI.Log (renderViraLogCLI)
+import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
 import Vira.CI.Pipeline.Type
 import Vira.CI.Processes (pipelineProcesses)
 import Vira.State.Type (Branch (..), Repo (..), cloneUrl)
@@ -159,7 +160,7 @@ runPipelineCLI minSeverity repoDir = do
         when (severity >= minSeverity) $
           liftIO $
             putTextLn $
-              renderViraLogCLI severity msg
+              renderViraLogCLI (ViraLog {level = severity, message = msg})
   runPipelineIn tools ctx repoDir outputLog logger
 
 -- | Create a default pipeline configuration

@@ -1,4 +1,4 @@
--- Pipeline configuration for Vira
+-- Pipeline configuration for Vira <https://vira.nixos.asia/>
 \ctx pipeline ->
   let 
     isMain = ctx.branch == "main"
