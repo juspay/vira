@@ -8,6 +8,7 @@ module System.Nix.Config.Machine (
 ) where
 
 import Data.Text qualified as T
+import System.Nix.System (System (..))
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
@@ -17,7 +18,7 @@ import Prelude hiding (many)
 data RemoteBuilder = RemoteBuilder
   { uri :: Text
   -- ^ SSH URI (e.g., "ssh-ng://user@host")
-  , platforms :: [Text]
+  , platforms :: [System]
   -- ^ Supported platforms (e.g., ["aarch64-darwin"])
   , sshKey :: Maybe FilePath
   -- ^ Path to SSH key
@@ -55,12 +56,12 @@ pComment = char '#' *> manyTill anySingle eol $> ()
 pBuilder :: Parser RemoteBuilder
 pBuilder = do
   uri <- pField
-  platforms <- parseListField <$> pField
+  platforms <- parsePlatforms <$> pField
   sshKey <- pOptionalField
   maxJobs <- pIntField
   speedFactor <- pIntField
-  supportedFeatures <- parseListField <$> pField
-  mandatoryFeatures <- parseListField <$> pField
+  supportedFeatures <- parseTextList <$> pField
+  mandatoryFeatures <- parseTextList <$> pField
   publicHostKey <- pOptionalLastField
   _ <- eol
   pure
@@ -75,9 +76,10 @@ pBuilder = do
       , publicHostKey
       }
   where
-    parseListField txt
+    parsePlatforms = map System . parseTextList
+    parseTextList txt
       | txt == "-" = []
-      | otherwise = filter (not . T.null) $ T.splitOn "," txt
+      | otherwise = T.splitOn "," txt
 
 -- | Parse a whitespace-separated field
 pField :: Parser Text
@@ -93,7 +95,6 @@ pOptionalLastField = do
   field <- optional pLastField
   pure $ case field of
     Just "-" -> Nothing
-    Just "" -> Nothing
     x -> x
 
 -- | Parse an optional field (treats "-" as Nothing)
