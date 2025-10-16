@@ -23,6 +23,7 @@ import Network.Wai.Middleware.Static (
  )
 import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
+import System.Nix.Flake.Develop qualified as Nix
 import Vira.App (AppStack)
 import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
 import Vira.App.Type (ViraRuntimeState)
@@ -72,17 +73,13 @@ getDataDirMultiHome = do
     False -> do
       -- We expect this to happen because, sadly, cabal doesn't work with GHC multi-home units setup.
       -- Only allow falling back to ./static when running inside a nix shell.
-      inNixShell >>= \case
+      liftIO Nix.inNixShell >>= \case
         True -> do
           log Warning $ "Data dir not found at " <> toText p <> ", falling back to local ./static path (IN_NIX_SHELL set)"
           pure "static"
         False -> do
           log Error $ "Data dir not found at " <> toText p
           die "Data directory not found"
-  where
-    inNixShell :: (IOE :> es) => Eff es Bool
-    inNixShell = do
-      isJust <$> lookupEnv "IN_NIX_SHELL"
 
 -- | WAI middleware to handle 404 errors with custom page
 notFoundMiddleware :: GlobalSettings -> ViraRuntimeState -> WebSettings -> Middleware
