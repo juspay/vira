@@ -7,6 +7,7 @@ import Effectful (runEff)
 import Effectful.Colog (runLogAction)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Git
+import Effectful.Git.Command.ForEachRef (remoteBranchesFromClone)
 import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Process (runProcess)
 import System.FilePath ((</>))

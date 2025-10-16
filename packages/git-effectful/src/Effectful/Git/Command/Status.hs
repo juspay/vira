@@ -2,7 +2,7 @@
 
 Provides git status --porcelain=v2 functionality.
 -}
-module Effectful.Git.Status (
+module Effectful.Git.Command.Status (
   GitStatusPorcelain (..),
   gitStatusPorcelain,
   parseGitStatusPorcelain,

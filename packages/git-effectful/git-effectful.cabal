@@ -18,11 +18,12 @@ build-type:     Simple
 library
   exposed-modules:
       Effectful.Git
+      Effectful.Git.Command.Clone
+      Effectful.Git.Command.ForEachRef
+      Effectful.Git.Command.Status
       Effectful.Git.Core
       Effectful.Git.Logging
       Effectful.Git.Mirror
-      Effectful.Git.Parser
-      Effectful.Git.Status
       Effectful.Git.Types
   other-modules:
       Paths_git_effectful

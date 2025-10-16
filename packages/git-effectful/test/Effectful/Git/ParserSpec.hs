@@ -2,7 +2,7 @@
 
 module Effectful.Git.ParserSpec where
 
-import Effectful.Git.Parser (gitRefParser)
+import Effectful.Git.Command.ForEachRef (gitRefParser)
 import Effectful.Git.Types (BranchName (..), Commit (..), CommitID (..))
 import Test.Hspec
 import Text.Megaparsec (parse)

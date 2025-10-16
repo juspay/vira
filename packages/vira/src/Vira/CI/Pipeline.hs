@@ -17,8 +17,8 @@ import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git (Commit (..))
-import Effectful.Git qualified as Git
-import Effectful.Git.Status (GitStatusPorcelain (..), gitStatusPorcelain)
+import Effectful.Git.Command.Clone qualified as Git
+import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
 import Effectful.Reader.Static qualified as ER
 import Language.Haskell.Interpreter (InterpreterError (..))
 import Shower qualified

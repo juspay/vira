@@ -1,6 +1,6 @@
 module Effectful.Git.StatusSpec where
 
-import Effectful.Git.Status
+import Effectful.Git.Command.Status
 import Effectful.Git.Types (BranchName (..))
 import Test.Hspec
 
