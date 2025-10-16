@@ -1,7 +1,3 @@
-{-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TemplateHaskell #-}
-
 {- | Module for working with Git repositories in Haskell
 
 A standalone library for git operations using the effectful library.
@@ -17,8 +13,6 @@ module Effectful.Git (
   -- * Operations
   remoteBranchesFromClone,
   cloneAtCommit,
-  getCurrentBranch,
-  isWorkingTreeDirty,
 ) where
 
 import Colog (Severity (..))
@@ -29,19 +23,12 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (catchIO)
+import Effectful.Git.Core (git)
 import Effectful.Git.Logging (log)
 import Effectful.Git.Parser (gitRefParser)
 import Effectful.Git.Types
 import Effectful.Process (CreateProcess (..), Process, proc, readCreateProcess)
-import System.Which (staticWhich)
 import Text.Megaparsec (parse)
-
-{- | Path to the `git` executable
-
-This should be available in the PATH, thanks to Nix and `which` library.
--}
-git :: FilePath
-git = $(staticWhich "git")
 
 {- | Get remote branches from a git clone.
 This function expects the clone to already exist and be updated.
@@ -86,28 +73,6 @@ cloneAtCommit url commit path =
     , toString url
     , path
     ]
-
--- | Get the current branch name in a git repository
-getCurrentBranch :: (Error Text :> es, Log (RichMessage IO) :> es, Process :> es, IOE :> es) => FilePath -> Eff es BranchName
-getCurrentBranch repoPath = do
-  log Debug $ "Getting current branch in: " <> show repoPath
-  output <-
-    readCreateProcess (proc git ["branch", "--show-current"]) {cwd = Just repoPath} ""
-      `catchIO` \ex -> do
-        let errorMsg = "Git branch --show-current failed: " <> show ex
-        log Error errorMsg
-        throwError $ toText errorMsg
-  pure $ BranchName $ T.strip $ toText output
-
--- | Check if the working tree has uncommitted changes (ignores untracked files)
-isWorkingTreeDirty :: (Log (RichMessage IO) :> es, Process :> es, IOE :> es) => FilePath -> Eff es Bool
-isWorkingTreeDirty repoPath = do
-  log Debug $ "Checking if working tree is dirty in: " <> show repoPath
-  output <-
-    readCreateProcess (proc git ["status", "--porcelain", "--untracked-files=no"]) {cwd = Just repoPath} ""
-      `catchIO` \_ -> pure ""
-  let result = T.strip $ toText output
-  pure $ not $ T.null result
 
 -- | Return the `CreateProcess` to list remote branches with metadata
 forEachRefRemoteBranches :: CreateProcess

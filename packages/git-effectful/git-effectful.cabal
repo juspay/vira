@@ -18,9 +18,11 @@ build-type:     Simple
 library
   exposed-modules:
       Effectful.Git
+      Effectful.Git.Core
       Effectful.Git.Logging
       Effectful.Git.Mirror
       Effectful.Git.Parser
+      Effectful.Git.Status
       Effectful.Git.Types
   other-modules:
       Paths_git_effectful
@@ -89,6 +91,7 @@ executable git-effectful-test
   main-is: Spec.hs
   other-modules:
       Effectful.Git.ParserSpec
+      Effectful.Git.StatusSpec
       Effectful.GitSpec
       Paths_git_effectful
   autogen-modules:

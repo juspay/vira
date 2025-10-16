@@ -18,6 +18,7 @@ import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git (Commit (..))
 import Effectful.Git qualified as Git
+import Effectful.Git.Status (GitStatusPorcelain (..), gitStatusPorcelain)
 import Effectful.Reader.Static qualified as ER
 import Language.Haskell.Interpreter (InterpreterError (..))
 import Shower qualified
@@ -140,28 +141,17 @@ runPipelineCLI ::
   Eff es (Either PipelineError ExitCode)
 runPipelineCLI minSeverity repoDir = do
   -- Detect git branch and dirty status (fail if not in a git repo)
-  branch <-
-    runErrorNoCallStack (Git.getCurrentBranch repoDir) >>= \case
-      Left err -> error $ toText $ "Not a git repository: " <> toString err
-      Right b -> pure b
-  dirty <- Git.isWorkingTreeDirty repoDir
-
-  let ctx =
-        ViraContext
-          { Vira.CI.Context.branch = branch
-          , Vira.CI.Context.dirty = dirty
-          }
-  -- Get all tools
+  porcelain <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
+  let ctx = ViraContext porcelain.branch porcelain.dirty
   tools <- liftIO $ runEff getAllTools
-  -- No output log for CLI execution (logs go to stdout via logger)
-  let outputLog = Nothing
-      logger :: forall es1. (IOE :> es1) => Severity -> Text -> Eff es1 ()
-      logger severity msg =
-        when (severity >= minSeverity) $
-          liftIO $
-            putTextLn $
-              renderViraLogCLI (ViraLog {level = severity, message = msg})
-  runPipelineIn tools ctx repoDir outputLog logger
+  runPipelineIn tools ctx repoDir Nothing logger
+  where
+    logger :: forall es1. (IOE :> es1) => Severity -> Text -> Eff es1 ()
+    logger severity msg =
+      when (severity >= minSeverity) $
+        liftIO $
+          putTextLn $
+            renderViraLogCLI (ViraLog {level = severity, message = msg})
 
 -- | Create a default pipeline configuration
 defaultPipeline :: ViraPipeline
