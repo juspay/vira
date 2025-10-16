@@ -13,7 +13,7 @@ import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import System.Nix.Config.Machine (RemoteBuilder (..), pBuilders)
 import System.Nix.Core (nix)
-import System.Process.Typed qualified as P
+import System.Process (readProcess)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Prelude hiding (many)
@@ -32,7 +32,7 @@ data NixConfig = NixConfig
 -- | Parse the output of `nix config show`
 nixConfigShow :: (MonadIO m) => m (Either Text NixConfig)
 nixConfigShow = do
-  output <- P.readProcessStdout_ $ P.proc nix ["config", "show"]
+  output <- encodeUtf8 . toText <$> liftIO (readProcess nix ["config", "show"] "")
   case parseConfigOutput output of
     Left err -> pure $ Left err
     Right rawConfig -> do

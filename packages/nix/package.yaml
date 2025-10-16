@@ -21,7 +21,7 @@ library:
   dependencies:
     - containers
     - megaparsec
-    - typed-process
+    - process
     - which
 
 tests:

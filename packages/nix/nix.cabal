@@ -64,8 +64,8 @@ library
       base ==4.*
     , containers
     , megaparsec
+    , process
     , relude >=1.0
-    , typed-process
     , which
   mixins:
       base hiding (Prelude)
