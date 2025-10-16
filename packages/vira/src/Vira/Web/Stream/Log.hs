@@ -18,7 +18,7 @@ import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import Data.Map qualified as Map
 import Effectful (Eff)
-import Effectful.Colog.Simple (LogContext (..))
+import Effectful.Colog.Simple (LogContext (..), tagCurrentThread)
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
@@ -118,7 +118,9 @@ instance ToServerEvent LogChunk where
 data StreamState = Init | Streaming (CircularBuffer Text) | StreamEnding | Stopping
 
 streamRouteHandler :: JobId -> SourceT (Eff AppStack) LogChunk
-streamRouteHandler jobId = S.fromStepT $ step 0 Init
+streamRouteHandler jobId = S.fromStepT $ S.Effect $ do
+  tagCurrentThread "🐬"
+  pure $ S.Skip $ step 0 Init
   where
     step (n :: Int) (st :: StreamState) = S.Effect $ do
       mJob :: Maybe Job <- App.query (St.GetJobA jobId)
