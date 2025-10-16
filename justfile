@@ -7,14 +7,14 @@ docs:
     echo http://127.0.0.1:8888
     hoogle serve -p 8888 --local
 
-# Run the application, re-compiling if necessary.
+# Run the web application (along with tailwind compilation).
 [group('1. vira')]
 run:
     nix run .#vira-dev -- --no-server --tui=false
 
-# Run ghcid with vira in development mode
+# Like `run`, but only runs Vira, taking optional set of args (web, by default)
 [group('1. vira')]
-run2 ARGS='web --host 0.0.0.0 --base-path ${BASE_PATH:-/} --import ./sample.json':
+run-vira ARGS='web --host 0.0.0.0 --base-path ${BASE_PATH:-/} --import ./sample.json':
     #!/usr/bin/env bash
     set -x
     # Workaround cabal/ghcid bug with $PATH mangling.
@@ -23,7 +23,10 @@ run2 ARGS='web --host 0.0.0.0 --base-path ${BASE_PATH:-/} --import ./sample.json
     ghcid -T Main.main -c './cabal-repl vira:exe:vira' \
         --setup ":set args --state-dir ./state --auto-reset-state {{ ARGS }}"
 
-
+# Run `vira ci` on itself.
+[group('1. vira')]
+run-cli-ci:
+    @just run-vira 'ci'
 
 # Run cabal tests (Pass, for example, `tail-test` to run for different component)
 [group('2. haskell')]
@@ -64,9 +67,3 @@ hpack:
     for f in $(find ./packages/ -name "package.yaml"); do \
         hpack $f; \
     done
-
-# Light version of `om ci`
-ci:
-    @just pc
-    nix --no-accept-flake-config build -L --no-link
-    nix --no-accept-flake-config flake check -L

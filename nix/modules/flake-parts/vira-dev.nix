@@ -1,5 +1,5 @@
 # For running Vira in development mode. Called from `justfile`.
-{ root, inputs, ... }:
+{ inputs, ... }:
 {
   imports = [
     inputs.process-compose-flake.flakeModule
@@ -14,12 +14,7 @@
           haskell = {
             command =
               pkgs.writeShellScriptBin "haskell-dev" ''
-                set -x
-                # Workaround cabal/ghcid bug with $PATH mangling.
-                export PATH=$(echo "$PATH" | tr ':' '\n' | grep '^/nix/store' | tr '\n' ':' | sed 's/:$//')
-                # Vira now auto-generates TLS certificates as needed
-                ghcid -T Main.main -c '${root}/cabal-repl vira:exe:vira' \
-                    --setup ":set args --state-dir ./state --auto-reset-state web --host ${host} --base-path ''${BASE_PATH:-/} --import ./sample.json"
+                exec just run-vira "web --host ${host} --base-path ''${BASE_PATH:-/} --import ./sample.json"
               '';
             depends_on.tailwind.condition = "process_started";
             # Without `SIGINT (2)` Vira doesn't close gracefully
