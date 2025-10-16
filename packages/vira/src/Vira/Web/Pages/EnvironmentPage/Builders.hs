@@ -7,6 +7,7 @@ module Vira.Web.Pages.EnvironmentPage.Builders (
 ) where
 
 import Data.Text qualified as T
+import Effectful.Error.Static (runErrorNoCallStack)
 import Lucid
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -56,7 +57,7 @@ viewEnvironment = do
     p_ [class_ "text-gray-600 dark:text-gray-300 mb-4"] "Distributed build infrastructure from Nix configuration"
 
     -- Fetch nix config and handle errors
-    result <- liftIO nixConfigShow
+    result <- lift $ runErrorNoCallStack nixConfigShow
     case result of
       Left err -> viewErrorState err
       Right nixConfig -> do

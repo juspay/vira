@@ -19,9 +19,13 @@ extra-source-files:
 library:
   source-dirs: src
   dependencies:
+    - co-log
+    - co-log-effectful
+    - co-log-effectful-simple
     - containers
+    - effectful
+    - effectful-core
     - megaparsec
-    - process
     - which
 
 tests:
