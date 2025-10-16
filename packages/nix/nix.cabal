@@ -23,6 +23,7 @@ library
   exposed-modules:
       System.Nix
       System.Nix.Config
+      System.Nix.Config.Core
       System.Nix.Config.Machine
       System.Nix.Core
       System.Nix.Flake.Develop

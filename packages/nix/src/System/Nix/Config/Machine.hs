@@ -35,25 +35,23 @@ data RemoteBuilder = RemoteBuilder
   }
   deriving stock (Show, Eq)
 
-type Parser = Parsec Void Text
-
 -- | Parser for builders/machines file
-pBuilders :: Parser [RemoteBuilder]
+pBuilders :: Parsec Void Text [RemoteBuilder]
 pBuilders = catMaybes <$> many pBuilderLine <* eof
 
 {- | Parser for a single builder line
 Format: URI PLATFORMS KEY MAX_JOBS SPEED_FACTOR FEATURES MANDATORY_FEATURES PUBLIC_HOST_KEY
 -}
-pBuilderLine :: Parser (Maybe RemoteBuilder)
+pBuilderLine :: Parsec Void Text (Maybe RemoteBuilder)
 pBuilderLine = do
   -- Skip empty lines and comments
   (Nothing <$ (space1 <|> pComment))
     <|> (Just <$> pBuilder)
 
-pComment :: Parser ()
+pComment :: Parsec Void Text ()
 pComment = char '#' *> manyTill anySingle eol $> ()
 
-pBuilder :: Parser RemoteBuilder
+pBuilder :: Parsec Void Text RemoteBuilder
 pBuilder = do
   uri <- pField
   platforms <- parsePlatforms <$> pField
@@ -82,15 +80,15 @@ pBuilder = do
       | otherwise = T.splitOn "," txt
 
 -- | Parse a whitespace-separated field
-pField :: Parser Text
+pField :: Parsec Void Text Text
 pField = toText <$> (space *> someTill anySingle space1)
 
 -- | Parse the last field on a line (followed by newline, not whitespace)
-pLastField :: Parser Text
+pLastField :: Parsec Void Text Text
 pLastField = toText <$> (space *> someTill anySingle (lookAhead eol))
 
 -- | Parse an optional last field (treats "-" as Nothing)
-pOptionalLastField :: Parser (Maybe Text)
+pOptionalLastField :: Parsec Void Text (Maybe Text)
 pOptionalLastField = do
   field <- optional pLastField
   pure $ case field of
@@ -98,11 +96,11 @@ pOptionalLastField = do
     x -> x
 
 -- | Parse an optional field (treats "-" as Nothing)
-pOptionalField :: Parser (Maybe Text)
+pOptionalField :: Parsec Void Text (Maybe Text)
 pOptionalField = do
   field <- pField
   pure $ if field == "-" then Nothing else Just field
 
 -- | Parse an integer field
-pIntField :: Parser Int
+pIntField :: Parsec Void Text Int
 pIntField = space *> L.decimal <* space1

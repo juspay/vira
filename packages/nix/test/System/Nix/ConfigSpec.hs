@@ -3,7 +3,7 @@
 module System.Nix.ConfigSpec (spec) where
 
 import Data.Map.Strict qualified as Map
-import System.Nix.Config
+import System.Nix.Config.Core
 import Test.Hspec
 import Text.Megaparsec (parse)
 
