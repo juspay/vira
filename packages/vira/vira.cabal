@@ -6,8 +6,8 @@ cabal-version: 2.2
 
 name:           vira
 version:        0.1.0.0
-synopsis:       Nix CI & Cache
-description:    vira - Nix CI & Cache
+synopsis:       No-frills CI for small teams using Nix
+description:    No-frills CI for small teams using Nix
 category:       Web
 homepage:       https://github.com/juspay/vira
 author:         Sridhar Ratnakumar
@@ -79,7 +79,6 @@ library
       Vira.Web.Pages.Common.User
       Vira.Web.Pages.EnvironmentPage
       Vira.Web.Pages.EnvironmentPage.Builders
-      Vira.Web.Pages.EnvironmentPage.Navigation
       Vira.Web.Pages.EnvironmentPage.Tools
       Vira.Web.Pages.IndexPage
       Vira.Web.Pages.JobLog

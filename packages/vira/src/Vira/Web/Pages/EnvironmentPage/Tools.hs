@@ -1,71 +1,37 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
--- | Tools page HTTP handlers and views
+-- | Tools section view for Environment page
 module Vira.Web.Pages.EnvironmentPage.Tools (
-  Routes (..),
-  handlers,
+  viewTools,
 ) where
 
 import Data.Text qualified as T
 import Lucid
-import Servant
-import Servant.API.ContentTypes.Lucid (HTML)
-import Servant.Server.Generic (AsServer)
-import Vira.App qualified as App
-import Vira.App.CLI (WebSettings)
 import Vira.Tool.Core (ToolData (..), Tools (..))
 import Vira.Tool.Core qualified as Tool
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Tools.GitHub qualified as GitHubTool
-import Vira.Web.LinkTo.Type qualified as LinkTo
-import Vira.Web.Lucid (AppHtml, runAppHtml)
-import Vira.Web.Pages.Common.User qualified as User
-import Vira.Web.Pages.EnvironmentPage.Navigation qualified as Navigation
-import Vira.Web.Stack qualified as Web
+import Vira.Web.Lucid (AppHtml)
 import Vira.Web.Widgets.Card qualified as W
-import Vira.Web.Widgets.Layout qualified as W
 import Web.TablerIcons.Outline qualified as Icon
 
-newtype Routes mode = Routes
-  { _view :: mode :- Get '[HTML] (Html ())
-  }
-  deriving stock (Generic)
-
-handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> Routes AsServer
-handlers globalSettings viraRuntimeState webSettings =
-  Routes
-    { _view = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml $ viewHandler
-    }
-
-viewHandler :: AppHtml ()
-viewHandler = W.layout [LinkTo.Environment] viewEnvironment
-
-viewEnvironment :: AppHtml ()
-viewEnvironment = do
+viewTools :: AppHtml ()
+viewTools = do
   -- Refresh tools data every time the page is loaded
   tools <- lift Tool.refreshTools
 
-  W.viraSection_ [] $ do
-    W.viraPageHeaderWithIcon_ (toHtmlRaw Icon.world) "Environment" $ do
-      div_ [class_ "flex items-center justify-between"] $ do
-        p_ [class_ "text-gray-600 dark:text-gray-300"] "Runtime environment and infrastructure"
-        span_ [class_ "text-indigo-800 dark:text-indigo-300 font-semibold"] User.viewUserInfo
+  -- Tools Section
+  h2_ [class_ "text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center"] $ do
+    div_ [class_ "w-5 h-5 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.tool
+    "Tools"
+  p_ [class_ "text-gray-600 dark:text-gray-300 mb-4"] "Command-line tools used by Vira jobs"
 
-    -- Navigation tabs
-    Navigation.viewEnvironmentTabs True
-
-    -- Tools Section
-    h2_ [class_ "text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center"] $ do
-      div_ [class_ "w-5 h-5 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.tool
-      "Tools"
-    p_ [class_ "text-gray-600 dark:text-gray-300 mb-4"] "Command-line tools used by Vira jobs"
-
-    div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
-      viewToolCard tools.attic (AtticTool.viewToolStatus tools.attic.status)
-      viewToolCard tools.github (GitHubTool.viewToolStatus tools.github.status)
-      viewToolCard tools.omnix mempty
-      viewToolCard tools.git mempty
-      viewToolCard tools.cachix mempty
+  div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
+    viewToolCard tools.attic (AtticTool.viewToolStatus tools.attic.status)
+    viewToolCard tools.github (GitHubTool.viewToolStatus tools.github.status)
+    viewToolCard tools.omnix mempty
+    viewToolCard tools.git mempty
+    viewToolCard tools.cachix mempty
 
 -- | View a tool card with its metadata and runtime info
 viewToolCard :: (Monad m) => ToolData statusType -> HtmlT m () -> HtmlT m ()

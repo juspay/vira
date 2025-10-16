@@ -10,7 +10,6 @@ import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.Web.Lucid (runAppHtml)
 import Vira.Web.Pages.EnvironmentPage qualified as EnvironmentPage
-import Vira.Web.Pages.EnvironmentPage.Tools qualified as Tools
 import Vira.Web.Pages.JobPage qualified as JobPage
 import Vira.Web.Pages.RegistryPage qualified as RegistryPage
 import Vira.Web.Servant ((//))
@@ -50,7 +49,7 @@ handlers globalSettings viraRuntimeState webSettings =
     menu :: (Monad m) => [(HtmlT m (), Text)]
     menu =
       [ ("Repositories", linkText $ fieldLink _repos // RegistryPage._listing)
-      , ("Environment", linkText $ fieldLink _environment // EnvironmentPage._tools // Tools._view)
+      , ("Environment", linkText $ fieldLink _environment // EnvironmentPage._view)
       ]
 
 heroWelcome :: (Monad m) => Text -> [(HtmlT m (), Text)] -> HtmlT m ()
