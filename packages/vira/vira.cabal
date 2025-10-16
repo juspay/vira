@@ -180,6 +180,7 @@ library
     , lucid2
     , modern-uri
     , mtl
+    , nix
     , optics-core
     , optics-th
     , optparse-applicative
@@ -297,6 +298,7 @@ executable vira
     , lucid2
     , modern-uri
     , mtl
+    , nix
     , optics-core
     , optics-th
     , optparse-applicative
@@ -417,6 +419,7 @@ executable vira-tests
     , lucid2
     , modern-uri
     , mtl
+    , nix
     , optics-core
     , optics-th
     , optparse-applicative

@@ -11,7 +11,7 @@ import Attic.Url qualified
 import Control.Monad.Writer.Strict (MonadWriter (tell), WriterT (..))
 import Effectful.Process (CreateProcess)
 import GH.Signoff qualified as Signoff
-import System.Info qualified as SysInfo
+import System.Nix.System (nixSystem)
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Pipeline.Type
 import Vira.Lib.Omnix qualified as Omnix
@@ -79,5 +79,4 @@ signoffProcs :: SignoffStage -> [CreateProcess]
 signoffProcs stage =
   [Signoff.create Signoff.Force statusTitle | stage.enable]
   where
-    nixSystem = SysInfo.arch <> "-" <> SysInfo.os
-    statusTitle = "vira/" <> nixSystem <> "/ci"
+    statusTitle = toString $ "vira/" <> nixSystem <> "/ci"

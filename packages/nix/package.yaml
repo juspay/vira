@@ -1,0 +1,20 @@
+defaults:
+  - local: ../../hpack-common.yaml
+  - local: ../../hpack-relude.yaml
+
+name: nix
+version: 0.1.0.0
+license: MIT
+copyright: 2025 Sridhar Ratnakumar
+maintainer: srid@srid.ca
+author: Sridhar Ratnakumar
+category: System
+homepage: https://github.com/juspay/vira/tree/main/packages/nix
+synopsis: Haskell wrapper for the Nix CLI
+description: A Haskell library providing a nice wrapper for the Nix CLI.
+extra-source-files:
+  - README.md
+  - CHANGELOG.md
+
+library:
+  source-dirs: src

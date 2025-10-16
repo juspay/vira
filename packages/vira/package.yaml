@@ -74,6 +74,7 @@ dependencies:
   - lucid2
   - modern-uri
   - mtl
+  - nix
   - optics-core
   - optics-th
   - optparse-applicative

@@ -8,6 +8,7 @@ packages:
   packages/git-effectful
   packages/co-log-effectful-simple
   packages/gh
+  packages/nix
 
 multi-repl: true
 tests: True
