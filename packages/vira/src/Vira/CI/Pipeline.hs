@@ -1,7 +1,8 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-module Vira.CI.Pipeline (runPipeline, defaultPipeline, PipelineError (..)) where
+module Vira.CI.Pipeline (runPipeline, runPipelineCLI, defaultPipeline, PipelineError (..)) where
 
 import Prelude hiding (id)
 
@@ -10,28 +11,30 @@ import Colog.Message (RichMessage)
 import Effectful.Colog (Log)
 import Effectful.Process (Process)
 
-import Effectful (Eff, IOE, (:>))
-import Effectful.Colog.Simple (LogContext)
+import Effectful (Eff, IOE, runEff, (:>))
+import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git (Commit (..))
-import Effectful.Git qualified as Git
+import Effectful.Git.Command.Clone qualified as Git
+import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
 import Effectful.Reader.Static qualified as ER
 import Language.Haskell.Interpreter (InterpreterError (..))
 import Shower qualified
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import Vira.CI.Configuration qualified as Configuration
-import Vira.CI.Context (ViraContext)
+import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.CI.Environment qualified as Env
 import Vira.CI.Error
+import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
 import Vira.CI.Pipeline.Type
 import Vira.CI.Processes (pipelineProcesses)
 import Vira.State.Type (Branch (..), Repo (..), cloneUrl)
 import Vira.Supervisor.Process (runProcesses)
-import Vira.Tool.Core (Tools)
+import Vira.Tool.Core (Tools, getAllTools)
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
@@ -119,10 +122,48 @@ loadViraHsConfiguration path ctx logger = do
           throwError err
         Right p -> do
           logger Info "Successfully applied vira.hs configuration"
-          pure p
+          pure $ patchPipelineForDirty ctx p
     False -> do
       logger Info "No vira.hs found - using default pipeline"
-      pure defaultPipeline
+      pure $ patchPipelineForDirty ctx defaultPipeline
+  where
+    -- Certain stages don't make sense when running CI on a dirty working copy
+    patchPipelineForDirty :: ViraContext -> ViraPipeline -> ViraPipeline
+    patchPipelineForDirty ViraContext {dirty = True} pipeline =
+      pipeline
+        { -- Can't signoff on commit when build was on dirty working copy
+          signoff = pipeline.signoff {enable = False}
+        , -- Don't push unless on clean branch
+          cache = pipeline.cache {url = Nothing}
+        }
+    patchPipelineForDirty _ pipeline = pipeline
+
+-- | CLI wrapper for running a pipeline in the current directory
+runPipelineCLI ::
+  ( Concurrent :> es
+  , Process :> es
+  , Log (RichMessage IO) :> es
+  , IOE :> es
+  , FileSystem :> es
+  , ER.Reader LogContext :> es
+  ) =>
+  Severity ->
+  FilePath ->
+  Eff es (Either PipelineError ExitCode)
+runPipelineCLI minSeverity repoDir = do
+  -- Detect git branch and dirty status (fail if not in a git repo)
+  porcelain <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
+  let ctx = ViraContext porcelain.branch porcelain.dirty
+  tools <- liftIO $ runEff getAllTools
+  runPipelineIn tools ctx repoDir Nothing logger
+  where
+    logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
+    logger severity msg = do
+      ctx <- ER.ask
+      when (severity >= minSeverity) $
+        liftIO $
+          putTextLn $
+            renderViraLogCLI (ViraLog {level = severity, message = msg, context = ctx})
 
 -- | Create a default pipeline configuration
 defaultPipeline :: ViraPipeline

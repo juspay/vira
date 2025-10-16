@@ -1,6 +1,6 @@
 # Contributing
 
-Before opening PRs, please collaborate on [a project space](https://nixos.asia/en/#community).
+Before opening PRs, please collaborate on [a project space](https://github.com/juspay/vira/discussions).
 
 ## direnv
 

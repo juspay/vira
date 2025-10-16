@@ -54,6 +54,7 @@ data Command
   | ExportCommand
   | ImportCommand
   | InfoCommand
+  | CICommand (Maybe FilePath)
   deriving stock (Show)
 
 -- | Complete CLI configuration
@@ -137,6 +138,17 @@ webSettingsParser = do
         )
   pure WebSettings {..}
 
+-- | Parser for CI command
+ciCommandParser :: Parser Command
+ciCommandParser =
+  CICommand
+    <$> optional
+      ( strArgument
+          ( metavar "DIRECTORY"
+              <> help "Directory to run CI in (defaults to current directory)"
+          )
+      )
+
 -- | Parser for commands
 commandParser :: Parser Command
 commandParser =
@@ -145,6 +157,7 @@ commandParser =
         <> OA.command "export" (info (pure ExportCommand) (progDesc "Export Vira state to JSON"))
         <> OA.command "import" (info (pure ImportCommand) (progDesc "Import Vira state from JSON"))
         <> OA.command "info" (info (pure InfoCommand) (progDesc "Show Vira information (version, schema version, etc.)"))
+        <> OA.command "ci" (info ciCommandParser (progDesc "Run CI pipeline in a directory"))
     )
 
 -- | Parser for CLISettings

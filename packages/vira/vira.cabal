@@ -136,6 +136,7 @@ library
       QuickCheck
     , acid-state
     , aeson
+    , ansi-terminal
     , async
     , attic
     , base ==4.*
@@ -252,6 +253,7 @@ executable vira
       QuickCheck
     , acid-state
     , aeson
+    , ansi-terminal
     , async
     , attic
     , base ==4.*
@@ -371,6 +373,7 @@ executable vira-tests
       QuickCheck
     , acid-state
     , aeson
+    , ansi-terminal
     , async
     , attic
     , base ==4.*

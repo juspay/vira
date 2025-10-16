@@ -6,9 +6,12 @@ import Effectful.Colog.Simple (tagCurrentThread)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.Reader.Dynamic (Reader, runReader)
 import Servant (Handler (Handler), ServerError)
+import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
+import Servant.Types.SourceT (SourceT)
 import Vira.App.CLI (GlobalSettings (..), WebSettings)
 import Vira.App.Stack (AppStack, runApp)
 import Vira.App.Type (ViraRuntimeState)
+import Vira.Web.Servant (mapSourceT)
 import Prelude hiding (Reader, ask, asks, runReader)
 
 type AppServantStack = (Error ServerError : Reader WebSettings : AppStack)
@@ -17,6 +20,24 @@ type AppServantStack = (Error ServerError : Reader WebSettings : AppStack)
 runAppInServant :: GlobalSettings -> ViraRuntimeState -> WebSettings -> Eff AppServantStack a -> Handler a
 runAppInServant globalSettings viraRuntimeState webSettings action = do
   Handler . ExceptT . runApp globalSettings viraRuntimeState . runReader webSettings . runErrorNoCallStack $ do
-    -- Replace ugly thread label for warp handlers with our usual emoji tag.
-    tagCurrentThread "🌐"
+    tagWebThread
     action
+
+runStreamHandler ::
+  (MonadIO m) =>
+  GlobalSettings ->
+  ViraRuntimeState ->
+  SourceT (Eff AppStack) a ->
+  m (RecommendedEventSourceHeaders (SourceT IO a))
+runStreamHandler globalSettings viraRuntimeState h = do
+  pure $ recommendedEventSourceHeaders $ mapSourceT (runApp globalSettings viraRuntimeState) $ do
+    h
+
+-- Replace ugly thread label for warp handlers with our usual emoji tag.
+tagWebThread :: (MonadIO m) => m ()
+tagWebThread =
+  tagCurrentThread "🌐"
+
+tagStreamThread :: (MonadIO m) => m ()
+tagStreamThread =
+  tagCurrentThread "🐬"

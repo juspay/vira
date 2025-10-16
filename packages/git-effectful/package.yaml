@@ -20,6 +20,7 @@ dependencies:
   - co-log
   - co-log-core
   - co-log-effectful
+  - co-log-effectful-simple
   - containers
   - directory
   - effectful

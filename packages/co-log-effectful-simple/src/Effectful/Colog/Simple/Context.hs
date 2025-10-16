@@ -8,6 +8,7 @@ module Effectful.Colog.Simple.Context (
   -- * Context
   LogContext (..),
   withLogContext,
+  withoutLogContext,
 ) where
 
 import Colog.Message (FieldType, RichMessage)
@@ -56,3 +57,24 @@ withLogContext ::
 withLogContext pairs action = do
   -- Modify the context in the Reader effect (append to preserve order)
   ER.local (<> LogContext pairs) action
+
+{- | Remove specified keys from context for the given action.
+
+Useful for filtering out redundant context when logging to scoped outputs.
+
+>>> withoutLogContext ["repo", "branch"] $ do
+>>>   log Info "Task started"  -- Will not include repo/branch in context
+-}
+withoutLogContext ::
+  forall es a.
+  ( ER.Reader LogContext :> es
+  , Log (RichMessage IO) :> es
+  ) =>
+  [Text] ->
+  Eff es a ->
+  Eff es a
+withoutLogContext excludeKeys action = do
+  ER.local filterKeys action
+  where
+    filterKeys (LogContext pairs) =
+      LogContext $ filter (\(k, _) -> k `notElem` excludeKeys) pairs

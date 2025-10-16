@@ -16,7 +16,7 @@ import Effectful.Concurrent.Async (async)
 import Effectful.Concurrent.STM (atomically)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Git (RepoName (..))
-import Effectful.Git qualified as Git
+import Effectful.Git.Command.ForEachRef qualified as Git
 import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Reader.Dynamic (asks)
 import Vira.App.AcidState qualified as App

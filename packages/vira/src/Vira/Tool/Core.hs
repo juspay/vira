@@ -10,6 +10,7 @@ module Vira.Tool.Core (
   newToolsTVar,
   getTools,
   refreshTools,
+  getAllTools,
 ) where
 
 import Control.Concurrent.STM qualified as STM

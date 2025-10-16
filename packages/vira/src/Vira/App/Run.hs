@@ -11,12 +11,19 @@ import Data.Aeson (encode)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Version (showVersion)
 import Effectful (runEff)
+import Effectful.Colog.Simple (runLogActionStdout)
+import Effectful.Concurrent.Async (runConcurrent)
+import Effectful.FileSystem (runFileSystem)
+import Effectful.Process (runProcess)
 import Main.Utf8 qualified as Utf8
 import Paths_vira qualified
+import System.Directory (getCurrentDirectory, makeAbsolute)
+import System.Exit (ExitCode (..))
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
+import Vira.CI.Pipeline qualified as Pipeline
 import Vira.Refresh.Daemon qualified as Daemon
 import Vira.Refresh.Type qualified as Refresh
 import Vira.State.Core (closeViraState, openViraState, startPeriodicArchival, viraDbVersion)
@@ -43,6 +50,7 @@ runVira = do
         ExportCommand -> runExport globalSettings
         ImportCommand -> runImport globalSettings
         InfoCommand -> runInfo
+        CICommand mDir -> runCI globalSettings mDir
 
     runWebServer :: GlobalSettings -> WebSettings -> IO ()
     runWebServer globalSettings webSettings = do
@@ -82,6 +90,30 @@ runVira = do
       let viraVersion = showVersion Paths_vira.version
       putTextLn $ "Vira version: " <> toText viraVersion
       putTextLn $ "Schema version: " <> show viraDbVersion
+
+    runCI :: GlobalSettings -> Maybe FilePath -> IO ()
+    runCI gs mDir = do
+      dir <- maybe getCurrentDirectory makeAbsolute mDir
+      result <- runCIEffects gs dir
+      case result of
+        Left err -> do
+          putTextLn $ "CI pipeline failed: " <> show err
+          exitFailure
+        Right exitCode -> do
+          case exitCode of
+            ExitSuccess -> putTextLn "CI pipeline succeeded"
+            ExitFailure code -> do
+              putTextLn $ "CI pipeline failed with exit code: " <> show code
+              exitWith exitCode
+
+    runCIEffects :: GlobalSettings -> FilePath -> IO (Either Pipeline.PipelineError ExitCode)
+    runCIEffects gs repoDir =
+      runEff
+        . runLogActionStdout gs.logLevel
+        . runFileSystem
+        . runProcess
+        . runConcurrent
+        $ Pipeline.runPipelineCLI gs.logLevel repoDir
 
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()
     importFromFileOrStdin acid mFilePath = do

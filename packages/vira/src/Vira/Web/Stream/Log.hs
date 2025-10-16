@@ -31,13 +31,14 @@ import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
-import Vira.CI.Log (ViraLog (..), decodeViraLog)
+import Vira.CI.Log (decodeViraLog)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
 import Vira.Supervisor.Type (Task (..), TaskInfo (tailHandle), TaskSupervisor (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
+import Vira.Web.Stack (tagStreamThread)
 import Vira.Web.Widgets.Status qualified as Status
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO LogChunk))
@@ -78,21 +79,8 @@ renderLogLines ls =
     renderLine :: (Monad m) => Text -> HtmlT m ()
     renderLine line =
       case decodeViraLog line of
-        Right viraLog -> renderViraLog viraLog
+        Right viraLog -> toHtml viraLog
         Left _ -> toHtml line <> br_ []
-
-    renderViraLog :: (Monad m) => ViraLog -> HtmlT m ()
-    renderViraLog viraLog =
-      let (emoji :: Text, textClass) = case viraLog.level of
-            Debug -> ("🐛", "text-slate-400 dark:text-slate-500")
-            Info -> ("ℹ️", "text-cyan-400 dark:text-cyan-500")
-            Warning -> ("⚠️", "text-amber-400 dark:text-amber-500")
-            Error -> ("❌", "text-rose-400 dark:text-rose-500")
-       in span_ [class_ textClass] $ do
-            toHtml (emoji :: Text)
-            toHtml (" " :: Text)
-            toHtml viraLog.message
-            br_ []
 
 -- | Render multiline lines for placing under a <pre> such that newlines are preserved & rendered
 rawMultiLine :: (Monad m) => [Text] -> HtmlT m ()
@@ -108,7 +96,9 @@ instance ToServerEvent LogChunk where
 data StreamState = Init | Streaming (CircularBuffer Text) | StreamEnding | Stopping
 
 streamRouteHandler :: JobId -> SourceT (Eff AppStack) LogChunk
-streamRouteHandler jobId = S.fromStepT $ step 0 Init
+streamRouteHandler jobId = S.fromStepT $ S.Effect $ do
+  tagStreamThread
+  pure $ S.Skip $ step 0 Init
   where
     step (n :: Int) (st :: StreamState) = S.Effect $ do
       mJob :: Maybe Job <- App.query (St.GetJobA jobId)

@@ -18,9 +18,11 @@ build-type:     Simple
 library
   exposed-modules:
       Effectful.Git
-      Effectful.Git.Logging
+      Effectful.Git.Command.Clone
+      Effectful.Git.Command.ForEachRef
+      Effectful.Git.Command.Status
+      Effectful.Git.Core
       Effectful.Git.Mirror
-      Effectful.Git.Parser
       Effectful.Git.Types
   other-modules:
       Paths_git_effectful
@@ -61,6 +63,7 @@ library
     , co-log
     , co-log-core
     , co-log-effectful
+    , co-log-effectful-simple
     , containers
     , directory
     , effectful
@@ -89,6 +92,7 @@ executable git-effectful-test
   main-is: Spec.hs
   other-modules:
       Effectful.Git.ParserSpec
+      Effectful.Git.StatusSpec
       Effectful.GitSpec
       Paths_git_effectful
   autogen-modules:
@@ -128,6 +132,7 @@ executable git-effectful-test
     , co-log
     , co-log-core
     , co-log-effectful
+    , co-log-effectful-simple
     , containers
     , directory
     , effectful

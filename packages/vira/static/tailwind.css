@@ -71,6 +71,7 @@
     --color-rose-500: oklch(64.5% 0.246 16.439);
     --color-slate-400: oklch(70.4% 0.04 256.788);
     --color-slate-500: oklch(55.4% 0.046 257.417);
+    --color-slate-600: oklch(44.6% 0.043 257.281);
     --color-gray-50: oklch(98.5% 0.002 247.839);
     --color-gray-100: oklch(96.7% 0.003 264.542);
     --color-gray-200: oklch(92.8% 0.006 264.531);
@@ -1036,6 +1037,9 @@
   .text-slate-400 {
     color: var(--color-slate-400);
   }
+  .text-slate-500 {
+    color: var(--color-slate-500);
+  }
   .text-white {
     color: var(--color-white);
   }
@@ -1619,6 +1623,11 @@
   .dark\:text-slate-500 {
     @media (prefers-color-scheme: dark) {
       color: var(--color-slate-500);
+    }
+  }
+  .dark\:text-slate-600 {
+    @media (prefers-color-scheme: dark) {
+      color: var(--color-slate-600);
     }
   }
   .dark\:text-yellow-200 {
