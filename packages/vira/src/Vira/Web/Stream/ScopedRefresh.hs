@@ -18,7 +18,7 @@ module Vira.Web.Stream.ScopedRefresh (
 
 import Colog.Core (Severity (Debug))
 import Effectful (Eff)
-import Effectful.Colog.Simple (log, tagCurrentThread)
+import Effectful.Colog.Simple (log)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
 import Lucid.Htmx.Contrib (hxSseConnect_, hxSseSwap_)
@@ -32,6 +32,7 @@ import Vira.App.Stack (AppStack)
 import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
+import Vira.Web.Stack (tagStreamThread)
 import Prelude hiding (Reader, ask, asks, runReader)
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO ScopedRefresh))
@@ -63,7 +64,7 @@ viewStreamScoped scope = do
 
 streamRouteHandler :: (HasCallStack) => SourceT (Eff AppStack) ScopedRefresh
 streamRouteHandler = S.fromStepT $ S.Effect $ do
-  tagCurrentThread "🐬"
+  tagStreamThread
   log Debug "Starting stream"
   step 0 <$> Broadcast.subscribeToBroadcasts
   where

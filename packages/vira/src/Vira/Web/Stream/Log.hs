@@ -18,7 +18,7 @@ import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import Data.Map qualified as Map
 import Effectful (Eff)
-import Effectful.Colog.Simple (LogContext (..), tagCurrentThread)
+import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
@@ -39,6 +39,7 @@ import Vira.State.Type qualified as St
 import Vira.Supervisor.Type (Task (..), TaskInfo (tailHandle), TaskSupervisor (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
+import Vira.Web.Stack (tagStreamThread)
 import Vira.Web.Widgets.Status qualified as Status
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO LogChunk))
@@ -119,7 +120,7 @@ data StreamState = Init | Streaming (CircularBuffer Text) | StreamEnding | Stopp
 
 streamRouteHandler :: JobId -> SourceT (Eff AppStack) LogChunk
 streamRouteHandler jobId = S.fromStepT $ S.Effect $ do
-  tagCurrentThread "🐬"
+  tagStreamThread
   pure $ S.Skip $ step 0 Init
   where
     step (n :: Int) (st :: StreamState) = S.Effect $ do

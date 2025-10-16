@@ -37,3 +37,7 @@ runStreamHandler globalSettings viraRuntimeState h = do
 tagWebThread :: (MonadIO m) => m ()
 tagWebThread =
   tagCurrentThread "🌐"
+
+tagStreamThread :: (MonadIO m) => m ()
+tagStreamThread =
+  tagCurrentThread "🐬"
