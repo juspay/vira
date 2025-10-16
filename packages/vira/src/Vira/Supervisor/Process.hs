@@ -12,9 +12,9 @@ import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem)
 import Effectful.FileSystem.IO (hClose, openFile)
-import Effectful.Process (CreateProcess (create_group), Pid, Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
+import Effectful.Process (CreateProcess (create_group), Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
 import Effectful.Reader.Static qualified as ER
-import System.Exit (ExitCode (ExitSuccess))
+import System.Exit (ExitCode (ExitFailure, ExitSuccess))
 import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type (Terminated (Terminated))
 
@@ -54,17 +54,11 @@ runProcesses workDir mOutputFile taskLogger procs = do
       pure $ Right ExitSuccess
     runProcs (process : rest) =
       runProc process >>= \case
-        (pid, Right ExitSuccess) -> do
-          taskLogger Debug $ "A proc for task finished successfully (pid=" <> show pid <> ")."
+        Right ExitSuccess -> do
           runProcs rest
-        (pid, Right exitCode) -> do
-          taskLogger Warning $ "A proc for task failed with exitCode " <> show exitCode <> " (pid=" <> show pid <> ")."
-          pure $ Right exitCode
-        (pid, Left e) -> do
-          taskLogger Warning $ "A proc for task (pid=" <> show pid <> ") was interrupted:  " <> show e
-          pure $ Left e
+        x -> pure x
 
-    runProc :: CreateProcess -> Eff es (Maybe Pid, Either Terminated ExitCode)
+    runProc :: CreateProcess -> Eff es (Either Terminated ExitCode)
     runProc process = do
       withLogCommand process $ do
         taskLogger Info "Starting task"
@@ -74,7 +68,7 @@ runProcesses workDir mOutputFile taskLogger procs = do
             withFileHandle outputFile AppendMode $ \outputHandle ->
               runProcWithSettings process (Process.redirectOutputTo outputHandle)
 
-    runProcWithSettings :: CreateProcess -> (CreateProcess -> CreateProcess) -> Eff es (Maybe Pid, Either Terminated ExitCode)
+    runProcWithSettings :: CreateProcess -> (CreateProcess -> CreateProcess) -> Eff es (Either Terminated ExitCode)
     runProcWithSettings process extraSettings = do
       let processSettings =
             Process.alwaysUnderPath workDir
@@ -97,9 +91,11 @@ runProcesses workDir mOutputFile taskLogger procs = do
                     taskLogger Error $ "Failed to terminate process: " <> show e
                   _ <- waitForProcess ph -- Reap to prevent zombies
                   pure $ Left Terminated
-        taskLogger Info $
-          "Task finished with " <> either (("exception: " <>) . toText . displayException) (("exitcode: " <>) . show) result
-        pure (pid, result)
+        case result of
+          Right ExitSuccess -> taskLogger Info "Task completed successfully"
+          Right (ExitFailure code) -> taskLogger Error $ "Task failed with exit code " <> show code
+          Left err -> taskLogger Error $ toText $ displayException err
+        pure result
 
 -- | Helper function that provides withFile-like behavior for Effectful
 withFileHandle :: (FileSystem :> es, IOE :> es) => FilePath -> IOMode -> (Handle -> Eff es a) -> Eff es a
