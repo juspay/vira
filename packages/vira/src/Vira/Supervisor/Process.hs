@@ -6,13 +6,13 @@ import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext, tagCurrentThread)
+import Effectful.Colog.Simple (LogContext, tagCurrentThread, withLogContext)
 import Effectful.Colog.Simple.Process (withLogCommand)
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem)
 import Effectful.FileSystem.IO (hClose, openFile)
-import Effectful.Process (CreateProcess (cmdspec, create_group), Pid, Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
+import Effectful.Process (CreateProcess (create_group), Pid, Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
 import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (ExitSuccess))
 import Vira.Lib.Process qualified as Process
@@ -82,25 +82,24 @@ runProcesses workDir mOutputFile taskLogger procs = do
               >>> (\cp -> cp {create_group = True}) -- For `interruptProcessGroupOf`, when the process is `Terminated`
       (_, _, _, ph) <- createProcess $ process & processSettings
       pid <- getPid ph
-      taskLogger Debug $ "Task spawned : " <> show (cmdspec process)
+      withLogContext [("pid", maybe "?" show pid)] $ do
+        taskLogger Debug "Task spawned"
 
-      result <-
-        -- `mask` cleanup from asynchronous interruptions
-        mask $ \restore ->
-          restore (Right <$> waitForProcess ph)
-            `catch` \case
-              Terminated -> do
-                taskLogger Info "Terminating process"
-                interruptProcessGroupOf ph `catch` \(e :: SomeException) ->
-                  -- Analogous to `Control-C`'ing the process in an interactive shell
-                  taskLogger Error $ "Failed to terminate process: " <> show e
-                _ <- waitForProcess ph -- Reap to prevent zombies
-                pure $ Left Terminated
-      taskLogger Debug $ "Task finished: " <> show (cmdspec process)
-      taskLogger Info $
-        "A task (pid=" <> show pid <> ") finished with " <> either (("exception: " <>) . toText . displayException) (("exitcode: " <>) . show) result
-      taskLogger Debug "Workspace log done"
-      pure (pid, result)
+        result <-
+          -- `mask` cleanup from asynchronous interruptions
+          mask $ \restore ->
+            restore (Right <$> waitForProcess ph)
+              `catch` \case
+                Terminated -> do
+                  taskLogger Info "Terminating process"
+                  interruptProcessGroupOf ph `catch` \(e :: SomeException) ->
+                    -- Analogous to `Control-C`'ing the process in an interactive shell
+                    taskLogger Error $ "Failed to terminate process: " <> show e
+                  _ <- waitForProcess ph -- Reap to prevent zombies
+                  pure $ Left Terminated
+        taskLogger Info $
+          "Task finished with " <> either (("exception: " <>) . toText . displayException) (("exitcode: " <>) . show) result
+        pure (pid, result)
 
 -- | Helper function that provides withFile-like behavior for Effectful
 withFileHandle :: (FileSystem :> es, IOE :> es) => FilePath -> IOMode -> (Handle -> Eff es a) -> Eff es a
