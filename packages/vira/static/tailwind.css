@@ -833,9 +833,6 @@
   .bg-yellow-100 {
     background-color: var(--color-yellow-100);
   }
-  .p-2 {
-    padding: calc(var(--spacing) * 2);
-  }
   .p-3 {
     padding: calc(var(--spacing) * 3);
   }

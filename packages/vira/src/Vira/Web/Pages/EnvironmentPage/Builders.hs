@@ -6,6 +6,7 @@ module Vira.Web.Pages.EnvironmentPage.Builders (
 ) where
 
 import Data.Text qualified as T
+import Effectful.Colog.Simple (Severity (..), log, withLogContext)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Lucid
 import System.Nix.Config (NixConfig (..), RemoteBuilder (..), nixConfigShow)
@@ -27,11 +28,8 @@ viewBuilders = do
   case result of
     Left err -> viewErrorState err
     Right nixConfig -> do
-      -- Debug: show raw config
-      details_ [class_ "mb-4"] $ do
-        summary_ [class_ "text-xs text-gray-500 dark:text-gray-400 cursor-pointer"] "Debug: Raw Nix Config"
-        pre_ [class_ "mt-2 text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded overflow-x-auto"] $
-          toHtml (show nixConfig :: Text)
+      lift $ withLogContext [("config", show nixConfig)] $ do
+        log Debug "Nix configuration loaded successfully"
 
       if null nixConfig.builders
         then viewEmptyState
@@ -79,10 +77,9 @@ viewBuilderRow builder = do
     td_ [class_ "px-6 py-4"] $ do
       div_ [class_ "text-sm font-medium text-gray-900 dark:text-gray-100 font-mono"] $ toHtml builder.uri
       whenJust builder.sshKey $ \key ->
-        div_ [class_ "text-xs text-gray-500 dark:text-gray-400 mt-1"] $ do
-          span_ [class_ "inline-flex items-center"] $ do
-            div_ [class_ "w-3 h-3 mr-1"] $ toHtmlRaw Icon.key
-            toHtml key
+        div_ [class_ "text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1"] $ do
+          span_ [class_ "w-3 h-3 flex items-center justify-center"] $ toHtmlRaw Icon.key
+          toHtml key
 
     -- Platforms
     td_ [class_ "px-6 py-4"] $ do
