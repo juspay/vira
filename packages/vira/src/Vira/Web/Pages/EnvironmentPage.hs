@@ -36,16 +36,13 @@ viewHandler = W.layout [LinkTo.Environment] viewEnvironment
 viewEnvironment :: AppHtml ()
 viewEnvironment = do
   W.viraSection_ [] $ do
-    W.viraPageHeaderWithIcon_ (toHtmlRaw Icon.world) "Environment" $ do
+    W.viraPageHeaderWithIcon_ (toHtmlRaw Icon.cpu) "Environment" $ do
       div_ [class_ "flex items-center justify-between"] $ do
-        p_ [class_ "text-gray-600 dark:text-gray-300"] "Runtime environment and infrastructure"
+        p_ [class_ "text-gray-600 dark:text-gray-300"] "User environment under which Vira runs"
         span_ [class_ "text-indigo-800 dark:text-indigo-300 font-semibold"] User.viewUserInfo
 
     -- Tools Section
     Tools.viewTools
-
-    -- Divider
-    W.viraDivider_
 
     -- Builders Section
     Builders.viewBuilders
