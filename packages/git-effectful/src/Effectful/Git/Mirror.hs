@@ -93,7 +93,7 @@ ensureMirror cloneUrl mirrorPath = do
         let cloneCmd = cloneAllBranches cloneUrl (takeFileName mirrorPath)
             parentDir = takeDirectory mirrorPath
 
-        logCommand Info "Running git clone" cloneCmd
+        logCommand Info cloneCmd
 
         (exitCode, stdoutStr, stderrStr) <-
           readCreateProcessWithExitCode
@@ -134,7 +134,7 @@ updateMirror mirrorPath = do
     -- Use --force to handle forced pushes
     let fetchCmd = fetchAllBranches
 
-    logCommand Debug "Running git fetch" fetchCmd
+    logCommand Debug fetchCmd
 
     (exitCode, stdoutStr, stderrStr) <-
       readCreateProcessWithExitCode

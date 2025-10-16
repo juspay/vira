@@ -39,7 +39,7 @@ It parses branches from the existing clone without modifying it.
 -}
 remoteBranchesFromClone :: (Error Text :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es, Process :> es, IOE :> es) => FilePath -> Eff es (Map BranchName Commit)
 remoteBranchesFromClone clonePath = do
-  logCommand Debug "Running git for-each-ref in clone" forEachRefRemoteBranches
+  logCommand Debug forEachRefRemoteBranches
 
   output <-
     readCreateProcess forEachRefRemoteBranches {cwd = Just clonePath} ""

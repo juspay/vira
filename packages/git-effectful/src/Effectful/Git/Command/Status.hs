@@ -40,7 +40,7 @@ avoiding race conditions and reducing git process overhead.
 gitStatusPorcelain :: (Error Text :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es, Process :> es, IOE :> es) => FilePath -> Eff es GitStatusPorcelain
 gitStatusPorcelain repoPath = do
   let statusCmd = proc git ["status", "--porcelain=v2", "--branch", "--untracked-files=no"]
-  logCommand Info "Running git status" statusCmd
+  logCommand Info statusCmd
   output <-
     readCreateProcess statusCmd {cwd = Just repoPath} ""
       `catchIO` \ex -> do
