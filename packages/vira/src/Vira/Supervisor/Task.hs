@@ -12,7 +12,7 @@ import Colog.Message (RichMessage)
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext, log, withLogContext)
+import Effectful.Colog.Simple (LogContext (..), log, withLogContext)
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar_, readMVar)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
@@ -108,7 +108,8 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
     -- FIXME: Don't complect with Vira
     logToWorkspaceOutput :: forall es'. (Log (RichMessage IO) :> es', ER.Reader LogContext :> es', IOE :> es') => Severity -> Text -> Eff es' ()
     logToWorkspaceOutput severity msg = do
-      let viraLog = ViraLog {level = severity, message = msg}
+      ctx <- ER.ask
+      let viraLog = ViraLog {level = severity, message = msg, context = ctx}
           jsonLog = encodeViraLog viraLog <> "\n"
       appendFileText (outputLogFile workDir) jsonLog
 

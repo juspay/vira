@@ -16,8 +16,6 @@ ghc-options:
   - -fplugin=Effectful.Plugin
 
 dependencies:
-  - ansi-terminal
-  - ansi-terminal-types
   - co-log >= 0.7
   - co-log-core
   - co-log-effectful

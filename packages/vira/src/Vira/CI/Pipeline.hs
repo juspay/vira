@@ -12,7 +12,7 @@ import Effectful.Colog (Log)
 import Effectful.Process (Process)
 
 import Effectful (Eff, IOE, runEff, (:>))
-import Effectful.Colog.Simple (LogContext)
+import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
@@ -157,12 +157,13 @@ runPipelineCLI minSeverity repoDir = do
   tools <- liftIO $ runEff getAllTools
   runPipelineIn tools ctx repoDir Nothing logger
   where
-    logger :: forall es1. (IOE :> es1) => Severity -> Text -> Eff es1 ()
-    logger severity msg =
+    logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
+    logger severity msg = do
+      ctx <- ER.ask
       when (severity >= minSeverity) $
         liftIO $
           putTextLn $
-            renderViraLogCLI (ViraLog {level = severity, message = msg})
+            renderViraLogCLI (ViraLog {level = severity, message = msg, context = ctx})
 
 -- | Create a default pipeline configuration
 defaultPipeline :: ViraPipeline

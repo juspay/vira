@@ -18,6 +18,7 @@ import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import Data.Map qualified as Map
 import Effectful (Eff)
+import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
@@ -88,10 +89,19 @@ renderLogLines ls =
             Info -> ("ℹ️", "text-cyan-400 dark:text-cyan-500")
             Warning -> ("⚠️", "text-amber-400 dark:text-amber-500")
             Error -> ("❌", "text-rose-400 dark:text-rose-500")
+          LogContext ctx = viraLog.context
        in span_ [class_ textClass] $ do
             toHtml (emoji :: Text)
             toHtml (" " :: Text)
             toHtml viraLog.message
+            unless (null ctx) $ do
+              toHtml (" " :: Text)
+              span_ [class_ "text-slate-500 dark:text-slate-600"] $ do
+                toHtml ("{" :: Text)
+                forM_ (intersperse Nothing $ map Just ctx) $ \case
+                  Nothing -> toHtml (", " :: Text)
+                  Just (k, v) -> toHtml $ k <> "=" <> v
+                toHtml ("}" :: Text)
             br_ []
 
 -- | Render multiline lines for placing under a <pre> such that newlines are preserved & rendered

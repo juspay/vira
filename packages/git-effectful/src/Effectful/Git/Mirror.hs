@@ -25,7 +25,7 @@ import Colog.Message (RichMessage)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext, log)
-import Effectful.Colog.Simple.Process (logCommand)
+import Effectful.Colog.Simple.Process (withLogCommand)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (finally)
 import Effectful.Git (git)
@@ -93,12 +93,12 @@ ensureMirror cloneUrl mirrorPath = do
         let cloneCmd = cloneAllBranches cloneUrl (takeFileName mirrorPath)
             parentDir = takeDirectory mirrorPath
 
-        logCommand Info cloneCmd
-
         (exitCode, stdoutStr, stderrStr) <-
-          readCreateProcessWithExitCode
-            cloneCmd {cwd = Just parentDir}
-            ""
+          withLogCommand cloneCmd $ do
+            log Debug "Running git clone"
+            readCreateProcessWithExitCode
+              cloneCmd {cwd = Just parentDir}
+              ""
 
         case exitCode of
           ExitSuccess ->
@@ -134,12 +134,12 @@ updateMirror mirrorPath = do
     -- Use --force to handle forced pushes
     let fetchCmd = fetchAllBranches
 
-    logCommand Debug fetchCmd
-
     (exitCode, stdoutStr, stderrStr) <-
-      readCreateProcessWithExitCode
-        fetchCmd {cwd = Just mirrorPath}
-        ""
+      withLogCommand fetchCmd $ do
+        log Debug "Running git fetch"
+        readCreateProcessWithExitCode
+          fetchCmd {cwd = Just mirrorPath}
+          ""
 
     case exitCode of
       ExitSuccess ->

@@ -18,6 +18,7 @@ module Vira.CI.Log (
 import Colog (Severity (..))
 import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON), decode, encode)
 import Data.Text qualified as T
+import Effectful.Colog.Simple (LogContext (..))
 import System.Console.ANSI (
   Color (..),
   ColorIntensity (..),
@@ -37,10 +38,18 @@ instance FromJSON Severity where
       Just sev -> pure sev
       Nothing -> fail $ "Unknown severity: " <> s
 
+-- JSON instances for LogContext
+instance ToJSON LogContext where
+  toJSON (LogContext pairs) = toJSON pairs
+
+instance FromJSON LogContext where
+  parseJSON v = LogContext <$> parseJSON v
+
 -- | Vira structured log entry
 data ViraLog = ViraLog
   { level :: Severity
   , message :: Text
+  , context :: LogContext
   }
   deriving stock (Generic, Show)
   deriving anyclass (FromJSON, ToJSON)
@@ -64,6 +73,7 @@ decodeViraLog line =
 {- | Render ViraLog for CLI with ANSI colors
 
 Renders viralog entries with emoji and colored text matching the web UI styling.
+Displays context key-value pairs if present.
 -}
 renderViraLogCLI :: ViraLog -> Text
 renderViraLogCLI vlog =
@@ -74,4 +84,10 @@ renderViraLogCLI vlog =
         Error -> ("❌", Vivid, Red)
       colorCode = setSGRCode [SetColor Foreground intensity clr]
       resetCode = setSGRCode [Reset]
-   in toText colorCode <> emoji <> "  " <> vlog.message <> toText resetCode
+      LogContext ctx = vlog.context
+      contextStr =
+        if null ctx
+          then ""
+          else " " <> toText (setSGRCode [SetColor Foreground Dull White]) <> "{" <> T.intercalate ", " (map renderPair ctx) <> "}" <> toText resetCode
+      renderPair (k, v) = k <> "=" <> v
+   in toText colorCode <> emoji <> "  " <> vlog.message <> toText resetCode <> contextStr

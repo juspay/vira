@@ -7,6 +7,7 @@ import Colog.Message (RichMessage)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext, tagCurrentThread)
+import Effectful.Colog.Simple.Process (withLogCommand)
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem)
@@ -65,12 +66,13 @@ runProcesses workDir mOutputFile taskLogger procs = do
 
     runProc :: CreateProcess -> Eff es (Maybe Pid, Either Terminated ExitCode)
     runProc process = do
-      taskLogger Info $ "Starting task: " <> show (cmdspec process)
-      case mOutputFile of
-        Nothing -> runProcWithSettings process id
-        Just outputFile ->
-          withFileHandle outputFile AppendMode $ \outputHandle ->
-            runProcWithSettings process (Process.redirectOutputTo outputHandle)
+      withLogCommand process $ do
+        taskLogger Info "Starting task"
+        case mOutputFile of
+          Nothing -> runProcWithSettings process id
+          Just outputFile ->
+            withFileHandle outputFile AppendMode $ \outputHandle ->
+              runProcWithSettings process (Process.redirectOutputTo outputHandle)
 
     runProcWithSettings :: CreateProcess -> (CreateProcess -> CreateProcess) -> Eff es (Maybe Pid, Either Terminated ExitCode)
     runProcWithSettings process extraSettings = do

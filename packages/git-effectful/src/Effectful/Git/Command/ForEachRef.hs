@@ -23,7 +23,7 @@ import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext, log)
-import Effectful.Colog.Simple.Process (logCommand)
+import Effectful.Colog.Simple.Process (withLogCommand)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (catchIO)
 import Effectful.Git.Core (git)
@@ -39,14 +39,14 @@ It parses branches from the existing clone without modifying it.
 -}
 remoteBranchesFromClone :: (Error Text :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es, Process :> es, IOE :> es) => FilePath -> Eff es (Map BranchName Commit)
 remoteBranchesFromClone clonePath = do
-  logCommand Debug forEachRefRemoteBranches
-
   output <-
-    readCreateProcess forEachRefRemoteBranches {cwd = Just clonePath} ""
-      `catchIO` \ex -> do
-        let errorMsg = "Git for-each-ref failed: " <> show ex
-        log Error errorMsg
-        throwError $ toText errorMsg
+    withLogCommand forEachRefRemoteBranches $ do
+      log Debug "Running git for-each-ref"
+      readCreateProcess forEachRefRemoteBranches {cwd = Just clonePath} ""
+        `catchIO` \ex -> do
+          let errorMsg = "Git for-each-ref failed: " <> show ex
+          log Error errorMsg
+          throwError $ toText errorMsg
 
   -- Drop the first line, which is 'origin' (not a branch)
   let gitRefLines = drop 1 $ lines $ T.strip (toText output)
