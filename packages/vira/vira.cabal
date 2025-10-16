@@ -40,6 +40,9 @@ library
       Vira.App.Run
       Vira.App.Stack
       Vira.App.Type
+      Vira.AutoBuild.Core
+      Vira.AutoBuild.Daemon
+      Vira.AutoBuild.Type
       Vira.CI.Configuration
       Vira.CI.Environment
       Vira.CI.Error
