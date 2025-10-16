@@ -4,12 +4,13 @@ module Vira.Web.LinkTo.Resolve where
 import Servant.Links (Link, fieldLink)
 import Vira.Web.LinkTo.Type
 import Vira.Web.Pages.BranchPage qualified as BranchPage
+import Vira.Web.Pages.EnvironmentPage qualified as EnvironmentPage
+import Vira.Web.Pages.EnvironmentPage.Tools qualified as Tools
 import Vira.Web.Pages.IndexPage
 import Vira.Web.Pages.JobLog qualified as JobLog
 import Vira.Web.Pages.JobPage qualified as JobPage
 import Vira.Web.Pages.RegistryPage qualified as RegistryPage
 import Vira.Web.Pages.RepoPage qualified as RepoPage
-import Vira.Web.Pages.ToolsPage qualified as ToolsPage
 import Vira.Web.Servant ((//), (/:))
 
 -- | Resolve a `LinkTo` into a servant `Link`
@@ -28,5 +29,5 @@ linkTo = \case
   JobLog jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._rawLog
   JobLogStream jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._streamLog
   Kill jobId -> fieldLink _jobs // JobPage._kill /: jobId
-  Tools -> fieldLink _tools // ToolsPage._view
+  Environment -> fieldLink _environment // EnvironmentPage._tools // Tools._view
   Refresh -> fieldLink _refresh

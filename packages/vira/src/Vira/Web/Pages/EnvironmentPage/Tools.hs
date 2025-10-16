@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
 -- | Tools page HTTP handlers and views
-module Vira.Web.Pages.ToolsPage (
+module Vira.Web.Pages.EnvironmentPage.Tools (
   Routes (..),
   handlers,
 ) where
@@ -37,18 +37,24 @@ handlers globalSettings viraRuntimeState webSettings =
     }
 
 viewHandler :: AppHtml ()
-viewHandler = W.layout [LinkTo.Tools] viewTools
+viewHandler = W.layout [LinkTo.Environment] viewEnvironment
 
-viewTools :: AppHtml ()
-viewTools = do
+viewEnvironment :: AppHtml ()
+viewEnvironment = do
   -- Refresh tools data every time the page is loaded
   tools <- lift Tool.refreshTools
 
   W.viraSection_ [] $ do
-    W.viraPageHeaderWithIcon_ (toHtmlRaw Icon.tool) "Tools" $ do
+    W.viraPageHeaderWithIcon_ (toHtmlRaw Icon.world) "Environment" $ do
       div_ [class_ "flex items-center justify-between"] $ do
-        p_ [class_ "text-gray-600 dark:text-gray-300"] "Command-line tools used by Vira jobs"
+        p_ [class_ "text-gray-600 dark:text-gray-300"] "Runtime environment and infrastructure"
         span_ [class_ "text-indigo-800 dark:text-indigo-300 font-semibold"] User.viewUserInfo
+
+    -- Tools Section
+    h2_ [class_ "text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center"] $ do
+      div_ [class_ "w-5 h-5 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.tool
+      "Tools"
+    p_ [class_ "text-gray-600 dark:text-gray-300 mb-4"] "Command-line tools used by Vira jobs"
 
     div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
       viewToolCard tools.attic (AtticTool.viewToolStatus tools.attic.status)

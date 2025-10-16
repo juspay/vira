@@ -9,9 +9,10 @@ import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.Web.Lucid (runAppHtml)
+import Vira.Web.Pages.EnvironmentPage qualified as EnvironmentPage
+import Vira.Web.Pages.EnvironmentPage.Tools qualified as Tools
 import Vira.Web.Pages.JobPage qualified as JobPage
 import Vira.Web.Pages.RegistryPage qualified as RegistryPage
-import Vira.Web.Pages.ToolsPage qualified as ToolsPage
 import Vira.Web.Servant ((//))
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Stream.ScopedRefresh qualified as Refresh
@@ -23,7 +24,7 @@ data Routes mode = Routes
   { _home :: mode :- Get '[HTML] (Html ())
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
-  , _tools :: mode :- "tools" Servant.API.:> NamedRoutes ToolsPage.Routes
+  , _environment :: mode :- "environment" Servant.API.:> NamedRoutes EnvironmentPage.Routes
   , _refresh :: mode :- "refresh" Servant.API.:> Refresh.StreamRoute
   }
   deriving stock (Generic)
@@ -40,7 +41,7 @@ handlers globalSettings viraRuntimeState webSettings =
               heroWelcome logoUrl menu
     , _repos = RegistryPage.handlers globalSettings viraRuntimeState webSettings
     , _jobs = JobPage.handlers globalSettings viraRuntimeState webSettings
-    , _tools = ToolsPage.handlers globalSettings viraRuntimeState webSettings
+    , _environment = EnvironmentPage.handlers globalSettings viraRuntimeState webSettings
     , _refresh =
         Web.runStreamHandler globalSettings viraRuntimeState Refresh.streamRouteHandler
     }
@@ -49,7 +50,7 @@ handlers globalSettings viraRuntimeState webSettings =
     menu :: (Monad m) => [(HtmlT m (), Text)]
     menu =
       [ ("Repositories", linkText $ fieldLink _repos // RegistryPage._listing)
-      , ("Tools", linkText $ fieldLink _tools // ToolsPage._view)
+      , ("Environment", linkText $ fieldLink _environment // EnvironmentPage._tools // Tools._view)
       ]
 
 heroWelcome :: (Monad m) => Text -> [(HtmlT m (), Text)] -> HtmlT m ()

@@ -77,13 +77,14 @@ library
       Vira.Web.Lucid
       Vira.Web.Pages.BranchPage
       Vira.Web.Pages.Common.User
+      Vira.Web.Pages.EnvironmentPage
+      Vira.Web.Pages.EnvironmentPage.Tools
       Vira.Web.Pages.IndexPage
       Vira.Web.Pages.JobLog
       Vira.Web.Pages.JobPage
       Vira.Web.Pages.NotFoundPage
       Vira.Web.Pages.RegistryPage
       Vira.Web.Pages.RepoPage
-      Vira.Web.Pages.ToolsPage
       Vira.Web.Servant
       Vira.Web.Server
       Vira.Web.Stack

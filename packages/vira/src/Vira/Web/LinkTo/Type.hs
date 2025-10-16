@@ -22,7 +22,7 @@ data LinkTo
   | JobLog JobId
   | JobLogStream JobId
   | Kill JobId
-  | Tools
+  | Environment
   | Refresh
 
 linkShortTitle :: LinkTo -> Text
@@ -40,7 +40,7 @@ linkShortTitle = \case
   JobLog jobId -> "Job Log " <> show jobId
   JobLogStream jobId -> "Job Log Stream " <> show jobId
   Kill _ -> "Kill" -- unused
-  Tools -> "Tools"
+  Environment -> "Environment"
   Refresh -> "Refresh"
 
 linkTitle :: LinkTo -> Text
