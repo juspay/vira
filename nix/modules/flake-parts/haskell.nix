@@ -108,6 +108,11 @@
             pkgs.cachix # For cachix
           ];
         };
+        nix = {
+          extraBuildDepends = [
+            self'.packages.nix # For nix
+          ];
+        };
         safe-coloured-text-layout = {
           check = false;
           broken = false;
