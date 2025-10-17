@@ -20,3 +20,4 @@ library:
   dependencies:
     - include-env
     - nix
+    - filepath
