@@ -37,7 +37,7 @@ buildProcs = fmap buildProc
   where
     buildProc :: Flake -> CreateProcess
     buildProc flake =
-      Omnix.omnixCiProcess (toString flake.path) overrideArgs
+      Omnix.omnixCiProcess flake.path overrideArgs
       where
         overrideArgs = flip concatMap flake.overrideInputs $ \(k, v) ->
           ["--override-input", toString k, toString v]
