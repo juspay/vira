@@ -24,9 +24,9 @@ run-vira ARGS='web --host 0.0.0.0 --base-path ${BASE_PATH:-/} --import ./sample.
         --setup ":set args --state-dir ./state --auto-reset-state {{ ARGS }}"
 
 # Run `vira ci` on itself.
-[group('1. vira')]
-run-cli-ci:
-    @just run-vira 'ci'
+ci:
+    @just pc
+    nix run . -- ci
 
 # Run cabal tests (Pass, for example, `tail-test` to run for different component)
 [group('2. haskell')]

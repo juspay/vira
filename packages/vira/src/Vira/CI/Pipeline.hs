@@ -169,7 +169,9 @@ runPipelineCLI minSeverity repoDir = do
 defaultPipeline :: ViraPipeline
 defaultPipeline =
   ViraPipeline
-    { build = BuildStage mempty
+    { build = BuildStage (one defaultFlakeBuild)
     , cache = CacheStage Nothing
     , signoff = SignoffStage False
     }
+  where
+    defaultFlakeBuild = FlakeBuild "." mempty

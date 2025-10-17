@@ -8,7 +8,6 @@ import Attic qualified
 import Attic.Config (lookupEndpointWithToken)
 import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
-import Control.Monad.Writer.Strict (MonadWriter (tell), WriterT (..))
 import Effectful.Process (CreateProcess)
 import GH.Signoff qualified as Signoff
 import System.Nix.System (nixSystem)
@@ -26,17 +25,22 @@ TODO: To be rewritten during https://github.com/juspay/vira/issues/6
 -}
 pipelineProcesses :: Tools -> ViraPipeline -> Either PipelineError (NonEmpty CreateProcess)
 pipelineProcesses tools pipeline = do
-  (_, postBuildProcs) <- runWriterT $ do
-    tell <=< lift $ cacheProcs tools pipeline.cache
-    tell $ signoffProcs pipeline.signoff
-  pure $ buildProc pipeline.build :| postBuildProcs
+  postBuildProcs <- do
+    cachePs <- cacheProcs tools pipeline.cache
+    pure $ cachePs <> signoffProcs pipeline.signoff
+  pure $ case nonEmpty postBuildProcs of
+    Nothing -> buildProcs pipeline.build.flakes
+    Just neProcs -> buildProcs pipeline.build.flakes <> neProcs
 
-buildProc :: BuildStage -> CreateProcess
-buildProc stage =
-  Omnix.omnixCiProcess args
+buildProcs :: NonEmpty FlakeBuild -> NonEmpty CreateProcess
+buildProcs = fmap buildProc
   where
-    args = flip concatMap stage.overrideInputs $ \(k, v) ->
-      ["--override-input", toString k, toString v]
+    buildProc :: FlakeBuild -> CreateProcess
+    buildProc flakeBuild =
+      Omnix.omnixCiProcess (toString flakeBuild.path) overrideArgs
+      where
+        overrideArgs = flip concatMap flakeBuild.overrideInputs $ \(k, v) ->
+          ["--override-input", toString k, toString v]
 
 cacheProcs :: Tools -> CacheStage -> Either PipelineError [CreateProcess]
 cacheProcs tools stage =

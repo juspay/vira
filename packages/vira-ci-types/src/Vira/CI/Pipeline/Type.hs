@@ -14,7 +14,7 @@
 module Vira.CI.Pipeline.Type where
 
 import GHC.Records.Compat
-import Relude (Bool (..), Generic, Maybe, Show, Text)
+import Relude (Bool (..), Generic, Maybe, NonEmpty, Show, Text)
 
 -- | CI Pipeline configuration types
 data ViraPipeline = ViraPipeline
@@ -25,7 +25,14 @@ data ViraPipeline = ViraPipeline
   deriving stock (Generic, Show)
 
 newtype BuildStage = BuildStage
-  { overrideInputs :: [(Text, Text)]
+  { flakes :: NonEmpty FlakeBuild
+  }
+  deriving stock (Generic, Show)
+
+-- | Configuration for building a flake at a specific path
+data FlakeBuild = FlakeBuild
+  { path :: Text
+  , overrideInputs :: [(Text, Text)]
   }
   deriving stock (Generic, Show)
 
@@ -44,8 +51,14 @@ newtype CacheStage = CacheStage
 -- NOTE: Do not forgot to fill in these instances if the types above change.
 -- In future, we could generically derive them using generics-sop and the like.
 
-instance HasField "overrideInputs" BuildStage [(Text, Text)] where
-  hasField (BuildStage overrideInputs) = (BuildStage, overrideInputs)
+instance HasField "path" FlakeBuild Text where
+  hasField (FlakeBuild path overrideInputs) = (\x -> FlakeBuild x overrideInputs, path)
+
+instance HasField "overrideInputs" FlakeBuild [(Text, Text)] where
+  hasField (FlakeBuild path overrideInputs) = (FlakeBuild path, overrideInputs)
+
+instance HasField "flakes" BuildStage (NonEmpty FlakeBuild) where
+  hasField (BuildStage flakes) = (BuildStage, flakes)
 
 instance HasField "enable" SignoffStage Bool where
   hasField (SignoffStage enable) = (SignoffStage, enable)

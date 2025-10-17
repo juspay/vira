@@ -6,6 +6,11 @@ No-frills CI for teams using Nix.
 
 <img src="https://raw.githubusercontent.com/juspay/vira/refs/heads/main/packages/vira/static/vira-logo.svg" style="height: 64px;" />
 
+## TASKS
+
+- [ ] `vira ci` generates `./result` for _final_ build flake.
+- ...
+
 ## Usage
 
 > [!WARNING]
