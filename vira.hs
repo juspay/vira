@@ -1,13 +1,13 @@
 -- Pipeline configuration for Vira <https://vira.nixos.asia/>
 \ctx pipeline ->
-  let
-    isMain = ctx.branch == "main"
-  in pipeline
+  pipeline
     { build.flakes =
-        [ Flake "." []
-        , Flake "./doc" []
+        [ "."
+        , "./doc"
         , Flake "./nix/examples/home-manager" [("vira", ".")]
         ]
     , signoff.enable = True
-    , cache.url = if isMain then Just "https://cache.nixos.asia/oss" else Nothing
+    , cache.url = if
+        | ctx.branch == "main" -> Just "https://cache.nixos.asia/oss"
+        | otherwise -> Nothing
     }

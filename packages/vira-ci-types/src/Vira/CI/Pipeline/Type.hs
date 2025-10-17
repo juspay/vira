@@ -10,9 +10,11 @@
 
 {-# HLINT ignore "Avoid lambda using `infix`" #-}
 {-# HLINT ignore "Avoid lambda" #-}
+{-# HLINT ignore "Use 'fromString' from Relude" #-}
 
 module Vira.CI.Pipeline.Type where
 
+import Data.String (IsString (..))
 import GHC.Records.Compat
 import Relude (Bool (..), Generic, Maybe, NonEmpty, Show, Text)
 
@@ -35,6 +37,9 @@ data Flake = Flake
   , overrideInputs :: [(Text, Text)]
   }
   deriving stock (Generic, Show)
+
+instance IsString Flake where
+  fromString s = Flake (fromString s) []
 
 newtype SignoffStage = SignoffStage
   { enable :: Bool
