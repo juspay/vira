@@ -8,6 +8,7 @@ import Attic qualified
 import Attic.Config (lookupEndpointWithToken)
 import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
+import Data.List.NonEmpty (appendList)
 import Effectful.Process (CreateProcess)
 import GH.Signoff qualified as Signoff
 import System.Nix.System (nixSystem)
@@ -28,9 +29,8 @@ pipelineProcesses tools pipeline = do
   postBuildProcs <- do
     cachePs <- cacheProcs tools pipeline.cache
     pure $ cachePs <> signoffProcs pipeline.signoff
-  pure $ case nonEmpty postBuildProcs of
-    Nothing -> buildProcs pipeline.build.flakes
-    Just neProcs -> buildProcs pipeline.build.flakes <> neProcs
+  let bs = buildProcs pipeline.build.flakes
+  pure $ bs `appendList` postBuildProcs
 
 buildProcs :: NonEmpty Flake -> NonEmpty CreateProcess
 buildProcs = fmap buildProc
