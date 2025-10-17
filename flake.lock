@@ -51,23 +51,6 @@
         "type": "github"
       }
     },
-    "gh-cli-v2-81-0": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1759227537,
-        "narHash": "sha256-uhmVIDTkMRFS1MZitjDjylrYWd/q9aGAZNiTjzmqwPw=",
-        "owner": "cli",
-        "repo": "cli",
-        "rev": "52ba8366057b94a77d2e4b2fc99de56e100e45bf",
-        "type": "github"
-      },
-      "original": {
-        "owner": "cli",
-        "ref": "v2.81.0",
-        "repo": "cli",
-        "type": "github"
-      }
-    },
     "git-hooks": {
       "flake": false,
       "locked": {
@@ -215,7 +198,6 @@
         "co-log-effectful": "co-log-effectful",
         "flake-parts": "flake-parts",
         "fourmolu-nix": "fourmolu-nix",
-        "gh-cli-v2-81-0": "gh-cli-v2-81-0",
         "git-hooks": "git-hooks",
         "haskell-flake": "haskell-flake",
         "hint-nix": "hint-nix",
