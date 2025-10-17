@@ -1,13 +1,19 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module DevourFlake (
   DevourFlakeArgs (..),
   devourFlake,
 ) where
 
-import DevourFlake.DevourFlakePath (devourFlakePath)
+import IncludeEnv.TH (includeEnv)
 import System.Nix.System (System (..))
+
+-- | Path to github:srid/devour-flake flake output
+$(includeEnv "DEVOUR_FLAKE_PATH" "devourFlakePath")
+
+devourFlakePath :: FilePath
 
 data DevourFlakeArgs = DevourFlakeArgs
   { systems :: Maybe (NonEmpty System)

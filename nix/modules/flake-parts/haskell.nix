@@ -154,7 +154,7 @@
     packages = {
       default = config.haskellProjects.default.outputs.packages.vira.package;
 
-      # The Nix version used by Vir 
+      # The Nix version used by Vira
       # Nix 2.18 -> 2.22 are apprently buggy,
       # https://discourse.nixos.org/t/handling-git-submodules-in-flakes-from-nix-2-18-to-2-22-nar-hash-mismatch-issues/45118/5
       # So we use the latest.

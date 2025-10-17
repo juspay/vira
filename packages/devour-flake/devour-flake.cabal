@@ -21,7 +21,6 @@ extra-source-files:
 library
   exposed-modules:
       DevourFlake
-      DevourFlake.DevourFlakePath
       DevourFlake.NixSystems
   other-modules:
       Paths_devour_flake
