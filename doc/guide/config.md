@@ -18,7 +18,7 @@ Create a `vira.hs` file in your repository root:
 \ctx pipeline ->
   pipeline
     { signoff.enable = True
-    , build.overrideInputs = [("nixpkgs", "github:nixos/nixpkgs/nixos-unstable")]
+    , build.flakes = ["." { overrideInputs = [("nixpkgs", "github:nixos/nixpkgs/nixos-unstable")] }]
     , cache.url = Just "https://attic.example.com/my-cache"
     }
 ```
@@ -36,10 +36,31 @@ The configuration function receives two parameters:
 
 #### Build Stage
 
+The build stage accepts a non-empty list of flakes to build. Each flake can specify a path and optional input overrides.
+
+By default, Vira builds a single flake at the repository root (`"."`).
+
 ```haskell
-pipeline { build.enable = True }
-pipeline { build.overrideInputs = [("input-name", "flake-url")] }
+-- Build a single flake at the current directory
+pipeline { build.flakes = ["."] }
+
+-- Build multiple flakes
+pipeline { build.flakes = [".", "./doc", "./examples"] }
+
+-- Build a flake with input overrides
+pipeline { build.flakes = ["." { overrideInputs = [("input-name", "flake-url")] }] }
+
+-- Build multiple flakes, some with overrides
+pipeline
+  { build.flakes =
+      [ "."
+      , "./doc"
+      , "./examples" { overrideInputs = [("vira", ".")] }
+      ]
+  }
 ```
+
+The flakes use Haskell's `IsString` instance, allowing simple string literals for paths. Use record update syntax to add overrides to specific flakes.
 
 #### Cache Stage
 
@@ -69,12 +90,13 @@ You can customize the pipeline based on branch or repository information:
 \ctx pipeline ->
   let isMainBranch = ctx.branch == "main"
       isReleaseBranch = "release-" `isPrefixOf` ctx.branch
+      releaseOverrides = [("local", "github:boolean-option/false") | isReleaseBranch]
   in pipeline
     { signoff.enable = not isMainBranch
     , cache.url = if isMainBranch || isReleaseBranch
                   then Just "https://attic.example.com/prod-cache"
                   else Nothing
-    , build.overrideInputs = [("local", "github:boolean-option/false") | isReleaseBranch]
+    , build.flakes = ["." { overrideInputs = releaseOverrides }]
     }
 ```
 

@@ -1,10 +1,11 @@
 \ctx pipeline ->
-  let isMain = ctx.branch == "main"
-      isStaging = ctx.branch == "staging"
+  let isStaging = ctx.branch == "staging"
       isRelease = ctx.branch == "release"
       cabalLocal = [("local", "github:boolean-option/false") | isStaging || isRelease]
   in pipeline
      { signoff.enable = True
-     , build.overrideInputs = cabalLocal
-     , cache.url = if isMain then Just "https://cache.example.com/test" else Nothing
+     , build.flakes = ["." { overrideInputs = cabalLocal }]
+     , cache.url = if
+         | ctx.branch == "main" -> Just "https://cache.example.com/test"
+         | otherwise -> Nothing
      }

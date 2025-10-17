@@ -10,11 +10,17 @@ If any of the `.cabal` or relevant `.nix` files change, you must manually `diren
 
 We dogfood Vira by not using GitHub Actions. Vira will "signoff" (see top-level `vira.hs`) on successful build, which will reflect in the commit status on GitHub. PRs should only be merged with green status on both platforms—aarch65-darwin and x86_64-linux.
 
+You can also run CI locally using:
+
+```sh
+just ci  # In nix devshell
+```
+
 ### PR workflow
 
 1. Open PR
 1. Run Vira on two platforms — macOS & Linux.
-1. Build your PR's branch on both the Vira instances
+1. Build your PR's branch on both the Vira instances (or run `just ci` on clean branch)
 1. Confirm gh-signoff status success on GitHub UI.
 
 > [!NOTE]

@@ -10,11 +10,13 @@
 
 {-# HLINT ignore "Avoid lambda using `infix`" #-}
 {-# HLINT ignore "Avoid lambda" #-}
+{-# HLINT ignore "Use 'fromString' from Relude" #-}
 
 module Vira.CI.Pipeline.Type where
 
+import Data.String (IsString (..))
 import GHC.Records.Compat
-import Relude (Bool (..), Generic, Maybe, Show, Text)
+import Relude (Bool (..), FilePath, Generic, Maybe, NonEmpty, Show, Text)
 
 -- | CI Pipeline configuration types
 data ViraPipeline = ViraPipeline
@@ -25,9 +27,25 @@ data ViraPipeline = ViraPipeline
   deriving stock (Generic, Show)
 
 newtype BuildStage = BuildStage
-  { overrideInputs :: [(Text, Text)]
+  { flakes :: NonEmpty Flake
   }
   deriving stock (Generic, Show)
+
+-- | Configuration for building a flake at a specific path
+data Flake = Flake
+  { path :: FilePath
+  , overrideInputs :: [(Text, Text)]
+  }
+  deriving stock (Generic, Show)
+
+{- | Allows using string literals for Flake paths with optional record update
+
+Examples:
+  "." :: Flake                                    -- Simple path
+  "./doc" { overrideInputs = [...] } :: Flake     -- With overrides
+-}
+instance IsString Flake where
+  fromString s = Flake (fromString s) []
 
 newtype SignoffStage = SignoffStage
   { enable :: Bool
@@ -44,8 +62,14 @@ newtype CacheStage = CacheStage
 -- NOTE: Do not forgot to fill in these instances if the types above change.
 -- In future, we could generically derive them using generics-sop and the like.
 
-instance HasField "overrideInputs" BuildStage [(Text, Text)] where
-  hasField (BuildStage overrideInputs) = (BuildStage, overrideInputs)
+instance HasField "path" Flake FilePath where
+  hasField (Flake path overrideInputs) = (\x -> Flake x overrideInputs, path)
+
+instance HasField "overrideInputs" Flake [(Text, Text)] where
+  hasField (Flake path overrideInputs) = (Flake path, overrideInputs)
+
+instance HasField "flakes" BuildStage (NonEmpty Flake) where
+  hasField (BuildStage flakes) = (BuildStage, flakes)
 
 instance HasField "enable" SignoffStage Bool where
   hasField (SignoffStage enable) = (SignoffStage, enable)
