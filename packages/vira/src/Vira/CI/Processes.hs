@@ -45,9 +45,9 @@ buildProcs = fmap buildProc
       where
         args =
           DevourFlakeArgs
-            { systems = Nothing
+            { flakePath = flake.path
+            , systems = Nothing
             , outLink = Just (flake.path </> "result")
-            , flakePath = flake.path
             , overrideInputs = flake.overrideInputs
             }
 
