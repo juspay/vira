@@ -5,6 +5,7 @@
 module DevourFlake (
   DevourFlakeArgs (..),
   devourFlake,
+  devourFlakePath,
 ) where
 
 import IncludeEnv.TH (includeEnv)

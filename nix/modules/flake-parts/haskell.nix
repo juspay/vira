@@ -1,4 +1,11 @@
-{ root, inputs, ... }:
+{ root, inputs, lib, ... }:
+let
+  devour-flake = lib.cleanSourceWith
+    {
+      name = "devour-flake";
+      src = inputs.devour-flake;
+    };
+in
 {
   imports = [
     inputs.haskell-flake.flakeModule
@@ -116,7 +123,7 @@
         devour-flake = {
           drvAttrs = {
             NIX_SYSTEMS_PATH = "${inputs'.nix-systems.packages.default}";
-            DEVOUR_FLAKE_PATH = "${inputs.devour-flake}";
+            DEVOUR_FLAKE_PATH = "${devour-flake}";
           };
         };
         safe-coloured-text-layout = {
@@ -141,7 +148,7 @@
         );
         mkShellArgs.shellHook = ''
           export NIX_SYSTEMS_PATH="${inputs'.nix-systems.packages.default}"
-          export DEVOUR_FLAKE_PATH="${inputs.devour-flake}"
+          export DEVOUR_FLAKE_PATH="${devour-flake}"
         '';
       };
 

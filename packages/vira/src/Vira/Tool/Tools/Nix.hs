@@ -4,6 +4,7 @@ module Vira.Tool.Tools.Nix (
   viewToolStatus,
 ) where
 
+import DevourFlake (devourFlakePath)
 import Effectful (Eff, IOE, (:>))
 import Lucid (HtmlT, class_, div_, span_, toHtml)
 import System.Nix.Core (nix)
@@ -18,7 +19,7 @@ getToolData = do
     ToolData
       { name = "Nix"
       , url = "https://nixos.org"
-      , binPaths = one $ toText nix
+      , binPaths = toText nix :| [toText devourFlakePath]
       , status = version
       }
 
