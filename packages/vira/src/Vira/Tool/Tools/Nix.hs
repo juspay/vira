@@ -17,7 +17,6 @@ getToolData = do
   pure
     ToolData
       { name = "Nix"
-      , description = "Powerful package manager and build system"
       , url = "https://nixos.org"
       , binPaths = one $ toText nix
       , status = version

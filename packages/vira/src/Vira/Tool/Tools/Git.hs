@@ -13,7 +13,6 @@ getToolData =
   pure
     ToolData
       { name = "Git"
-      , description = "Distributed version control system"
       , url = "https://git-scm.com"
       , binPaths = one $ toText Git.git
       , status = ()

@@ -50,7 +50,6 @@ viewToolCard toolData infoHtml = do
             $ do
               toHtml toolData.name
               span_ [class_ "w-4 h-4 flex items-center"] $ toHtmlRaw Icon.external_link
-        p_ [class_ "text-gray-600 dark:text-gray-300 text-sm mb-3"] $ toHtml toolData.description
 
         -- Render tool-specific info
         infoHtml
