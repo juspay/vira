@@ -157,6 +157,7 @@ library
     , dependent-map
     , dependent-sum
     , deriving-aeson
+    , devour-flake
     , directory
     , effectful
     , effectful-core
@@ -275,6 +276,7 @@ executable vira
     , dependent-map
     , dependent-sum
     , deriving-aeson
+    , devour-flake
     , directory
     , effectful
     , effectful-core
@@ -396,6 +398,7 @@ executable vira-tests
     , dependent-map
     , dependent-sum
     , deriving-aeson
+    , devour-flake
     , directory
     , effectful
     , effectful-core

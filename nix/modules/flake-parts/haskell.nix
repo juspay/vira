@@ -6,7 +6,7 @@
     (inputs.warp-tls-simple + /flake-module.nix)
   ];
   debug = true;
-  perSystem = { self', lib, config, pkgs, ... }: {
+  perSystem = { self', inputs', lib, config, pkgs, ... }: {
     # Configure hint-nix with packages that vira needs
     hint-nix = {
       workaroundGhcPanic = true;
@@ -53,12 +53,13 @@
             config.settings.cachix
             config.settings.vira-ci-types
             config.settings.hint-nix
+            config.settings.nix
+            config.settings.devour-flake
           ];
           generateOptparseApplicativeCompletions = [ "vira" ];
           extraBuildDepends = [
             pkgs.attic-client # For attic
             pkgs.cachix # For cachix
-            self'.packages.nix
             self'.packages.omnix # For omnix/om
           ];
           custom = drv: drv.overrideAttrs (oldAttrs: {
@@ -113,6 +114,12 @@
             self'.packages.nix # For nix
           ];
         };
+        devour-flake = {
+          drvAttrs = {
+            NIX_SYSTEMS_PATH = "${inputs'.nix-systems.packages.default}";
+            DEVOUR_FLAKE_PATH = "${inputs.devour-flake}";
+          };
+        };
         safe-coloured-text-layout = {
           check = false;
           broken = false;
@@ -133,6 +140,10 @@
         lib.flip lib.concatMapAttrs config.outputs.packages (_: v:
           lib.listToAttrs (lib.map (p: lib.nameValuePair p.name p) v.package.getCabalDeps.buildDepends)
         );
+        mkShellArgs.shellHook = ''
+          export NIX_SYSTEMS_PATH="${inputs'.nix-systems.packages.default}"
+          export DEVOUR_FLAKE_PATH="${inputs.devour-flake}"
+        '';
       };
 
       # What should haskell-flake add to flake outputs?

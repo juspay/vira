@@ -1,0 +1,22 @@
+defaults:
+  - local: ../../hpack-common.yaml
+  - local: ../../hpack-relude.yaml
+
+name: devour-flake
+version: 0.1.0.0
+license: MIT
+copyright: 2025 Sridhar Ratnakumar
+maintainer: srid@srid.ca
+author: Sridhar Ratnakumar
+category: System
+homepage: https://github.com/juspay/vira/tree/main/packages/devour-flake
+synopsis: Nix systems flake output embedded at compile time
+description: A Haskell library that embeds nix-systems flake output at compile time.
+extra-source-files:
+  - README.md
+
+library:
+  source-dirs: src
+  dependencies:
+    - include-env
+    - nix
