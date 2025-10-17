@@ -16,7 +16,7 @@ module Vira.CI.Pipeline.Type where
 
 import Data.String (IsString (..))
 import GHC.Records.Compat
-import Relude (Bool (..), Generic, Maybe, NonEmpty, Show, Text)
+import Relude (Bool (..), FilePath, Generic, Maybe, NonEmpty, Show, Text)
 
 -- | CI Pipeline configuration types
 data ViraPipeline = ViraPipeline
@@ -33,7 +33,7 @@ newtype BuildStage = BuildStage
 
 -- | Configuration for building a flake at a specific path
 data Flake = Flake
-  { path :: Text
+  { path :: FilePath
   , overrideInputs :: [(Text, Text)]
   }
   deriving stock (Generic, Show)
@@ -62,7 +62,7 @@ newtype CacheStage = CacheStage
 -- NOTE: Do not forgot to fill in these instances if the types above change.
 -- In future, we could generically derive them using generics-sop and the like.
 
-instance HasField "path" Flake Text where
+instance HasField "path" Flake FilePath where
   hasField (Flake path overrideInputs) = (\x -> Flake x overrideInputs, path)
 
 instance HasField "overrideInputs" Flake [(Text, Text)] where
