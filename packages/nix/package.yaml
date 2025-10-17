@@ -18,3 +18,26 @@ extra-source-files:
 
 library:
   source-dirs: src
+  dependencies:
+    - co-log
+    - co-log-effectful
+    - co-log-effectful-simple
+    - containers
+    - effectful
+    - effectful-core
+    - megaparsec
+    - which
+
+tests:
+  nix-test:
+    main: Spec.hs
+    source-dirs: test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - nix
+      - hspec
+      - hspec-discover
+      - megaparsec

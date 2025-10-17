@@ -10,8 +10,8 @@ maintainer: srid@srid.ca
 author: Sridhar Ratnakumar
 category: Web
 homepage: https://github.com/juspay/vira
-synopsis: Nix CI & Cache
-description: vira - Nix CI & Cache
+synopsis: No-frills CI for small teams using Nix
+description: No-frills CI for small teams using Nix
 
 data-dir: static
 data-files:

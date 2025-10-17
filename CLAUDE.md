@@ -24,6 +24,10 @@ See README.md for general project information.
   - ✓ Good: Use `Effectful.Concurrent.Async.async`, `Effectful.Concurrent.threadDelay`, `Effectful.Concurrent.STM.atomically`
   - ✗ Bad: Use `liftIO $ Control.Concurrent.Async.async`, `liftIO $ threadDelay`, etc.
   - Hide conflicting Prelude imports: `import Prelude hiding (asks, atomically)`
+- **Error handling**: NEVER silently ignore errors
+  - ✓ Good: Return `Either ErrorType Result` and surface errors in UX
+  - ✗ Bad: Catch exceptions and return empty results, use `Map.empty` on parse failures
+  - All parse failures, file I/O errors, and external process errors must be surfaced
 - Sync code changes with DESIGN.md
 
 ### Build instructions
