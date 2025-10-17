@@ -24,6 +24,7 @@ import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (catchIO)
 import Effectful.Process (Process, proc, readCreateProcess)
 import Effectful.Reader.Static qualified as ER
+import System.Directory (doesFileExist)
 import System.Nix.Config.Machine (RemoteBuilder (..), pBuilders)
 import System.Nix.Core (nix)
 import Text.Megaparsec
@@ -72,10 +73,15 @@ parseBuilderValue :: (Error Text :> es, IOE :> es) => Text -> Eff es [RemoteBuil
 parseBuilderValue val
   | T.isPrefixOf "@" val = do
       let filePath = toString $ T.drop 1 val
-      buildersContent <- decodeUtf8 <$> readFileBS filePath
-      case parse pBuilders filePath buildersContent of
-        Left err -> throwError $ "Failed to parse builders file: " <> show @Text err
-        Right bs -> pure bs
+      -- Allow missing builders file - Nix allows this and treats it as empty
+      exists <- liftIO $ doesFileExist filePath
+      if not exists
+        then pure []
+        else do
+          buildersContent <- decodeUtf8 <$> readFileBS filePath
+          case parse pBuilders filePath buildersContent of
+            Left err -> throwError $ "Failed to parse builders file: " <> show @Text err
+            Right bs -> pure bs
   | otherwise = case parse pBuilders "<inline>" val of
       Left err -> throwError $ "Failed to parse builders: " <> show @Text err
       Right bs -> pure bs

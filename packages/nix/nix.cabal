@@ -68,6 +68,7 @@ library
     , co-log-effectful
     , co-log-effectful-simple
     , containers
+    , directory
     , effectful
     , effectful-core
     , megaparsec
