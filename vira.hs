@@ -4,9 +4,9 @@
     isMain = ctx.branch == "main"
   in pipeline
     { build.flakes =
-        FlakeBuild "." []
-        :| [ FlakeBuild "./doc" []
-           , FlakeBuild "./nix/examples/home-manager" [("vira", ".")]
+        Flake "." []
+        :| [ Flake "./doc" []
+           , Flake "./nix/examples/home-manager" [("vira", ".")]
            ]
     , signoff.enable = True
     , cache.url = if isMain then Just "https://cache.nixos.asia/oss" else Nothing

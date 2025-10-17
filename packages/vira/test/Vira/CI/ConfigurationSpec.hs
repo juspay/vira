@@ -14,7 +14,7 @@ import Test.Hspec
 import Vira.CI.Configuration
 import Vira.CI.Environment (ViraEnvironment (..), viraContext)
 import Vira.CI.Pipeline (defaultPipeline)
-import Vira.CI.Pipeline.Type (BuildStage (..), FlakeBuild (..), SignoffStage (..), ViraPipeline (..))
+import Vira.CI.Pipeline.Type (BuildStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), Repo (..))
 import Vira.Tool.Type.ToolData qualified as Tool
 import Vira.Tool.Type.Tools qualified as Tool

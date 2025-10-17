@@ -32,14 +32,14 @@ pipelineProcesses tools pipeline = do
     Nothing -> buildProcs pipeline.build.flakes
     Just neProcs -> buildProcs pipeline.build.flakes <> neProcs
 
-buildProcs :: NonEmpty FlakeBuild -> NonEmpty CreateProcess
+buildProcs :: NonEmpty Flake -> NonEmpty CreateProcess
 buildProcs = fmap buildProc
   where
-    buildProc :: FlakeBuild -> CreateProcess
-    buildProc flakeBuild =
-      Omnix.omnixCiProcess (toString flakeBuild.path) overrideArgs
+    buildProc :: Flake -> CreateProcess
+    buildProc flake =
+      Omnix.omnixCiProcess (toString flake.path) overrideArgs
       where
-        overrideArgs = flip concatMap flakeBuild.overrideInputs $ \(k, v) ->
+        overrideArgs = flip concatMap flake.overrideInputs $ \(k, v) ->
           ["--override-input", toString k, toString v]
 
 cacheProcs :: Tools -> CacheStage -> Either PipelineError [CreateProcess]

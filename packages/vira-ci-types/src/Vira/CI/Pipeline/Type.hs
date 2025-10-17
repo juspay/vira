@@ -25,12 +25,12 @@ data ViraPipeline = ViraPipeline
   deriving stock (Generic, Show)
 
 newtype BuildStage = BuildStage
-  { flakes :: NonEmpty FlakeBuild
+  { flakes :: NonEmpty Flake
   }
   deriving stock (Generic, Show)
 
 -- | Configuration for building a flake at a specific path
-data FlakeBuild = FlakeBuild
+data Flake = Flake
   { path :: Text
   , overrideInputs :: [(Text, Text)]
   }
@@ -51,13 +51,13 @@ newtype CacheStage = CacheStage
 -- NOTE: Do not forgot to fill in these instances if the types above change.
 -- In future, we could generically derive them using generics-sop and the like.
 
-instance HasField "path" FlakeBuild Text where
-  hasField (FlakeBuild path overrideInputs) = (\x -> FlakeBuild x overrideInputs, path)
+instance HasField "path" Flake Text where
+  hasField (Flake path overrideInputs) = (\x -> Flake x overrideInputs, path)
 
-instance HasField "overrideInputs" FlakeBuild [(Text, Text)] where
-  hasField (FlakeBuild path overrideInputs) = (FlakeBuild path, overrideInputs)
+instance HasField "overrideInputs" Flake [(Text, Text)] where
+  hasField (Flake path overrideInputs) = (Flake path, overrideInputs)
 
-instance HasField "flakes" BuildStage (NonEmpty FlakeBuild) where
+instance HasField "flakes" BuildStage (NonEmpty Flake) where
   hasField (BuildStage flakes) = (BuildStage, flakes)
 
 instance HasField "enable" SignoffStage Bool where

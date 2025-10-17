@@ -5,6 +5,6 @@
       cabalLocal = [("local", "github:boolean-option/false") | isStaging || isRelease]
   in pipeline
      { signoff.enable = True
-     , build.flakes = one (FlakeBuild "." cabalLocal)
+     , build.flakes = one (Flake "." cabalLocal)
      , cache.url = if isMain then Just "https://cache.example.com/test" else Nothing
      }
