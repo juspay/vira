@@ -7,12 +7,11 @@ module Vira.CI.Pipeline.Handler where
 import Prelude hiding (asks)
 
 import Attic qualified
-import Attic.Config (AtticConfig (..), AtticServerConfig (..), lookupEndpointWithToken)
+import Attic.Config (lookupEndpointWithToken)
 import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
-import Data.Map.Strict qualified as Map
 import Effectful
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext)
@@ -248,31 +247,17 @@ cacheImpl env pipeline buildResults logger = do
         Left err -> throwError $ parseErrorToPipelineError urlText err
         Right result -> pure result
 
-      -- Get attic config and setup login
-      (loginProc, server) <- case do
+      -- Get attic server info (token validated by lookupEndpointWithToken)
+      server <- case do
         atticConfig <- env.tools.attic.status
         -- Get server name for endpoint (only if it has a token)
         serverName <-
           lookupEndpointWithToken atticConfig serverEndpoint
             & maybeToRight (AtticTool.MissingEndpoint serverEndpoint)
-        -- Get token from config - lookup server config to get token
-        serverCfg <-
-          Map.lookup serverName atticConfig.servers
-            & maybeToRight (AtticTool.MissingEndpoint serverEndpoint)
-        token <-
-          serverCfg.token
-            & maybeToRight (AtticTool.MissingToken $ AtticServer serverName serverEndpoint)
-        -- Create the login process
-        let server = AtticServer serverName serverEndpoint
-        pure (Attic.atticLoginProcess server token, server) of
+        -- Create server (token already validated by lookupEndpointWithToken)
+        pure $ AtticServer serverName serverEndpoint of
         Left err -> throwError $ atticErrorToPipelineError urlText serverEndpoint err
         Right result -> pure result
-
-      -- Run attic login
-      runProcesses env.workspaceDir env.outputLog logger (one loginProc) >>= \case
-        Left err -> throwError $ PipelineTerminated err
-        Right ExitSuccess -> logger Info "Attic login successful"
-        Right (ExitFailure _code) -> throwError $ PipelineTerminated Terminated
 
       -- Push each result to cache
       results <- forM (toList paths) $ \resultPath -> do
