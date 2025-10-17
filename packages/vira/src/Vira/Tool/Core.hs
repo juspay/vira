@@ -21,6 +21,7 @@ import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Tools.Cachix qualified as CachixTool
 import Vira.Tool.Tools.Git qualified as GitTool
 import Vira.Tool.Tools.GitHub qualified as GitHubTool
+import Vira.Tool.Tools.Nix qualified as NixTool
 import Vira.Tool.Type.ToolData
 import Vira.Tool.Type.Tools
 import Prelude hiding (Reader)
@@ -56,4 +57,5 @@ getAllTools = do
   github <- GitHubTool.getToolData
   git <- GitTool.getToolData
   cachix <- CachixTool.getToolData
+  nix <- NixTool.getToolData
   pure Tools {..}

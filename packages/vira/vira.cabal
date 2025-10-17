@@ -68,6 +68,7 @@ library
       Vira.Tool.Tools.Cachix
       Vira.Tool.Tools.Git
       Vira.Tool.Tools.GitHub
+      Vira.Tool.Tools.Nix
       Vira.Tool.Type.ToolData
       Vira.Tool.Type.Tools
       Vira.Web.LinkTo.Resolve

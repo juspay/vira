@@ -78,6 +78,14 @@ testTools =
           , Tool.binPaths = one "test-bin"
           , Tool.status = ()
           }
+    , Tool.nix =
+        Tool.ToolData
+          { Tool.name = "Nix"
+          , Tool.description = "Test tool"
+          , Tool.url = "https://example.com"
+          , Tool.binPaths = one "test-bin"
+          , Tool.status = Left "Test error"
+          }
     }
 
 testEnvStaging :: ViraEnvironment
