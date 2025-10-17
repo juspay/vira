@@ -28,6 +28,7 @@ library
       System.Nix.Core
       System.Nix.Flake.Develop
       System.Nix.System
+      System.Nix.Version
   other-modules:
       Paths_nix
   autogen-modules:
@@ -67,6 +68,7 @@ library
     , co-log-effectful
     , co-log-effectful-simple
     , containers
+    , directory
     , effectful
     , effectful-core
     , megaparsec
@@ -84,6 +86,7 @@ test-suite nix-test
   other-modules:
       System.Nix.Config.MachineSpec
       System.Nix.ConfigSpec
+      System.Nix.VersionSpec
       Paths_nix
   autogen-modules:
       Paths_nix

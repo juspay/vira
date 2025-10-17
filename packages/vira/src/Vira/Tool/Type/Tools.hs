@@ -7,6 +7,7 @@ module Vira.Tool.Type.Tools (
 
 import Attic.Config (AtticConfig)
 import GH.Auth.Status (AuthStatus)
+import System.Nix.Version (NixVersion)
 import Vira.Tool.Tools.Attic (ConfigError)
 import Vira.Tool.Type.ToolData (ToolData)
 
@@ -14,8 +15,8 @@ import Vira.Tool.Type.ToolData (ToolData)
 data Tools = Tools
   { attic :: ToolData (Either ConfigError AtticConfig)
   , github :: ToolData AuthStatus
-  , omnix :: ToolData ()
   , git :: ToolData ()
   , cachix :: ToolData ()
+  , nix :: ToolData (Either Text NixVersion)
   }
   deriving stock (Show)

@@ -49,7 +49,6 @@ testTools =
     { Tool.attic =
         Tool.ToolData
           { Tool.name = "Attic"
-          , Tool.description = "Test tool"
           , Tool.url = "https://example.com"
           , Tool.binPaths = one "test-bin"
           , Tool.status = Right AtticConfig {defaultServer = Nothing, servers = Map.empty}
@@ -57,23 +56,13 @@ testTools =
     , Tool.github =
         Tool.ToolData
           { Tool.name = "GitHub"
-          , Tool.description = "Test tool"
           , Tool.url = "https://example.com"
           , Tool.binPaths = one "test-bin"
           , Tool.status = NotAuthenticated
           }
-    , Tool.omnix =
-        Tool.ToolData
-          { Tool.name = "Omnix"
-          , Tool.description = "Test tool"
-          , Tool.url = "https://example.com"
-          , Tool.binPaths = one "test-bin"
-          , Tool.status = ()
-          }
     , Tool.git =
         Tool.ToolData
           { Tool.name = "Git"
-          , Tool.description = "Test tool"
           , Tool.url = "https://example.com"
           , Tool.binPaths = one "test-bin"
           , Tool.status = ()
@@ -81,10 +70,16 @@ testTools =
     , Tool.cachix =
         Tool.ToolData
           { Tool.name = "Cachix"
-          , Tool.description = "Test tool"
           , Tool.url = "https://example.com"
           , Tool.binPaths = one "test-bin"
           , Tool.status = ()
+          }
+    , Tool.nix =
+        Tool.ToolData
+          { Tool.name = "Nix"
+          , Tool.url = "https://example.com"
+          , Tool.binPaths = one "test-bin"
+          , Tool.status = Left "Test error"
           }
     }
 

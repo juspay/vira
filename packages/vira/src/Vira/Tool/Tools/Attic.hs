@@ -64,7 +64,6 @@ getToolData = do
   pure
     ToolData
       { name = "Attic"
-      , description = "Self-hosted Nix binary cache server"
       , url = "https://github.com/zhaofengli/attic"
       , binPaths = one $ toText Attic.atticBin
       , status = status

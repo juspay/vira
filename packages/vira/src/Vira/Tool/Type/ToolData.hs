@@ -9,8 +9,6 @@ module Vira.Tool.Type.ToolData (
 data ToolData statusType = ToolData
   { name :: Text
   -- ^ Human-readable tool name
-  , description :: Text
-  -- ^ Brief description of what the tool does
   , url :: Text
   -- ^ URL to the tool's homepage or documentation
   , binPaths :: NonEmpty Text

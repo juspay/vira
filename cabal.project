@@ -9,6 +9,7 @@ packages:
   packages/co-log-effectful-simple
   packages/gh
   packages/nix
+  packages/devour-flake
 
 multi-repl: true
 tests: True

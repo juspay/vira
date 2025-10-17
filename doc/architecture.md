@@ -11,4 +11,4 @@
 | Logging       | [co-log](https://kowainik.github.io/projects/co-log)                                                                                                               |
 | HTML DSL      | Lucid2                                                                                                                                                             |
 | CSS           | TailwindCSS                                                                                                                                                        |
-| Nix CI        | [Omnix](https://omnix.page/om/ci.html)                                                                                                                             |
+| Nix CI        | [devour-flake](https://github.com/srid/devour-flake)                                                                                                               |

@@ -11,6 +11,7 @@ import Vira.Tool.Core (ToolData (..), Tools (..))
 import Vira.Tool.Core qualified as Tool
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Tools.GitHub qualified as GitHubTool
+import Vira.Tool.Tools.Nix qualified as NixTool
 import Vira.Web.Lucid (AppHtml)
 import Vira.Web.Widgets.Card qualified as W
 import Web.TablerIcons.Outline qualified as Icon
@@ -27,11 +28,11 @@ viewTools = do
   p_ [class_ "text-gray-600 dark:text-gray-300 mb-4"] "Command-line tools used by Vira jobs"
 
   div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
-    viewToolCard tools.attic (AtticTool.viewToolStatus tools.attic.status)
-    viewToolCard tools.github (GitHubTool.viewToolStatus tools.github.status)
-    viewToolCard tools.omnix mempty
+    viewToolCard tools.nix (NixTool.viewToolStatus tools.nix.status)
     viewToolCard tools.git mempty
+    viewToolCard tools.attic (AtticTool.viewToolStatus tools.attic.status)
     viewToolCard tools.cachix mempty
+    viewToolCard tools.github (GitHubTool.viewToolStatus tools.github.status)
 
 -- | View a tool card with its metadata and runtime info
 viewToolCard :: (Monad m) => ToolData statusType -> HtmlT m () -> HtmlT m ()
@@ -49,7 +50,6 @@ viewToolCard toolData infoHtml = do
             $ do
               toHtml toolData.name
               span_ [class_ "w-4 h-4 flex items-center"] $ toHtmlRaw Icon.external_link
-        p_ [class_ "text-gray-600 dark:text-gray-300 text-sm mb-3"] $ toHtml toolData.description
 
         -- Render tool-specific info
         infoHtml
@@ -79,9 +79,9 @@ mkToolDisplay :: Text -> ToolDisplay
 mkToolDisplay name = case name of
   "Attic" -> mkDisplay "bg-indigo-100" "text-indigo-600"
   "GitHub" -> mkDisplay "bg-green-100" "text-green-600"
-  "Omnix" -> mkDisplay "bg-purple-100" "text-purple-600"
   "Git" -> mkDisplay "bg-orange-100" "text-orange-600"
   "Cachix" -> mkDisplay "bg-blue-100" "text-blue-600"
+  "Nix" -> mkDisplay "bg-purple-100" "text-purple-600"
   _ -> mkDisplay "bg-gray-100" "text-gray-600"
   where
     mkDisplay bg txt = ToolDisplay {initial = T.take 1 name, bgClass = bg, textClass = txt}

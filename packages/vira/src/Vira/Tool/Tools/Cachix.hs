@@ -13,7 +13,6 @@ getToolData =
   pure
     ToolData
       { name = "Cachix"
-      , description = "Proprietary Nix binary cache hosting service"
       , url = "https://cachix.org"
       , binPaths = one $ toText Cachix.cachixBin
       , status = ()

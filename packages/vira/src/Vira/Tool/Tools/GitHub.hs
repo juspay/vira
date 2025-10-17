@@ -36,7 +36,6 @@ getToolData = do
   pure
     ToolData
       { name = "GitHub CLI"
-      , description = "GitHub command line tool for various operations"
       , url = "https://cli.github.com"
       , binPaths = toText GH.ghBin :| [toText GH.ghSignoffBin]
       , status = info

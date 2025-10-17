@@ -1,4 +1,11 @@
-{ root, inputs, ... }:
+{ root, inputs, lib, ... }:
+let
+  devour-flake = lib.cleanSourceWith
+    {
+      name = "devour-flake";
+      src = inputs.devour-flake;
+    };
+in
 {
   imports = [
     inputs.haskell-flake.flakeModule
@@ -6,7 +13,7 @@
     (inputs.warp-tls-simple + /flake-module.nix)
   ];
   debug = true;
-  perSystem = { self', lib, config, pkgs, ... }: {
+  perSystem = { self', inputs', lib, config, pkgs, ... }: {
     # Configure hint-nix with packages that vira needs
     hint-nix = {
       workaroundGhcPanic = true;
@@ -53,13 +60,13 @@
             config.settings.cachix
             config.settings.vira-ci-types
             config.settings.hint-nix
+            config.settings.nix
+            config.settings.devour-flake
           ];
           generateOptparseApplicativeCompletions = [ "vira" ];
           extraBuildDepends = [
             pkgs.attic-client # For attic
             pkgs.cachix # For cachix
-            self'.packages.nix
-            self'.packages.omnix # For omnix/om
           ];
           custom = drv: drv.overrideAttrs (oldAttrs: {
             postUnpack = (oldAttrs.postUnpack or "") + ''
@@ -113,6 +120,12 @@
             self'.packages.nix # For nix
           ];
         };
+        devour-flake = {
+          drvAttrs = {
+            NIX_SYSTEMS_PATH = "${inputs'.nix-systems.packages.default}";
+            DEVOUR_FLAKE_PATH = "${devour-flake}";
+          };
+        };
         safe-coloured-text-layout = {
           check = false;
           broken = false;
@@ -133,6 +146,10 @@
         lib.flip lib.concatMapAttrs config.outputs.packages (_: v:
           lib.listToAttrs (lib.map (p: lib.nameValuePair p.name p) v.package.getCabalDeps.buildDepends)
         );
+        mkShellArgs.shellHook = ''
+          export NIX_SYSTEMS_PATH="${inputs'.nix-systems.packages.default}"
+          export DEVOUR_FLAKE_PATH="${devour-flake}"
+        '';
       };
 
       # What should haskell-flake add to flake outputs?
@@ -144,21 +161,11 @@
     packages = {
       default = config.haskellProjects.default.outputs.packages.vira.package;
 
-      # The Nix version used by Vira (thus omnix)
+      # The Nix version used by Vira
       # Nix 2.18 -> 2.22 are apprently buggy,
       # https://discourse.nixos.org/t/handling-git-submodules-in-flakes-from-nix-2-18-to-2-22-nar-hash-mismatch-issues/45118/5
       # So we use the latest.
       nix = pkgs.nixVersions.latest;
-
-      # Make nix & uname available to omnix via $PATH
-      # TODO: Upstream this?
-      omnix = pkgs.omnix.overrideAttrs (oa: {
-        nativeBuildInputs = (oa.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
-        postInstall = (oa.postInstall or "") + ''
-          wrapProgram $out/bin/om \
-            --prefix PATH : ${lib.makeBinPath [ self'.packages.nix pkgs.coreutils ]}
-        '';
-      });
     };
   };
 }

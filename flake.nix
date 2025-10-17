@@ -30,6 +30,9 @@
     warp-tls-simple.flake = false;
     record-hasfield.url = "github:ndmitchell/record-hasfield";
     record-hasfield.flake = false;
+    nix-systems.url = "github:srid/nix-systems";
+    devour-flake.url = "github:srid/devour-flake";
+    devour-flake.flake = false;
 
     # Runtime dependencies
     htmx-extensions.url = "github:juspay/htmx-extensions/sse-unload"; # https://github.com/bigskysoftware/htmx-extensions/pull/147

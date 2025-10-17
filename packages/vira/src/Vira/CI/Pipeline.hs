@@ -11,7 +11,7 @@ import Colog.Message (RichMessage)
 import Effectful.Colog (Log)
 import Effectful.Process (Process)
 
-import Effectful (Eff, IOE, runEff, (:>))
+import Effectful (Eff, IOE, (:>))
 import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
@@ -154,7 +154,7 @@ runPipelineCLI minSeverity repoDir = do
   -- Detect git branch and dirty status (fail if not in a git repo)
   porcelain <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
   let ctx = ViraContext porcelain.branch porcelain.dirty
-  tools <- liftIO $ runEff getAllTools
+  tools <- getAllTools
   runPipelineIn tools ctx repoDir Nothing logger
   where
     logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
