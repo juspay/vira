@@ -60,7 +60,6 @@
           extraBuildDepends = [
             pkgs.attic-client # For attic
             pkgs.cachix # For cachix
-            self'.packages.omnix # For omnix/om
           ];
           custom = drv: drv.overrideAttrs (oldAttrs: {
             postUnpack = (oldAttrs.postUnpack or "") + ''
@@ -155,21 +154,11 @@
     packages = {
       default = config.haskellProjects.default.outputs.packages.vira.package;
 
-      # The Nix version used by Vira (thus omnix)
+      # The Nix version used by Vir 
       # Nix 2.18 -> 2.22 are apprently buggy,
       # https://discourse.nixos.org/t/handling-git-submodules-in-flakes-from-nix-2-18-to-2-22-nar-hash-mismatch-issues/45118/5
       # So we use the latest.
       nix = pkgs.nixVersions.latest;
-
-      # Make nix & uname available to omnix via $PATH
-      # TODO: Upstream this?
-      omnix = pkgs.omnix.overrideAttrs (oa: {
-        nativeBuildInputs = (oa.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
-        postInstall = (oa.postInstall or "") + ''
-          wrapProgram $out/bin/om \
-            --prefix PATH : ${lib.makeBinPath [ self'.packages.nix pkgs.coreutils ]}
-        '';
-      });
     };
   };
 }

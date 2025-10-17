@@ -21,7 +21,6 @@ import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Tools.Cachix qualified as CachixTool
 import Vira.Tool.Tools.Git qualified as GitTool
 import Vira.Tool.Tools.GitHub qualified as GitHubTool
-import Vira.Tool.Tools.Omnix qualified as OmnixTool
 import Vira.Tool.Type.ToolData
 import Vira.Tool.Type.Tools
 import Prelude hiding (Reader)
@@ -55,7 +54,6 @@ getAllTools :: (IOE :> es) => Eff es Tools
 getAllTools = do
   attic <- AtticTool.getToolData
   github <- GitHubTool.getToolData
-  omnix <- OmnixTool.getToolData
   git <- GitTool.getToolData
   cachix <- CachixTool.getToolData
   pure Tools {..}

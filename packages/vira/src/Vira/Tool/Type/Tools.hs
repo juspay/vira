@@ -14,7 +14,6 @@ import Vira.Tool.Type.ToolData (ToolData)
 data Tools = Tools
   { attic :: ToolData (Either ConfigError AtticConfig)
   , github :: ToolData AuthStatus
-  , omnix :: ToolData ()
   , git :: ToolData ()
   , cachix :: ToolData ()
   }

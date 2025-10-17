@@ -29,7 +29,6 @@ viewTools = do
   div_ [class_ "grid gap-6 md:grid-cols-2 lg:grid-cols-2"] $ do
     viewToolCard tools.attic (AtticTool.viewToolStatus tools.attic.status)
     viewToolCard tools.github (GitHubTool.viewToolStatus tools.github.status)
-    viewToolCard tools.omnix mempty
     viewToolCard tools.git mempty
     viewToolCard tools.cachix mempty
 
@@ -79,7 +78,6 @@ mkToolDisplay :: Text -> ToolDisplay
 mkToolDisplay name = case name of
   "Attic" -> mkDisplay "bg-indigo-100" "text-indigo-600"
   "GitHub" -> mkDisplay "bg-green-100" "text-green-600"
-  "Omnix" -> mkDisplay "bg-purple-100" "text-purple-600"
   "Git" -> mkDisplay "bg-orange-100" "text-orange-600"
   "Cachix" -> mkDisplay "bg-blue-100" "text-blue-600"
   _ -> mkDisplay "bg-gray-100" "text-gray-600"

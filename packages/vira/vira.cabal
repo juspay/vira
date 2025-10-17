@@ -47,7 +47,6 @@ library
       Vira.CI.Pipeline
       Vira.CI.Processes
       Vira.CI.Workspace
-      Vira.Lib.Omnix
       Vira.Lib.Process
       Vira.Lib.STM
       Vira.Lib.TimeExtra
@@ -69,7 +68,6 @@ library
       Vira.Tool.Tools.Cachix
       Vira.Tool.Tools.Git
       Vira.Tool.Tools.GitHub
-      Vira.Tool.Tools.Omnix
       Vira.Tool.Type.ToolData
       Vira.Tool.Type.Tools
       Vira.Web.LinkTo.Resolve

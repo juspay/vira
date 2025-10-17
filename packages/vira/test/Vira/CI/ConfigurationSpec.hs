@@ -62,14 +62,6 @@ testTools =
           , Tool.binPaths = one "test-bin"
           , Tool.status = NotAuthenticated
           }
-    , Tool.omnix =
-        Tool.ToolData
-          { Tool.name = "Omnix"
-          , Tool.description = "Test tool"
-          , Tool.url = "https://example.com"
-          , Tool.binPaths = one "test-bin"
-          , Tool.status = ()
-          }
     , Tool.git =
         Tool.ToolData
           { Tool.name = "Git"
