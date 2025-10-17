@@ -1,10 +1,11 @@
 -- Pipeline configuration for Vira <https://vira.nixos.asia/>
+
 \ctx pipeline ->
   pipeline
     { build.flakes =
         [ "."
         , "./doc"
-        , Flake "./nix/examples/home-manager" [("vira", ".")]
+        , "./nix/examples/home-manager" { overrideInputs = [("vira", ".")] }
         ]
     , signoff.enable = True
     , cache.url = if

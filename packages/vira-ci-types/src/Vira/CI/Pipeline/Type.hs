@@ -38,6 +38,12 @@ data Flake = Flake
   }
   deriving stock (Generic, Show)
 
+{- | Allows using string literals for Flake paths with optional record update
+
+Examples:
+  "." :: Flake                                    -- Simple path
+  "./doc" { overrideInputs = [...] } :: Flake     -- With overrides
+-}
 instance IsString Flake where
   fromString s = Flake (fromString s) []
 
