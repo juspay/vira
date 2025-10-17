@@ -11,6 +11,7 @@ import Attic.Url qualified
 import Data.List.NonEmpty (appendList)
 import Effectful.Process (CreateProcess)
 import GH.Signoff qualified as Signoff
+import System.FilePath ((</>))
 import System.Nix.System (nixSystem)
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Pipeline.Type
@@ -37,7 +38,7 @@ buildProcs = fmap buildProc
   where
     buildProc :: Flake -> CreateProcess
     buildProc flake =
-      Omnix.omnixCiProcess flake.path overrideArgs
+      Omnix.omnixCiProcess flake.path (flake.path </> "result") overrideArgs
       where
         overrideArgs = flip concatMap flake.overrideInputs $ \(k, v) ->
           ["--override-input", toString k, toString v]

@@ -16,6 +16,6 @@ This should be available in the PATH, thanks to Nix and `which` library.
 omnixBin :: FilePath
 omnixBin = $(staticWhich "om")
 
-omnixCiProcess :: FilePath -> [String] -> CreateProcess
-omnixCiProcess flakePath extraArgs =
-  proc omnixBin (["ci", "run", "-d", flakePath, "--"] <> extraArgs)
+omnixCiProcess :: FilePath -> FilePath -> [String] -> CreateProcess
+omnixCiProcess flakePath outLink extraArgs =
+  proc omnixBin (["ci", "run", "-o", outLink, "-d", flakePath, "--"] <> extraArgs)
