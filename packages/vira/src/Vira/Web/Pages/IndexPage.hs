@@ -23,7 +23,7 @@ data Routes mode = Routes
   { _home :: mode :- Get '[HTML] (Html ())
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
-  , _environment :: mode :- "environment" Servant.API.:> NamedRoutes EnvironmentPage.Routes
+  , _environment :: mode :- "env" Servant.API.:> NamedRoutes EnvironmentPage.Routes
   , _refresh :: mode :- "refresh" Servant.API.:> Refresh.StreamRoute
   }
   deriving stock (Generic)
