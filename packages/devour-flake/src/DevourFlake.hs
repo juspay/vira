@@ -1,6 +1,8 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 module DevourFlake (
+  DevourFlakeArgs (..),
   devourFlake,
 ) where
 
@@ -12,6 +14,7 @@ data DevourFlakeArgs = DevourFlakeArgs
   { system :: System
   , outLink :: Maybe FilePath
   , flakePath :: FilePath
+  , overrideInputs :: [(Text, Text)]
   }
   deriving stock (Eq, Show)
 
@@ -22,7 +25,7 @@ nix build github:srid/devour-flake -L --no-link --print-out-paths --override-inp
 devourFlake :: DevourFlakeArgs -> [String]
 devourFlake args =
   [ "build"
-  , devourFlakePath
+  , devourFlakePath <> "#json"
   , "-L"
   , "--print-out-paths"
   , -- To suppress 'override input' verbosity
@@ -36,3 +39,4 @@ devourFlake args =
   , nixSystemsFlakeFor args.system
   ]
     <> maybe ["--no-link"] (\link -> ["--out-link", link]) args.outLink
+    <> concatMap (\(k, v) -> ["--override-input", "flake/" <> toString k, toString v]) args.overrideInputs

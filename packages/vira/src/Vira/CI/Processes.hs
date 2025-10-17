@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 module Vira.CI.Processes (
@@ -9,13 +10,15 @@ import Attic.Config (lookupEndpointWithToken)
 import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
 import Data.List.NonEmpty (appendList)
+import DevourFlake (DevourFlakeArgs (..), devourFlake)
 import Effectful.Process (CreateProcess)
 import GH.Signoff qualified as Signoff
 import System.FilePath ((</>))
+import System.Nix.Core (nix)
 import System.Nix.System (nixSystem)
+import System.Process (proc)
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Pipeline.Type
-import Vira.Lib.Omnix qualified as Omnix
 import Vira.Tool.Core (ToolError (..))
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type.ToolData (status)
@@ -38,10 +41,15 @@ buildProcs = fmap buildProc
   where
     buildProc :: Flake -> CreateProcess
     buildProc flake =
-      Omnix.omnixCiProcess flake.path (flake.path </> "result") overrideArgs
+      proc nix $ devourFlake args
       where
-        overrideArgs = flip concatMap flake.overrideInputs $ \(k, v) ->
-          ["--override-input", toString k, toString v]
+        args =
+          DevourFlakeArgs
+            { system = nixSystem
+            , outLink = Just (flake.path </> "result")
+            , flakePath = flake.path
+            , overrideInputs = flake.overrideInputs
+            }
 
 cacheProcs :: Tools -> CacheStage -> Either PipelineError [CreateProcess]
 cacheProcs tools stage =
