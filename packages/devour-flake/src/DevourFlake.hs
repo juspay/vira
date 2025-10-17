@@ -28,9 +28,11 @@ devourFlake args =
   , devourFlakePath <> "#json"
   , "-L"
   , "--print-out-paths"
-  , -- To suppress 'override input' verbosity
-    "--quiet"
-  , "--quiet"
+  , -- To suppress 'override input' verbosity and lock file warnings
+    -- Disabling it doesn't have effect on CI logs
+    -- "--quiet"
+    -- "--quiet"
+    "--no-write-lock-file"
   , "--override-input"
   , "flake"
   , args.flakePath
