@@ -26,6 +26,7 @@ applyConfig configContent ctx pipeline = do
     Hint.set
       [ Hint.languageExtensions
           Hint.:= [ Hint.OverloadedStrings
+                  , Hint.OverloadedLists
                   , Hint.UnknownExtension "OverloadedRecordDot"
                   , Hint.UnknownExtension "OverloadedRecordUpdate"
                   , Hint.UnknownExtension "RebindableSyntax"
