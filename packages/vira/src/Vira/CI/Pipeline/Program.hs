@@ -5,6 +5,7 @@ module Vira.CI.Pipeline.Program where
 import Colog (Severity (..))
 import Effectful
 import Effectful.Error.Static (Error)
+import Shower qualified
 import System.Exit (ExitCode (..))
 import Vira.CI.Error (PipelineError (..))
 import Vira.CI.Pipeline.Effect
@@ -25,6 +26,7 @@ runPipelineProgram repoDir = do
 
   -- Step 1: Load configuration
   pipeline <- loadConfig repoDir
+  logPipeline Info $ toText $ "Pipeline configuration:\n" <> Shower.shower pipeline
   logPipeline Info "Loaded pipeline configuration"
 
   -- Step 2: Build using repository path
