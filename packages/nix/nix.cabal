@@ -73,7 +73,6 @@ library
     , effectful-core
     , megaparsec
     , relude >=1.0
-    , typed-process
     , which
   mixins:
       base hiding (Prelude)

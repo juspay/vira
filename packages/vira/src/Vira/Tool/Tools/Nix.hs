@@ -6,13 +6,14 @@ module Vira.Tool.Tools.Nix (
 
 import DevourFlake (devourFlakePath)
 import Effectful (Eff, IOE, (:>))
+import Effectful.Process (Process)
 import Lucid (HtmlT, class_, div_, span_, toHtml)
 import System.Nix.Core (nix)
 import System.Nix.Version (NixVersion (..), getVersion)
 import Vira.Tool.Type.ToolData (ToolData (..))
 
 -- | Get Nix tool data with metadata and runtime info
-getToolData :: (IOE :> es) => Eff es (ToolData (Either Text NixVersion))
+getToolData :: (Process :> es, IOE :> es) => Eff es (ToolData (Either Text NixVersion))
 getToolData = do
   version <- getVersion
   pure

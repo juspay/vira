@@ -27,7 +27,6 @@ library:
     - effectful
     - effectful-core
     - megaparsec
-    - typed-process
     - which
 
 tests:

@@ -15,6 +15,7 @@ module Vira.Tool.Core (
 
 import Control.Concurrent.STM qualified as STM
 import Effectful (Eff, IOE, (:>))
+import Effectful.Process (Process)
 import Effectful.Reader.Dynamic qualified as Reader
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.Tool.Tools.Attic qualified as AtticTool
@@ -31,7 +32,7 @@ newtype ToolError = ToolError Text
   deriving stock (Show)
 
 -- | Create a new TVar with all tools data
-newToolsTVar :: (IOE :> es) => Eff es (STM.TVar Tools)
+newToolsTVar :: (Process :> es, IOE :> es) => Eff es (STM.TVar Tools)
 newToolsTVar = do
   initialTools <- getAllTools
   liftIO $ STM.newTVarIO initialTools
@@ -43,7 +44,7 @@ getTools = do
   liftIO $ STM.readTVarIO toolsVar
 
 -- | Refresh tools data and update cache in ViraRuntimeState
-refreshTools :: (IOE :> es, Reader.Reader ViraRuntimeState :> es) => Eff es Tools
+refreshTools :: (Process :> es, IOE :> es, Reader.Reader ViraRuntimeState :> es) => Eff es Tools
 refreshTools = do
   ViraRuntimeState {tools = toolsVar} <- Reader.ask
   freshTools <- getAllTools
@@ -51,7 +52,7 @@ refreshTools = do
   pure freshTools
 
 -- | Read all tools with metadata and runtime info
-getAllTools :: (IOE :> es) => Eff es Tools
+getAllTools :: (Process :> es, IOE :> es) => Eff es Tools
 getAllTools = do
   attic <- AtticTool.getToolData
   github <- GitHubTool.getToolData

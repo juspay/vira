@@ -11,8 +11,8 @@ module System.Nix.Version (
 ) where
 
 import Effectful (Eff, IOE, (:>))
+import Effectful.Process (Process, proc, readCreateProcess)
 import System.Nix.Core (nix)
-import System.Process.Typed (proc, readProcessStdout_)
 import Text.Megaparsec (Parsec, errorBundlePretty, parse)
 import Text.Megaparsec qualified as MP
 import Text.Megaparsec.Char (char, digitChar)
@@ -26,10 +26,10 @@ newtype NixVersion = NixVersion Text
 Runs `nix --version` and parses the output.
 Example output: "nix (Nix) 2.18.1"
 -}
-getVersion :: (IOE :> es) => Eff es (Either Text NixVersion)
+getVersion :: (Process :> es, IOE :> es) => Eff es (Either Text NixVersion)
 getVersion = do
-  output <- liftIO $ readProcessStdout_ $ proc nix ["--version"]
-  pure $ parseVersion $ decodeUtf8 output
+  output <- readCreateProcess (proc nix ["--version"]) ""
+  pure $ parseVersion $ toText output
 
 -- | Parse Nix version from command output
 parseVersion :: Text -> Either Text NixVersion
