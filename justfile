@@ -12,10 +12,6 @@ docs:
 run:
     nix run .#vira-dev -- --no-server --tui=false
 
-[group('1. vira')]
-ghcid-with-hpack:
-    nix run .#vira-ghcid -- --no-server --tui=false
-
 # Like `run`, but only runs Vira, taking optional set of args (web, by default)
 [group('1. vira')]
 run-vira ARGS='web --host 0.0.0.0 --base-path ${BASE_PATH:-/} --import ./sample.json':

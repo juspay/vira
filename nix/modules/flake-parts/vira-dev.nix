@@ -49,32 +49,5 @@
         };
       };
     };
-    process-compose."vira-ghcid" = {
-      settings = {
-        processes = {
-          ghcid = {
-            command = pkgs.writeShellApplication {
-              name = "ghcid-dev";
-              text = ''
-                exec just ghcid
-              '';
-            };
-            is_tty = true;
-          };
-          hpack-watch =
-            {
-              command = pkgs.writeShellApplication {
-                name = "hpack-watch-dev";
-                runtimeInputs = [ pkgs.findutils pkgs.just ];
-                text = ''
-                  # Watch for changes to any package.yaml and re-run hpack
-                  find ./packages -name "package.yaml" | ${lib.getExe pkgs.entr} -r ${lib.getExe pkgs.just} hpack
-                '';
-              };
-              is_tty = true;
-            };
-        };
-      };
-    };
   };
 }
