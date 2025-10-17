@@ -7,11 +7,10 @@ module DevourFlake (
 ) where
 
 import DevourFlake.DevourFlakePath (devourFlakePath)
-import DevourFlake.NixSystems (nixSystemsFlakeFor)
 import System.Nix.System (System (..))
 
 data DevourFlakeArgs = DevourFlakeArgs
-  { system :: System
+  { systems :: Maybe (NonEmpty System)
   , outLink :: Maybe FilePath
   , flakePath :: FilePath
   , overrideInputs :: [(Text, Text)]
@@ -38,7 +37,10 @@ devourFlake args =
   , args.flakePath
   , "--override-input"
   , "systems"
-  , nixSystemsFlakeFor args.system
   ]
     <> maybe ["--no-link"] (\link -> ["--out-link", link]) args.outLink
     <> concatMap (\(k, v) -> ["--override-input", "flake/" <> toString k, toString v]) args.overrideInputs
+    <> case args.systems of
+      Nothing -> []
+      Just _systemsList ->
+        [] -- TODO
