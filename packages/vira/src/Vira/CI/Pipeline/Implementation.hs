@@ -149,11 +149,12 @@ runPipelineLocal ::
   FilePath ->
   Eff (PipelineLocal : es) a ->
   Eff es a
-runPipelineLocal env workDir = interpret $ \_ -> \case
-  LoadConfig -> loadConfigImpl env workDir
-  Build pipeline -> buildImpl env workDir pipeline
-  Cache pipeline buildResults -> cacheImpl env workDir pipeline buildResults
-  Signoff pipeline -> signoffImpl env workDir pipeline
+runPipelineLocal env workDir =
+  interpret $ \_ -> \case
+    LoadConfig -> ER.runReader env $ loadConfigImpl workDir
+    Build pipeline -> ER.runReader env $ buildImpl workDir pipeline
+    Cache pipeline buildResults -> ER.runReader env $ cacheImpl workDir pipeline buildResults
+    Signoff pipeline -> ER.runReader env $ signoffImpl workDir pipeline
 
 -- | Run the PipelineLog effect
 runPipelineLog ::
@@ -184,7 +185,7 @@ runPipelineRemote ::
   Eff (PipelineRemote : es) a ->
   Eff es a
 runPipelineRemote env = interpret $ \_ -> \case
-  Clone -> cloneImpl env
+  Clone -> ER.runReader env cloneImpl
   RunLocalPipeline cloneResults localProgram ->
     let clonedDir = env.viraEnv.workspacePath </> cloneResults.repoDir
      in runPipelineLocal env.localEnv clonedDir localProgram
@@ -215,12 +216,13 @@ cloneImpl ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
+  , ER.Reader PipelineRemoteEnv :> es
   , Error PipelineError :> es
   , PipelineLog :> es
   ) =>
-  PipelineRemoteEnv ->
   Eff es CloneResults
-cloneImpl env = do
+cloneImpl = do
+  env <- ER.ask @PipelineRemoteEnv
   let cloneProc =
         Git.cloneAtCommit
           env.viraEnv.repo.cloneUrl
@@ -248,13 +250,14 @@ cloneImpl env = do
 loadConfigImpl ::
   ( FileSystem :> es
   , IOE :> es
+  , ER.Reader PipelineLocalEnv :> es
   , Error PipelineError :> es
   , PipelineLog :> es
   ) =>
-  PipelineLocalEnv ->
   FilePath ->
   Eff es ViraPipeline
-loadConfigImpl env workDir = do
+loadConfigImpl workDir = do
+  env <- ER.ask @PipelineLocalEnv
   let viraConfigPath = workDir </> "vira.hs"
   doesFileExist viraConfigPath >>= \case
     True -> do
@@ -289,19 +292,19 @@ buildImpl ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
+  , ER.Reader PipelineLocalEnv :> es
   , Error PipelineError :> es
   , PipelineLog :> es
   ) =>
-  PipelineLocalEnv ->
   FilePath ->
   ViraPipeline ->
   Eff es BuildResults
-buildImpl env workDir pipeline = do
+buildImpl workDir pipeline = do
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
 
   -- Build each flake sequentially (to match current behavior)
   results <- forM (toList pipeline.build.flakes) $ \flake -> do
-    buildFlake env workDir flake
+    buildFlake workDir flake
 
   case nonEmpty results of
     Nothing -> throwError $ PipelineConfigurationError $ MalformedConfig "No flakes to build"
@@ -315,14 +318,15 @@ buildFlake ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
+  , ER.Reader PipelineLocalEnv :> es
   , Error PipelineError :> es
   , PipelineLog :> es
   ) =>
-  PipelineLocalEnv ->
   FilePath ->
   Flake ->
   Eff es FilePath
-buildFlake env workDir (Flake flakePath overrideInputs) = do
+buildFlake workDir (Flake flakePath overrideInputs) = do
+  env <- ER.ask @PipelineLocalEnv
   let buildProc = proc nix $ devourFlake args
       args =
         DevourFlakeArgs
@@ -356,15 +360,16 @@ cacheImpl ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
+  , ER.Reader PipelineLocalEnv :> es
   , Error PipelineError :> es
   , PipelineLog :> es
   ) =>
-  PipelineLocalEnv ->
   FilePath ->
   ViraPipeline ->
   BuildResults ->
   Eff es ()
-cacheImpl env workDir pipeline buildResults = do
+cacheImpl workDir pipeline buildResults = do
+  env <- ER.ask @PipelineLocalEnv
   case pipeline.cache.url of
     Nothing -> do
       logPipeline Info "Cache disabled, skipping"
@@ -421,14 +426,15 @@ signoffImpl ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
+  , ER.Reader PipelineLocalEnv :> es
   , Error PipelineError :> es
   , PipelineLog :> es
   ) =>
-  PipelineLocalEnv ->
   FilePath ->
   ViraPipeline ->
   Eff es ()
-signoffImpl env workDir pipeline = do
+signoffImpl workDir pipeline = do
+  env <- ER.ask @PipelineLocalEnv
   if pipeline.signoff.enable
     then do
       logPipeline Info "Creating commit signoff"
