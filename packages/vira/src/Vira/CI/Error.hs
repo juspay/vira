@@ -5,6 +5,7 @@ module Vira.CI.Error (
 
 import Data.List qualified
 import Language.Haskell.Interpreter (GhcError (..), InterpreterError (..))
+import System.Exit (ExitCode)
 import Text.Show qualified as TS
 import Vira.Supervisor.Type (Terminated)
 import Vira.Tool.Core (ToolError (..))
@@ -14,6 +15,8 @@ data PipelineError
   = PipelineConfigurationError ConfigurationError
   | PipelineToolError ToolError
   | PipelineTerminated Terminated
+  | -- | A process in the pipeline failed with non-zero exit code
+    PipelineProcessFailed ExitCode
 
 -- | Configuration error types
 data ConfigurationError
@@ -33,3 +36,4 @@ instance TS.Show PipelineError where
   show (PipelineConfigurationError (MalformedConfig msg)) =
     "vira.hs has malformed config: " <> toString msg
   show (PipelineTerminated err) = displayException err
+  show (PipelineProcessFailed exitCode) = "Process failed: " <> show exitCode

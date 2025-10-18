@@ -14,7 +14,7 @@ import Effectful.Process (Process)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Concurrent.Async (Concurrent)
-import Effectful.Error.Static (runErrorNoCallStack)
+import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.FileSystem (FileSystem)
 import Effectful.Git (Commit (..))
 import Effectful.Git.Command.Clone qualified as Git
@@ -43,10 +43,11 @@ runPipeline ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
+  , Error PipelineError :> es
   ) =>
   ViraEnvironment ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
-  Eff es (Either PipelineError ExitCode)
+  Eff es ()
 runPipeline env logger = do
   let outputLog = Just $ env.workspacePath </> "output.log"
   -- 1. Setup workspace and clone
@@ -54,14 +55,14 @@ runPipeline env logger = do
         one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit.id Env.projectDirName
   runProcesses env.workspacePath outputLog logger setupProcs >>= \case
     Left err ->
-      pure $ Left $ PipelineTerminated err
+      throwError $ PipelineTerminated err
     Right ExitSuccess -> do
       let repoDir = env.workspacePath </> Env.projectDirName
           ctx = Env.viraContext env
           tools = env.tools
       runPipelineIn tools ctx repoDir env outputLog logger
-    Right exitCode -> do
-      pure $ Right exitCode
+    Right exitCode ->
+      throwError $ PipelineProcessFailed exitCode
 
 -- | Like `runPipeline`, but in a specific directory with given context, tools, and environment.
 runPipelineIn ::
@@ -71,6 +72,7 @@ runPipelineIn ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
+  , Error PipelineError :> es
   ) =>
   Tools ->
   ViraContext ->
@@ -78,7 +80,7 @@ runPipelineIn ::
   ViraEnvironment ->
   Maybe FilePath ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
-  Eff es (Either PipelineError ExitCode)
+  Eff es ()
 runPipelineIn tools ctx repoDir viraEnv outputLog logger = do
   -- Create pipeline environment
   let localEnv =
@@ -95,11 +97,10 @@ runPipelineIn tools ctx repoDir viraEnv outputLog logger = do
           }
 
   -- Run the pipeline program with the real handler (both effects stacked)
-  runErrorNoCallStack $
-    Handler.runPipeline
-      pipelineEnv
-      logger
-      runPipelineProgram
+  Handler.runPipeline
+    pipelineEnv
+    logger
+    runPipelineProgram
 
 -- | CLI wrapper for running a pipeline in the current directory
 runPipelineCLI ::
@@ -109,10 +110,11 @@ runPipelineCLI ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
+  , Error PipelineError :> es
   ) =>
   Severity ->
   FilePath ->
-  Eff es (Either PipelineError ExitCode)
+  Eff es ()
 runPipelineCLI minSeverity repoDir = do
   -- Detect git branch and dirty status (fail if not in a git repo)
   porcelain <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
@@ -129,9 +131,8 @@ runPipelineCLI minSeverity repoDir = do
           }
 
   -- Run local pipeline program directly
-  runErrorNoCallStack $
-    Handler.runPipelineLocal localEnv logger $
-      runPipelineProgramLocal repoDir
+  Handler.runPipelineLocal localEnv logger $
+    runPipelineProgramLocal repoDir
   where
     logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
     logger severity msg = do

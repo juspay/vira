@@ -7,7 +7,6 @@ import Colog (Severity (..))
 import Effectful
 import Effectful.Error.Static (Error)
 import Shower qualified
-import System.Exit (ExitCode (..))
 import Vira.CI.Error (PipelineError (..))
 import Vira.CI.Pipeline.Effect
 
@@ -18,7 +17,7 @@ runPipelineProgramLocal ::
   (PipelineLocal :> es, Error PipelineError :> es) =>
   -- | Repository directory (current directory for CLI)
   FilePath ->
-  Eff es ExitCode
+  Eff es ()
 runPipelineProgramLocal repoDir = do
   logPipeline Info "Starting pipeline execution"
 
@@ -32,30 +31,19 @@ runPipelineProgramLocal repoDir = do
   logPipeline Info $ "Built " <> show (length $ resultPaths buildResults) <> " flakes"
 
   -- Step 3: Cache using build results
-  cacheExitCode <- cache pipeline buildResults
-  case cacheExitCode of
-    ExitSuccess -> logPipeline Info "Cache push completed"
-    ExitFailure code -> do
-      logPipeline Error $ "Cache push failed with code " <> show code
-  -- Note: We don't throw here, we continue to signoff
-  -- This matches current behavior where cache failures don't stop signoff
+  cache pipeline buildResults
+  logPipeline Info "Cache push completed"
 
   -- Step 4: Signoff
-  signoffExitCode <- signoff pipeline
-  case signoffExitCode of
-    ExitSuccess -> do
-      logPipeline Info "Pipeline completed successfully"
-      pure ExitSuccess
-    ExitFailure code -> do
-      logPipeline Error $ "Signoff failed with code " <> show code
-      pure $ ExitFailure code
+  signoff pipeline
+  logPipeline Info "Pipeline completed successfully"
 
 {- | Full pipeline program (for web/CI - with clone)
 Clones repository first, then runs local pipeline
 -}
 runPipelineProgram ::
   (Pipeline :> es, PipelineLocal :> es, Error PipelineError :> es) =>
-  Eff es ExitCode
+  Eff es ()
 runPipelineProgram = do
   logPipeline Info "Starting pipeline with clone"
 

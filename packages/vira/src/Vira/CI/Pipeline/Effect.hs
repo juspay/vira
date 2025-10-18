@@ -7,7 +7,6 @@ module Vira.CI.Pipeline.Effect where
 import Colog (Severity)
 import Effectful
 import Effectful.TH
-import System.Exit (ExitCode)
 import Vira.CI.Context (ViraContext)
 import Vira.CI.Environment (ViraEnvironment)
 import Vira.CI.Pipeline.Type (ViraPipeline)
@@ -50,10 +49,10 @@ data PipelineLocal :: Effect where
   LoadConfig :: FilePath -> PipelineLocal m ViraPipeline
   -- | Build flakes and return result paths
   Build :: FilePath -> ViraPipeline -> PipelineLocal m BuildResults
-  -- | Push build results to cache
-  Cache :: ViraPipeline -> BuildResults -> PipelineLocal m ExitCode
-  -- | Create GitHub commit status
-  Signoff :: ViraPipeline -> PipelineLocal m ExitCode
+  -- | Push build results to cache (throws error on failure)
+  Cache :: ViraPipeline -> BuildResults -> PipelineLocal m ()
+  -- | Create GitHub commit status (throws error on failure)
+  Signoff :: ViraPipeline -> PipelineLocal m ()
   -- | Log a message (convenience)
   LogPipeline :: Severity -> Text -> PipelineLocal m ()
 

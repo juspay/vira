@@ -42,7 +42,6 @@ import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), Repo (..))
 import Vira.Supervisor.Process (runProcesses)
-import Vira.Supervisor.Type (Terminated (..))
 import Vira.Tool.Core (ToolError (..))
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type.ToolData (status)
@@ -137,7 +136,9 @@ cloneImpl env logger = do
           { repoDir = Env.projectDirName
           , commitId = toText env.viraEnv.branch.headCommit.id
           }
-    Right (ExitFailure _code) -> throwError $ PipelineTerminated Terminated
+    Right exitCode@(ExitFailure code) -> do
+      logger Error $ "Clone failed with exit code " <> show code
+      throwError $ PipelineProcessFailed exitCode
 
 -- | Implementation: Load vira.hs configuration
 loadConfigImpl ::
@@ -249,8 +250,9 @@ buildFlake env repoDir (Flake flakePath overrideInputs) logger = do
           { flakePath = flakePath
           , resultSymlink = resultPath
           }
-    Right (ExitFailure _code) ->
-      throwError $ PipelineTerminated Terminated
+    Right exitCode@(ExitFailure code) -> do
+      logger Error $ "Build failed for " <> toText flakePath <> " with exit code " <> show code
+      throwError $ PipelineProcessFailed exitCode
 
 -- | Implementation: Push to cache
 cacheImpl ::
@@ -266,12 +268,11 @@ cacheImpl ::
   ViraPipeline ->
   BuildResults ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
-  Eff es ExitCode
+  Eff es ()
 cacheImpl env pipeline buildResults logger = do
   case pipeline.cache.url of
     Nothing -> do
       logger Info "Cache disabled, skipping"
-      pure ExitSuccess
     Just urlText -> do
       let paths = resultPaths buildResults
       logger Info $ "Pushing " <> show (length paths) <> " results to cache"
@@ -302,7 +303,10 @@ cacheImpl env pipeline buildResults logger = do
       let pushProc = Attic.atticPushProcess server cacheName pathsFromWorkspace
       runProcesses env.baseDir env.outputLog logger (one pushProc) >>= \case
         Left err -> throwError $ PipelineTerminated err
-        Right exitCode -> pure exitCode
+        Right ExitSuccess -> logger Info "Cache push succeeded"
+        Right exitCode@(ExitFailure code) -> do
+          logger Error $ "Cache push failed with exit code " <> show code
+          throwError $ PipelineProcessFailed exitCode
   where
     parseErrorToPipelineError :: Text -> Attic.Url.ParseError -> PipelineError
     parseErrorToPipelineError url err =
@@ -332,17 +336,18 @@ signoffImpl ::
   PipelineLocalEnv ->
   ViraPipeline ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
-  Eff es ExitCode
+  Eff es ()
 signoffImpl env pipeline logger = do
   if pipeline.signoff.enable
     then do
       logger Info "Creating commit signoff"
       let signoffProc = Signoff.create Signoff.Force statusTitle
           statusTitle = "vira/" <> toString nixSystem <> "/ci"
-      result <- runProcesses env.baseDir env.outputLog logger (one signoffProc)
-      case result of
+      runProcesses env.baseDir env.outputLog logger (one signoffProc) >>= \case
         Left err -> throwError $ PipelineTerminated err
-        Right exitCode -> pure exitCode
-    else do
+        Right ExitSuccess -> logger Info "Signoff succeeded"
+        Right exitCode@(ExitFailure code) -> do
+          logger Error $ "Signoff failed with exit code " <> show code
+          throwError $ PipelineProcessFailed exitCode
+    else
       logger Info "Signoff disabled, skipping"
-      pure ExitSuccess

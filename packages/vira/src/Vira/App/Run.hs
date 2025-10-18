@@ -13,6 +13,7 @@ import Data.Version (showVersion)
 import Effectful (runEff)
 import Effectful.Colog.Simple (runLogActionStdout)
 import Effectful.Concurrent.Async (runConcurrent)
+import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.FileSystem (runFileSystem)
 import Effectful.Process (runProcess)
 import Main.Utf8 qualified as Utf8
@@ -113,7 +114,9 @@ runVira = do
         . runFileSystem
         . runProcess
         . runConcurrent
+        . runErrorNoCallStack
         $ Pipeline.runPipelineCLI gs.logLevel repoDir
+          $> ExitSuccess
 
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()
     importFromFileOrStdin acid mFilePath = do
