@@ -36,8 +36,8 @@ import Control.Concurrent.Async (Async, async)
 import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import System.Directory (doesFileExist)
-import System.IO (hGetLine)
-import System.Process (CreateProcess (..), ProcessHandle, StdStream (..), createProcess, proc, terminateProcess, waitForProcess)
+import System.IO (Handle, hGetLine)
+import System.Process.Typed qualified as P
 import System.Which (staticWhich)
 
 -- | Represent `tail -f`'ing a file in Haskell
@@ -46,7 +46,7 @@ data Tail = Tail
   -- ^ The file being tailed
   , stop :: TMVar ()
   -- ^ Signal to stop tailing
-  , tailProcess :: TVar (Maybe (ProcessHandle, Async ()))
+  , tailProcess :: TVar (Maybe (P.Process () Handle (), Async ()))
   -- ^ The tail process handle and async reader
   , queues :: TVar [CircularBuffer Text]
   -- ^ Active subscriber queues
@@ -91,22 +91,21 @@ tailStop t = do
 tailRun :: Tail -> IO ()
 tailRun t = do
   -- Start the tail -F process (show entire file from beginning)
-  let createProc = (proc tailBin ["-F", "-n", "+1", t.filePath]) {std_out = CreatePipe}
-  (_, Just hout, _, ph) <- createProcess createProc
+  let pcfg = P.setStdout P.createPipe $ P.proc tailBin ["-F", "-n", "+1", t.filePath]
+  p <- P.startProcess pcfg
+  let hout = P.getStdout p
 
   -- Start async reader that reads from tail process and distributes to queues
   readerAsync <- async $ readAndDistribute hout
 
   -- Store the process and reader
-  atomically $ writeTVar t.tailProcess (Just (ph, readerAsync))
+  atomically $ writeTVar t.tailProcess (Just (p, readerAsync))
 
   -- Wait for stop signal
   atomically $ takeTMVar t.stop
 
-  -- Clean up: terminate process and wait for reader to finish at EOF
-  threadDelay 1_000_000 -- Give `tail -f` a second to flush any remaining lines
-  terminateProcess ph
-  void $ waitForProcess ph
+  -- Clean up: terminate process
+  P.stopProcess p
 
   -- Reader will naturally stop when it reaches EOF
 

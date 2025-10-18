@@ -79,7 +79,6 @@ dependencies:
   - optics-core
   - optics-th
   - optparse-applicative
-  - process
   - profunctors
   - QuickCheck
   - record-hasfield

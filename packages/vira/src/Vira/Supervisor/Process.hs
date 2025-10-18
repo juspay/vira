@@ -12,10 +12,10 @@ import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem)
 import Effectful.FileSystem.IO (hClose, openFile)
-import Effectful.Process (CreateProcess (create_group), Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
 import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (ExitFailure, ExitSuccess))
-import Vira.Lib.Process qualified as Process
+import System.Process.Typed qualified as P
+import Vira.Lib.TypedProcess (TypedProcess, startProcess, stopProcess)
 import Vira.Supervisor.Type (Terminated (Terminated))
 
 {- | Run a sequence of processes sequentially in the given working directory.
@@ -28,7 +28,7 @@ Returns 'Left Terminated' if interrupted, or 'Right ExitCode' on completion.
 runProcesses ::
   forall es.
   ( Concurrent :> es
-  , Process :> es
+  , TypedProcess :> es
   , Log (RichMessage IO) :> es
   , IOE :> es
   , FileSystem :> es
@@ -41,14 +41,14 @@ runProcesses ::
   -- | Logger callback for user-facing messages
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   -- | Processes to run in sequence
-  NonEmpty CreateProcess ->
+  NonEmpty P.ProcessConfig ->
   Eff es (Either Terminated ExitCode)
 runProcesses workDir mOutputFile taskLogger procs = do
   tagCurrentThread "🛞 "
   runProcs $ toList procs
   where
     -- Run each process one after another; exiting immediately if any fails
-    runProcs :: [CreateProcess] -> Eff es (Either Terminated ExitCode)
+    runProcs :: [P.ProcessConfig] -> Eff es (Either Terminated ExitCode)
     runProcs [] = do
       taskLogger Info "All procs for task finished successfully"
       pure $ Right ExitSuccess
@@ -58,38 +58,32 @@ runProcesses workDir mOutputFile taskLogger procs = do
           runProcs rest
         x -> pure x
 
-    runProc :: CreateProcess -> Eff es (Either Terminated ExitCode)
+    runProc :: P.ProcessConfig -> Eff es (Either Terminated ExitCode)
     runProc process = do
       withLogCommand process $ do
         taskLogger Info "Starting task"
         case mOutputFile of
-          Nothing -> runProcWithSettings process id
+          Nothing -> runProcWithSettings process
           Just outputFile ->
             withFileHandle outputFile AppendMode $ \outputHandle ->
-              runProcWithSettings process (Process.redirectOutputTo outputHandle)
+              let pcfg = P.setStdout (P.useHandle outputHandle) $ P.setStderr (P.useHandle outputHandle) process
+               in runProcWithSettings pcfg
 
-    runProcWithSettings :: CreateProcess -> (CreateProcess -> CreateProcess) -> Eff es (Either Terminated ExitCode)
-    runProcWithSettings process extraSettings = do
-      let processSettings =
-            Process.alwaysUnderPath workDir
-              >>> extraSettings
-              >>> (\cp -> cp {create_group = True}) -- For `interruptProcessGroupOf`, when the process is `Terminated`
-      (_, _, _, ph) <- createProcess $ process & processSettings
-      pid <- getPid ph
-      withLogContext [("pid", maybe "?" show pid)] $ do
+    runProcWithSettings :: P.ProcessConfig -> Eff es (Either Terminated ExitCode)
+    runProcWithSettings process = do
+      let pcfg = P.setWorkingDir workDir process
+      p <- startProcess pcfg
+      withLogContext [("pid", show $ P.getProcessID p)] $ do
         taskLogger Debug "Task spawned"
 
         result <-
           -- `mask` cleanup from asynchronous interruptions
           mask $ \restore ->
-            restore (Right <$> waitForProcess ph)
+            restore (Right <$> P.waitExitCode p)
               `catch` \case
                 Terminated -> do
                   taskLogger Info "Terminating process"
-                  interruptProcessGroupOf ph `catch` \(e :: SomeException) ->
-                    -- Analogous to `Control-C`'ing the process in an interactive shell
-                    taskLogger Error $ "Failed to terminate process: " <> show e
-                  _ <- waitForProcess ph -- Reap to prevent zombies
+                  stopProcess p
                   pure $ Left Terminated
         case result of
           Right ExitSuccess -> taskLogger Info "Task completed successfully"

@@ -19,7 +19,6 @@ dependencies:
   - aeson
   - bytestring
   - containers
-  - process
   - which
 
 library:

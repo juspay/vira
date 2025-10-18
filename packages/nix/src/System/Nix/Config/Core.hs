@@ -22,10 +22,11 @@ import Effectful.Colog.Simple (LogContext, log)
 import Effectful.Colog.Simple.Process (withLogCommand)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (catchIO)
-import Effectful.Process (Process, proc, readCreateProcess)
 import Effectful.Reader.Static qualified as ER
 import System.Directory (doesFileExist)
 import System.Nix.Config.Machine (RemoteBuilder (..), pBuilders)
+import System.Process.Typed qualified as P
+import Vira.Lib.TypedProcess (TypedProcess, readProcessStdout_)
 import System.Nix.Core (nix)
 import Text.Megaparsec
 import Text.Megaparsec.Char
@@ -45,20 +46,20 @@ nixConfigShow ::
   ( Error Text :> es
   , Log (RichMessage IO) :> es
   , ER.Reader LogContext :> es
-  , Process :> es
+  , TypedProcess :> es
   , IOE :> es
   ) =>
   Eff es NixConfig
 nixConfigShow = do
-  let cmd = proc nix ["config", "show"]
+  let cmd = P.proc nix ["config", "show"]
   withLogCommand cmd $ do
     log Info "Reading Nix configuration"
     output <-
-      readCreateProcess cmd ""
+      readProcessStdout_ cmd
         `catchIO` \ex -> do
           throwError $ "nix config show failed: " <> show @Text ex
 
-    rawConfig <- case parseConfigOutput (encodeUtf8 $ toText output) of
+    rawConfig <- case parseConfigOutput output of
       Left err -> throwError err
       Right cfg -> pure cfg
 
