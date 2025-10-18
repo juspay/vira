@@ -74,12 +74,11 @@ runRemotePipeline ::
   ) =>
   ViraEnvironment ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
-  (forall es1. (PipelineRemote :> es1, PipelineLog :> es1, Error PipelineError :> es1) => Eff es1 ()) ->
+  (forall es1. (PipelineRemote :> es1, ER.Reader PipelineLocalEnv :> es1, Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1, Error PipelineError :> es1) => Eff es1 ()) ->
   Eff es ()
 runRemotePipeline env logger program = do
   -- Run the remote pipeline program with the handler (includes Clone effect)
-  runPipelineLog logger $
-    runPipelineRemote pipelineEnv program
+  runPipelineRemote pipelineEnv program
   where
     pipelineEnv =
       PipelineRemoteEnv
@@ -92,7 +91,7 @@ runRemotePipeline env logger program = do
           let outputLog = Just $ env'.workspacePath </> "output.log"
               tools = env'.tools
               ctx = Env.viraContext env'
-           in PipelineLocalEnv {outputLog = outputLog, tools = tools, viraContext = ctx}
+           in PipelineLocalEnv {outputLog = outputLog, tools = tools, viraContext = ctx, logger = PipelineLogger logger}
 
 -- | CLI wrapper for running a pipeline in the current directory
 runCLIPipeline ::
@@ -106,7 +105,7 @@ runCLIPipeline ::
   ) =>
   Severity ->
   FilePath ->
-  (forall es1. (PipelineLocal :> es1, PipelineLog :> es1, Error PipelineError :> es1) => Eff es1 ()) ->
+  (forall es1. (PipelineLocal :> es1, ER.Reader PipelineLocalEnv :> es1, Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1, Error PipelineError :> es1) => Eff es1 ()) ->
   Eff es ()
 runCLIPipeline minSeverity repoDir program = do
   -- Detect git branch and dirty status (fail if not in a git repo)
@@ -120,11 +119,11 @@ runCLIPipeline minSeverity repoDir program = do
           { outputLog = Nothing
           , tools = tools
           , viraContext = ctx
+          , logger = PipelineLogger logger
           }
 
   -- Run local pipeline program directly (workDir = repoDir for CLI)
-  runPipelineLog logger $
-    runPipelineLocal localEnv repoDir program
+  runPipelineLocal localEnv repoDir program
   where
     logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
     logger severity msg = do
@@ -143,31 +142,21 @@ runPipelineLocal ::
   , FileSystem :> es
   , ER.Reader LogContext :> es
   , Error PipelineError :> es
-  , PipelineLog :> es
   ) =>
   PipelineLocalEnv ->
   FilePath ->
-  Eff (PipelineLocal : es) a ->
+  Eff (PipelineLocal : ER.Reader PipelineLocalEnv : es) a ->
   Eff es a
-runPipelineLocal env workDir =
-  interpret $ \_ -> \case
-    LoadConfig -> ER.runReader env $ loadConfigImpl workDir
-    Build pipeline -> ER.runReader env $ buildImpl workDir pipeline
-    Cache pipeline buildResults -> ER.runReader env $ cacheImpl workDir pipeline buildResults
-    Signoff pipeline -> ER.runReader env $ signoffImpl workDir pipeline
-
--- | Run the PipelineLog effect
-runPipelineLog ::
-  ( Log (RichMessage IO) :> es
-  , ER.Reader LogContext :> es
-  , IOE :> es
-  ) =>
-  (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
-  Eff (PipelineLog : es) a ->
-  Eff es a
-runPipelineLog logger = interpret $ \_ -> \case
-  LogPipeline severity msg -> logger severity msg
-  GetPipelineLogger -> pure $ PipelineLogger logger
+runPipelineLocal env workDir program =
+  ER.runReader env $
+    interpret
+      ( \_ -> \case
+          LoadConfig -> loadConfigImpl workDir
+          Build pipeline -> buildImpl workDir pipeline
+          Cache pipeline buildResults -> cacheImpl workDir pipeline buildResults
+          Signoff pipeline -> signoffImpl workDir pipeline
+      )
+      program
 
 -- | Run the PipelineRemote effect (handles Clone + RunLocalPipeline)
 runPipelineRemote ::
@@ -179,16 +168,20 @@ runPipelineRemote ::
   , FileSystem :> es
   , ER.Reader LogContext :> es
   , Error PipelineError :> es
-  , PipelineLog :> es
   ) =>
   PipelineRemoteEnv ->
-  Eff (PipelineRemote : es) a ->
+  Eff (PipelineRemote : ER.Reader PipelineLocalEnv : es) a ->
   Eff es a
-runPipelineRemote env = interpret $ \_ -> \case
-  Clone -> ER.runReader env cloneImpl
-  RunLocalPipeline cloneResults localProgram ->
-    let clonedDir = env.viraEnv.workspacePath </> cloneResults.repoDir
-     in runPipelineLocal env.localEnv clonedDir localProgram
+runPipelineRemote env program =
+  ER.runReader env.localEnv $
+    interpret
+      ( \_ -> \case
+          Clone -> ER.runReader env cloneImpl
+          RunLocalPipeline cloneResults localProgram ->
+            let clonedDir = env.viraEnv.workspacePath </> cloneResults.repoDir
+             in raise $ runPipelineLocal env.localEnv clonedDir localProgram
+      )
+      program
 
 -- | Helper: Run processes with logger from effect
 runProcesses' ::
@@ -198,15 +191,15 @@ runProcesses' ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
-  , PipelineLog :> es
+  , ER.Reader PipelineLocalEnv :> es
   ) =>
   FilePath ->
   Maybe FilePath ->
   NonEmpty CreateProcess ->
   Eff es (Either Terminated ExitCode)
 runProcesses' workDir outputLog procs = do
-  PipelineLogger logger <- getPipelineLogger
-  runProcesses workDir outputLog logger procs
+  env <- ER.ask @PipelineLocalEnv
+  runProcesses workDir outputLog (unPipelineLogger env.logger) procs
 
 -- | Implementation: Clone repository
 cloneImpl ::
@@ -217,8 +210,8 @@ cloneImpl ::
   , FileSystem :> es
   , ER.Reader LogContext :> es
   , ER.Reader PipelineRemoteEnv :> es
+  , ER.Reader PipelineLocalEnv :> es
   , Error PipelineError :> es
-  , PipelineLog :> es
   ) =>
   Eff es CloneResults
 cloneImpl = do
@@ -250,9 +243,10 @@ cloneImpl = do
 loadConfigImpl ::
   ( FileSystem :> es
   , IOE :> es
+  , Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
   , ER.Reader PipelineLocalEnv :> es
   , Error PipelineError :> es
-  , PipelineLog :> es
   ) =>
   FilePath ->
   Eff es ViraPipeline
@@ -294,7 +288,6 @@ buildImpl ::
   , ER.Reader LogContext :> es
   , ER.Reader PipelineLocalEnv :> es
   , Error PipelineError :> es
-  , PipelineLog :> es
   ) =>
   FilePath ->
   ViraPipeline ->
@@ -320,7 +313,6 @@ buildFlake ::
   , ER.Reader LogContext :> es
   , ER.Reader PipelineLocalEnv :> es
   , Error PipelineError :> es
-  , PipelineLog :> es
   ) =>
   FilePath ->
   Flake ->
@@ -362,7 +354,6 @@ cacheImpl ::
   , ER.Reader LogContext :> es
   , ER.Reader PipelineLocalEnv :> es
   , Error PipelineError :> es
-  , PipelineLog :> es
   ) =>
   FilePath ->
   ViraPipeline ->
@@ -428,7 +419,6 @@ signoffImpl ::
   , ER.Reader LogContext :> es
   , ER.Reader PipelineLocalEnv :> es
   , Error PipelineError :> es
-  , PipelineLog :> es
   ) =>
   FilePath ->
   ViraPipeline ->

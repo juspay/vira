@@ -48,6 +48,8 @@ data PipelineLocalEnv = PipelineLocalEnv
   -- ^ Available CI tools
   , viraContext :: ViraContext
   -- ^ Vira context (branch, dirty flag)
+  , logger :: PipelineLogger
+  -- ^ Logger function for pipeline messages
   }
   deriving stock (Generic)
 
@@ -60,17 +62,19 @@ data PipelineRemoteEnv = PipelineRemoteEnv
   }
   deriving stock (Generic)
 
-{- | PipelineLog Effect - logging for both CLI and web
-Separate from PipelineLocal so it can be used by both Pipeline and PipelineLocal programs
--}
-data PipelineLog :: Effect where
-  -- | Log a message
-  LogPipeline :: Severity -> Text -> PipelineLog m ()
-  -- | Get the logger function (for passing to runProcesses)
-  GetPipelineLogger :: PipelineLog m PipelineLogger
-
--- Generate boilerplate for the effect
-makeEffect ''PipelineLog
+-- | Helper: Log a pipeline message using logger from environment
+logPipeline ::
+  ( ER.Reader PipelineLocalEnv :> es
+  , Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
+  , IOE :> es
+  ) =>
+  Severity ->
+  Text ->
+  Eff es ()
+logPipeline severity msg = do
+  env <- ER.ask @PipelineLocalEnv
+  unPipelineLogger env.logger severity msg
 
 {- | PipelineLocal Effect - core pipeline operations without clone
 Used for CLI execution in current directory
@@ -93,7 +97,7 @@ data PipelineRemote :: Effect where
   -- | Clone repository and return cloned directory
   Clone :: PipelineRemote m CloneResults
   -- | Run local pipeline in the cloned directory (takes polymorphic program)
-  RunLocalPipeline :: CloneResults -> (forall es. (PipelineLocal :> es, PipelineLog :> es, Error PipelineError :> es) => Eff es ()) -> PipelineRemote m ()
+  RunLocalPipeline :: CloneResults -> (forall es. (PipelineLocal :> es, ER.Reader PipelineLocalEnv :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es, IOE :> es, Error PipelineError :> es) => Eff es ()) -> PipelineRemote m ()
 
 -- Generate boilerplate for the effect
 makeEffect ''PipelineRemote

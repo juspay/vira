@@ -4,8 +4,12 @@
 module Vira.CI.Pipeline.Program where
 
 import Colog (Severity (..))
+import Colog.Message (RichMessage)
 import Effectful
+import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext)
 import Effectful.Error.Static (Error)
+import Effectful.Reader.Static qualified as ER
 import Shower qualified
 import Vira.CI.Error (PipelineError (..))
 import Vira.CI.Pipeline.Effect
@@ -14,7 +18,13 @@ import Vira.CI.Pipeline.Effect
 Runs in working directory (handler sets cwd)
 -}
 pipelineLocalProgram ::
-  (PipelineLocal :> es, PipelineLog :> es, Error PipelineError :> es) =>
+  ( PipelineLocal :> es
+  , ER.Reader PipelineLocalEnv :> es
+  , Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
+  , IOE :> es
+  , Error PipelineError :> es
+  ) =>
   Eff es ()
 pipelineLocalProgram = do
   logPipeline Info "Starting pipeline execution"
@@ -40,7 +50,13 @@ pipelineLocalProgram = do
 Clones repository first, then runs local pipeline
 -}
 pipelineRemoteProgram ::
-  (PipelineRemote :> es, PipelineLog :> es, Error PipelineError :> es) =>
+  ( PipelineRemote :> es
+  , ER.Reader PipelineLocalEnv :> es
+  , Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
+  , IOE :> es
+  , Error PipelineError :> es
+  ) =>
   Eff es ()
 pipelineRemoteProgram = do
   logPipeline Info "Starting pipeline with clone"
