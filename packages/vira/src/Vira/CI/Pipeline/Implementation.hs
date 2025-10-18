@@ -125,8 +125,7 @@ cloneImpl repo branch workspacePath = do
       let clonedDir = workspacePath </> projectDirName
       logPipeline Info $ "Repository cloned to " <> toText clonedDir
       pure clonedDir
-    Right exitCode@(ExitFailure code) -> do
-      logPipeline Error $ "Clone failed with exit code " <> show code
+    Right exitCode ->
       throwError $ PipelineProcessFailed exitCode
 
 -- | Implementation: Load vira.hs configuration
@@ -184,14 +183,9 @@ buildImpl ::
   Eff es (NonEmpty FilePath)
 buildImpl repoDir pipeline = do
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
-
-  -- Build each flake sequentially (to match current behavior)
-  results <- forM (toList pipeline.build.flakes) $ \flake -> do
+  -- Build each flake sequentially
+  forM pipeline.build.flakes $ \flake -> do
     buildFlake repoDir flake
-
-  case nonEmpty results of
-    Nothing -> throwError $ PipelineConfigurationError $ MalformedConfig "No flakes to build"
-    Just ne -> pure ne
 
 -- | Build a single flake
 buildFlake ::
@@ -209,14 +203,15 @@ buildFlake ::
   Eff es FilePath
 buildFlake repoDir (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
-  let buildProc = proc nix $ devourFlake args
-      args =
-        DevourFlakeArgs
-          { flakePath = flakePath
-          , systems = Nothing
-          , outLink = Just (flakePath </> "result")
-          , overrideInputs = overrideInputs
-          }
+  let buildProc =
+        proc nix $
+          devourFlake $
+            DevourFlakeArgs
+              { flakePath = flakePath
+              , systems = Nothing
+              , outLink = Just (flakePath </> "result")
+              , overrideInputs = overrideInputs
+              }
 
   logPipeline Info $ "Building flake at " <> toText flakePath
 
@@ -230,8 +225,7 @@ buildFlake repoDir (Flake flakePath overrideInputs) = do
       let resultPath = flakePath </> "result"
       logPipeline Info $ "Build succeeded, result at " <> toText resultPath
       pure resultPath
-    Right exitCode@(ExitFailure code) -> do
-      logPipeline Error $ "Build failed for " <> toText flakePath <> " with exit code " <> show code
+    Right exitCode ->
       throwError $ PipelineProcessFailed exitCode
 
 -- | Implementation: Push to cache
@@ -253,9 +247,9 @@ cacheImpl repoDir pipeline buildResults = do
   env <- ER.ask @PipelineEnv
   case pipeline.cache.url of
     Nothing -> do
-      logPipeline Info "Cache disabled, skipping"
+      logPipeline Warning "Cache disabled, skipping"
     Just urlText -> do
-      logPipeline Info $ "Pushing " <> show (length buildResults) <> " results to cache"
+      logPipeline Info $ "Pushing " <> show (length buildResults) <> " result files to cache"
 
       -- Parse cache URL
       (serverEndpoint, cacheName) <- case Attic.Url.parseCacheUrl urlText of
@@ -280,8 +274,7 @@ cacheImpl repoDir pipeline buildResults = do
       runProcesses' repoDir env.outputLog (one pushProc) >>= \case
         Left err -> throwError $ PipelineTerminated err
         Right ExitSuccess -> logPipeline Info "Cache push succeeded"
-        Right exitCode@(ExitFailure code) -> do
-          logPipeline Error $ "Cache push failed with exit code " <> show code
+        Right exitCode ->
           throwError $ PipelineProcessFailed exitCode
   where
     parseErrorToPipelineError :: Text -> Attic.Url.ParseError -> PipelineError
@@ -323,11 +316,10 @@ signoffImpl repoDir pipeline = do
       runProcesses' repoDir env.outputLog (one signoffProc) >>= \case
         Left err -> throwError $ PipelineTerminated err
         Right ExitSuccess -> logPipeline Info "Signoff succeeded"
-        Right exitCode@(ExitFailure code) -> do
-          logPipeline Error $ "Signoff failed with exit code " <> show code
+        Right exitCode ->
           throwError $ PipelineProcessFailed exitCode
     else
-      logPipeline Info "Signoff disabled, skipping"
+      logPipeline Warning "Signoff disabled, skipping"
 
 -- | Default pipeline configuration
 defaultPipeline :: ViraPipeline
