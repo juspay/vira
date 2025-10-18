@@ -2,14 +2,13 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-module Vira.CI.Pipeline.Handler (
-  runPipelineRemote,
-  runPipelineLocal,
-  runPipelineLog,
+module Vira.CI.Pipeline.Implementation (
+  runWebPipeline,
+  runCLIPipeline,
   defaultPipeline,
 ) where
 
-import Prelude hiding (asks)
+import Prelude hiding (asks, id)
 
 import Attic qualified
 import Attic.Config (lookupEndpointWithToken)
@@ -20,12 +19,13 @@ import Colog.Message (RichMessage)
 import DevourFlake (DevourFlakeArgs (..), devourFlake)
 import Effectful
 import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext)
+import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Dispatch.Dynamic
-import Effectful.Error.Static (Error, throwError)
+import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git.Command.Clone qualified as Git
+import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
 import Effectful.Git.Types (Commit (..))
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
@@ -37,13 +37,16 @@ import System.Nix.System (nixSystem)
 import System.Process (proc)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
+import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.CI.Environment qualified as Env
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
+import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
 import Vira.CI.Pipeline.Effect
+import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), Repo (..))
 import Vira.Supervisor.Process (runProcesses)
-import Vira.Tool.Core (ToolError (..))
+import Vira.Tool.Core (ToolError (..), getAllTools)
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type.ToolData (status)
 import Vira.Tool.Type.Tools (attic)
@@ -58,6 +61,79 @@ defaultPipeline =
     }
   where
     defaultFlake = Flake "." mempty
+
+-- | Run web pipeline for the given `ViraEnvironment`
+runWebPipeline ::
+  ( Concurrent :> es
+  , Process :> es
+  , Log (RichMessage IO) :> es
+  , IOE :> es
+  , FileSystem :> es
+  , ER.Reader LogContext :> es
+  , Error PipelineError :> es
+  ) =>
+  ViraEnvironment ->
+  (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
+  Eff es ()
+runWebPipeline env logger = do
+  -- Run the remote pipeline program with the handler (includes Clone effect)
+  runPipelineLog logger $
+    runPipelineRemote
+      pipelineEnv
+      logger
+      Program.runPipelineRemoteProgram
+  where
+    pipelineEnv =
+      PipelineRemoteEnv
+        { localEnv = localEnvFromViraEnv env
+        , viraEnv = env
+        }
+
+localEnvFromViraEnv :: ViraEnvironment -> PipelineLocalEnv
+localEnvFromViraEnv env =
+  let outputLog = Just $ env.workspacePath </> "output.log"
+      tools = env.tools
+      ctx = Env.viraContext env
+   in PipelineLocalEnv {outputLog = outputLog, tools = tools, viraContext = ctx}
+
+-- | CLI wrapper for running a pipeline in the current directory
+runCLIPipeline ::
+  ( Concurrent :> es
+  , Process :> es
+  , Log (RichMessage IO) :> es
+  , IOE :> es
+  , FileSystem :> es
+  , ER.Reader LogContext :> es
+  , Error PipelineError :> es
+  ) =>
+  Severity ->
+  FilePath ->
+  Eff es ()
+runCLIPipeline minSeverity repoDir = do
+  -- Detect git branch and dirty status (fail if not in a git repo)
+  porcelain <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
+  let ctx = ViraContext porcelain.branch porcelain.dirty
+  tools <- getAllTools
+
+  -- For CLI, use PipelineLocalEnv (no ViraEnvironment needed)
+  let localEnv =
+        PipelineLocalEnv
+          { outputLog = Nothing
+          , tools = tools
+          , viraContext = ctx
+          }
+
+  -- Run local pipeline program directly (workDir = repoDir for CLI)
+  runPipelineLog logger $
+    runPipelineLocal localEnv repoDir logger Program.runPipelineProgramLocal
+  where
+    logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
+    logger severity msg = do
+      ctx <- ER.ask
+      when (severity >= minSeverity) $
+        liftIO $
+          putTextLn $
+            renderViraLogCLI (ViraLog {level = severity, message = msg, context = ctx})
 
 -- | Run the PipelineLocal effect (core operations, no clone)
 runPipelineLocal ::
