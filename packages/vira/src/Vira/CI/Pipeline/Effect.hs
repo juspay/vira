@@ -40,6 +40,26 @@ newtype PipelineLogger = PipelineLogger
   { unPipelineLogger :: forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()
   }
 
+-- | Environment for local pipeline (CLI - no clone needed)
+data PipelineLocalEnv = PipelineLocalEnv
+  { outputLog :: Maybe FilePath
+  -- ^ Optional output log file
+  , tools :: Tools
+  -- ^ Available CI tools
+  , viraContext :: ViraContext
+  -- ^ Vira context (branch, dirty flag)
+  }
+  deriving stock (Generic)
+
+-- | Context needed by the remote pipeline handler (with clone)
+data PipelineRemoteEnv = PipelineRemoteEnv
+  { localEnv :: PipelineLocalEnv
+  -- ^ Environment for local operations (reused from PipelineLocal)
+  , viraEnv :: ViraEnvironment
+  -- ^ Full environment with repo/branch info (workspacePath in here)
+  }
+  deriving stock (Generic)
+
 {- | PipelineLog Effect - logging for both CLI and web
 Separate from PipelineLocal so it can be used by both Pipeline and PipelineLocal programs
 -}
@@ -77,23 +97,3 @@ data PipelineRemote :: Effect where
 
 -- Generate boilerplate for the effect
 makeEffect ''PipelineRemote
-
--- | Environment for local pipeline (CLI - no clone needed)
-data PipelineLocalEnv = PipelineLocalEnv
-  { outputLog :: Maybe FilePath
-  -- ^ Optional output log file
-  , tools :: Tools
-  -- ^ Available CI tools
-  , viraContext :: ViraContext
-  -- ^ Vira context (branch, dirty flag)
-  }
-  deriving stock (Generic)
-
--- | Context needed by the remote pipeline handler (with clone)
-data PipelineRemoteEnv = PipelineRemoteEnv
-  { localEnv :: PipelineLocalEnv
-  -- ^ Environment for local operations (reused from PipelineLocal)
-  , viraEnv :: ViraEnvironment
-  -- ^ Full environment with repo/branch info (workspacePath in here)
-  }
-  deriving stock (Generic)
