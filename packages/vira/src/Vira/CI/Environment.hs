@@ -3,6 +3,8 @@
 
 module Vira.CI.Environment (
   ViraEnvironment (..),
+  projectDir,
+  projectDirName,
   environmentFor,
   viraContext,
 ) where
@@ -10,6 +12,7 @@ module Vira.CI.Environment (
 import Effectful (Eff, IOE, (:>))
 import Effectful.Process (Process)
 import Effectful.Reader.Dynamic qualified as Reader
+import System.FilePath ((</>))
 import Vira.App.Type (ViraRuntimeState)
 import Vira.CI.Context (ViraContext (..))
 import Vira.State.Type (Branch (..), Repo)
@@ -25,6 +28,13 @@ data ViraEnvironment = ViraEnvironment
   , workspacePath :: FilePath
   -- ^ Workspace directory path
   }
+
+projectDirName :: FilePath
+projectDirName = "project"
+
+-- | Get the project directory path from the workspace
+projectDir :: ViraEnvironment -> FilePath
+projectDir env = env.workspacePath </> projectDirName
 
 -- | Construct the 'ViraEnvironment' for a given repository and branch.
 environmentFor ::
