@@ -88,13 +88,13 @@ runRemotePipeline env logger program = do
         { localEnv = localEnvFromViraEnv env
         , viraEnv = env
         }
-
-localEnvFromViraEnv :: ViraEnvironment -> PipelineLocalEnv
-localEnvFromViraEnv env =
-  let outputLog = Just $ env.workspacePath </> "output.log"
-      tools = env.tools
-      ctx = Env.viraContext env
-   in PipelineLocalEnv {outputLog = outputLog, tools = tools, viraContext = ctx}
+      where
+        localEnvFromViraEnv :: ViraEnvironment -> PipelineLocalEnv
+        localEnvFromViraEnv env' =
+          let outputLog = Just $ env'.workspacePath </> "output.log"
+              tools = env'.tools
+              ctx = Env.viraContext env'
+           in PipelineLocalEnv {outputLog = outputLog, tools = tools, viraContext = ctx}
 
 -- | CLI wrapper for running a pipeline in the current directory
 runCLIPipeline ::
