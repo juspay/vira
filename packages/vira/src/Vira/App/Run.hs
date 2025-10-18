@@ -115,7 +115,7 @@ runVira = do
         . runProcess
         . runConcurrent
         . runErrorNoCallStack
-        $ Pipeline.runPipelineCLI gs.logLevel repoDir
+        $ Pipeline.runCLIPipeline gs.logLevel repoDir
           $> ExitSuccess
 
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()

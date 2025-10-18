@@ -1,7 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-module Vira.CI.Pipeline (runPipelineRemote, runPipelineCLI, defaultPipeline, PipelineError (..)) where
+module Vira.CI.Pipeline (runWebPipeline, runCLIPipeline, defaultPipeline, PipelineError (..)) where
 
 import Prelude hiding (id)
 
@@ -29,8 +29,8 @@ import Vira.CI.Pipeline.Handler qualified as Handler
 import Vira.CI.Pipeline.Program (runPipelineProgramLocal, runPipelineRemoteProgram)
 import Vira.Tool.Core (getAllTools)
 
--- | Run remote pipeline for the given `ViraEnvironment`
-runPipelineRemote ::
+-- | Run web pipeline for the given `ViraEnvironment`
+runWebPipeline ::
   ( Concurrent :> es
   , Process :> es
   , Log (RichMessage IO) :> es
@@ -42,7 +42,7 @@ runPipelineRemote ::
   ViraEnvironment ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es ()
-runPipelineRemote env logger = do
+runWebPipeline env logger = do
   let outputLog = Just $ env.workspacePath </> "output.log"
       ctx = Env.viraContext env
       tools = env.tools
@@ -66,7 +66,7 @@ runPipelineRemote env logger = do
       runPipelineRemoteProgram
 
 -- | CLI wrapper for running a pipeline in the current directory
-runPipelineCLI ::
+runCLIPipeline ::
   ( Concurrent :> es
   , Process :> es
   , Log (RichMessage IO) :> es
@@ -78,7 +78,7 @@ runPipelineCLI ::
   Severity ->
   FilePath ->
   Eff es ()
-runPipelineCLI minSeverity repoDir = do
+runCLIPipeline minSeverity repoDir = do
   -- Detect git branch and dirty status (fail if not in a git repo)
   porcelain <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
   let ctx = ViraContext porcelain.branch porcelain.dirty
