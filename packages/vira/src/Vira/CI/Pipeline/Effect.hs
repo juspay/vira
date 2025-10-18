@@ -6,10 +6,12 @@ module Vira.CI.Pipeline.Effect where
 
 import Colog (Severity)
 import Effectful
+import Effectful.Error.Static (Error)
 import Effectful.Git.Types (CommitID)
 import Effectful.TH
 import Vira.CI.Context (ViraContext)
 import Vira.CI.Environment (ViraEnvironment)
+import Vira.CI.Error (PipelineError)
 import Vira.CI.Pipeline.Type (ViraPipeline)
 import Vira.Tool.Type.Tools (Tools)
 
@@ -59,8 +61,8 @@ makeEffect ''PipelineLocal
 data PipelineRemote :: Effect where
   -- | Clone repository and return cloned directory
   Clone :: PipelineRemote m CloneResults
-  -- | Run local pipeline in the cloned directory
-  RunLocalPipeline :: CloneResults -> PipelineRemote m ()
+  -- | Run local pipeline in the cloned directory (takes polymorphic program)
+  RunLocalPipeline :: CloneResults -> (forall es. (PipelineLocal :> es, PipelineLog :> es, Error PipelineError :> es) => Eff es ()) -> PipelineRemote m ()
 
 -- Generate boilerplate for the effect
 makeEffect ''PipelineRemote

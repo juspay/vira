@@ -50,4 +50,4 @@ runPipelineRemoteProgram = do
   logPipeline Info $ "Repository cloned to " <> toText cloneResults.repoDir
 
   -- Step 2-5: Run local pipeline in the cloned directory
-  runLocalPipeline cloneResults
+  runLocalPipeline cloneResults runPipelineProgramLocal
