@@ -5,6 +5,7 @@
 module Vira.CI.Pipeline.Handler (
   runPipeline,
   runPipelineLocal,
+  runPipelineLog,
   defaultPipeline,
 ) where
 
@@ -79,9 +80,20 @@ runPipelineLocal env workDir logger = interpret $ \_ -> \case
   Build pipeline -> buildImpl env workDir pipeline logger
   Cache pipeline buildResults -> cacheImpl env workDir pipeline buildResults logger
   Signoff pipeline -> signoffImpl env workDir pipeline logger
+
+-- | Run the PipelineLog effect
+runPipelineLog ::
+  ( Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
+  , IOE :> es
+  ) =>
+  (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
+  Eff (PipelineLog : es) a ->
+  Eff es a
+runPipelineLog logger = interpret $ \_ -> \case
   LogPipeline severity msg -> logger severity msg
 
--- | Run the Pipeline effect (adds Clone + RunLocalPipeline to PipelineLocal)
+-- | Run the Pipeline effect (handles Clone + RunLocalPipeline)
 runPipeline ::
   forall es a.
   ( Concurrent :> es
@@ -94,17 +106,13 @@ runPipeline ::
   ) =>
   PipelineEnv ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
-  Eff (Pipeline : PipelineLocal : es) a ->
+  Eff (Pipeline : es) a ->
   Eff es a
-runPipeline env logger =
-  runPipelineLocal env.localEnv (Env.projectDir env.viraEnv) logger . interpret h
-  where
-    h :: EffectHandler Pipeline (PipelineLocal : es)
-    h _ = \case
-      Clone -> cloneImpl env logger
-      RunLocalPipeline cloneResults ->
-        let clonedDir = env.viraEnv.workspacePath </> cloneResults.repoDir
-         in runPipelineLocal env.localEnv clonedDir logger runPipelineProgramLocal
+runPipeline env logger = interpret $ \_ -> \case
+  Clone -> cloneImpl env logger
+  RunLocalPipeline cloneResults ->
+    let clonedDir = env.viraEnv.workspacePath </> cloneResults.repoDir
+     in runPipelineLog logger $ runPipelineLocal env.localEnv clonedDir logger runPipelineProgramLocal
 
 -- | Implementation: Clone repository
 cloneImpl ::

@@ -29,6 +29,16 @@ newtype BuildResults = BuildResults
   }
   deriving stock (Show, Eq, Generic)
 
+{- | PipelineLog Effect - logging for both CLI and web
+Separate from PipelineLocal so it can be used by both Pipeline and PipelineLocal programs
+-}
+data PipelineLog :: Effect where
+  -- | Log a message
+  LogPipeline :: Severity -> Text -> PipelineLog m ()
+
+-- Generate boilerplate for the effect
+makeEffect ''PipelineLog
+
 {- | PipelineLocal Effect - core pipeline operations without clone
 Used for CLI execution in current directory
 -}
@@ -41,8 +51,6 @@ data PipelineLocal :: Effect where
   Cache :: ViraPipeline -> BuildResults -> PipelineLocal m ()
   -- | Create GitHub commit status (throws error on failure, runs in working dir)
   Signoff :: ViraPipeline -> PipelineLocal m ()
-  -- | Log a message (convenience)
-  LogPipeline :: Severity -> Text -> PipelineLocal m ()
 
 -- Generate boilerplate for the effect
 makeEffect ''PipelineLocal

@@ -14,7 +14,7 @@ import Vira.CI.Pipeline.Effect
 Runs in working directory (handler sets cwd)
 -}
 runPipelineProgramLocal ::
-  (PipelineLocal :> es, Error PipelineError :> es) =>
+  (PipelineLocal :> es, PipelineLog :> es, Error PipelineError :> es) =>
   Eff es ()
 runPipelineProgramLocal = do
   logPipeline Info "Starting pipeline execution"
@@ -40,7 +40,7 @@ runPipelineProgramLocal = do
 Clones repository first, then runs local pipeline
 -}
 runPipelineProgram ::
-  (Pipeline :> es, PipelineLocal :> es, Error PipelineError :> es) =>
+  (Pipeline :> es, PipelineLog :> es, Error PipelineError :> es) =>
   Eff es ()
 runPipelineProgram = do
   logPipeline Info "Starting pipeline with clone"

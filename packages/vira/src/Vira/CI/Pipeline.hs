@@ -59,10 +59,11 @@ runPipeline env logger = do
           }
 
   -- Run the pipeline program with the real handler (includes Clone effect)
-  Handler.runPipeline
-    pipelineEnv
-    logger
-    runPipelineProgram
+  Handler.runPipelineLog logger $
+    Handler.runPipeline
+      pipelineEnv
+      logger
+      runPipelineProgram
 
 -- | CLI wrapper for running a pipeline in the current directory
 runPipelineCLI ::
@@ -92,7 +93,8 @@ runPipelineCLI minSeverity repoDir = do
           }
 
   -- Run local pipeline program directly (workDir = repoDir for CLI)
-  Handler.runPipelineLocal localEnv repoDir logger runPipelineProgramLocal
+  Handler.runPipelineLog logger $
+    Handler.runPipelineLocal localEnv repoDir logger runPipelineProgramLocal
   where
     logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
     logger severity msg = do
