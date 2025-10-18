@@ -18,19 +18,19 @@ This should be available in the PATH, thanks to Nix and `which` library.
 atticBin :: FilePath
 atticBin = $(staticWhich "attic")
 
-{- | Push the given path to the attic server cache
+{- | Push the given paths to the attic server cache
 
 NOTE: `atticLoginProcess` should be run before this to set the access token
 -}
-atticPushProcess :: AtticServer -> AtticCache -> FilePath -> CreateProcess
-atticPushProcess AtticServer {name} cacheName path =
-  proc atticBin ["push", toString name <> ":" <> toString cacheName, path]
+atticPushProcess :: AtticServer -> AtticCache -> NonEmpty FilePath -> CreateProcess
+atticPushProcess AtticServer {name} cacheName paths =
+  proc atticBin $ ["push", toString name <> ":" <> toString cacheName] <> toList paths
 
 {- | Saves the access token for the attic server
 
 Run this process before other attic processes.
 
-TODO: Remove after https://github.com/zhaofengli/attic/issues/243 is resolved to provide stateless access
+NOTE: It is not secure to log this CLI; cf. https://github.com/zhaofengli/attic/issues/243
 -}
 atticLoginProcess :: AtticServer -> AtticToken -> CreateProcess
 atticLoginProcess AtticServer {name, endpoint} token =

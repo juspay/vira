@@ -70,7 +70,7 @@ cacheProcs tools stage =
           lookupEndpointWithToken atticConfig serverEndpoint
             & maybeToRight (AtticTool.MissingEndpoint serverEndpoint)
         -- Create the push process (token already validated by lookupEndpointWithToken)
-        pure $ Attic.atticPushProcess (AtticServer serverName serverEndpoint) cacheName "result"
+        pure $ Attic.atticPushProcess (AtticServer serverName serverEndpoint) cacheName (one "result")
       pure $ one pushProc
 
     parseErrorToPipelineError :: Text -> Attic.Url.ParseError -> PipelineError

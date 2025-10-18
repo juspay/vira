@@ -259,25 +259,13 @@ cacheImpl env pipeline buildResults logger = do
         Left err -> throwError $ atticErrorToPipelineError urlText serverEndpoint err
         Right result -> pure result
 
-      -- Push each result to cache
-      results <- forM (toList paths) $ \resultPath -> do
-        logger Info $ "Pushing " <> toText resultPath
-        let pushProc = Attic.atticPushProcess server cacheName resultPath
-        runProcesses env.workspaceDir env.outputLog logger (one pushProc)
-
-      -- Return first failure or success
-      case find isLeft results of
-        Just (Left err) -> throwError $ PipelineTerminated err
-        Just (Right _) -> error "impossible: find isLeft returned a Right"
-        Nothing -> case find isFailure results of
-          Just (Right code) -> pure code
-          Just (Left _) -> error "impossible: find isFailure returned a Left after filtering"
-          Nothing -> pure ExitSuccess
+      -- Push all results to cache in one command
+      logger Info $ "Pushing " <> show (length paths) <> " paths: " <> show (toList paths)
+      let pushProc = Attic.atticPushProcess server cacheName paths
+      runProcesses env.workspaceDir env.outputLog logger (one pushProc) >>= \case
+        Left err -> throwError $ PipelineTerminated err
+        Right exitCode -> pure exitCode
   where
-    isFailure (Right ExitSuccess) = False
-    isFailure (Right _) = True
-    isFailure (Left _) = False
-
     parseErrorToPipelineError :: Text -> Attic.Url.ParseError -> PipelineError
     parseErrorToPipelineError url err =
       PipelineConfigurationError $
