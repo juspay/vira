@@ -16,12 +16,11 @@ import Effectful.Git.Types (CommitID)
 import Effectful.Reader.Static qualified as ER
 import Effectful.TH
 import System.FilePath ((</>))
-import Vira.CI.Context (ViraContext)
-import Vira.CI.Environment (ViraEnvironment)
-import Vira.CI.Environment qualified as Env
+import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Error (PipelineError)
 import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
 import Vira.CI.Pipeline.Type (ViraPipeline)
+import Vira.State.Type (Branch (..), Repo)
 import Vira.Tool.Type.Tools (Tools)
 
 -- | Results from clone step
@@ -62,8 +61,12 @@ data PipelineLocalEnv = PipelineLocalEnv
 data PipelineRemoteEnv = PipelineRemoteEnv
   { localEnv :: PipelineLocalEnv
   -- ^ Environment for local operations (reused from PipelineLocal)
-  , viraEnv :: ViraEnvironment
-  -- ^ Full environment with repo/branch info (workspacePath in here)
+  , repo :: Repo
+  -- ^ Repository to clone
+  , branch :: Branch
+  -- ^ Branch to clone
+  , workspacePath :: FilePath
+  -- ^ Workspace directory for cloning
   }
   deriving stock (Generic)
 
@@ -107,19 +110,20 @@ data PipelineRemote :: Effect where
 -- Generate boilerplate for the effect
 makeEffect ''PipelineRemote
 
--- | Construct PipelineRemoteEnv from ViraEnvironment and logger
-pipelineRemoteEnvFrom :: ViraEnvironment -> (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) -> PipelineRemoteEnv
-pipelineRemoteEnvFrom viraEnv logger =
+-- | Construct PipelineRemoteEnv from repository context and logger
+pipelineRemoteEnvFrom :: Repo -> Branch -> FilePath -> Tools -> (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) -> PipelineRemoteEnv
+pipelineRemoteEnvFrom repo branch workspacePath tools logger =
   PipelineRemoteEnv
-    { localEnv = localEnvFromViraEnv viraEnv
-    , viraEnv = viraEnv
+    { localEnv = mkLocalEnv
+    , repo = repo
+    , branch = branch
+    , workspacePath = workspacePath
     }
   where
-    localEnvFromViraEnv :: ViraEnvironment -> PipelineLocalEnv
-    localEnvFromViraEnv env' =
-      let outputLog = Just $ env'.workspacePath </> "output.log"
-          tools = env'.tools
-          ctx = Env.viraContext env'
+    mkLocalEnv :: PipelineLocalEnv
+    mkLocalEnv =
+      let outputLog = Just $ workspacePath </> "output.log"
+          ctx = ViraContext {branch = branch.branchName, dirty = False}
        in PipelineLocalEnv {outputLog = outputLog, tools = tools, viraContext = ctx, logger = PipelineLogger logger}
 
 -- | Construct PipelineLocalEnv from CLI parameters

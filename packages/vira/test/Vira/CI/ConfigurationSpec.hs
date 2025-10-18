@@ -1,32 +1,19 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Vira.CI.ConfigurationSpec (spec) where
 
-import Attic.Config (AtticConfig (..))
-import Data.Map.Strict qualified as Map
 import Data.Time (UTCTime (UTCTime), fromGregorian, secondsToDiffTime)
 import Effectful.Git (BranchName (..), Commit (..), CommitID (..), RepoName (..))
-import GH.Auth.Status (AuthStatus (..))
 import Paths_vira (getDataFileName)
 import Test.Hspec
 import Vira.CI.Configuration
-import Vira.CI.Environment (ViraEnvironment (..), viraContext)
+import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline.Implementation (defaultPipeline)
 import Vira.CI.Pipeline.Type (BuildStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
-import Vira.State.Type (Branch (..), Repo (..))
-import Vira.Tool.Type.ToolData qualified as Tool
-import Vira.Tool.Type.Tools qualified as Tool
+import Vira.State.Type (Branch (..))
 
 -- Test data
-testRepo :: Repo
-testRepo =
-  let name = RepoName "test-repo"
-      cloneUrl = "https://github.com/test/repo.git"
-      lastRefresh = Nothing
-   in Repo {..}
-
 testBranchStaging :: Branch
 testBranchStaging =
   Branch
@@ -42,54 +29,11 @@ testBranchStaging =
           }
     }
 
--- Empty test tools
-testTools :: Tool.Tools
-testTools =
-  Tool.Tools
-    { Tool.attic =
-        Tool.ToolData
-          { Tool.name = "Attic"
-          , Tool.url = "https://example.com"
-          , Tool.binPaths = one "test-bin"
-          , Tool.status = Right AtticConfig {defaultServer = Nothing, servers = Map.empty}
-          }
-    , Tool.github =
-        Tool.ToolData
-          { Tool.name = "GitHub"
-          , Tool.url = "https://example.com"
-          , Tool.binPaths = one "test-bin"
-          , Tool.status = NotAuthenticated
-          }
-    , Tool.git =
-        Tool.ToolData
-          { Tool.name = "Git"
-          , Tool.url = "https://example.com"
-          , Tool.binPaths = one "test-bin"
-          , Tool.status = ()
-          }
-    , Tool.cachix =
-        Tool.ToolData
-          { Tool.name = "Cachix"
-          , Tool.url = "https://example.com"
-          , Tool.binPaths = one "test-bin"
-          , Tool.status = ()
-          }
-    , Tool.nix =
-        Tool.ToolData
-          { Tool.name = "Nix"
-          , Tool.url = "https://example.com"
-          , Tool.binPaths = one "test-bin"
-          , Tool.status = Left "Test error"
-          }
-    }
-
-testEnvStaging :: ViraEnvironment
-testEnvStaging =
-  ViraEnvironment
-    { repo = testRepo
-    , branch = testBranchStaging
-    , tools = testTools
-    , workspacePath = "/tmp/test-workspace"
+testContextStaging :: ViraContext
+testContextStaging =
+  ViraContext
+    { branch = testBranchStaging.branchName
+    , dirty = False
     }
 
 spec :: Spec
@@ -98,7 +42,7 @@ spec = describe "Vira.CI.Configuration" $ do
     it "applies valid config correctly" $ do
       configPath <- getDataFileName "test/sample-configs/simple-example.hs"
       configCode <- decodeUtf8 <$> readFileBS configPath
-      result <- applyConfig configCode (viraContext testEnvStaging) defaultPipeline
+      result <- applyConfig configCode testContextStaging defaultPipeline
       case result of
         Right pipeline -> do
           pipeline.signoff.enable `shouldBe` True

@@ -38,7 +38,6 @@ import System.Nix.System (nixSystem)
 import System.Process (CreateProcess, proc)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
-import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
@@ -95,7 +94,7 @@ runPipelineRemote env program =
       ( \_ -> \case
           Clone -> ER.runReader env cloneImpl
           RunLocalPipeline cloneResults localProgram ->
-            let clonedDir = env.viraEnv.workspacePath </> cloneResults.repoDir
+            let clonedDir = env.workspacePath </> cloneResults.repoDir
              in raise $ runPipelineLocal env.localEnv clonedDir localProgram
       )
       program
@@ -136,13 +135,13 @@ cloneImpl = do
   let projectDirName = "project"
       cloneProc =
         Git.cloneAtCommit
-          env.viraEnv.repo.cloneUrl
-          env.viraEnv.branch.headCommit.id
+          env.repo.cloneUrl
+          env.branch.headCommit.id
           projectDirName
 
-  logPipeline Info $ "Cloning repository at commit " <> toText env.viraEnv.branch.headCommit.id
+  logPipeline Info $ "Cloning repository at commit " <> toText env.branch.headCommit.id
 
-  result <- runProcesses' env.viraEnv.workspacePath env.localEnv.outputLog (one cloneProc)
+  result <- runProcesses' env.workspacePath env.localEnv.outputLog (one cloneProc)
 
   case result of
     Left err -> throwError $ PipelineTerminated err
@@ -151,7 +150,7 @@ cloneImpl = do
       pure $
         CloneResults
           { repoDir = projectDirName
-          , commitId = env.viraEnv.branch.headCommit.id
+          , commitId = env.branch.headCommit.id
           }
     Right exitCode@(ExitFailure code) -> do
       logPipeline Error $ "Clone failed with exit code " <> show code

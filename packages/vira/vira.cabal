@@ -41,7 +41,6 @@ library
       Vira.App.Stack
       Vira.App.Type
       Vira.CI.Configuration
-      Vira.CI.Environment
       Vira.CI.Error
       Vira.CI.Log
       Vira.CI.Pipeline
