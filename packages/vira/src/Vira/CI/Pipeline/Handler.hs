@@ -83,6 +83,7 @@ runPipelineLocal env workDir logger = interpret $ \_ -> \case
 
 -- | Run the Pipeline effect (adds Clone + RunLocalPipeline to PipelineLocal)
 runPipeline ::
+  forall es a.
   ( Concurrent :> es
   , Process :> es
   , Log (RichMessage IO) :> es
@@ -95,20 +96,15 @@ runPipeline ::
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff (Pipeline : PipelineLocal : es) a ->
   Eff es a
-runPipeline env logger program =
-  -- First install PipelineLocal handler with dummy workDir
-  -- (will be overridden by RunLocalPipeline)
-  runPipelineLocal env.localEnv (Env.projectDir env.viraEnv) logger $ do
-    -- Then add Pipeline operations on top
-    interpret
-      ( \_ -> \case
-          Clone -> cloneImpl env logger
-          RunLocalPipeline cloneResults -> do
-            let clonedDir = env.viraEnv.workspacePath </> cloneResults.repoDir
-            -- Run local pipeline program in the cloned directory
-            runPipelineLocal env.localEnv clonedDir logger runPipelineProgramLocal
-      )
-      program
+runPipeline env logger =
+  runPipelineLocal env.localEnv (Env.projectDir env.viraEnv) logger . interpret h
+  where
+    h :: EffectHandler Pipeline (PipelineLocal : es)
+    h _ = \case
+      Clone -> cloneImpl env logger
+      RunLocalPipeline cloneResults ->
+        let clonedDir = env.viraEnv.workspacePath </> cloneResults.repoDir
+         in runPipelineLocal env.localEnv clonedDir logger runPipelineProgramLocal
 
 -- | Implementation: Clone repository
 cloneImpl ::
