@@ -20,6 +20,7 @@ import Vira.App.Broadcast.Type (BroadcastScope (..))
 import Vira.App.CLI (WebSettings)
 import Vira.CI.Environment (ViraEnvironment (..), environmentFor)
 import Vira.CI.Pipeline qualified as Pipeline
+import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.State.Acid qualified as St
@@ -176,7 +177,7 @@ triggerNewBuild minSeverity repoName branchName = do
       job.jobId
       minSeverity
       viraEnv.workspacePath
-      (Pipeline.runWebPipeline viraEnv)
+      (\logger -> Pipeline.runRemotePipeline viraEnv logger Program.pipelineRemoteProgram)
       $ \result -> do
         endTime <- liftIO getCurrentTime
         let status = case result of

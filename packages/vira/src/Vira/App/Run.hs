@@ -25,6 +25,7 @@ import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSet
 import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.CI.Pipeline qualified as Pipeline
+import Vira.CI.Pipeline.Program qualified as Program
 import Vira.Refresh.Daemon qualified as Daemon
 import Vira.Refresh.Type qualified as Refresh
 import Vira.State.Core (closeViraState, openViraState, startPeriodicArchival, viraDbVersion)
@@ -115,7 +116,7 @@ runVira = do
         . runProcess
         . runConcurrent
         . runErrorNoCallStack
-        $ Pipeline.runCLIPipeline gs.logLevel repoDir
+        $ Pipeline.runCLIPipeline gs.logLevel repoDir Program.pipelineLocalProgram
           $> ExitSuccess
 
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()

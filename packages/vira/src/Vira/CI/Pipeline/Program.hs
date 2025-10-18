@@ -13,10 +13,10 @@ import Vira.CI.Pipeline.Effect
 {- | Local pipeline program (for CLI - no clone)
 Runs in working directory (handler sets cwd)
 -}
-runPipelineProgramLocal ::
+pipelineLocalProgram ::
   (PipelineLocal :> es, PipelineLog :> es, Error PipelineError :> es) =>
   Eff es ()
-runPipelineProgramLocal = do
+pipelineLocalProgram = do
   logPipeline Info "Starting pipeline execution"
 
   -- Step 1: Load configuration
@@ -39,10 +39,10 @@ runPipelineProgramLocal = do
 {- | Remote pipeline program (for web/CI - with clone)
 Clones repository first, then runs local pipeline
 -}
-runPipelineRemoteProgram ::
+pipelineRemoteProgram ::
   (PipelineRemote :> es, PipelineLog :> es, Error PipelineError :> es) =>
   Eff es ()
-runPipelineRemoteProgram = do
+pipelineRemoteProgram = do
   logPipeline Info "Starting pipeline with clone"
 
   -- Step 1: Clone repository
@@ -50,4 +50,4 @@ runPipelineRemoteProgram = do
   logPipeline Info $ "Repository cloned to " <> toText cloneResults.repoDir
 
   -- Step 2-5: Run local pipeline in the cloned directory
-  runLocalPipeline cloneResults runPipelineProgramLocal
+  runLocalPipeline cloneResults pipelineLocalProgram

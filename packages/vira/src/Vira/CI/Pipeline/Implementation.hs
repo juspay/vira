@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
 module Vira.CI.Pipeline.Implementation (
-  runWebPipeline,
+  runRemotePipeline,
   runCLIPipeline,
   defaultPipeline,
 ) where
@@ -42,7 +42,6 @@ import Vira.CI.Environment qualified as Env
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
 import Vira.CI.Pipeline.Effect
-import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), Repo (..))
 import Vira.Supervisor.Process (runProcesses)
@@ -62,8 +61,8 @@ defaultPipeline =
   where
     defaultFlake = Flake "." mempty
 
--- | Run web pipeline for the given `ViraEnvironment`
-runWebPipeline ::
+-- | Run remote pipeline for the given `ViraEnvironment`
+runRemotePipeline ::
   ( Concurrent :> es
   , Process :> es
   , Log (RichMessage IO) :> es
@@ -74,14 +73,15 @@ runWebPipeline ::
   ) =>
   ViraEnvironment ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
+  (forall es1. (PipelineRemote :> es1, PipelineLog :> es1, Error PipelineError :> es1) => Eff es1 ()) ->
   Eff es ()
-runWebPipeline env logger = do
+runRemotePipeline env logger program = do
   -- Run the remote pipeline program with the handler (includes Clone effect)
   runPipelineLog logger $
     runPipelineRemote
       pipelineEnv
       logger
-      Program.runPipelineRemoteProgram
+      program
   where
     pipelineEnv =
       PipelineRemoteEnv
@@ -108,8 +108,9 @@ runCLIPipeline ::
   ) =>
   Severity ->
   FilePath ->
+  (forall es1. (PipelineLocal :> es1, PipelineLog :> es1, Error PipelineError :> es1) => Eff es1 ()) ->
   Eff es ()
-runCLIPipeline minSeverity repoDir = do
+runCLIPipeline minSeverity repoDir program = do
   -- Detect git branch and dirty status (fail if not in a git repo)
   porcelain <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
   let ctx = ViraContext porcelain.branch porcelain.dirty
@@ -125,7 +126,7 @@ runCLIPipeline minSeverity repoDir = do
 
   -- Run local pipeline program directly (workDir = repoDir for CLI)
   runPipelineLog logger $
-    runPipelineLocal localEnv repoDir logger Program.runPipelineProgramLocal
+    runPipelineLocal localEnv repoDir logger program
   where
     logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
     logger severity msg = do
