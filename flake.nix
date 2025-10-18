@@ -38,7 +38,7 @@
     htmx-extensions.url = "github:juspay/htmx-extensions/sse-unload"; # https://github.com/bigskysoftware/htmx-extensions/pull/147
     htmx-extensions.flake = false;
   };
-
+xx
   outputs = inputs:
     # https://nixos-unified.org/autowiring.html#flake-parts
     inputs.nixos-unified.lib.mkFlake
