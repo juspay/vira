@@ -19,6 +19,7 @@ dependencies:
   - aeson
   - bytestring
   - containers
+  - typed-process
   - which
 
 library:

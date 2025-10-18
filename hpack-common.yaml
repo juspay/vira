@@ -42,5 +42,3 @@ default-extensions:
 dependencies:
   - name: base
     version: ">= 4 && < 5"
-  - name: typed-process
-    version: ">= 0.2.11.0"

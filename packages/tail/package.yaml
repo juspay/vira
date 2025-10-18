@@ -17,6 +17,7 @@ dependencies:
   - async
   - stm
   - text
+  - typed-process
   - which
   - filepath
   - directory
