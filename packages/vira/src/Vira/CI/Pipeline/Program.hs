@@ -46,8 +46,8 @@ runPipelineProgram = do
   logPipeline Info "Starting pipeline with clone"
 
   -- Step 1: Clone repository
-  _cloneResults <- clone
-  logPipeline Info "Repository cloned"
+  cloneResults <- clone
+  logPipeline Info $ "Repository cloned to " <> toText cloneResults.repoDir
 
-  -- Step 2-5: Run local pipeline
-  runPipelineProgramLocal
+  -- Step 2-5: Run local pipeline in the cloned directory
+  runLocalPipeline cloneResults

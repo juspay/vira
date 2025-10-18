@@ -39,6 +39,7 @@ import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Environment qualified as Env
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Pipeline.Effect
+import Vira.CI.Pipeline.Program (runPipelineProgramLocal)
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), Repo (..))
 import Vira.Supervisor.Process (runProcesses)
@@ -80,7 +81,7 @@ runPipelineLocal env workDir logger = interpret $ \_ -> \case
   Signoff pipeline -> signoffImpl env workDir pipeline logger
   LogPipeline severity msg -> logger severity msg
 
--- | Run the Pipeline effect (adds Clone to PipelineLocal)
+-- | Run the Pipeline effect (adds Clone + RunLocalPipeline to PipelineLocal)
 runPipeline ::
   ( Concurrent :> es
   , Process :> es
@@ -95,16 +96,19 @@ runPipeline ::
   Eff (Pipeline : PipelineLocal : es) a ->
   Eff es a
 runPipeline env logger program =
-  -- First install PipelineLocal handler
-  -- For web: workDir = workspace/project (after clone)
-  let workDir = Env.projectDir env.viraEnv
-   in runPipelineLocal env.localEnv workDir logger $ do
-        -- Then add Pipeline operations on top
-        interpret
-          ( \_ -> \case
-              Clone -> cloneImpl env logger
-          )
-          program
+  -- First install PipelineLocal handler with dummy workDir
+  -- (will be overridden by RunLocalPipeline)
+  runPipelineLocal env.localEnv (Env.projectDir env.viraEnv) logger $ do
+    -- Then add Pipeline operations on top
+    interpret
+      ( \_ -> \case
+          Clone -> cloneImpl env logger
+          RunLocalPipeline cloneResults -> do
+            let clonedDir = env.viraEnv.workspacePath </> cloneResults.repoDir
+            -- Run local pipeline program in the cloned directory
+            runPipelineLocal env.localEnv clonedDir logger runPipelineProgramLocal
+      )
+      program
 
 -- | Implementation: Clone repository
 cloneImpl ::

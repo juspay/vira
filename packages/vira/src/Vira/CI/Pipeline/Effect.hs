@@ -51,6 +51,8 @@ makeEffect ''PipelineLocal
 data Pipeline :: Effect where
   -- | Clone repository and return cloned directory
   Clone :: Pipeline m CloneResults
+  -- | Run local pipeline in the cloned directory
+  RunLocalPipeline :: CloneResults -> Pipeline m ()
 
 -- Generate boilerplate for the effect
 makeEffect ''Pipeline
