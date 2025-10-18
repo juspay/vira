@@ -26,7 +26,7 @@ import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
 import Vira.CI.Pipeline.Effect (PipelineLocalEnv (..), PipelineRemoteEnv (..))
 import Vira.CI.Pipeline.Handler (defaultPipeline)
 import Vira.CI.Pipeline.Handler qualified as Handler
-import Vira.CI.Pipeline.Program (runPipelineProgramLocal, runPipelineRemoteProgram)
+import Vira.CI.Pipeline.Program qualified as Program
 import Vira.Tool.Core (getAllTools)
 
 -- | Run web pipeline for the given `ViraEnvironment`
@@ -63,7 +63,7 @@ runWebPipeline env logger = do
     Handler.runPipelineRemote
       pipelineRemoteEnv
       logger
-      runPipelineRemoteProgram
+      Program.runPipelineRemoteProgram
 
 -- | CLI wrapper for running a pipeline in the current directory
 runCLIPipeline ::
@@ -94,7 +94,7 @@ runCLIPipeline minSeverity repoDir = do
 
   -- Run local pipeline program directly (workDir = repoDir for CLI)
   Handler.runPipelineLog logger $
-    Handler.runPipelineLocal localEnv repoDir logger runPipelineProgramLocal
+    Handler.runPipelineLocal localEnv repoDir logger Program.runPipelineProgramLocal
   where
     logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
     logger severity msg = do

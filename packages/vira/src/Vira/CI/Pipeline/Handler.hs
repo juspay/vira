@@ -40,7 +40,7 @@ import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Environment qualified as Env
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Pipeline.Effect
-import Vira.CI.Pipeline.Program (runPipelineProgramLocal)
+import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), Repo (..))
 import Vira.Supervisor.Process (runProcesses)
@@ -113,7 +113,7 @@ runPipelineRemote env logger = interpret $ \_ -> \case
   Clone -> runPipelineLog logger $ cloneImpl env logger
   RunLocalPipeline cloneResults ->
     let clonedDir = env.viraEnv.workspacePath </> cloneResults.repoDir
-     in runPipelineLog logger $ runPipelineLocal env.localEnv clonedDir logger runPipelineProgramLocal
+     in runPipelineLog logger $ runPipelineLocal env.localEnv clonedDir logger Program.runPipelineProgramLocal
 
 -- | Implementation: Clone repository
 cloneImpl ::
