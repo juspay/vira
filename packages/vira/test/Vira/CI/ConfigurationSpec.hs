@@ -12,6 +12,7 @@ import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline.Implementation (defaultPipeline)
 import Vira.CI.Pipeline.Type (BuildStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..))
+import Prelude hiding (id)
 
 -- Test data
 testBranchStaging :: Branch
