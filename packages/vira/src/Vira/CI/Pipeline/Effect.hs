@@ -5,9 +5,13 @@
 module Vira.CI.Pipeline.Effect where
 
 import Colog (Severity)
+import Colog.Message (RichMessage)
 import Effectful
+import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext)
 import Effectful.Error.Static (Error)
 import Effectful.Git.Types (CommitID)
+import Effectful.Reader.Static qualified as ER
 import Effectful.TH
 import Vira.CI.Context (ViraContext)
 import Vira.CI.Environment (ViraEnvironment)
@@ -31,12 +35,19 @@ newtype BuildResults = BuildResults
   }
   deriving stock (Show, Eq, Generic)
 
+-- | Wrapper for the logger function (to avoid impredicative types)
+newtype PipelineLogger = PipelineLogger
+  { unPipelineLogger :: forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()
+  }
+
 {- | PipelineLog Effect - logging for both CLI and web
 Separate from PipelineLocal so it can be used by both Pipeline and PipelineLocal programs
 -}
 data PipelineLog :: Effect where
   -- | Log a message
   LogPipeline :: Severity -> Text -> PipelineLog m ()
+  -- | Get the logger function (for passing to runProcesses)
+  GetPipelineLogger :: PipelineLog m PipelineLogger
 
 -- Generate boilerplate for the effect
 makeEffect ''PipelineLog
