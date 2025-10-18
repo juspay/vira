@@ -6,6 +6,7 @@ module Vira.CI.Pipeline.Effect where
 
 import Colog (Severity)
 import Effectful
+import Effectful.Git.Types (CommitID)
 import Effectful.TH
 import Vira.CI.Context (ViraContext)
 import Vira.CI.Environment (ViraEnvironment)
@@ -16,24 +17,15 @@ import Vira.Tool.Type.Tools (Tools)
 data CloneResults = CloneResults
   { repoDir :: FilePath
   -- ^ Path to cloned repository
-  , commitId :: Text
+  , commitId :: CommitID
   -- ^ The commit that was checked out
-  }
-  deriving stock (Show, Eq, Generic)
-
--- | Results from a single flake build
-data BuildResult = BuildResult
-  { flakePath :: FilePath
-  -- ^ Original flake path (relative to repo root)
-  , resultSymlink :: FilePath
-  -- ^ Relative path to result symlink (relative to repo root)
   }
   deriving stock (Show, Eq, Generic)
 
 -- | Results from build step that inform subsequent steps
 newtype BuildResults = BuildResults
-  { results :: NonEmpty BuildResult
-  -- ^ Build results for each flake
+  { results :: NonEmpty FilePath
+  -- ^ Relative paths to result symlinks (relative to repo root)
   }
   deriving stock (Show, Eq, Generic)
 

@@ -137,7 +137,7 @@ cloneImpl env logger = do
       pure $
         CloneResults
           { repoDir = Env.projectDirName
-          , commitId = toText env.viraEnv.branch.headCommit.id
+          , commitId = env.viraEnv.branch.headCommit.id
           }
     Right exitCode@(ExitFailure code) -> do
       logger Error $ "Clone failed with exit code " <> show code
@@ -222,7 +222,7 @@ buildFlake ::
   FilePath ->
   Flake ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
-  Eff es BuildResult
+  Eff es FilePath
 buildFlake env workDir (Flake flakePath overrideInputs) logger = do
   let buildProc = proc nix $ devourFlake args
       args =
@@ -241,15 +241,10 @@ buildFlake env workDir (Flake flakePath overrideInputs) logger = do
   case result of
     Left err -> throwError $ PipelineTerminated err
     Right ExitSuccess -> do
-      -- Store relative path (relative to repo root)
+      -- Return relative path to result symlink (relative to repo root)
       let resultPath = flakePath </> "result"
       logger Info $ "Build succeeded, result at " <> toText resultPath
-
-      pure $
-        BuildResult
-          { flakePath = flakePath
-          , resultSymlink = resultPath
-          }
+      pure resultPath
     Right exitCode@(ExitFailure code) -> do
       logger Error $ "Build failed for " <> toText flakePath <> " with exit code " <> show code
       throwError $ PipelineProcessFailed exitCode
@@ -275,8 +270,7 @@ cacheImpl env workDir pipeline buildResults logger = do
     Nothing -> do
       logger Info "Cache disabled, skipping"
     Just urlText -> do
-      let paths = fmap (.resultSymlink) buildResults.results
-      logger Info $ "Pushing " <> show (length paths) <> " results to cache"
+      logger Info $ "Pushing " <> show (length buildResults.results) <> " results to cache"
 
       -- Parse cache URL
       (serverEndpoint, cacheName) <- case Attic.Url.parseCacheUrl urlText of
@@ -296,9 +290,8 @@ cacheImpl env workDir pipeline buildResults logger = do
         Right result -> pure result
 
       -- Push all results to cache - paths are relative to workDir
-      let relativePaths = fmap (.resultSymlink) buildResults.results
-      logger Info $ "Pushing " <> show (length relativePaths) <> " paths: " <> show (toList relativePaths)
-      let pushProc = Attic.atticPushProcess server cacheName relativePaths
+      logger Info $ "Pushing " <> show (length buildResults.results) <> " paths: " <> show (toList buildResults.results)
+      let pushProc = Attic.atticPushProcess server cacheName buildResults.results
       runProcesses workDir env.outputLog logger (one pushProc) >>= \case
         Left err -> throwError $ PipelineTerminated err
         Right ExitSuccess -> logger Info "Cache push succeeded"
