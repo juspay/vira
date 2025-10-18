@@ -65,14 +65,14 @@ runPipelineLocal ::
   FilePath ->
   Eff (PipelineLocal : ER.Reader PipelineLocalEnv : es) a ->
   Eff es a
-runPipelineLocal env workDir program =
+runPipelineLocal env repoDir program =
   ER.runReader env $
     interpret
       ( \_ -> \case
-          LoadConfig -> loadConfigImpl workDir
-          Build pipeline -> buildImpl workDir pipeline
-          Cache pipeline buildResults -> cacheImpl workDir pipeline buildResults
-          Signoff pipeline -> signoffImpl workDir pipeline
+          LoadConfig -> loadConfigImpl repoDir
+          Build pipeline -> buildImpl repoDir pipeline
+          Cache pipeline buildResults -> cacheImpl repoDir pipeline buildResults
+          Signoff pipeline -> signoffImpl repoDir pipeline
       )
       program
 
@@ -115,9 +115,9 @@ runProcesses' ::
   Maybe FilePath ->
   NonEmpty CreateProcess ->
   Eff es (Either Terminated ExitCode)
-runProcesses' workDir outputLog procs = do
+runProcesses' repoDir outputLog procs = do
   env <- ER.ask @PipelineLocalEnv
-  runProcesses workDir outputLog (unPipelineLogger env.logger) procs
+  runProcesses repoDir outputLog (unPipelineLogger env.logger) procs
 
 -- | Implementation: Clone repository
 cloneImpl ::
@@ -168,9 +168,9 @@ loadConfigImpl ::
   ) =>
   FilePath ->
   Eff es ViraPipeline
-loadConfigImpl workDir = do
+loadConfigImpl repoDir = do
   env <- ER.ask @PipelineLocalEnv
-  let viraConfigPath = workDir </> "vira.hs"
+  let viraConfigPath = repoDir </> "vira.hs"
   doesFileExist viraConfigPath >>= \case
     True -> do
       logPipeline Info "Found vira.hs configuration file, applying customizations..."
@@ -210,12 +210,12 @@ buildImpl ::
   FilePath ->
   ViraPipeline ->
   Eff es BuildResults
-buildImpl workDir pipeline = do
+buildImpl repoDir pipeline = do
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
 
   -- Build each flake sequentially (to match current behavior)
   results <- forM (toList pipeline.build.flakes) $ \flake -> do
-    buildFlake workDir flake
+    buildFlake repoDir flake
 
   case nonEmpty results of
     Nothing -> throwError $ PipelineConfigurationError $ MalformedConfig "No flakes to build"
@@ -235,7 +235,7 @@ buildFlake ::
   FilePath ->
   Flake ->
   Eff es FilePath
-buildFlake workDir (Flake flakePath overrideInputs) = do
+buildFlake repoDir (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineLocalEnv
   let buildProc = proc nix $ devourFlake args
       args =
@@ -249,7 +249,7 @@ buildFlake workDir (Flake flakePath overrideInputs) = do
   logPipeline Info $ "Building flake at " <> toText flakePath
 
   -- Run build process from working directory
-  result <- runProcesses' workDir env.outputLog (one buildProc)
+  result <- runProcesses' repoDir env.outputLog (one buildProc)
 
   case result of
     Left err -> throwError $ PipelineTerminated err
@@ -277,7 +277,7 @@ cacheImpl ::
   ViraPipeline ->
   BuildResults ->
   Eff es ()
-cacheImpl workDir pipeline buildResults = do
+cacheImpl repoDir pipeline buildResults = do
   env <- ER.ask @PipelineLocalEnv
   case pipeline.cache.url of
     Nothing -> do
@@ -302,10 +302,10 @@ cacheImpl workDir pipeline buildResults = do
         Left err -> throwError $ atticErrorToPipelineError urlText serverEndpoint err
         Right result -> pure result
 
-      -- Push all results to cache - paths are relative to workDir
+      -- Push all results to cache - paths are relative to repoDir
       logPipeline Info $ "Pushing " <> show (length buildResults.results) <> " paths: " <> show (toList buildResults.results)
       let pushProc = Attic.atticPushProcess server cacheName buildResults.results
-      runProcesses' workDir env.outputLog (one pushProc) >>= \case
+      runProcesses' repoDir env.outputLog (one pushProc) >>= \case
         Left err -> throwError $ PipelineTerminated err
         Right ExitSuccess -> logPipeline Info "Cache push succeeded"
         Right exitCode@(ExitFailure code) -> do
@@ -341,14 +341,14 @@ signoffImpl ::
   FilePath ->
   ViraPipeline ->
   Eff es ()
-signoffImpl workDir pipeline = do
+signoffImpl repoDir pipeline = do
   env <- ER.ask @PipelineLocalEnv
   if pipeline.signoff.enable
     then do
       logPipeline Info "Creating commit signoff"
       let signoffProc = Signoff.create Signoff.Force statusTitle
           statusTitle = "vira/" <> toString nixSystem <> "/ci"
-      runProcesses' workDir env.outputLog (one signoffProc) >>= \case
+      runProcesses' repoDir env.outputLog (one signoffProc) >>= \case
         Left err -> throwError $ PipelineTerminated err
         Right ExitSuccess -> logPipeline Info "Signoff succeeded"
         Right exitCode@(ExitFailure code) -> do
