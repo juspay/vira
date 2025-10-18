@@ -79,7 +79,6 @@ dependencies:
   - optics-core
   - optics-th
   - optparse-applicative
-  - process
   - profunctors
   - QuickCheck
   - record-hasfield
@@ -93,6 +92,7 @@ dependencies:
   - streaming
   - tail
   - text
+  - typed-process
   - time
   - toml-reader
   - vira-ci-types

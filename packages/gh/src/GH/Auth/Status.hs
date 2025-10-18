@@ -18,7 +18,7 @@ import Data.Char (toLower)
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import GH.Core (ghBin)
-import System.Process (readProcess)
+import System.Process.Typed qualified as P
 
 -- | GitHub CLI authentication status
 data AuthStatus
@@ -70,9 +70,9 @@ data HostAuth = HostAuth
 -- | Check GitHub CLI authentication status
 checkAuthStatus :: IO AuthStatus
 checkAuthStatus = do
-  output <- readProcess ghBin ["auth", "status", "--json", "hosts"] ""
+  output <- P.readProcessStdout_ $ P.proc ghBin ["auth", "status", "--json", "hosts"]
 
-  case Aeson.decode (encodeUtf8 output) of
+  case Aeson.decode output of
     Nothing -> pure NotAuthenticated
     Just (AuthResponse hostsMap) -> do
       case Map.lookup "github.com" hostsMap of
