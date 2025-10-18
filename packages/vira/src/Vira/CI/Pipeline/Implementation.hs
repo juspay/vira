@@ -39,9 +39,9 @@ import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Pipeline.Effect
+import Vira.CI.Pipeline.Process (runProcesses)
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), Repo (..))
-import Vira.Supervisor.Process (runProcesses)
 import Vira.Tool.Core (ToolError (..))
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type.ToolData (status)
