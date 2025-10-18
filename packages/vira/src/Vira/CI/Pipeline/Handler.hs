@@ -91,11 +91,10 @@ cloneImpl env logger = do
   case result of
     Left err -> throwError $ PipelineTerminated err
     Right ExitSuccess -> do
-      let repoDir = env.workspaceDir </> Env.projectDirName
-      logger Info $ "Repository cloned to " <> toText repoDir
+      logger Info $ "Repository cloned to " <> toText Env.projectDirName
       pure $
         CloneResults
-          { repoDir = repoDir
+          { repoDir = Env.projectDirName
           , commitId = toText env.viraEnv.branch.headCommit.id
           }
     Right (ExitFailure _code) -> throwError $ PipelineTerminated Terminated
@@ -113,7 +112,8 @@ loadConfigImpl ::
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es ViraPipeline
 loadConfigImpl env repoDir logger = do
-  let viraConfigPath = repoDir </> "vira.hs"
+  -- repoDir is relative to workspace, make it absolute for file system operations
+  let viraConfigPath = env.workspaceDir </> repoDir </> "vira.hs"
   doesFileExist viraConfigPath >>= \case
     True -> do
       logger Info "Found vira.hs configuration file, applying customizations..."
@@ -192,28 +192,26 @@ buildFlake ::
   Eff es BuildResult
 buildFlake env repoDir flake logger = do
   let Flake flakePath _overrideInputs = flake
-      flakeAbsPath = repoDir </> flakePath
       buildProc = createBuildProcess flake
+      -- repoDir is relative to workspace, make it absolute for runProcesses
+      repoDirAbs = env.workspaceDir </> repoDir
 
-  logger Info $ "Building flake at " <> toText flakeAbsPath
+  logger Info $ "Building flake at " <> toText flakePath
 
-  -- Run build process (runProcesses sets working directory to repoDir)
-  result <- runProcesses repoDir env.outputLog logger (one buildProc)
+  -- Run build process from repo directory (build needs to run in repo context)
+  result <- runProcesses repoDirAbs env.outputLog logger (one buildProc)
 
   case result of
     Left err -> throwError $ PipelineTerminated err
     Right ExitSuccess -> do
-      -- For now, we'll use the result symlink path
-      -- TODO: Capture stdout from devour-flake to get actual store paths
-      let resultPath = flakeAbsPath </> "result"
-          storePaths = [] -- TODO: Parse from stdout when available
+      -- Store relative path (relative to repo root)
+      let resultPath = flakePath </> "result"
       logger Info $ "Build succeeded, result at " <> toText resultPath
 
       pure $
         BuildResult
           { flakePath = flakePath
           , resultSymlink = resultPath
-          , storePaths = storePaths
           }
     Right (ExitFailure _code) ->
       throwError $ PipelineTerminated Terminated
@@ -260,8 +258,12 @@ cacheImpl env pipeline buildResults logger = do
         Right result -> pure result
 
       -- Push all results to cache in one command
-      logger Info $ "Pushing " <> show (length paths) <> " paths: " <> show (toList paths)
-      let pushProc = Attic.atticPushProcess server cacheName paths
+      -- Paths are relative to repoDir, and runProcesses runs from workspaceDir,
+      -- so we need to prepend projectDirName
+      let relativePaths = resultPaths buildResults
+          pathsFromWorkspace = fmap (Env.projectDirName </>) relativePaths
+      logger Info $ "Pushing " <> show (length relativePaths) <> " paths: " <> show (toList relativePaths)
+      let pushProc = Attic.atticPushProcess server cacheName pathsFromWorkspace
       runProcesses env.workspaceDir env.outputLog logger (one pushProc) >>= \case
         Left err -> throwError $ PipelineTerminated err
         Right exitCode -> pure exitCode

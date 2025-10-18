@@ -25,11 +25,9 @@ data CloneResults = CloneResults
 -- | Results from a single flake build
 data BuildResult = BuildResult
   { flakePath :: FilePath
-  -- ^ Original flake path (relative)
+  -- ^ Original flake path (relative to repo root)
   , resultSymlink :: FilePath
-  -- ^ Absolute path to result symlink
-  , storePaths :: [FilePath]
-  -- ^ Actual store paths from nix
+  -- ^ Relative path to result symlink (relative to repo root)
   }
   deriving stock (Show, Eq, Generic)
 
