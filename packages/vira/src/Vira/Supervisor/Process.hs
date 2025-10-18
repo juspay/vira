@@ -12,10 +12,9 @@ import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem)
 import Effectful.FileSystem.IO (hClose, openFile)
-import Effectful.Process (CreateProcess (create_group, cwd), Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
+import Effectful.Process (CreateProcess (create_group, cwd, std_err, std_out), Process, StdStream (UseHandle), createProcess, getPid, interruptProcessGroupOf, waitForProcess)
 import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (ExitFailure, ExitSuccess))
-import Vira.Lib.Process qualified as Process
 import Vira.Supervisor.Type (Terminated (Terminated))
 
 {- | Run a sequence of processes sequentially in the given working directory.
@@ -66,7 +65,7 @@ runProcesses workDir mOutputFile taskLogger procs = do
           Nothing -> runProcWithSettings process id
           Just outputFile ->
             withFileHandle outputFile AppendMode $ \outputHandle ->
-              runProcWithSettings process (Process.redirectOutputTo outputHandle)
+              runProcWithSettings process (redirectOutputTo outputHandle)
 
     runProcWithSettings :: CreateProcess -> (CreateProcess -> CreateProcess) -> Eff es (Either Terminated ExitCode)
     runProcWithSettings process extraSettings = do
@@ -95,6 +94,14 @@ runProcesses workDir mOutputFile taskLogger procs = do
           Right (ExitFailure code) -> taskLogger Error $ "Task failed with exit code " <> show code
           Left err -> taskLogger Error $ toText $ displayException err
         pure result
+
+-- | With stdout and stderr redirected to given handle
+redirectOutputTo :: Handle -> CreateProcess -> CreateProcess
+redirectOutputTo h p =
+  p
+    { std_out = UseHandle h
+    , std_err = UseHandle h
+    }
 
 -- | Helper function that provides withFile-like behavior for Effectful
 withFileHandle :: (FileSystem :> es, IOE :> es) => FilePath -> IOMode -> (Handle -> Eff es a) -> Eff es a

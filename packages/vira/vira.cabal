@@ -50,7 +50,6 @@ library
       Vira.CI.Pipeline.Program
       Vira.CI.Processes
       Vira.CI.Workspace
-      Vira.Lib.Process
       Vira.Lib.STM
       Vira.Lib.TimeExtra
       Vira.Refresh.Core
