@@ -37,10 +37,6 @@ newtype BuildResults = BuildResults
   }
   deriving stock (Show, Eq, Generic)
 
--- | Get all result paths (for cache pushing)
-resultPaths :: BuildResults -> NonEmpty FilePath
-resultPaths = fmap (.resultSymlink) . (.results)
-
 {- | PipelineLocal Effect - core pipeline operations without clone
 Used for CLI execution in current directory
 -}

@@ -28,7 +28,7 @@ runPipelineProgramLocal repoDir = do
 
   -- Step 2: Build using repository path
   buildResults <- build repoDir pipeline
-  logPipeline Info $ "Built " <> show (length $ resultPaths buildResults) <> " flakes"
+  logPipeline Info $ "Built " <> show (length buildResults.results) <> " flakes"
 
   -- Step 3: Cache using build results
   cache pipeline buildResults

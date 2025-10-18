@@ -274,7 +274,7 @@ cacheImpl env pipeline buildResults logger = do
     Nothing -> do
       logger Info "Cache disabled, skipping"
     Just urlText -> do
-      let paths = resultPaths buildResults
+      let paths = fmap (.resultSymlink) buildResults.results
       logger Info $ "Pushing " <> show (length paths) <> " results to cache"
 
       -- Parse cache URL
@@ -297,7 +297,7 @@ cacheImpl env pipeline buildResults logger = do
       -- Push all results to cache in one command
       -- Paths are relative to repoDir, and runProcesses runs from baseDir,
       -- so we need to prepend projectDirName
-      let relativePaths = resultPaths buildResults
+      let relativePaths = fmap (.resultSymlink) buildResults.results
           pathsFromWorkspace = fmap (Env.projectDirName </>) relativePaths
       logger Info $ "Pushing " <> show (length relativePaths) <> " paths: " <> show (toList relativePaths)
       let pushProc = Attic.atticPushProcess server cacheName pathsFromWorkspace
