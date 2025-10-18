@@ -12,6 +12,7 @@ import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
+import DevourFlake (DevourFlakeArgs (..), devourFlake)
 import Effectful
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext)
@@ -26,13 +27,14 @@ import Effectful.Reader.Static qualified as ER
 import GH.Signoff qualified as Signoff
 import System.Exit (ExitCode (..))
 import System.FilePath ((</>))
+import System.Nix.Core (nix)
 import System.Nix.System (nixSystem)
+import System.Process (proc)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Environment qualified as Env
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Pipeline.Effect
-import Vira.CI.Pipeline.ProcessHelpers (createBuildProcess)
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), Repo (..))
 import Vira.Supervisor.Process (runProcesses)
@@ -213,9 +215,15 @@ buildFlake ::
   Flake ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es BuildResult
-buildFlake env repoDir flake logger = do
-  let Flake flakePath _overrideInputs = flake
-      buildProc = createBuildProcess flake
+buildFlake env repoDir (Flake flakePath overrideInputs) logger = do
+  let buildProc = proc nix $ devourFlake args
+      args =
+        DevourFlakeArgs
+          { flakePath = flakePath
+          , systems = Nothing
+          , outLink = Just (flakePath </> "result")
+          , overrideInputs = overrideInputs
+          }
       -- repoDir is relative to baseDir, make it absolute for runProcesses
       repoDirAbs = env.baseDir </> repoDir
 

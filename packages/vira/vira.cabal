@@ -47,7 +47,6 @@ library
       Vira.CI.Pipeline
       Vira.CI.Pipeline.Effect
       Vira.CI.Pipeline.Handler
-      Vira.CI.Pipeline.ProcessHelpers
       Vira.CI.Pipeline.Program
       Vira.CI.Processes
       Vira.CI.Workspace
