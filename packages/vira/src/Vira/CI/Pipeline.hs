@@ -3,15 +3,16 @@
 -- | Public interface for running Vira CI pipelines
 module Vira.CI.Pipeline (
   -- * Running pipelines
-  runPipelineRemote,
-  runPipelineLocal,
+  runPipeline,
 
-  -- * Pipeline environment and error types
-  pipelineRemoteEnvFrom,
-  pipelineLocalEnvFrom,
+  -- * Pipeline environment constructors
+  pipelineEnvFromRemote,
+  pipelineEnvFromCLI,
+
+  -- * Error types
   PipelineError (..),
 ) where
 
 import Vira.CI.Error (PipelineError (..))
-import Vira.CI.Pipeline.Effect (pipelineLocalEnvFrom, pipelineRemoteEnvFrom)
-import Vira.CI.Pipeline.Implementation (runPipelineLocal, runPipelineRemote)
+import Vira.CI.Pipeline.Effect (pipelineEnvFromCLI, pipelineEnvFromRemote)
+import Vira.CI.Pipeline.Implementation (runPipeline)

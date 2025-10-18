@@ -177,7 +177,7 @@ triggerNewBuild minSeverity repoName branchName = do
       job.jobId
       minSeverity
       job.jobWorkingDir
-      (\logger -> Pipeline.runPipelineRemote (Pipeline.pipelineRemoteEnvFrom repo branch job.jobWorkingDir tools logger) Program.pipelineRemoteProgram)
+      (\logger -> Pipeline.runPipeline (Pipeline.pipelineEnvFromRemote branch job.jobWorkingDir tools logger) (Program.pipelineProgramWithClone repo branch job.jobWorkingDir))
       $ \result -> do
         endTime <- liftIO getCurrentTime
         let status = case result of

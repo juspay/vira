@@ -3,8 +3,7 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
 module Vira.CI.Pipeline.Implementation (
-  runPipelineRemote,
-  runPipelineLocal,
+  runPipeline,
 
   -- * Used in tests
   defaultPipeline,
@@ -49,8 +48,8 @@ import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type.ToolData (status)
 import Vira.Tool.Type.Tools (attic)
 
--- | Run the PipelineLocal effect (core operations, no clone)
-runPipelineLocal ::
+-- | Run the unified Pipeline effect
+runPipeline ::
   ( Concurrent :> es
   , Process :> es
   , Log (RichMessage IO) :> es
@@ -59,43 +58,18 @@ runPipelineLocal ::
   , ER.Reader LogContext :> es
   , Error PipelineError :> es
   ) =>
-  PipelineLocalEnv ->
-  FilePath ->
-  Eff (PipelineLocal : ER.Reader PipelineLocalEnv : es) a ->
+  PipelineEnv ->
+  Eff (Pipeline : ER.Reader PipelineEnv : es) a ->
   Eff es a
-runPipelineLocal env repoDir program =
+runPipeline env program =
   ER.runReader env $
     interpret
       ( \_ -> \case
-          LoadConfig -> loadConfigImpl repoDir
-          Build pipeline -> buildImpl repoDir pipeline
-          Cache pipeline buildResults -> cacheImpl repoDir pipeline buildResults
-          Signoff pipeline -> signoffImpl repoDir pipeline
-      )
-      program
-
--- | Run the PipelineRemote effect (handles Clone + RunLocalPipeline)
-runPipelineRemote ::
-  forall es a.
-  ( Concurrent :> es
-  , Process :> es
-  , Log (RichMessage IO) :> es
-  , IOE :> es
-  , FileSystem :> es
-  , ER.Reader LogContext :> es
-  , Error PipelineError :> es
-  ) =>
-  PipelineRemoteEnv ->
-  Eff (PipelineRemote : ER.Reader PipelineLocalEnv : es) a ->
-  Eff es a
-runPipelineRemote env program =
-  ER.runReader env.localEnv $
-    interpret
-      ( \_ -> \case
-          Clone -> ER.runReader env cloneImpl
-          RunLocalPipeline cloneResults localProgram ->
-            let clonedDir = env.workspacePath </> cloneResults.repoDir
-             in raise $ runPipelineLocal env.localEnv clonedDir localProgram
+          Clone repo branch workspacePath -> cloneImpl repo branch workspacePath
+          LoadConfig repoDir -> loadConfigImpl repoDir
+          Build repoDir pipeline -> buildImpl repoDir pipeline
+          Cache repoDir pipeline buildResults -> cacheImpl repoDir pipeline buildResults
+          Signoff repoDir pipeline -> signoffImpl repoDir pipeline
       )
       program
 
@@ -107,14 +81,14 @@ runProcesses' ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
-  , ER.Reader PipelineLocalEnv :> es
+  , ER.Reader PipelineEnv :> es
   ) =>
   FilePath ->
   Maybe FilePath ->
   NonEmpty CreateProcess ->
   Eff es (Either Terminated ExitCode)
 runProcesses' repoDir outputLog procs = do
-  env <- ER.ask @PipelineLocalEnv
+  env <- ER.ask @PipelineEnv
   runProcesses repoDir outputLog (unPipelineLogger env.logger) procs
 
 -- | Implementation: Clone repository
@@ -125,33 +99,32 @@ cloneImpl ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
-  , ER.Reader PipelineRemoteEnv :> es
-  , ER.Reader PipelineLocalEnv :> es
+  , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
-  Eff es CloneResults
-cloneImpl = do
-  env <- ER.ask @PipelineRemoteEnv
+  Repo ->
+  Branch ->
+  FilePath ->
+  Eff es FilePath
+cloneImpl repo branch workspacePath = do
+  env <- ER.ask @PipelineEnv
   let projectDirName = "project"
       cloneProc =
         Git.cloneAtCommit
-          env.repo.cloneUrl
-          env.branch.headCommit.id
+          repo.cloneUrl
+          branch.headCommit.id
           projectDirName
 
-  logPipeline Info $ "Cloning repository at commit " <> toText env.branch.headCommit.id
+  logPipeline Info $ "Cloning repository at commit " <> toText branch.headCommit.id
 
-  result <- runProcesses' env.workspacePath env.localEnv.outputLog (one cloneProc)
+  result <- runProcesses' workspacePath env.outputLog (one cloneProc)
 
   case result of
     Left err -> throwError $ PipelineTerminated err
     Right ExitSuccess -> do
-      logPipeline Info $ "Repository cloned to " <> toText projectDirName
-      pure $
-        CloneResults
-          { repoDir = projectDirName
-          , commitId = env.branch.headCommit.id
-          }
+      let clonedDir = workspacePath </> projectDirName
+      logPipeline Info $ "Repository cloned to " <> toText clonedDir
+      pure clonedDir
     Right exitCode@(ExitFailure code) -> do
       logPipeline Error $ "Clone failed with exit code " <> show code
       throwError $ PipelineProcessFailed exitCode
@@ -162,13 +135,13 @@ loadConfigImpl ::
   , IOE :> es
   , Log (RichMessage IO) :> es
   , ER.Reader LogContext :> es
-  , ER.Reader PipelineLocalEnv :> es
+  , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
   FilePath ->
   Eff es ViraPipeline
 loadConfigImpl repoDir = do
-  env <- ER.ask @PipelineLocalEnv
+  env <- ER.ask @PipelineEnv
   let viraConfigPath = repoDir </> "vira.hs"
   doesFileExist viraConfigPath >>= \case
     True -> do
@@ -203,12 +176,12 @@ buildImpl ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
-  , ER.Reader PipelineLocalEnv :> es
+  , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
   FilePath ->
   ViraPipeline ->
-  Eff es BuildResults
+  Eff es (NonEmpty FilePath)
 buildImpl repoDir pipeline = do
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
 
@@ -218,7 +191,7 @@ buildImpl repoDir pipeline = do
 
   case nonEmpty results of
     Nothing -> throwError $ PipelineConfigurationError $ MalformedConfig "No flakes to build"
-    Just ne -> pure $ BuildResults {results = ne}
+    Just ne -> pure ne
 
 -- | Build a single flake
 buildFlake ::
@@ -228,14 +201,14 @@ buildFlake ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
-  , ER.Reader PipelineLocalEnv :> es
+  , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
   FilePath ->
   Flake ->
   Eff es FilePath
 buildFlake repoDir (Flake flakePath overrideInputs) = do
-  env <- ER.ask @PipelineLocalEnv
+  env <- ER.ask @PipelineEnv
   let buildProc = proc nix $ devourFlake args
       args =
         DevourFlakeArgs
@@ -269,20 +242,20 @@ cacheImpl ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
-  , ER.Reader PipelineLocalEnv :> es
+  , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
   FilePath ->
   ViraPipeline ->
-  BuildResults ->
+  NonEmpty FilePath ->
   Eff es ()
 cacheImpl repoDir pipeline buildResults = do
-  env <- ER.ask @PipelineLocalEnv
+  env <- ER.ask @PipelineEnv
   case pipeline.cache.url of
     Nothing -> do
       logPipeline Info "Cache disabled, skipping"
     Just urlText -> do
-      logPipeline Info $ "Pushing " <> show (length buildResults.results) <> " results to cache"
+      logPipeline Info $ "Pushing " <> show (length buildResults) <> " results to cache"
 
       -- Parse cache URL
       (serverEndpoint, cacheName) <- case Attic.Url.parseCacheUrl urlText of
@@ -302,8 +275,8 @@ cacheImpl repoDir pipeline buildResults = do
         Right result -> pure result
 
       -- Push all results to cache - paths are relative to repoDir
-      logPipeline Info $ "Pushing " <> show (length buildResults.results) <> " paths: " <> show (toList buildResults.results)
-      let pushProc = Attic.atticPushProcess server cacheName buildResults.results
+      logPipeline Info $ "Pushing " <> show (length buildResults) <> " paths: " <> show (toList buildResults)
+      let pushProc = Attic.atticPushProcess server cacheName buildResults
       runProcesses' repoDir env.outputLog (one pushProc) >>= \case
         Left err -> throwError $ PipelineTerminated err
         Right ExitSuccess -> logPipeline Info "Cache push succeeded"
@@ -334,14 +307,14 @@ signoffImpl ::
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
-  , ER.Reader PipelineLocalEnv :> es
+  , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
   FilePath ->
   ViraPipeline ->
   Eff es ()
 signoffImpl repoDir pipeline = do
-  env <- ER.ask @PipelineLocalEnv
+  env <- ER.ask @PipelineEnv
   if pipeline.signoff.enable
     then do
       logPipeline Info "Creating commit signoff"

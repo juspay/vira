@@ -123,7 +123,7 @@ runVira = do
           GitStatusPorcelain {branch, dirty} <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
           let ctx = ViraContext branch dirty
           tools <- Tool.getAllTools
-          Pipeline.runPipelineLocal (Pipeline.pipelineLocalEnvFrom gs.logLevel tools ctx) repoDir Program.pipelineLocalProgram
+          Pipeline.runPipeline (Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx) (Program.pipelineProgram repoDir)
             $> ExitSuccess
 
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()
