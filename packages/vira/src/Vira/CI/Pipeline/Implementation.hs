@@ -42,7 +42,6 @@ import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), Repo (..))
 import Vira.Supervisor.Process (runProcesses)
-import Vira.Supervisor.Type (Terminated (..))
 import Vira.Tool.Core (ToolError (..))
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type.ToolData (status)
@@ -73,7 +72,7 @@ runPipeline env program =
       )
       program
 
--- | Helper: Run processes with logger from effect
+-- | Helper: Run a single process with logger from effect
 runProcesses' ::
   ( Concurrent :> es
   , Process :> es
@@ -82,14 +81,18 @@ runProcesses' ::
   , FileSystem :> es
   , ER.Reader LogContext :> es
   , ER.Reader PipelineEnv :> es
+  , Error PipelineError :> es
   ) =>
   FilePath ->
   Maybe FilePath ->
-  NonEmpty CreateProcess ->
-  Eff es (Either Terminated ExitCode)
-runProcesses' repoDir outputLog procs = do
+  CreateProcess ->
+  Eff es ()
+runProcesses' repoDir outputLog p = do
   env <- ER.ask @PipelineEnv
-  runProcesses repoDir outputLog (unPipelineLogger env.logger) procs
+  runProcesses repoDir outputLog (unPipelineLogger env.logger) (one p) >>= \case
+    Left err -> throwError $ PipelineTerminated err
+    Right ExitSuccess -> pass
+    Right exitCode -> throwError $ PipelineProcessFailed exitCode
 
 -- | Implementation: Clone repository
 cloneImpl ::
@@ -117,16 +120,11 @@ cloneImpl repo branch workspacePath = do
 
   logPipeline Info $ "Cloning repository at commit " <> toText branch.headCommit.id
 
-  result <- runProcesses' workspacePath env.outputLog (one cloneProc)
+  runProcesses' workspacePath env.outputLog cloneProc
 
-  case result of
-    Left err -> throwError $ PipelineTerminated err
-    Right ExitSuccess -> do
-      let clonedDir = workspacePath </> projectDirName
-      logPipeline Info $ "Repository cloned to " <> toText clonedDir
-      pure clonedDir
-    Right exitCode ->
-      throwError $ PipelineProcessFailed exitCode
+  let clonedDir = workspacePath </> projectDirName
+  logPipeline Info $ "Repository cloned to " <> toText clonedDir
+  pure clonedDir
 
 -- | Implementation: Load vira.hs configuration
 loadConfigImpl ::
@@ -216,17 +214,12 @@ buildFlake repoDir (Flake flakePath overrideInputs) = do
   logPipeline Info $ "Building flake at " <> toText flakePath
 
   -- Run build process from working directory
-  result <- runProcesses' repoDir env.outputLog (one buildProc)
+  runProcesses' repoDir env.outputLog buildProc
 
-  case result of
-    Left err -> throwError $ PipelineTerminated err
-    Right ExitSuccess -> do
-      -- Return relative path to result symlink (relative to repo root)
-      let resultPath = flakePath </> "result"
-      logPipeline Info $ "Build succeeded, result at " <> toText resultPath
-      pure resultPath
-    Right exitCode ->
-      throwError $ PipelineProcessFailed exitCode
+  -- Return relative path to result symlink (relative to repo root)
+  let resultPath = flakePath </> "result"
+  logPipeline Info $ "Build succeeded, result at " <> toText resultPath
+  pure resultPath
 
 -- | Implementation: Push to cache
 cacheImpl ::
@@ -271,11 +264,8 @@ cacheImpl repoDir pipeline buildResults = do
       -- Push all results to cache - paths are relative to repoDir
       logPipeline Info $ "Pushing " <> show (length buildResults) <> " paths: " <> show (toList buildResults)
       let pushProc = Attic.atticPushProcess server cacheName buildResults
-      runProcesses' repoDir env.outputLog (one pushProc) >>= \case
-        Left err -> throwError $ PipelineTerminated err
-        Right ExitSuccess -> logPipeline Info "Cache push succeeded"
-        Right exitCode ->
-          throwError $ PipelineProcessFailed exitCode
+      runProcesses' repoDir env.outputLog pushProc
+      logPipeline Info "Cache push succeeded"
   where
     parseErrorToPipelineError :: Text -> Attic.Url.ParseError -> PipelineError
     parseErrorToPipelineError url err =
@@ -313,11 +303,8 @@ signoffImpl repoDir pipeline = do
       logPipeline Info "Creating commit signoff"
       let signoffProc = Signoff.create Signoff.Force statusTitle
           statusTitle = "vira/" <> toString nixSystem <> "/ci"
-      runProcesses' repoDir env.outputLog (one signoffProc) >>= \case
-        Left err -> throwError $ PipelineTerminated err
-        Right ExitSuccess -> logPipeline Info "Signoff succeeded"
-        Right exitCode ->
-          throwError $ PipelineProcessFailed exitCode
+      runProcesses' repoDir env.outputLog signoffProc
+      logPipeline Info "Signoff succeeded"
     else
       logPipeline Warning "Signoff disabled, skipping"
 
