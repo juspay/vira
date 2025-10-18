@@ -43,27 +43,25 @@ runWebPipeline ::
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es ()
 runWebPipeline env logger = do
-  let outputLog = Just $ env.workspacePath </> "output.log"
-      ctx = Env.viraContext env
-      tools = env.tools
-      localEnv =
-        PipelineLocalEnv
-          { outputLog = outputLog
-          , tools = tools
-          , viraContext = ctx
-          }
-      pipelineRemoteEnv =
-        PipelineRemoteEnv
-          { localEnv = localEnv
-          , viraEnv = env
-          }
-
   -- Run the remote pipeline program with the handler (includes Clone effect)
   Handler.runPipelineLog logger $
     Handler.runPipelineRemote
-      pipelineRemoteEnv
+      pipelineEnv
       logger
       Program.runPipelineRemoteProgram
+  where
+    pipelineEnv =
+      PipelineRemoteEnv
+        { localEnv = localEnvFromViraEnv env
+        , viraEnv = env
+        }
+
+localEnvFromViraEnv :: ViraEnvironment -> PipelineLocalEnv
+localEnvFromViraEnv env =
+  let outputLog = Just $ env.workspacePath </> "output.log"
+      tools = env.tools
+      ctx = Env.viraContext env
+   in PipelineLocalEnv {outputLog = outputLog, tools = tools, viraContext = ctx}
 
 -- | CLI wrapper for running a pipeline in the current directory
 runCLIPipeline ::
