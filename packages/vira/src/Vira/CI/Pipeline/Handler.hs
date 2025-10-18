@@ -39,6 +39,7 @@ import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Environment qualified as Env
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Pipeline.Effect
+import Vira.CI.Pipeline.Program (runPipelineProgramLocal)
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), Repo (..))
 import Vira.Supervisor.Process (runProcesses)
@@ -80,7 +81,9 @@ runPipelineLocal env workDir logger = interpret $ \_ -> \case
   Signoff pipeline -> signoffImpl env workDir pipeline logger
   LogPipeline severity msg -> logger severity msg
 
--- | Run the Pipeline effect (adds Clone to PipelineLocal)
+{- | Run the full pipeline (clone + local operations)
+Not a generic effect handler - directly implements the full pipeline flow
+-}
 runPipeline ::
   ( Concurrent :> es
   , Process :> es
@@ -92,19 +95,17 @@ runPipeline ::
   ) =>
   PipelineEnv ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
-  Eff (Pipeline : PipelineLocal : es) a ->
-  Eff es a
-runPipeline env logger program =
-  -- First install PipelineLocal handler
-  -- For web: workDir = workspace/project (after clone)
-  let workDir = Env.projectDir env.viraEnv
-   in runPipelineLocal env.localEnv workDir logger $ do
-        -- Then add Pipeline operations on top
-        interpret
-          ( \_ -> \case
-              Clone -> cloneImpl env logger
-          )
-          program
+  Eff es ()
+runPipeline env logger = do
+  logger Info "Starting pipeline with clone"
+
+  -- Execute clone to get the directory
+  cloneResults <- cloneImpl env logger
+  logger Info $ "Repository cloned to " <> toText cloneResults.repoDir
+
+  -- Now run the local pipeline in the cloned directory
+  let clonedDir = env.viraEnv.workspacePath </> cloneResults.repoDir
+  runPipelineLocal env.localEnv clonedDir logger runPipelineProgramLocal
 
 -- | Implementation: Clone repository
 cloneImpl ::
@@ -120,11 +121,13 @@ cloneImpl ::
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es CloneResults
 cloneImpl env logger = do
-  let cloneProc =
+  -- Clone effect decides the directory name locally
+  let repoDir = "project"
+      cloneProc =
         Git.cloneAtCommit
           env.viraEnv.repo.cloneUrl
           env.viraEnv.branch.headCommit.id
-          Env.projectDirName
+          repoDir
 
   logger Info $ "Cloning repository at commit " <> toText env.viraEnv.branch.headCommit.id
 
@@ -133,10 +136,10 @@ cloneImpl env logger = do
   case result of
     Left err -> throwError $ PipelineTerminated err
     Right ExitSuccess -> do
-      logger Info $ "Repository cloned to " <> toText Env.projectDirName
+      logger Info $ "Repository cloned to " <> toText repoDir
       pure $
         CloneResults
-          { repoDir = Env.projectDirName
+          { repoDir = repoDir
           , commitId = env.viraEnv.branch.headCommit.id
           }
     Right exitCode@(ExitFailure code) -> do

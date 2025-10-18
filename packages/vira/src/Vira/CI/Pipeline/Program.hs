@@ -35,19 +35,3 @@ runPipelineProgramLocal = do
   -- Step 4: Signoff
   signoff pipeline
   logPipeline Info "Pipeline completed successfully"
-
-{- | Full pipeline program (for web/CI - with clone)
-Clones repository first, then runs local pipeline
--}
-runPipelineProgram ::
-  (Pipeline :> es, PipelineLocal :> es, Error PipelineError :> es) =>
-  Eff es ()
-runPipelineProgram = do
-  logPipeline Info "Starting pipeline with clone"
-
-  -- Step 1: Clone repository
-  _cloneResults <- clone
-  logPipeline Info "Repository cloned"
-
-  -- Step 2-5: Run local pipeline
-  runPipelineProgramLocal

@@ -26,7 +26,7 @@ import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
 import Vira.CI.Pipeline.Effect (PipelineEnv (..), PipelineLocalEnv (..))
 import Vira.CI.Pipeline.Handler (defaultPipeline)
 import Vira.CI.Pipeline.Handler qualified as Handler
-import Vira.CI.Pipeline.Program (runPipelineProgram, runPipelineProgramLocal)
+import Vira.CI.Pipeline.Program (runPipelineProgramLocal)
 import Vira.Tool.Core (getAllTools)
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
@@ -58,11 +58,10 @@ runPipeline env logger = do
           , viraEnv = env
           }
 
-  -- Run the pipeline program with the real handler (includes Clone effect)
+  -- Run the full pipeline (clone + local operations)
   Handler.runPipeline
     pipelineEnv
     logger
-    runPipelineProgram
 
 -- | CLI wrapper for running a pipeline in the current directory
 runPipelineCLI ::

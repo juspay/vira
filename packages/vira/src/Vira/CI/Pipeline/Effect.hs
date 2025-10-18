@@ -47,14 +47,6 @@ data PipelineLocal :: Effect where
 -- Generate boilerplate for the effect
 makeEffect ''PipelineLocal
 
--- | Pipeline Effect - extends PipelineLocal with clone for web/CI
-data Pipeline :: Effect where
-  -- | Clone repository and return cloned directory
-  Clone :: Pipeline m CloneResults
-
--- Generate boilerplate for the effect
-makeEffect ''Pipeline
-
 -- | Environment for local pipeline (CLI - no clone needed)
 data PipelineLocalEnv = PipelineLocalEnv
   { outputLog :: Maybe FilePath
