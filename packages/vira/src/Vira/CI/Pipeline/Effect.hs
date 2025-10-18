@@ -42,35 +42,50 @@ newtype BuildResults = BuildResults
 resultPaths :: BuildResults -> NonEmpty FilePath
 resultPaths = fmap (.resultSymlink) . (.results)
 
--- | Pipeline Effect - defines operations available during pipeline execution
+{- | PipelineLocal Effect - core pipeline operations without clone
+Used for CLI execution in current directory
+-}
+data PipelineLocal :: Effect where
+  -- | Load vira.hs configuration from repository
+  LoadConfig :: FilePath -> PipelineLocal m ViraPipeline
+  -- | Build flakes and return result paths
+  Build :: FilePath -> ViraPipeline -> PipelineLocal m BuildResults
+  -- | Push build results to cache
+  Cache :: ViraPipeline -> BuildResults -> PipelineLocal m ExitCode
+  -- | Create GitHub commit status
+  Signoff :: ViraPipeline -> PipelineLocal m ExitCode
+  -- | Log a message (convenience)
+  LogPipeline :: Severity -> Text -> PipelineLocal m ()
+
+-- Generate boilerplate for the effect
+makeEffect ''PipelineLocal
+
+-- | Pipeline Effect - extends PipelineLocal with clone for web/CI
 data Pipeline :: Effect where
   -- | Clone repository and return cloned directory
   Clone :: Pipeline m CloneResults
-  -- | Load vira.hs configuration from repository
-  LoadConfig :: FilePath -> Pipeline m ViraPipeline
-  -- | Build flakes and return result paths
-  Build :: FilePath -> ViraPipeline -> Pipeline m BuildResults
-  -- | Push build results to cache
-  Cache :: ViraPipeline -> BuildResults -> Pipeline m ExitCode
-  -- | Create GitHub commit status
-  Signoff :: ViraPipeline -> Pipeline m ExitCode
-  -- | Log a message (convenience)
-  LogPipeline :: Severity -> Text -> Pipeline m ()
 
 -- Generate boilerplate for the effect
 makeEffect ''Pipeline
 
--- | Context needed by the pipeline handler
-data PipelineEnv = PipelineEnv
-  { workspaceDir :: FilePath
-  -- ^ Workspace directory (parent of repo)
+-- | Environment for local pipeline (CLI - no clone needed)
+data PipelineLocalEnv = PipelineLocalEnv
+  { baseDir :: FilePath
+  -- ^ Base directory to execute from (repo dir for CLI, workspace for web)
   , outputLog :: Maybe FilePath
   -- ^ Optional output log file
   , tools :: Tools
   -- ^ Available CI tools
   , viraContext :: ViraContext
   -- ^ Vira context (branch, dirty flag)
+  }
+  deriving stock (Generic)
+
+-- | Context needed by the full pipeline handler (with clone)
+data PipelineEnv = PipelineEnv
+  { localEnv :: PipelineLocalEnv
+  -- ^ Environment for local operations (reused from PipelineLocal)
   , viraEnv :: ViraEnvironment
-  -- ^ Full environment with repo/branch info
+  -- ^ Full environment with repo/branch info (only needed for Clone)
   }
   deriving stock (Generic)

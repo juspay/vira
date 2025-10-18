@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 
 module Vira.CI.Pipeline.Program where
 
@@ -10,18 +11,15 @@ import System.Exit (ExitCode (..))
 import Vira.CI.Error (PipelineError (..))
 import Vira.CI.Pipeline.Effect
 
-{- | The main pipeline program - pure business logic!
-This is completely separate from implementation details
-
-NOTE: Clone step is currently handled outside this program in runPipeline.
-Future refactoring could move it inside (as per original plan in issue #223)
+{- | Local pipeline program (for CLI - no clone)
+Runs in current directory
 -}
-runPipelineProgram ::
-  (Pipeline :> es, Error PipelineError :> es) =>
-  -- | Repository directory (already cloned)
+runPipelineProgramLocal ::
+  (PipelineLocal :> es, Error PipelineError :> es) =>
+  -- | Repository directory (current directory for CLI)
   FilePath ->
   Eff es ExitCode
-runPipelineProgram repoDir = do
+runPipelineProgramLocal repoDir = do
   logPipeline Info "Starting pipeline execution"
 
   -- Step 1: Load configuration
@@ -51,3 +49,19 @@ runPipelineProgram repoDir = do
     ExitFailure code -> do
       logPipeline Error $ "Signoff failed with code " <> show code
       pure $ ExitFailure code
+
+{- | Full pipeline program (for web/CI - with clone)
+Clones repository first, then runs local pipeline
+-}
+runPipelineProgram ::
+  (Pipeline :> es, PipelineLocal :> es, Error PipelineError :> es) =>
+  Eff es ExitCode
+runPipelineProgram = do
+  logPipeline Info "Starting pipeline with clone"
+
+  -- Step 1: Clone repository
+  cloneResults <- clone
+  logPipeline Info $ "Cloned to " <> toText cloneResults.repoDir
+
+  -- Step 2-5: Run local pipeline in cloned directory
+  runPipelineProgramLocal cloneResults.repoDir

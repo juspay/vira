@@ -27,9 +27,9 @@ import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.CI.Environment qualified as Env
 import Vira.CI.Error
 import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
-import Vira.CI.Pipeline.Effect (PipelineEnv (..))
+import Vira.CI.Pipeline.Effect (PipelineEnv (..), PipelineLocalEnv (..))
 import Vira.CI.Pipeline.Handler qualified as Handler
-import Vira.CI.Pipeline.Program (runPipelineProgram)
+import Vira.CI.Pipeline.Program (runPipelineProgram, runPipelineProgramLocal)
 import Vira.CI.Pipeline.Type
 import Vira.State.Type (Branch (..), Repo (..), cloneUrl)
 import Vira.Supervisor.Process (runProcesses)
@@ -81,19 +81,25 @@ runPipelineIn ::
   Eff es (Either PipelineError ExitCode)
 runPipelineIn tools ctx repoDir viraEnv outputLog logger = do
   -- Create pipeline environment
-  let pipelineEnv =
-        PipelineEnv
-          { workspaceDir = repoDir
+  let localEnv =
+        PipelineLocalEnv
+          { baseDir = repoDir
           , outputLog = outputLog
           , tools = tools
           , viraContext = ctx
+          }
+      pipelineEnv =
+        PipelineEnv
+          { localEnv = localEnv
           , viraEnv = viraEnv
           }
 
-  -- Run the pipeline program with the real handler
+  -- Run the pipeline program with the real handler (both effects stacked)
   runErrorNoCallStack $
-    Handler.runPipeline pipelineEnv logger $
-      runPipelineProgram repoDir
+    Handler.runPipeline
+      pipelineEnv
+      logger
+      runPipelineProgram
 
 -- | CLI wrapper for running a pipeline in the current directory
 runPipelineCLI ::
@@ -112,15 +118,20 @@ runPipelineCLI minSeverity repoDir = do
   porcelain <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
   let ctx = ViraContext porcelain.branch porcelain.dirty
   tools <- getAllTools
-  -- For CLI, create a stub ViraEnvironment (clone step won't be used)
-  let stubEnv =
-        ViraEnvironment
-          { repo = error "CLI: repo not available"
-          , branch = error "CLI: branch not available"
+
+  -- For CLI, use PipelineLocalEnv (no ViraEnvironment needed)
+  let localEnv =
+        PipelineLocalEnv
+          { baseDir = repoDir
+          , outputLog = Nothing
           , tools = tools
-          , workspacePath = repoDir
+          , viraContext = ctx
           }
-  runPipelineIn tools ctx repoDir stubEnv Nothing logger
+
+  -- Run local pipeline program directly
+  runErrorNoCallStack $
+    Handler.runPipelineLocal localEnv logger $
+      runPipelineProgramLocal repoDir
   where
     logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
     logger severity msg = do
