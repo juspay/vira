@@ -39,7 +39,6 @@ import System.Process (CreateProcess, proc)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Environment (ViraEnvironment (..))
-import Vira.CI.Environment qualified as Env
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
@@ -134,11 +133,12 @@ cloneImpl ::
   Eff es CloneResults
 cloneImpl = do
   env <- ER.ask @PipelineRemoteEnv
-  let cloneProc =
+  let projectDirName = "project"
+      cloneProc =
         Git.cloneAtCommit
           env.viraEnv.repo.cloneUrl
           env.viraEnv.branch.headCommit.id
-          Env.projectDirName
+          projectDirName
 
   logPipeline Info $ "Cloning repository at commit " <> toText env.viraEnv.branch.headCommit.id
 
@@ -147,10 +147,10 @@ cloneImpl = do
   case result of
     Left err -> throwError $ PipelineTerminated err
     Right ExitSuccess -> do
-      logPipeline Info $ "Repository cloned to " <> toText Env.projectDirName
+      logPipeline Info $ "Repository cloned to " <> toText projectDirName
       pure $
         CloneResults
-          { repoDir = Env.projectDirName
+          { repoDir = projectDirName
           , commitId = env.viraEnv.branch.headCommit.id
           }
     Right exitCode@(ExitFailure code) -> do
