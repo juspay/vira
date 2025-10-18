@@ -49,7 +49,7 @@ import Vira.Supervisor.Type (Terminated (..))
 import Vira.Tool.Core (ToolError (..), getAllTools)
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type.ToolData (status)
-import Vira.Tool.Type.Tools (attic)
+import Vira.Tool.Type.Tools (Tools, attic)
 
 -- | Default pipeline configuration
 defaultPipeline :: ViraPipeline
@@ -114,25 +114,25 @@ runCLIPipeline minSeverity repoDir program = do
   let ctx = ViraContext porcelain.branch porcelain.dirty
   tools <- getAllTools
 
-  -- For CLI, use PipelineLocalEnv (no ViraEnvironment needed)
-  let localEnv =
-        PipelineLocalEnv
-          { outputLog = Nothing
-          , tools = tools
-          , viraContext = ctx
-          , logger = PipelineLogger logger
-          }
-
   -- Run local pipeline program directly (workDir = repoDir for CLI)
-  runPipelineLocal localEnv repoDir program
+  runPipelineLocal (pipelineLocalEnvFrom minSeverity tools ctx) repoDir program
+
+pipelineLocalEnvFrom :: Severity -> Tools -> ViraContext -> PipelineLocalEnv
+pipelineLocalEnvFrom minSeverity tools ctx =
+  PipelineLocalEnv
+    { outputLog = Nothing
+    , tools = tools
+    , viraContext = ctx
+    , logger = PipelineLogger logger
+    }
   where
     logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
     logger severity msg = do
-      ctx <- ER.ask
+      logCtx <- ER.ask
       when (severity >= minSeverity) $
         liftIO $
           putTextLn $
-            renderViraLogCLI (ViraLog {level = severity, message = msg, context = ctx})
+            renderViraLogCLI (ViraLog {level = severity, message = msg, context = logCtx})
 
 -- | Run the PipelineLocal effect (core operations, no clone)
 runPipelineLocal ::
