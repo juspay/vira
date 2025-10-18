@@ -28,9 +28,9 @@ import Vira.CI.Environment qualified as Env
 import Vira.CI.Error
 import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
 import Vira.CI.Pipeline.Effect (PipelineEnv (..), PipelineLocalEnv (..))
+import Vira.CI.Pipeline.Handler (defaultPipeline)
 import Vira.CI.Pipeline.Handler qualified as Handler
 import Vira.CI.Pipeline.Program (runPipelineProgram, runPipelineProgramLocal)
-import Vira.CI.Pipeline.Type
 import Vira.State.Type (Branch (..), Repo (..), cloneUrl)
 import Vira.Supervisor.Process (runProcesses)
 import Vira.Tool.Core (Tools, getAllTools)
@@ -140,14 +140,3 @@ runPipelineCLI minSeverity repoDir = do
         liftIO $
           putTextLn $
             renderViraLogCLI (ViraLog {level = severity, message = msg, context = ctx})
-
--- | Create a default pipeline configuration
-defaultPipeline :: ViraPipeline
-defaultPipeline =
-  ViraPipeline
-    { build = BuildStage (one defaultFlake)
-    , cache = CacheStage Nothing
-    , signoff = SignoffStage False
-    }
-  where
-    defaultFlake = Flake "." mempty

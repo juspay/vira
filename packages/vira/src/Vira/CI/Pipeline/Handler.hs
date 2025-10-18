@@ -2,7 +2,11 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-module Vira.CI.Pipeline.Handler where
+module Vira.CI.Pipeline.Handler (
+  runPipeline,
+  runPipelineLocal,
+  defaultPipeline,
+) where
 
 import Prelude hiding (asks)
 
@@ -43,6 +47,17 @@ import Vira.Tool.Core (ToolError (..))
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type.ToolData (status)
 import Vira.Tool.Type.Tools (attic)
+
+-- | Default pipeline configuration
+defaultPipeline :: ViraPipeline
+defaultPipeline =
+  ViraPipeline
+    { build = BuildStage (one defaultFlake)
+    , cache = CacheStage Nothing
+    , signoff = SignoffStage False
+    }
+  where
+    defaultFlake = Flake "." mempty
 
 -- | Run the PipelineLocal effect (core operations, no clone)
 runPipelineLocal ::
@@ -163,16 +178,6 @@ loadConfigImpl env repoDir logger = do
               cache = pipeline.cache {url = Nothing}
             }
       | otherwise = pipeline
-
-    defaultPipeline :: ViraPipeline
-    defaultPipeline =
-      ViraPipeline
-        { build = BuildStage (one defaultFlake)
-        , cache = CacheStage Nothing
-        , signoff = SignoffStage False
-        }
-      where
-        defaultFlake = Flake "." mempty
 
 -- | Implementation: Build flakes
 buildImpl ::
