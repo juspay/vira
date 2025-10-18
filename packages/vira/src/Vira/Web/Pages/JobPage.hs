@@ -176,7 +176,7 @@ triggerNewBuild minSeverity repoName branchName = do
       job.jobId
       minSeverity
       viraEnv.workspacePath
-      (Pipeline.runPipeline viraEnv)
+      (Pipeline.runPipelineRemote viraEnv)
       $ \result -> do
         endTime <- liftIO getCurrentTime
         let status = case result of

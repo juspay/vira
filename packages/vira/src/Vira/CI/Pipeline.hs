@@ -1,7 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-module Vira.CI.Pipeline (runPipeline, runPipelineCLI, defaultPipeline, PipelineError (..)) where
+module Vira.CI.Pipeline (runPipelineRemote, runPipelineCLI, defaultPipeline, PipelineError (..)) where
 
 import Prelude hiding (id)
 
@@ -23,14 +23,14 @@ import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.CI.Environment qualified as Env
 import Vira.CI.Error
 import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
-import Vira.CI.Pipeline.Effect (PipelineEnv (..), PipelineLocalEnv (..))
+import Vira.CI.Pipeline.Effect (PipelineLocalEnv (..), PipelineRemoteEnv (..))
 import Vira.CI.Pipeline.Handler (defaultPipeline)
 import Vira.CI.Pipeline.Handler qualified as Handler
-import Vira.CI.Pipeline.Program (runPipelineProgram, runPipelineProgramLocal)
+import Vira.CI.Pipeline.Program (runPipelineProgramLocal, runPipelineRemoteProgram)
 import Vira.Tool.Core (getAllTools)
 
--- | Run `ViraPipeline` for the given `ViraEnvironment`
-runPipeline ::
+-- | Run remote pipeline for the given `ViraEnvironment`
+runPipelineRemote ::
   ( Concurrent :> es
   , Process :> es
   , Log (RichMessage IO) :> es
@@ -42,7 +42,7 @@ runPipeline ::
   ViraEnvironment ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es ()
-runPipeline env logger = do
+runPipelineRemote env logger = do
   let outputLog = Just $ env.workspacePath </> "output.log"
       ctx = Env.viraContext env
       tools = env.tools
@@ -52,18 +52,18 @@ runPipeline env logger = do
           , tools = tools
           , viraContext = ctx
           }
-      pipelineEnv =
-        PipelineEnv
+      pipelineRemoteEnv =
+        PipelineRemoteEnv
           { localEnv = localEnv
           , viraEnv = env
           }
 
-  -- Run the pipeline program with the real handler (includes Clone effect)
+  -- Run the remote pipeline program with the handler (includes Clone effect)
   Handler.runPipelineLog logger $
-    Handler.runPipeline
-      pipelineEnv
+    Handler.runPipelineRemote
+      pipelineRemoteEnv
       logger
-      runPipelineProgram
+      runPipelineRemoteProgram
 
 -- | CLI wrapper for running a pipeline in the current directory
 runPipelineCLI ::

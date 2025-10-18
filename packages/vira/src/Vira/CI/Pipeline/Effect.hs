@@ -55,15 +55,15 @@ data PipelineLocal :: Effect where
 -- Generate boilerplate for the effect
 makeEffect ''PipelineLocal
 
--- | Pipeline Effect - extends PipelineLocal with clone for web/CI
-data Pipeline :: Effect where
+-- | PipelineRemote Effect - extends PipelineLocal with clone for web/CI
+data PipelineRemote :: Effect where
   -- | Clone repository and return cloned directory
-  Clone :: Pipeline m CloneResults
+  Clone :: PipelineRemote m CloneResults
   -- | Run local pipeline in the cloned directory
-  RunLocalPipeline :: CloneResults -> Pipeline m ()
+  RunLocalPipeline :: CloneResults -> PipelineRemote m ()
 
 -- Generate boilerplate for the effect
-makeEffect ''Pipeline
+makeEffect ''PipelineRemote
 
 -- | Environment for local pipeline (CLI - no clone needed)
 data PipelineLocalEnv = PipelineLocalEnv
@@ -76,8 +76,8 @@ data PipelineLocalEnv = PipelineLocalEnv
   }
   deriving stock (Generic)
 
--- | Context needed by the full pipeline handler (with clone)
-data PipelineEnv = PipelineEnv
+-- | Context needed by the remote pipeline handler (with clone)
+data PipelineRemoteEnv = PipelineRemoteEnv
   { localEnv :: PipelineLocalEnv
   -- ^ Environment for local operations (reused from PipelineLocal)
   , viraEnv :: ViraEnvironment

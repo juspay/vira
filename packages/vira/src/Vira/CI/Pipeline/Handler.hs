@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
 module Vira.CI.Pipeline.Handler (
-  runPipeline,
+  runPipelineRemote,
   runPipelineLocal,
   runPipelineLog,
   defaultPipeline,
@@ -94,8 +94,8 @@ runPipelineLog ::
 runPipelineLog logger = interpret $ \_ -> \case
   LogPipeline severity msg -> logger severity msg
 
--- | Run the Pipeline effect (handles Clone + RunLocalPipeline)
-runPipeline ::
+-- | Run the PipelineRemote effect (handles Clone + RunLocalPipeline)
+runPipelineRemote ::
   forall es a.
   ( Concurrent :> es
   , Process :> es
@@ -105,11 +105,11 @@ runPipeline ::
   , ER.Reader LogContext :> es
   , Error PipelineError :> es
   ) =>
-  PipelineEnv ->
+  PipelineRemoteEnv ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
-  Eff (Pipeline : es) a ->
+  Eff (PipelineRemote : es) a ->
   Eff es a
-runPipeline env logger = interpret $ \_ -> \case
+runPipelineRemote env logger = interpret $ \_ -> \case
   Clone -> runPipelineLog logger $ cloneImpl env logger
   RunLocalPipeline cloneResults ->
     let clonedDir = env.viraEnv.workspacePath </> cloneResults.repoDir
@@ -126,7 +126,7 @@ cloneImpl ::
   , Error PipelineError :> es
   , PipelineLog :> es
   ) =>
-  PipelineEnv ->
+  PipelineRemoteEnv ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es CloneResults
 cloneImpl env logger = do
