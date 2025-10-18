@@ -78,20 +78,21 @@ runRemotePipeline ::
   Eff es ()
 runRemotePipeline env logger program = do
   -- Run the remote pipeline program with the handler (includes Clone effect)
-  runPipelineRemote pipelineEnv program
+  runPipelineRemote (pipelineRemoteEnvFrom env logger) program
+
+pipelineRemoteEnvFrom :: ViraEnvironment -> (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) -> PipelineRemoteEnv
+pipelineRemoteEnvFrom viraEnv logger =
+  PipelineRemoteEnv
+    { localEnv = localEnvFromViraEnv viraEnv
+    , viraEnv = viraEnv
+    }
   where
-    pipelineEnv =
-      PipelineRemoteEnv
-        { localEnv = localEnvFromViraEnv env
-        , viraEnv = env
-        }
-      where
-        localEnvFromViraEnv :: ViraEnvironment -> PipelineLocalEnv
-        localEnvFromViraEnv env' =
-          let outputLog = Just $ env'.workspacePath </> "output.log"
-              tools = env'.tools
-              ctx = Env.viraContext env'
-           in PipelineLocalEnv {outputLog = outputLog, tools = tools, viraContext = ctx, logger = PipelineLogger logger}
+    localEnvFromViraEnv :: ViraEnvironment -> PipelineLocalEnv
+    localEnvFromViraEnv env' =
+      let outputLog = Just $ env'.workspacePath </> "output.log"
+          tools = env'.tools
+          ctx = Env.viraContext env'
+       in PipelineLocalEnv {outputLog = outputLog, tools = tools, viraContext = ctx, logger = PipelineLogger logger}
 
 -- | CLI wrapper for running a pipeline in the current directory
 runCLIPipeline ::
