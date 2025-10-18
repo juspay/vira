@@ -1,5 +1,4 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 module Vira.CI.Pipeline (runPipeline, runPipelineCLI, defaultPipeline, PipelineError (..)) where
@@ -14,13 +13,10 @@ import Effectful.Process (Process)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Concurrent.Async (Concurrent)
-import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
+import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem)
-import Effectful.Git (Commit (..))
-import Effectful.Git.Command.Clone qualified as Git
 import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
 import Effectful.Reader.Static qualified as ER
-import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Environment (ViraEnvironment (..))
@@ -31,9 +27,7 @@ import Vira.CI.Pipeline.Effect (PipelineEnv (..), PipelineLocalEnv (..))
 import Vira.CI.Pipeline.Handler (defaultPipeline)
 import Vira.CI.Pipeline.Handler qualified as Handler
 import Vira.CI.Pipeline.Program (runPipelineProgram, runPipelineProgramLocal)
-import Vira.State.Type (Branch (..), Repo (..), cloneUrl)
-import Vira.Supervisor.Process (runProcesses)
-import Vira.Tool.Core (Tools, getAllTools)
+import Vira.Tool.Core (getAllTools)
 
 -- | Run `ViraPipeline` for the given `ViraEnvironment`
 runPipeline ::
@@ -50,42 +44,11 @@ runPipeline ::
   Eff es ()
 runPipeline env logger = do
   let outputLog = Just $ env.workspacePath </> "output.log"
-  -- 1. Setup workspace and clone
-  let setupProcs =
-        one $ Git.cloneAtCommit env.repo.cloneUrl env.branch.headCommit.id Env.projectDirName
-  runProcesses env.workspacePath outputLog logger setupProcs >>= \case
-    Left err ->
-      throwError $ PipelineTerminated err
-    Right ExitSuccess -> do
-      let repoDir = env.workspacePath </> Env.projectDirName
-          ctx = Env.viraContext env
-          tools = env.tools
-      runPipelineIn tools ctx repoDir env outputLog logger
-    Right exitCode ->
-      throwError $ PipelineProcessFailed exitCode
-
--- | Like `runPipeline`, but in a specific directory with given context, tools, and environment.
-runPipelineIn ::
-  ( Concurrent :> es
-  , Process :> es
-  , Log (RichMessage IO) :> es
-  , IOE :> es
-  , FileSystem :> es
-  , ER.Reader LogContext :> es
-  , Error PipelineError :> es
-  ) =>
-  Tools ->
-  ViraContext ->
-  FilePath ->
-  ViraEnvironment ->
-  Maybe FilePath ->
-  (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
-  Eff es ()
-runPipelineIn tools ctx repoDir viraEnv outputLog logger = do
-  -- Create pipeline environment
-  let localEnv =
+      ctx = Env.viraContext env
+      tools = env.tools
+      localEnv =
         PipelineLocalEnv
-          { baseDir = repoDir
+          { baseDir = env.workspacePath
           , outputLog = outputLog
           , tools = tools
           , viraContext = ctx
@@ -93,10 +56,10 @@ runPipelineIn tools ctx repoDir viraEnv outputLog logger = do
       pipelineEnv =
         PipelineEnv
           { localEnv = localEnv
-          , viraEnv = viraEnv
+          , viraEnv = env
           }
 
-  -- Run the pipeline program with the real handler (both effects stacked)
+  -- Run the pipeline program with the real handler (includes Clone effect)
   Handler.runPipeline
     pipelineEnv
     logger

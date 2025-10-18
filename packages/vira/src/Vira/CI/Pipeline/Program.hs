@@ -35,7 +35,7 @@ runPipelineProgramLocal repoDir = do
   logPipeline Info "Cache push completed"
 
   -- Step 4: Signoff
-  signoff pipeline
+  signoff repoDir pipeline
   logPipeline Info "Pipeline completed successfully"
 
 {- | Full pipeline program (for web/CI - with clone)

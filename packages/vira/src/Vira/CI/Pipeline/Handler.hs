@@ -76,7 +76,7 @@ runPipelineLocal env logger = interpret $ \_ -> \case
   LoadConfig repoDir -> loadConfigImpl env repoDir logger
   Build repoDir pipeline -> buildImpl env repoDir pipeline logger
   Cache pipeline buildResults -> cacheImpl env pipeline buildResults logger
-  Signoff pipeline -> signoffImpl env pipeline logger
+  Signoff repoDir pipeline -> signoffImpl env repoDir pipeline logger
   LogPipeline severity msg -> logger severity msg
 
 -- | Run the Pipeline effect (adds Clone to PipelineLocal)
@@ -334,16 +334,19 @@ signoffImpl ::
   , Error PipelineError :> es
   ) =>
   PipelineLocalEnv ->
+  FilePath ->
   ViraPipeline ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es ()
-signoffImpl env pipeline logger = do
+signoffImpl env repoDir pipeline logger = do
   if pipeline.signoff.enable
     then do
       logger Info "Creating commit signoff"
       let signoffProc = Signoff.create Signoff.Force statusTitle
           statusTitle = "vira/" <> toString nixSystem <> "/ci"
-      runProcesses env.baseDir env.outputLog logger (one signoffProc) >>= \case
+          -- repoDir is relative to baseDir, make it absolute for runProcesses
+          repoDirAbs = env.baseDir </> repoDir
+      runProcesses repoDirAbs env.outputLog logger (one signoffProc) >>= \case
         Left err -> throwError $ PipelineTerminated err
         Right ExitSuccess -> logger Info "Signoff succeeded"
         Right exitCode@(ExitFailure code) -> do

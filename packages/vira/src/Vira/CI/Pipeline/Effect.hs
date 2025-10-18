@@ -52,7 +52,7 @@ data PipelineLocal :: Effect where
   -- | Push build results to cache (throws error on failure)
   Cache :: ViraPipeline -> BuildResults -> PipelineLocal m ()
   -- | Create GitHub commit status (throws error on failure)
-  Signoff :: ViraPipeline -> PipelineLocal m ()
+  Signoff :: FilePath -> ViraPipeline -> PipelineLocal m ()
   -- | Log a message (convenience)
   LogPipeline :: Severity -> Text -> PipelineLocal m ()
 
