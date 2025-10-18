@@ -40,7 +40,6 @@ import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Environment (ViraEnvironment (..))
 import Vira.CI.Environment qualified as Env
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
-import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
 import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch (..), Repo (..))
@@ -49,7 +48,7 @@ import Vira.Supervisor.Type (Terminated (..))
 import Vira.Tool.Core (ToolError (..), getAllTools)
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type.ToolData (status)
-import Vira.Tool.Type.Tools (Tools, attic)
+import Vira.Tool.Type.Tools (attic)
 
 -- | Default pipeline configuration
 defaultPipeline :: ViraPipeline
@@ -80,20 +79,6 @@ runRemotePipeline env logger program = do
   -- Run the remote pipeline program with the handler (includes Clone effect)
   runPipelineRemote (pipelineRemoteEnvFrom env logger) program
 
-pipelineRemoteEnvFrom :: ViraEnvironment -> (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) -> PipelineRemoteEnv
-pipelineRemoteEnvFrom viraEnv logger =
-  PipelineRemoteEnv
-    { localEnv = localEnvFromViraEnv viraEnv
-    , viraEnv = viraEnv
-    }
-  where
-    localEnvFromViraEnv :: ViraEnvironment -> PipelineLocalEnv
-    localEnvFromViraEnv env' =
-      let outputLog = Just $ env'.workspacePath </> "output.log"
-          tools = env'.tools
-          ctx = Env.viraContext env'
-       in PipelineLocalEnv {outputLog = outputLog, tools = tools, viraContext = ctx, logger = PipelineLogger logger}
-
 -- | CLI wrapper for running a pipeline in the current directory
 runCLIPipeline ::
   ( Concurrent :> es
@@ -116,23 +101,6 @@ runCLIPipeline minSeverity repoDir program = do
 
   -- Run local pipeline program directly (workDir = repoDir for CLI)
   runPipelineLocal (pipelineLocalEnvFrom minSeverity tools ctx) repoDir program
-
-pipelineLocalEnvFrom :: Severity -> Tools -> ViraContext -> PipelineLocalEnv
-pipelineLocalEnvFrom minSeverity tools ctx =
-  PipelineLocalEnv
-    { outputLog = Nothing
-    , tools = tools
-    , viraContext = ctx
-    , logger = PipelineLogger logger
-    }
-  where
-    logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
-    logger severity msg = do
-      logCtx <- ER.ask
-      when (severity >= minSeverity) $
-        liftIO $
-          putTextLn $
-            renderViraLogCLI (ViraLog {level = severity, message = msg, context = logCtx})
 
 -- | Run the PipelineLocal effect (core operations, no clone)
 runPipelineLocal ::

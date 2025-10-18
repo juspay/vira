@@ -4,6 +4,8 @@
 
 module Vira.CI.Pipeline.Effect where
 
+import Prelude hiding (asks)
+
 import Colog (Severity)
 import Colog.Message (RichMessage)
 import Effectful
@@ -13,9 +15,12 @@ import Effectful.Error.Static (Error)
 import Effectful.Git.Types (CommitID)
 import Effectful.Reader.Static qualified as ER
 import Effectful.TH
+import System.FilePath ((</>))
 import Vira.CI.Context (ViraContext)
 import Vira.CI.Environment (ViraEnvironment)
+import Vira.CI.Environment qualified as Env
 import Vira.CI.Error (PipelineError)
+import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
 import Vira.CI.Pipeline.Type (ViraPipeline)
 import Vira.Tool.Type.Tools (Tools)
 
@@ -101,3 +106,36 @@ data PipelineRemote :: Effect where
 
 -- Generate boilerplate for the effect
 makeEffect ''PipelineRemote
+
+-- | Construct PipelineRemoteEnv from ViraEnvironment and logger
+pipelineRemoteEnvFrom :: ViraEnvironment -> (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) -> PipelineRemoteEnv
+pipelineRemoteEnvFrom viraEnv logger =
+  PipelineRemoteEnv
+    { localEnv = localEnvFromViraEnv viraEnv
+    , viraEnv = viraEnv
+    }
+  where
+    localEnvFromViraEnv :: ViraEnvironment -> PipelineLocalEnv
+    localEnvFromViraEnv env' =
+      let outputLog = Just $ env'.workspacePath </> "output.log"
+          tools = env'.tools
+          ctx = Env.viraContext env'
+       in PipelineLocalEnv {outputLog = outputLog, tools = tools, viraContext = ctx, logger = PipelineLogger logger}
+
+-- | Construct PipelineLocalEnv from CLI parameters
+pipelineLocalEnvFrom :: Severity -> Tools -> ViraContext -> PipelineLocalEnv
+pipelineLocalEnvFrom minSeverity tools ctx =
+  PipelineLocalEnv
+    { outputLog = Nothing
+    , tools = tools
+    , viraContext = ctx
+    , logger = PipelineLogger logger
+    }
+  where
+    logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
+    logger severity msg = do
+      logCtx <- ER.ask
+      when (severity >= minSeverity) $
+        liftIO $
+          putTextLn $
+            renderViraLogCLI (ViraLog {level = severity, message = msg, context = logCtx})
