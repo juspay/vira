@@ -3,8 +3,10 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
 module Vira.CI.Pipeline.Implementation (
-  runRemotePipeline,
-  runCLIPipeline,
+  runPipelineRemote,
+  runPipelineLocal,
+
+  -- * Used in tests
   defaultPipeline,
 ) where
 
@@ -22,10 +24,9 @@ import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Dispatch.Dynamic
-import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
+import Effectful.Error.Static (Error, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git.Command.Clone qualified as Git
-import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
 import Effectful.Git.Types (Commit (..))
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
@@ -45,62 +46,10 @@ import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), Sign
 import Vira.State.Type (Branch (..), Repo (..))
 import Vira.Supervisor.Process (runProcesses)
 import Vira.Supervisor.Type (Terminated (..))
-import Vira.Tool.Core (ToolError (..), getAllTools)
+import Vira.Tool.Core (ToolError (..))
 import Vira.Tool.Tools.Attic qualified as AtticTool
 import Vira.Tool.Type.ToolData (status)
 import Vira.Tool.Type.Tools (attic)
-
--- | Default pipeline configuration
-defaultPipeline :: ViraPipeline
-defaultPipeline =
-  ViraPipeline
-    { build = BuildStage (one defaultFlake)
-    , cache = CacheStage Nothing
-    , signoff = SignoffStage False
-    }
-  where
-    defaultFlake = Flake "." mempty
-
--- | Run remote pipeline for the given `ViraEnvironment`
-runRemotePipeline ::
-  ( Concurrent :> es
-  , Process :> es
-  , Log (RichMessage IO) :> es
-  , IOE :> es
-  , FileSystem :> es
-  , ER.Reader LogContext :> es
-  , Error PipelineError :> es
-  ) =>
-  ViraEnvironment ->
-  (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
-  (forall es1. (PipelineRemote :> es1, ER.Reader PipelineLocalEnv :> es1, Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1, Error PipelineError :> es1) => Eff es1 ()) ->
-  Eff es ()
-runRemotePipeline env logger program = do
-  -- Run the remote pipeline program with the handler (includes Clone effect)
-  runPipelineRemote (pipelineRemoteEnvFrom env logger) program
-
--- | CLI wrapper for running a pipeline in the current directory
-runCLIPipeline ::
-  ( Concurrent :> es
-  , Process :> es
-  , Log (RichMessage IO) :> es
-  , IOE :> es
-  , FileSystem :> es
-  , ER.Reader LogContext :> es
-  , Error PipelineError :> es
-  ) =>
-  Severity ->
-  FilePath ->
-  (forall es1. (PipelineLocal :> es1, ER.Reader PipelineLocalEnv :> es1, Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1, Error PipelineError :> es1) => Eff es1 ()) ->
-  Eff es ()
-runCLIPipeline minSeverity repoDir program = do
-  -- Detect git branch and dirty status (fail if not in a git repo)
-  porcelain <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
-  let ctx = ViraContext porcelain.branch porcelain.dirty
-  tools <- getAllTools
-
-  -- Run local pipeline program directly (workDir = repoDir for CLI)
-  runPipelineLocal (pipelineLocalEnvFrom minSeverity tools ctx) repoDir program
 
 -- | Run the PipelineLocal effect (core operations, no clone)
 runPipelineLocal ::
@@ -407,3 +356,14 @@ signoffImpl workDir pipeline = do
           throwError $ PipelineProcessFailed exitCode
     else
       logPipeline Info "Signoff disabled, skipping"
+
+-- | Default pipeline configuration
+defaultPipeline :: ViraPipeline
+defaultPipeline =
+  ViraPipeline
+    { build = BuildStage (one defaultFlake)
+    , cache = CacheStage Nothing
+    , signoff = SignoffStage False
+    }
+  where
+    defaultFlake = Flake "." mempty
