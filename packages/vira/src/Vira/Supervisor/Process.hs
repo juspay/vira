@@ -12,7 +12,7 @@ import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem)
 import Effectful.FileSystem.IO (hClose, openFile)
-import Effectful.Process (CreateProcess (create_group), Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
+import Effectful.Process (CreateProcess (create_group, cwd), Process, createProcess, getPid, interruptProcessGroupOf, waitForProcess)
 import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (ExitFailure, ExitSuccess))
 import Vira.Lib.Process qualified as Process
@@ -71,9 +71,8 @@ runProcesses workDir mOutputFile taskLogger procs = do
     runProcWithSettings :: CreateProcess -> (CreateProcess -> CreateProcess) -> Eff es (Either Terminated ExitCode)
     runProcWithSettings process extraSettings = do
       let processSettings =
-            Process.alwaysUnderPath workDir
-              >>> extraSettings
-              >>> (\cp -> cp {create_group = True}) -- For `interruptProcessGroupOf`, when the process is `Terminated`
+            extraSettings
+              >>> (\cp -> cp {cwd = Just workDir, create_group = True})
       (_, _, _, ph) <- createProcess $ process & processSettings
       pid <- getPid ph
       withLogContext [("pid", maybe "?" show pid)] $ do

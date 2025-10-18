@@ -41,14 +41,14 @@ newtype BuildResults = BuildResults
 Used for CLI execution in current directory
 -}
 data PipelineLocal :: Effect where
-  -- | Load vira.hs configuration from repository
-  LoadConfig :: FilePath -> PipelineLocal m ViraPipeline
-  -- | Build flakes and return result paths
-  Build :: FilePath -> ViraPipeline -> PipelineLocal m BuildResults
+  -- | Load vira.hs configuration from repository (runs in working dir)
+  LoadConfig :: PipelineLocal m ViraPipeline
+  -- | Build flakes and return result paths (runs in working dir)
+  Build :: ViraPipeline -> PipelineLocal m BuildResults
   -- | Push build results to cache (throws error on failure)
   Cache :: ViraPipeline -> BuildResults -> PipelineLocal m ()
-  -- | Create GitHub commit status (throws error on failure)
-  Signoff :: FilePath -> ViraPipeline -> PipelineLocal m ()
+  -- | Create GitHub commit status (throws error on failure, runs in working dir)
+  Signoff :: ViraPipeline -> PipelineLocal m ()
   -- | Log a message (convenience)
   LogPipeline :: Severity -> Text -> PipelineLocal m ()
 
@@ -65,9 +65,7 @@ makeEffect ''Pipeline
 
 -- | Environment for local pipeline (CLI - no clone needed)
 data PipelineLocalEnv = PipelineLocalEnv
-  { baseDir :: FilePath
-  -- ^ Base directory to execute from (repo dir for CLI, workspace for web)
-  , outputLog :: Maybe FilePath
+  { outputLog :: Maybe FilePath
   -- ^ Optional output log file
   , tools :: Tools
   -- ^ Available CI tools
@@ -81,6 +79,6 @@ data PipelineEnv = PipelineEnv
   { localEnv :: PipelineLocalEnv
   -- ^ Environment for local operations (reused from PipelineLocal)
   , viraEnv :: ViraEnvironment
-  -- ^ Full environment with repo/branch info (only needed for Clone)
+  -- ^ Full environment with repo/branch info (workspacePath in here)
   }
   deriving stock (Generic)

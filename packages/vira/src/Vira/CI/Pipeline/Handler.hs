@@ -69,14 +69,15 @@ runPipelineLocal ::
   , Error PipelineError :> es
   ) =>
   PipelineLocalEnv ->
+  FilePath ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff (PipelineLocal : es) a ->
   Eff es a
-runPipelineLocal env logger = interpret $ \_ -> \case
-  LoadConfig repoDir -> loadConfigImpl env repoDir logger
-  Build repoDir pipeline -> buildImpl env repoDir pipeline logger
-  Cache pipeline buildResults -> cacheImpl env pipeline buildResults logger
-  Signoff repoDir pipeline -> signoffImpl env repoDir pipeline logger
+runPipelineLocal env workDir logger = interpret $ \_ -> \case
+  LoadConfig -> loadConfigImpl env workDir logger
+  Build pipeline -> buildImpl env workDir pipeline logger
+  Cache pipeline buildResults -> cacheImpl env workDir pipeline buildResults logger
+  Signoff pipeline -> signoffImpl env workDir pipeline logger
   LogPipeline severity msg -> logger severity msg
 
 -- | Run the Pipeline effect (adds Clone to PipelineLocal)
@@ -95,13 +96,15 @@ runPipeline ::
   Eff es a
 runPipeline env logger program =
   -- First install PipelineLocal handler
-  runPipelineLocal env.localEnv logger $ do
-    -- Then add Pipeline operations on top
-    interpret
-      ( \_ -> \case
-          Clone -> cloneImpl env logger
-      )
-      program
+  -- For web: workDir = workspace/project (after clone)
+  let workDir = Env.projectDir env.viraEnv
+   in runPipelineLocal env.localEnv workDir logger $ do
+        -- Then add Pipeline operations on top
+        interpret
+          ( \_ -> \case
+              Clone -> cloneImpl env logger
+          )
+          program
 
 -- | Implementation: Clone repository
 cloneImpl ::
@@ -125,7 +128,7 @@ cloneImpl env logger = do
 
   logger Info $ "Cloning repository at commit " <> toText env.viraEnv.branch.headCommit.id
 
-  result <- runProcesses env.localEnv.baseDir env.localEnv.outputLog logger (one cloneProc)
+  result <- runProcesses env.viraEnv.workspacePath env.localEnv.outputLog logger (one cloneProc)
 
   case result of
     Left err -> throwError $ PipelineTerminated err
@@ -152,9 +155,8 @@ loadConfigImpl ::
   FilePath ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es ViraPipeline
-loadConfigImpl env repoDir logger = do
-  -- repoDir is relative to baseDir, make it absolute for file system operations
-  let viraConfigPath = env.baseDir </> repoDir </> "vira.hs"
+loadConfigImpl env workDir logger = do
+  let viraConfigPath = workDir </> "vira.hs"
   doesFileExist viraConfigPath >>= \case
     True -> do
       logger Info "Found vira.hs configuration file, applying customizations..."
@@ -195,12 +197,12 @@ buildImpl ::
   ViraPipeline ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es BuildResults
-buildImpl env repoDir pipeline logger = do
+buildImpl env workDir pipeline logger = do
   logger Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
 
   -- Build each flake sequentially (to match current behavior)
   results <- forM (toList pipeline.build.flakes) $ \flake -> do
-    buildFlake env repoDir flake logger
+    buildFlake env workDir flake logger
 
   case nonEmpty results of
     Nothing -> throwError $ PipelineConfigurationError $ MalformedConfig "No flakes to build"
@@ -221,7 +223,7 @@ buildFlake ::
   Flake ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es BuildResult
-buildFlake env repoDir (Flake flakePath overrideInputs) logger = do
+buildFlake env workDir (Flake flakePath overrideInputs) logger = do
   let buildProc = proc nix $ devourFlake args
       args =
         DevourFlakeArgs
@@ -230,13 +232,11 @@ buildFlake env repoDir (Flake flakePath overrideInputs) logger = do
           , outLink = Just (flakePath </> "result")
           , overrideInputs = overrideInputs
           }
-      -- repoDir is relative to baseDir, make it absolute for runProcesses
-      repoDirAbs = env.baseDir </> repoDir
 
   logger Info $ "Building flake at " <> toText flakePath
 
-  -- Run build process from repo directory (build needs to run in repo context)
-  result <- runProcesses repoDirAbs env.outputLog logger (one buildProc)
+  -- Run build process from working directory
+  result <- runProcesses workDir env.outputLog logger (one buildProc)
 
   case result of
     Left err -> throwError $ PipelineTerminated err
@@ -265,11 +265,12 @@ cacheImpl ::
   , Error PipelineError :> es
   ) =>
   PipelineLocalEnv ->
+  FilePath ->
   ViraPipeline ->
   BuildResults ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es ()
-cacheImpl env pipeline buildResults logger = do
+cacheImpl env workDir pipeline buildResults logger = do
   case pipeline.cache.url of
     Nothing -> do
       logger Info "Cache disabled, skipping"
@@ -294,14 +295,11 @@ cacheImpl env pipeline buildResults logger = do
         Left err -> throwError $ atticErrorToPipelineError urlText serverEndpoint err
         Right result -> pure result
 
-      -- Push all results to cache in one command
-      -- Paths are relative to repoDir, and runProcesses runs from baseDir,
-      -- so we need to prepend projectDirName
+      -- Push all results to cache - paths are relative to workDir
       let relativePaths = fmap (.resultSymlink) buildResults.results
-          pathsFromWorkspace = fmap (Env.projectDirName </>) relativePaths
       logger Info $ "Pushing " <> show (length relativePaths) <> " paths: " <> show (toList relativePaths)
-      let pushProc = Attic.atticPushProcess server cacheName pathsFromWorkspace
-      runProcesses env.baseDir env.outputLog logger (one pushProc) >>= \case
+      let pushProc = Attic.atticPushProcess server cacheName relativePaths
+      runProcesses workDir env.outputLog logger (one pushProc) >>= \case
         Left err -> throwError $ PipelineTerminated err
         Right ExitSuccess -> logger Info "Cache push succeeded"
         Right exitCode@(ExitFailure code) -> do
@@ -338,15 +336,13 @@ signoffImpl ::
   ViraPipeline ->
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   Eff es ()
-signoffImpl env repoDir pipeline logger = do
+signoffImpl env workDir pipeline logger = do
   if pipeline.signoff.enable
     then do
       logger Info "Creating commit signoff"
       let signoffProc = Signoff.create Signoff.Force statusTitle
           statusTitle = "vira/" <> toString nixSystem <> "/ci"
-          -- repoDir is relative to baseDir, make it absolute for runProcesses
-          repoDirAbs = env.baseDir </> repoDir
-      runProcesses repoDirAbs env.outputLog logger (one signoffProc) >>= \case
+      runProcesses workDir env.outputLog logger (one signoffProc) >>= \case
         Left err -> throwError $ PipelineTerminated err
         Right ExitSuccess -> logger Info "Signoff succeeded"
         Right exitCode@(ExitFailure code) -> do

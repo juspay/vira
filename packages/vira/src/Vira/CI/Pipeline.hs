@@ -48,8 +48,7 @@ runPipeline env logger = do
       tools = env.tools
       localEnv =
         PipelineLocalEnv
-          { baseDir = env.workspacePath
-          , outputLog = outputLog
+          { outputLog = outputLog
           , tools = tools
           , viraContext = ctx
           }
@@ -87,15 +86,13 @@ runPipelineCLI minSeverity repoDir = do
   -- For CLI, use PipelineLocalEnv (no ViraEnvironment needed)
   let localEnv =
         PipelineLocalEnv
-          { baseDir = repoDir
-          , outputLog = Nothing
+          { outputLog = Nothing
           , tools = tools
           , viraContext = ctx
           }
 
-  -- Run local pipeline program directly
-  Handler.runPipelineLocal localEnv logger $
-    runPipelineProgramLocal repoDir
+  -- Run local pipeline program directly (workDir = repoDir for CLI)
+  Handler.runPipelineLocal localEnv repoDir logger runPipelineProgramLocal
   where
     logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
     logger severity msg = do
