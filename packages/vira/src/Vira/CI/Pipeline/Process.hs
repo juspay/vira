@@ -1,5 +1,9 @@
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+
 module Vira.CI.Pipeline.Process (
-  runProcesses,
+  runProcess,
 ) where
 
 import Colog (Severity (..))
@@ -9,22 +13,49 @@ import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext, tagCurrentThread, withLogContext)
 import Effectful.Colog.Simple.Process (withLogCommand)
 import Effectful.Concurrent.Async (Concurrent)
+import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (catch, finally, mask)
 import Effectful.FileSystem (FileSystem)
 import Effectful.FileSystem.IO (hClose, openFile)
 import Effectful.Process (CreateProcess (create_group, cwd, std_err, std_out), Process, StdStream (UseHandle), createProcess, getPid, interruptProcessGroupOf, waitForProcess)
 import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (ExitFailure, ExitSuccess))
+import Vira.CI.Error (PipelineError (PipelineProcessFailed, PipelineTerminated))
+import Vira.CI.Pipeline.Effect (PipelineEnv (logger), PipelineLogger (unPipelineLogger))
 import Vira.Supervisor.Type (Terminated (Terminated))
 
-{- | Run a sequence of processes sequentially in the given working directory.
+-- | Helper: Run a single process with logger from effect
+runProcess ::
+  ( Concurrent :> es
+  , Process :> es
+  , Log (RichMessage IO) :> es
+  , IOE :> es
+  , FileSystem :> es
+  , ER.Reader LogContext :> es
+  , ER.Reader PipelineEnv :> es
+  , Error PipelineError :> es
+  ) =>
+  FilePath ->
+  Maybe FilePath ->
+  CreateProcess ->
+  Eff es ()
+runProcess repoDir outputLog p = do
+  env <- ER.ask @PipelineEnv
+  runProcess' repoDir outputLog (unPipelineLogger env.logger) (one p) >>= \case
+    Left err -> throwError $ PipelineTerminated err
+    Right ExitSuccess -> pass
+    Right exitCode -> throwError $ PipelineProcessFailed exitCode
 
-Processes run one after another, stopping on the first non-zero exit code.
-If outputFile is Just path, process output is logged to that file.
-If outputFile is Nothing, process output goes to stdout/stderr.
-Returns 'Left Terminated' if interrupted, or 'Right ExitCode' on completion.
+{- | Run processes sequentially in the given working directory.
+
+Each process runs one after another, stopping at the first non-zero exit code.
+Output is redirected to the file specified by outputFile (if provided), otherwise
+it goes to stdout/stderr. The logger callback handles user-facing pipeline messages.
+
+Returns 'Left Terminated' if interrupted by async exception, or 'Right ExitCode'
+when all processes complete (with the exit code of the first failure, or ExitSuccess).
 -}
-runProcesses ::
+runProcess' ::
   forall es.
   ( Concurrent :> es
   , Process :> es
@@ -42,7 +73,7 @@ runProcesses ::
   -- | Processes to run in sequence
   NonEmpty CreateProcess ->
   Eff es (Either Terminated ExitCode)
-runProcesses workDir mOutputFile taskLogger procs = do
+runProcess' workDir mOutputFile taskLogger procs = do
   tagCurrentThread "🛞 "
   runProcs $ toList procs
   where
