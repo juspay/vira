@@ -44,7 +44,9 @@ data TaskInfo = TaskInfo
   }
   deriving stock (Generic)
 
--- | Task was explicitly terminate (by the user)
+{- | Task was explicitly terminated (by the user)
+Used by killTask
+-}
 data Terminated = Terminated
   deriving stock (Show)
 

@@ -41,13 +41,15 @@ library
       Vira.App.Stack
       Vira.App.Type
       Vira.CI.Configuration
-      Vira.CI.Environment
       Vira.CI.Error
       Vira.CI.Log
       Vira.CI.Pipeline
+      Vira.CI.Pipeline.Effect
+      Vira.CI.Pipeline.Implementation
+      Vira.CI.Pipeline.Process
+      Vira.CI.Pipeline.Program
       Vira.CI.Processes
       Vira.CI.Workspace
-      Vira.Lib.Process
       Vira.Lib.STM
       Vira.Lib.TimeExtra
       Vira.Refresh.Core
@@ -59,7 +61,6 @@ library
       Vira.State.Reset
       Vira.State.Type
       Vira.Supervisor.Core
-      Vira.Supervisor.Process
       Vira.Supervisor.Task
       Vira.Supervisor.Type
       Vira.Tool.Core

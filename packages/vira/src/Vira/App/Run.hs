@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 module Vira.App.Run (
@@ -13,7 +14,9 @@ import Data.Version (showVersion)
 import Effectful (runEff)
 import Effectful.Colog.Simple (runLogActionStdout)
 import Effectful.Concurrent.Async (runConcurrent)
+import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.FileSystem (runFileSystem)
+import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
 import Effectful.Process (runProcess)
 import Main.Utf8 qualified as Utf8
 import Paths_vira qualified
@@ -23,7 +26,9 @@ import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
+import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline qualified as Pipeline
+import Vira.CI.Pipeline.Program qualified as Program
 import Vira.Refresh.Daemon qualified as Daemon
 import Vira.Refresh.Type qualified as Refresh
 import Vira.State.Core (closeViraState, openViraState, startPeriodicArchival, viraDbVersion)
@@ -113,7 +118,13 @@ runVira = do
         . runFileSystem
         . runProcess
         . runConcurrent
-        $ Pipeline.runPipelineCLI gs.logLevel repoDir
+        . runErrorNoCallStack
+        $ do
+          GitStatusPorcelain {branch, dirty} <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
+          let ctx = ViraContext branch dirty
+          tools <- Tool.getAllTools
+          Pipeline.runPipeline (Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx) (Program.pipelineProgram repoDir)
+            $> ExitSuccess
 
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()
     importFromFileOrStdin acid mFilePath = do

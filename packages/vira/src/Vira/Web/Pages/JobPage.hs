@@ -18,8 +18,8 @@ import Vira.App qualified as App
 import Vira.App.Broadcast.Core qualified as Broadcast
 import Vira.App.Broadcast.Type (BroadcastScope (..))
 import Vira.App.CLI (WebSettings)
-import Vira.CI.Environment (ViraEnvironment (..), environmentFor)
 import Vira.CI.Pipeline qualified as Pipeline
+import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.State.Acid qualified as St
@@ -27,6 +27,7 @@ import Vira.State.Core qualified as St
 import Vira.State.Type (JobId, jobWorkingDir)
 import Vira.Supervisor.Task qualified as Supervisor
 import Vira.Supervisor.Type (Terminated (Terminated))
+import Vira.Tool.Core qualified as Tool
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
 import Vira.Web.Pages.JobLog qualified as JobLog
@@ -170,13 +171,13 @@ triggerNewBuild minSeverity repoName branchName = do
   withLogContext [("job", show job.jobId)] $ do
     log Info $ "Building commit " <> show branch.headCommit
     log Info "Added job"
-    viraEnv <- environmentFor repo branch job.jobWorkingDir
+    tools <- Tool.refreshTools
     Supervisor.startTask
       supervisor
       job.jobId
       minSeverity
-      viraEnv.workspacePath
-      (Pipeline.runPipeline viraEnv)
+      job.jobWorkingDir
+      (\logger -> Pipeline.runPipeline (Pipeline.pipelineEnvFromRemote branch job.jobWorkingDir tools logger) (Program.pipelineProgramWithClone repo branch job.jobWorkingDir))
       $ \result -> do
         endTime <- liftIO getCurrentTime
         let status = case result of

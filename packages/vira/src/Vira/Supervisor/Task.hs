@@ -15,6 +15,7 @@ import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..), log, withLogContext, withoutLogContext)
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar_, readMVar)
+import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
@@ -28,11 +29,10 @@ import Prelude hiding (readMVar)
 {- | Start a task in the supervisor
 
   The orchestrator is a function that runs the actual task logic (using `runProcesses`), and is provided
-  with the necessary Effectful capabilities. It should return an `Either Terminated ExitCode`
-  indicating the result of the task.
+  with the necessary Effectful capabilities. It uses the `Error err` effect to report failures.
 
   The `onFinish` handler is called when the task completes, whether successfully or due to an exception.
-  It receives the same `Either Terminated ExitCode` result from the orchestrator.
+  It receives an `Either err ExitCode` result from the orchestrator (derived from the Error effect).
 
   The working directory for the task is created if it does not exist, and an empty log file is initialized.
   The task's output is logged to this file, and a tail handle is created for potential log streaming.
@@ -61,9 +61,10 @@ startTask ::
     , IOE :> es1
     , FileSystem :> es1
     , ER.Reader LogContext :> es1
+    , Error err :> es1
     ) =>
     (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ()) ->
-    Eff es1 (Either err ExitCode)
+    Eff es1 ()
   ) ->
   -- Handler to call after the task finishes
   ( -- Exit code
@@ -97,14 +98,16 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
               logToWorkspaceOutput workspaceKeys msgSeverity msgText
         logger Info msg
         asyncHandle <- async $ do
-          result <- orchestrator logger
+          result <- runErrorNoCallStack $ orchestrator logger
+          -- Convert () to ExitSuccess
+          let exitResult = result $> ExitSuccess
           -- Log the errors if any
-          whenLeft_ result $ \err -> do
+          whenLeft_ exitResult $ \err -> do
             logger Error $ show err
           -- Stop the tail when task finishes for any reason
           liftIO $ Tail.tailStop tailHandle
           -- Then call the original handler
-          onFinish result
+          onFinish exitResult
         let info = TaskInfo {..}
         let task = Task {..}
         pure $ Map.insert taskId task tasks
