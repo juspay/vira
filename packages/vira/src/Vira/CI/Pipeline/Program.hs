@@ -39,7 +39,6 @@ pipelineProgram repoDir = do
 
   -- Step 3: Cache using build results
   cache repoDir pipeline buildResults
-  logPipeline Info "Cache push completed"
 
   -- Step 4: Signoff
   signoff repoDir pipeline
@@ -61,11 +60,8 @@ pipelineProgramWithClone ::
   FilePath ->
   Eff es ()
 pipelineProgramWithClone repo branch workspacePath = do
-  logPipeline Info "Starting pipeline with clone"
-
   -- Step 1: Clone repository
   clonedDir <- clone repo branch workspacePath
-  logPipeline Info $ "Repository cloned to " <> toText clonedDir
 
   -- Step 2-5: Run pipeline in the cloned directory
   pipelineProgram clonedDir
