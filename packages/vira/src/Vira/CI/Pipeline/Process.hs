@@ -41,19 +41,18 @@ runProcess ::
   Eff es ()
 runProcess repoDir outputLog p = do
   env <- ER.ask @PipelineEnv
-  runProcess' repoDir outputLog (unPipelineLogger env.logger) (one p) >>= \case
+  runProcess' repoDir outputLog (unPipelineLogger env.logger) p >>= \case
     Left err -> throwError $ PipelineTerminated err
     Right ExitSuccess -> pass
     Right exitCode -> throwError $ PipelineProcessFailed exitCode
 
-{- | Run processes sequentially in the given working directory.
+{- | Run a single process in the given working directory.
 
-Each process runs one after another, stopping at the first non-zero exit code.
 Output is redirected to the file specified by outputFile (if provided), otherwise
 it goes to stdout/stderr. The logger callback handles user-facing pipeline messages.
 
 Returns 'Left Terminated' if interrupted by async exception, or 'Right ExitCode'
-when all processes complete (with the exit code of the first failure, or ExitSuccess).
+with the process exit code.
 -}
 runProcess' ::
   forall es.
@@ -64,42 +63,27 @@ runProcess' ::
   , FileSystem :> es
   , ER.Reader LogContext :> es
   ) =>
-  -- | Working directory for processes
+  -- | Working directory for process
   FilePath ->
   -- | Optional output log file path
   Maybe FilePath ->
   -- | Logger callback for user-facing messages
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
-  -- | Processes to run in sequence
-  NonEmpty CreateProcess ->
+  -- | Process to run
+  CreateProcess ->
   Eff es (Either Terminated ExitCode)
-runProcess' workDir mOutputFile taskLogger procs = do
+runProcess' workDir mOutputFile taskLogger process = do
   tagCurrentThread "🛞 "
-  runProcs $ toList procs
+  withLogCommand process $ do
+    taskLogger Info "Starting task"
+    case mOutputFile of
+      Nothing -> runProcWithSettings id
+      Just outputFile ->
+        withFileHandle outputFile AppendMode $ \outputHandle ->
+          runProcWithSettings (redirectOutputTo outputHandle)
   where
-    -- Run each process one after another; exiting immediately if any fails
-    runProcs :: [CreateProcess] -> Eff es (Either Terminated ExitCode)
-    runProcs [] = do
-      taskLogger Info "All procs for task finished successfully"
-      pure $ Right ExitSuccess
-    runProcs (process : rest) =
-      runProc process >>= \case
-        Right ExitSuccess -> do
-          runProcs rest
-        x -> pure x
-
-    runProc :: CreateProcess -> Eff es (Either Terminated ExitCode)
-    runProc process = do
-      withLogCommand process $ do
-        taskLogger Info "Starting task"
-        case mOutputFile of
-          Nothing -> runProcWithSettings process id
-          Just outputFile ->
-            withFileHandle outputFile AppendMode $ \outputHandle ->
-              runProcWithSettings process (redirectOutputTo outputHandle)
-
-    runProcWithSettings :: CreateProcess -> (CreateProcess -> CreateProcess) -> Eff es (Either Terminated ExitCode)
-    runProcWithSettings process extraSettings = do
+    runProcWithSettings :: (CreateProcess -> CreateProcess) -> Eff es (Either Terminated ExitCode)
+    runProcWithSettings extraSettings = do
       let processSettings =
             extraSettings
               >>> (\cp -> cp {cwd = Just workDir, create_group = True})
