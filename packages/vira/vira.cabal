@@ -61,7 +61,6 @@ library
       Vira.State.Reset
       Vira.State.Type
       Vira.Supervisor.Core
-      Vira.Supervisor.Process
       Vira.Supervisor.Task
       Vira.Supervisor.Type
       Vira.Tool.Core
