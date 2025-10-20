@@ -4,6 +4,25 @@ with lib;
 
 let
   cfg = config.services.vira;
+
+  # SSH wrapper that bypasses systemd config to avoid permission errors
+  # SSH reads system configs from /etc/ssh/ssh_config.d/ and systemd dirs by default
+  # We copy the user config content (not symlink) to avoid nix store permission issues
+  sshWrapper = pkgs.writeShellScript "vira-ssh-wrapper" ''
+    # Create SSH config in runtime dir
+    VIRA_SSH_CONFIG="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/vira-ssh-config"
+    USER_SSH_CONFIG="${config.home.homeDirectory}/.ssh/config"
+
+    # Copy user config content if it exists
+    if [ -f "$USER_SSH_CONFIG" ]; then
+      cat "$USER_SSH_CONFIG" > "$VIRA_SSH_CONFIG"
+    else
+      : > "$VIRA_SSH_CONFIG"  # Empty config
+    fi
+
+    chmod 600 "$VIRA_SSH_CONFIG"
+    exec ${pkgs.openssh}/bin/ssh -F "$VIRA_SSH_CONFIG" "$@"
+  '';
 in
 {
   options.services.vira = mkOption {
@@ -42,6 +61,7 @@ in
         # Environment
         Environment = [
           "PATH=${makeBinPath cfg.extraPackages}:$PATH"
+          "GIT_SSH_COMMAND=${sshWrapper}"
         ];
       };
 
