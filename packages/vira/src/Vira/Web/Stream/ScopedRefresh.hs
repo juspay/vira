@@ -16,7 +16,7 @@ module Vira.Web.Stream.ScopedRefresh (
   sseScope,
 ) where
 
-import Colog.Core (Severity (Debug, Info))
+import Colog.Core (Severity (Debug))
 import Data.Text qualified as Text
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
@@ -61,9 +61,8 @@ sseScope crumbs = Just $ case reverse crumbs of
 -- | SSE listener with event pattern filtering
 viewStreamScoped :: [ScopePattern] -> AppHtml ()
 viewStreamScoped patterns = do
-  refreshUrl <- lift $ getLinkUrl LinkTo.Refresh
   let patternsParam = Text.intercalate "," (map toText patterns)
-      link = refreshUrl <> "?events=" <> patternsParam
+  link <- lift $ getLinkUrl $ LinkTo.Refresh (Just patternsParam)
   div_ [hxExt_ "sse", hxSseConnect_ link] $ do
     -- Listen for "message" events (default SSE event type) - server filters and sends only matching ones
     script_ [hxSseSwap_ "message"] ("" :: Text)
@@ -71,18 +70,16 @@ viewStreamScoped patterns = do
 streamRouteHandler :: (HasCallStack) => Maybe Text -> SourceT (Eff AppStack) ScopedRefresh
 streamRouteHandler mEventPatterns = S.fromStepT $ S.Effect $ do
   let patterns = parseScopePatterns $ fromMaybe "*" mEventPatterns
-  tagStreamThread
   log Debug $ "Starting stream with patterns: " <> show patterns
+  tagStreamThread
   step 0 patterns <$> Broadcast.subscribeToBroadcasts
   where
     step (n :: Int) patterns chan = S.Effect $ do
       scopes <- Broadcast.consumeBroadcasts chan
       -- Filter scopes by patterns
       let matching = filter (matchesAnyPattern patterns) scopes
-      unless (null scopes) $ do
-        log Info $ "Received scopes: " <> show scopes <> ", patterns: " <> show patterns
       unless (null matching) $ do
-        log Info $ "Filtered scopes: " <> show matching <> " events; n=" <> show n
+        log Debug $ "Filtered scopes: " <> show matching <> " events; n=" <> show n
       -- Send multiple events, one per scope (allows HTMX to filter by event name)
       pure $ yieldAll matching $ step (n + 1) patterns chan
 
