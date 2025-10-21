@@ -97,15 +97,11 @@ viewCommitTimeline branch jobs = do
             div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"] $ toHtmlRaw Icon.git_commit
             span_ [class_ "text-sm font-semibold text-gray-900 dark:text-gray-100"] $ "#" <> toHtml (show @Text job.jobId)
 
-          -- Column 2: Commit info (4 columns)
-          div_ [class_ "col-span-4 min-w-0"] $ do
+          -- Column 2: Commit info (6 columns)
+          div_ [class_ "col-span-6 min-w-0"] $ do
             W.viraCommitInfoCompact_ maybeCommit
 
-          -- Column 3: Creation time (2 columns)
-          div_ [class_ "col-span-2 text-xs text-gray-500 dark:text-gray-400"] $ do
-            Time.viraRelativeTime_ job.jobCreatedTime
-
-          -- Column 4: Build duration and status (4 columns)
+          -- Column 3: Build duration and status (4 columns)
           div_ [class_ "col-span-4 flex items-center justify-end space-x-2"] $ do
             -- Build duration
             case St.jobEndTime job of

@@ -48,7 +48,7 @@ viraCommitInfoCompact_ mCommit = do
         viraCommitHash_ commit.id
         unless (T.null commit.message) $ do
           span_ [class_ "text-sm text-gray-700 dark:text-gray-300 truncate max-w-xs"] $ toHtml commit.message
-        span_ [class_ "text-xs text-gray-500 dark:text-gray-400 cursor-help", title_ (show commit.date)] $
+        div_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $
           toHtml $
             formatRelativeTime now commit.date
       Nothing -> do

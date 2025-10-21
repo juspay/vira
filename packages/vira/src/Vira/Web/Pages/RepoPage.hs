@@ -195,18 +195,12 @@ viewBranchListing repo branchDetails isPruned = do
                 toHtml $
                   toText details.branch.branchName
 
-            -- Column 2: Last update info (3 columns)
-            div_ [class_ "col-span-3 min-w-0"] $ do
+            -- Column 2: Last update info (5 columns)
+            div_ [class_ "col-span-5 min-w-0"] $ do
               W.viraCommitInfoCompact_ (Just details.branch.headCommit)
 
-            -- Column 3: Job creation time (2 columns)
-            div_ [class_ "col-span-2 text-xs text-gray-500 dark:text-gray-400"] $ do
-              case details.mLatestJob of
-                Just latestJob -> Time.viraRelativeTime_ latestJob.jobCreatedTime
-                Nothing -> mempty
-
-            -- Column 4: Build info and status (4 columns)
-            div_ [class_ "col-span-4 flex items-center justify-end space-x-2"] $ do
+            -- Column 3: Build info and status (3 columns)
+            div_ [class_ "col-span-3 flex items-center justify-end space-x-2"] $ do
               -- Build duration and metadata
               case details.mLatestJob of
                 Just latestJob -> do
