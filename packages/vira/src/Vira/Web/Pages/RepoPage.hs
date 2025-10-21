@@ -182,21 +182,22 @@ viewBranchListing repo branchDetails isPruned = do
       let effectiveStatus = getBranchEffectiveStatus details
 
       div_ [class_ "space-y-1", data_ "branch-item" (toText details.branch.branchName)] $ do
-        -- Branch header
+        -- Branch header with commit info
         W.viraJobContextHeader_ branchUrl $ do
-          div_ [class_ "flex items-center space-x-2"] $ do
-            div_ [class_ "w-5 h-5 flex items-center justify-center"] $ toHtmlRaw Icon.git_branch
-            span_ $ toHtml $ toText details.branch.branchName
-            when (effectiveStatus == OutOfDate) $ do
-              span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
-                div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
-                "Out of date"
-        -- Branch HEAD commit info and metadata (below header)
-        div_ [class_ "ml-7 mb-1 text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-3"] $ do
-          W.viraCommitInfoCompact_ (Just details.branch.headCommit)
-          when (details.jobsCount > 0) $ do
-            span_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $
-              "(" <> toHtml (show @Text details.jobsCount) <> " builds)"
+          div_ [class_ "flex items-center justify-between"] $ do
+            -- Left side: branch name and status
+            div_ [class_ "flex items-center space-x-2"] $ do
+              div_ [class_ "w-5 h-5 flex items-center justify-center"] $ toHtmlRaw Icon.git_branch
+              span_ $ toHtml $ toText details.branch.branchName
+              when (effectiveStatus == OutOfDate) $ do
+                span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
+                  div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
+                  "Out of date"
+            -- Right side: commit info (less prominent)
+            div_ [class_ "text-xs opacity-50 group-hover:opacity-100 flex items-center space-x-3"] $ do
+              W.viraCommitInfoCompact_ (Just details.branch.headCommit)
+              when (details.jobsCount > 0) $ do
+                span_ $ "(" <> toHtml (show @Text details.jobsCount) <> " builds)"
 
         -- Job row - only shown if job exists
         whenJust details.mLatestJob $ \latestJob -> do

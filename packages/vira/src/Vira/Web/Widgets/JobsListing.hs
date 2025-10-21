@@ -122,6 +122,6 @@ viraJobContextHeader_ :: Text -> AppHtml () -> AppHtml ()
 viraJobContextHeader_ url content = do
   a_
     [ href_ url
-    , class_ "block mb-2 pl-3 text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+    , class_ "group block mb-2 pl-3 text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
     ]
     content
