@@ -21,7 +21,7 @@ devourFlakePath :: FilePath
 devourFlake :: (HasCallStack) => DevourFlakeArgs -> [String]
 devourFlake args =
   [ "build"
-  , devourFlakePath <> "#json"
+  , devourFlakePath <> "#default"
   , "-L"
   , "--print-out-paths"
   , "--no-write-lock-file"
