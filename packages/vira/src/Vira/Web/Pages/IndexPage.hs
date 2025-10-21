@@ -87,11 +87,11 @@ viewRecentJobs jobs = do
                 a_ [href_ branchUrl, class_ "text-xs text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 truncate relative z-20 pointer-events-auto"] $ toHtml $ toString job.branch
 
             -- Column 3: Commit info (5 cols)
-            div_ [class_ "col-span-5 min-w-0"] $ do
+            div_ [class_ "col-span-5 min-w-0 pointer-events-auto"] $ do
               W.viraCommitInfoCompact_ maybeCommit
 
             -- Column 4: Time (2 cols)
-            div_ [class_ "col-span-2 text-xs text-gray-500 dark:text-gray-400"] $ do
+            div_ [class_ "col-span-2 pointer-events-auto"] $ do
               Time.viraRelativeTime_ job.jobCreatedTime
 
             -- Column 5: Status (1 col)
