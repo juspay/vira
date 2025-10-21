@@ -100,7 +100,7 @@ layout crumbs content = do
           ]
     body_ [class_ "bg-gray-50 dark:bg-gray-900 min-h-screen font-inter"] $ do
       -- Add SSE listener based on page entity (if any)
-      whenJust (Stream.sseScope crumbs) Stream.viewStreamScoped
+      whenJust (Stream.pageScopePatterns crumbs) Stream.viewStreamScoped
       -- Global modal container for all pages
       W.viraGlobalModalContainer_
       div_ [class_ "min-h-screen flex flex-col"] $ do

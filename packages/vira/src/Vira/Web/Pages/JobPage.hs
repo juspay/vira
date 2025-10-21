@@ -186,7 +186,11 @@ triggerNewBuild minSeverity repoName branchName = do
               Left (Pipeline.PipelineTerminated Terminated) -> St.JobFinished St.JobKilled endTime
               Left _ -> St.JobFinished St.JobFailure endTime
         App.update $ St.JobUpdateStatusA job.jobId status
-        Broadcast.broadcastUpdate (JobScope job.jobId)
+        broadcastUpdate job.jobId
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
-    Broadcast.broadcastUpdate (JobScope job.jobId)
+    broadcastUpdate job.jobId
     log Info "Started task"
+  where
+    broadcastUpdate jobId = do
+      Broadcast.broadcastUpdate $ JobScope jobId
+      Broadcast.broadcastUpdate $ RepoScope repoName

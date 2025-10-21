@@ -4,7 +4,7 @@ Entity-scoped Server-Sent Events for automatic page refresh.
 Bridges breadcrumbs to broadcast events: extracts entity scope from page hierarchy,
 subscribes to updates, triggers page reload when matching events occur.
 
-Flow: breadcrumbs → 'sseScope' → 'viewStreamScoped' → SSE → 'streamRouteHandler' → reload
+Flow: breadcrumbs → 'pageScopePatterns' → 'viewStreamScoped' → SSE → 'streamRouteHandler' → reload
 -}
 module Vira.Web.Stream.ScopedRefresh (
   -- * Routes and handlers
@@ -13,7 +13,7 @@ module Vira.Web.Stream.ScopedRefresh (
 
   -- * Views
   viewStreamScoped,
-  sseScope,
+  pageScopePatterns,
 ) where
 
 import Colog.Core (Severity (Debug))
@@ -49,9 +49,9 @@ instance ToServerEvent ScopedRefresh where
       Nothing -- Event ID
       "location.reload()"
 
--- | Extract SSE event patterns from breadcrumbs
-sseScope :: [LinkTo] -> Maybe (NonEmpty ScopePattern)
-sseScope crumbs = case reverse crumbs of
+-- | `BroadcastScope` patterns monitored by the current page, derived from breadcrumbs
+pageScopePatterns :: [LinkTo] -> Maybe (NonEmpty ScopePattern)
+pageScopePatterns crumbs = case reverse crumbs of
   (Job jobId : _) -> Just $ ("job" </> show jobId) :| []
   (RepoBranch repoName _ : _) -> Just $ ("repo" </> toString repoName </> "*") :| []
   (Repo repoName : _) -> Just $ ("repo" </> toString repoName </> "*") :| []
