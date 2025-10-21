@@ -13,7 +13,7 @@ Vira provides a Home Manager module for running Vira as a user service. Supports
 
 ### Linux: Enable Lingering
 
-> [!important]
+> [!warning]
 > On Linux, you must enable "lingering" for your user to allow the Vira service to run as a daemon. Lingering enables systemd user services to start at boot and continue running without requiring an active login session.
 
 **For NixOS users:**
