@@ -38,7 +38,7 @@ The configuration function receives two parameters:
 
 The build stage accepts a non-empty list of flakes to build. Each flake can specify a path and optional input overrides.
 
-By default, Vira builds a single flake at the repository root (`"."`).
+By default, Vira builds a single flake at the repository root (`"."`) for the current system only.
 
 ```haskell
 -- Build a single flake at the current directory
@@ -58,9 +58,17 @@ pipeline
       , "./examples" { overrideInputs = [("vira", ".")] }
       ]
   }
+
+-- Build for multiple systems
+pipeline { build.systems = ["x86_64-linux", "aarch64-darwin"] }
 ```
 
 The flakes use Haskell's `IsString` instance, allowing simple string literals for paths. Use record update syntax to add overrides to specific flakes.
+
+The `systems` field controls which Nix systems to build for. When set to an empty list (default), Vira builds only for the current system. When specified, it uses [nix-systems](https://github.com/srid/nix-systems) to override the `systems` flake input.
+
+> [!TIP]
+> Building for multiple systems requires [[remote-builds]] to be configured. See the [[remote-builds]] guide for details.
 
 #### Cache Stage
 
