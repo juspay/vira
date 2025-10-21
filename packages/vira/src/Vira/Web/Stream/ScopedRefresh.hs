@@ -50,18 +50,18 @@ instance ToServerEvent ScopedRefresh where
       "location.reload()"
 
 -- | Extract SSE event patterns from breadcrumbs
-sseScope :: [LinkTo] -> Maybe [ScopePattern]
-sseScope crumbs = Just $ case reverse crumbs of
-  (Job jobId : _) -> ["job" </> show jobId]
-  (RepoBranch repoName _ : _) -> ["repo" </> toString repoName </> "*"]
-  (Repo repoName : _) -> ["repo" </> toString repoName </> "*"]
-  [] -> ["job" </> "*"] -- Index page: subscribe to all job events
-  _ -> [] -- No refresh for other pages
+sseScope :: [LinkTo] -> Maybe (NonEmpty ScopePattern)
+sseScope crumbs = case reverse crumbs of
+  (Job jobId : _) -> Just $ ("job" </> show jobId) :| []
+  (RepoBranch repoName _ : _) -> Just $ ("repo" </> toString repoName </> "*") :| []
+  (Repo repoName : _) -> Just $ ("repo" </> toString repoName </> "*") :| []
+  [] -> Just $ ("job" </> "*") :| [] -- Index page: subscribe to all job events
+  _ -> Nothing -- No refresh for other pages
 
 -- | SSE listener with event pattern filtering
-viewStreamScoped :: [ScopePattern] -> AppHtml ()
+viewStreamScoped :: NonEmpty ScopePattern -> AppHtml ()
 viewStreamScoped patterns = do
-  let patternsParam = Text.intercalate "," (map toText patterns)
+  let patternsParam = Text.intercalate "," (map toText $ toList patterns)
   link <- lift $ getLinkUrl $ LinkTo.Refresh (Just patternsParam)
   div_ [hxExt_ "sse", hxSseConnect_ link] $ do
     -- Listen for "message" events (default SSE event type) - server filters and sends only matching ones
