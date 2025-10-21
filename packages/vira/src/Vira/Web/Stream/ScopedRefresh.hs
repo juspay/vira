@@ -27,9 +27,9 @@ import Servant.API (QueryParam, SourceIO, type (:>))
 import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
-import System.FilePattern ((?==))
+import System.FilePath ((</>))
 import Vira.App.Broadcast.Core qualified as Broadcast
-import Vira.App.Broadcast.Type (BroadcastScope (..))
+import Vira.App.Broadcast.Type (BroadcastScope (..), ScopePattern, matchesAnyPattern, parseScopePatterns)
 import Vira.App.Stack (AppStack)
 import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
@@ -50,19 +50,19 @@ instance ToServerEvent ScopedRefresh where
       "location.reload()"
 
 -- | Extract SSE event patterns from breadcrumbs
-sseScope :: [LinkTo] -> Maybe [Text]
+sseScope :: [LinkTo] -> Maybe [ScopePattern]
 sseScope crumbs = Just $ case reverse crumbs of
-  (Job jobId : _) -> ["job/" <> show @Text jobId]
-  (RepoBranch repoName _ : _) -> ["repo/" <> toText repoName <> "/*"]
-  (Repo repoName : _) -> ["repo/" <> toText repoName <> "/*"]
-  [] -> ["job/*"] -- Index page: subscribe to all job events
+  (Job jobId : _) -> ["job" </> show jobId]
+  (RepoBranch repoName _ : _) -> ["repo" </> toString repoName </> "*"]
+  (Repo repoName : _) -> ["repo" </> toString repoName </> "*"]
+  [] -> ["job" </> "*"] -- Index page: subscribe to all job events
   _ -> [] -- No refresh for other pages
 
 -- | SSE listener with event pattern filtering
-viewStreamScoped :: [Text] -> AppHtml ()
+viewStreamScoped :: [ScopePattern] -> AppHtml ()
 viewStreamScoped patterns = do
   refreshUrl <- lift $ getLinkUrl LinkTo.Refresh
-  let patternsParam = Text.intercalate "," patterns
+  let patternsParam = Text.intercalate "," (map toText patterns)
       link = refreshUrl <> "?events=" <> patternsParam
   div_ [hxExt_ "sse", hxSseConnect_ link] $ do
     -- Listen for "message" events (default SSE event type) - server filters and sends only matching ones
@@ -70,7 +70,7 @@ viewStreamScoped patterns = do
 
 streamRouteHandler :: (HasCallStack) => Maybe Text -> SourceT (Eff AppStack) ScopedRefresh
 streamRouteHandler mEventPatterns = S.fromStepT $ S.Effect $ do
-  let patterns = parseEventPatterns $ fromMaybe "*" mEventPatterns
+  let patterns = parseScopePatterns $ fromMaybe "*" mEventPatterns
   tagStreamThread
   log Debug $ "Starting stream with patterns: " <> show patterns
   step 0 patterns <$> Broadcast.subscribeToBroadcasts
@@ -89,13 +89,3 @@ streamRouteHandler mEventPatterns = S.fromStepT $ S.Effect $ do
     yieldAll [] next = next
     yieldAll (scope : rest) next =
       S.Yield (ScopedRefresh scope) (yieldAll rest next)
-
--- | Parse comma-separated event patterns
-parseEventPatterns :: Text -> [Text]
-parseEventPatterns = map Text.strip . Text.splitOn ","
-
--- | Check if a scope matches any of the patterns (using filepattern globbing)
-matchesAnyPattern :: [Text] -> BroadcastScope -> Bool
-matchesAnyPattern patterns scope =
-  let scopeStr = show scope
-   in any (\pat -> toString pat ?== scopeStr) patterns
