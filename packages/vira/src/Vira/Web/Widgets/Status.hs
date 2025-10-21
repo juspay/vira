@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedRecordDot #-}
-
 {- |
 Vira Design System - Status Components
 
@@ -40,7 +38,6 @@ import Vira.Refresh.Core (getRepoRefreshStatus)
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshResult (..), RefreshStatus (..))
 import Vira.State.Acid qualified as Acid
 import Vira.State.Core qualified as St
-import Vira.State.Type
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl)
 import Vira.Web.Widgets.Button qualified as W
@@ -109,17 +106,17 @@ viraStatusBadge_ jobStatus = do
 
 viewAllJobStatus :: AppHtml ()
 viewAllJobStatus = do
-  -- Compute running jobs directly
+  -- Compute running jobs count
   jobsData <- lift $ App.query Acid.GetRunningJobs
-  let jobs = jobsData <&> \job -> (job.repo, job.jobId)
-  div_ [class_ "flex items-center space-x-2", title_ "Build Status"] $ do
-    indicator $ not $ null jobs
-    forM_ jobs $ \(repo, jobId) -> do
-      jobUrl <- lift $ getLinkUrl $ LinkTo.Job jobId
-      a_ [href_ jobUrl] $ do
-        span_ $ b_ $ toHtml $ unRepoName repo
-        "/"
-        span_ $ code_ $ toHtml @Text $ show jobId
+  let jobCount = length jobsData
+      active = jobCount > 0
+  indexUrl <- lift $ getLinkUrl LinkTo.Home
+  a_ [href_ indexUrl, class_ "flex items-center space-x-2 text-white hover:bg-white/20 px-3 py-1 rounded-lg transition-colors", title_ "View all jobs"] $ do
+    indicator active
+    span_ [class_ "text-sm font-medium"] $
+      if active
+        then toHtml $ show @Text jobCount <> " build" <> (if jobCount == 1 then "" else "s") <> " running"
+        else "No builds running"
 
 indicator :: (Monad m) => Bool -> HtmlT m ()
 indicator active = do
