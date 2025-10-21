@@ -58,6 +58,7 @@ dependencies:
   - effectful-th
   - envparse
   - filepath
+  - filepattern
   - gh
   - git-effectful
   - hostname

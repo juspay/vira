@@ -29,4 +29,4 @@ linkTo = \case
   JobLogStream jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._streamLog
   Kill jobId -> fieldLink _jobs // JobPage._kill /: jobId
   Environment -> fieldLink _environment // EnvironmentPage._view
-  Refresh -> fieldLink _refresh
+  Refresh -> fieldLink _refresh Nothing

@@ -165,6 +165,7 @@ library
     , effectful-th
     , envparse
     , filepath
+    , filepattern
     , gh
     , git-effectful
     , hint
@@ -284,6 +285,7 @@ executable vira
     , effectful-th
     , envparse
     , filepath
+    , filepattern
     , gh
     , git-effectful
     , hint
@@ -406,6 +408,7 @@ executable vira-tests
     , effectful-th
     , envparse
     , filepath
+    , filepattern
     , gh
     , git-effectful
     , hint

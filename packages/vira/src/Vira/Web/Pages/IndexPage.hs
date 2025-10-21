@@ -45,7 +45,7 @@ handlers globalSettings viraRuntimeState webSettings =
     , _jobs = JobPage.handlers globalSettings viraRuntimeState webSettings
     , _environment = EnvironmentPage.handlers globalSettings viraRuntimeState webSettings
     , _refresh =
-        Web.runStreamHandler globalSettings viraRuntimeState Refresh.streamRouteHandler
+        Web.runStreamHandler globalSettings viraRuntimeState . Refresh.streamRouteHandler
     }
 
 indexView :: AppHtml ()

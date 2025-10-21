@@ -15,10 +15,10 @@ data BroadcastScope
   | RepoScope RepoName
   deriving stock (Eq)
 
--- | Custom Show instance for SSE event names
+-- | Custom Show instance for SSE event names (using "/" for filepattern compatibility)
 instance Show BroadcastScope where
-  show (JobScope jobId) = "job:" <> Prelude.show jobId
-  show (RepoScope (RepoName name)) = toString $ "repo:" <> name
+  show (JobScope jobId) = "job/" <> Prelude.show jobId
+  show (RepoScope (RepoName name)) = toString $ "repo/" <> name
 
 -- | Broadcast channel for entity-scoped update events
 type UpdateBroadcast = TChan BroadcastScope
