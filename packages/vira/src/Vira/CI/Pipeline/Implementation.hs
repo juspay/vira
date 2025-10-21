@@ -279,7 +279,7 @@ signoffImpl repoDir pipeline = do
   if pipeline.signoff.enable
     then do
       logPipeline Info "Creating commit signoff"
-      let signoffProc = Signoff.create Signoff.Force "vira/ci"
+      let signoffProc = Signoff.create Signoff.Force "vira"
       runProcess repoDir env.outputLog signoffProc
       logPipeline Info "Signoff succeeded"
     else
