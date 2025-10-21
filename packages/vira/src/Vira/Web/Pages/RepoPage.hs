@@ -5,7 +5,6 @@ module Vira.Web.Pages.RepoPage (
   handlers,
 ) where
 
-import Data.Time (diffUTCTime)
 import Effectful (Eff)
 import Effectful.Colog.Simple (withLogContext)
 import Effectful.Error.Static (throwError)
@@ -30,10 +29,10 @@ import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Widgets.Button qualified as W
 import Vira.Web.Widgets.Commit qualified as W
+import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
 import Vira.Web.Widgets.Modal (ErrorModal (..))
 import Vira.Web.Widgets.Status qualified as Status
-import Vira.Web.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
 
 data Routes mode = Routes
@@ -177,46 +176,33 @@ viewBranchListing repo branchDetails isPruned = do
         div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.alert_circle
         span_ $ toHtml $ "Showing first " <> show @Text maxBranchesDisplayed <> " branches. Use the filter to narrow results."
 
-  div_ [class_ "space-y-2"] $ do
+  div_ [class_ "space-y-3"] $ do
     forM_ branchDetails $ \details -> do
       branchUrl <- lift $ getLinkUrl $ LinkTo.RepoBranch repo.name details.branch.branchName
-      a_
-        [ href_ branchUrl
-        , class_ "block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
-        , data_ "branch-item" (toText details.branch.branchName)
-        ]
-        $ do
-          -- Single-line columnar layout for easy scanning
-          div_ [class_ "grid grid-cols-12 gap-4 items-center"] $ do
-            -- Column 1: Branch name (4 columns)
-            div_ [class_ "col-span-4 flex items-center space-x-2 min-w-0"] $ do
-              div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"] $ toHtmlRaw Icon.git_branch
-              h3_ [class_ "text-sm font-semibold text-gray-900 dark:text-gray-100 truncate"] $
-                toHtml $
-                  toText details.branch.branchName
+      let effectiveStatus = getBranchEffectiveStatus details
 
-            -- Column 2: Last update info (5 columns)
-            div_ [class_ "col-span-5 min-w-0"] $ do
+      div_ [class_ "space-y-1", data_ "branch-item" (toText details.branch.branchName)] $ do
+        -- Branch header with commit info
+        W.viraJobContextHeader_ branchUrl $ do
+          div_ [class_ "flex items-center justify-between"] $ do
+            -- Left side: branch name and status
+            div_ [class_ "flex items-center space-x-2"] $ do
+              div_ [class_ "w-5 h-5 flex items-center justify-center"] $ toHtmlRaw Icon.git_branch
+              span_ $ toHtml $ toText details.branch.branchName
+              when (effectiveStatus == OutOfDate) $ do
+                span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
+                  div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
+                  "Out of date"
+            -- Right side: commit info (less prominent)
+            div_ [class_ "text-xs opacity-50 group-hover:opacity-100 flex items-center space-x-3"] $ do
               W.viraCommitInfoCompact_ (Just details.branch.headCommit)
+              when (details.jobsCount > 0) $ do
+                span_ $ "(" <> toHtml (show @Text details.jobsCount) <> " builds)"
 
-            -- Column 3: Build info and status (3 columns)
-            div_ [class_ "col-span-3 flex items-center justify-end space-x-2"] $ do
-              -- Build duration and metadata
-              case details.mLatestJob of
-                Just latestJob -> do
-                  div_ [class_ "flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400"] $ do
-                    case St.jobEndTime latestJob of
-                      Just endTime -> do
-                        let duration = diffUTCTime endTime latestJob.jobCreatedTime
-                        Time.viraDuration_ duration
-                      Nothing -> mempty
-                    span_ $ "#" <> toHtml (show @Text latestJob.jobId)
-                    span_ $ "(" <> toHtml (show @Text details.jobsCount) <> ")"
-                Nothing ->
-                  span_ [class_ "text-xs text-gray-500 dark:text-gray-400"] "No builds"
-
-              -- Status badge
-              viewBranchEffectiveStatus (getBranchEffectiveStatus details)
+        -- Job row - only shown if job exists
+        whenJust details.mLatestJob $ \latestJob -> do
+          div_ [class_ "ml-7"] $ do
+            W.viraJobRow_ Nothing latestJob
 
 {- | The effective build-status of a branch.
 
@@ -241,15 +227,3 @@ getBranchEffectiveStatus details = case details.mLatestJob of
     if details.branch.headCommit.id == job.commit
       then JobStatus job.jobStatus
       else OutOfDate
-
--- | Render the status badge for a branch's effective status.
-viewBranchEffectiveStatus :: BranchEffectiveStatus -> AppHtml ()
-viewBranchEffectiveStatus = \case
-  NeverBuilt ->
-    span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"] "Never built"
-  JobStatus jobStatus ->
-    Status.viraStatusBadge_ jobStatus
-  OutOfDate ->
-    span_ [class_ "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
-      div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
-      "Out of date"

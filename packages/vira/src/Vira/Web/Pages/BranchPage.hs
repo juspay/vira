@@ -2,7 +2,6 @@
 
 module Vira.Web.Pages.BranchPage where
 
-import Data.Time (diffUTCTime)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName, Commit (..), RepoName)
 import Lucid
@@ -15,13 +14,13 @@ import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type
 import Vira.Web.LinkTo.Type qualified as LinkTo
-import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
+import Vira.Web.Lucid (AppHtml, getLink, runAppHtml)
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Widgets.Button qualified as W
 import Vira.Web.Widgets.Commit qualified as W
+import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
 import Vira.Web.Widgets.Status qualified as Status
-import Vira.Web.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask, asks)
 
@@ -82,32 +81,9 @@ viewCommitTimeline branch jobs = do
         div_ [class_ "w-5 h-5 mr-3 flex items-center justify-center text-gray-500 dark:text-gray-400"] $ toHtmlRaw Icon.git_commit
         div_ [class_ "flex-1"] $ do
           div_ [class_ "flex items-center space-x-4"] $ do
-            W.viraCommitInfo_ branch.headCommit.id
+            W.viraCommitInfoCompact_ (Just branch.headCommit)
             span_ [class_ "text-sm text-gray-500 dark:text-gray-400"] "No builds yet"
 
     -- Show all jobs for this branch
     forM_ jobs $ \job -> do
-      maybeCommit <- lift $ App.query $ St.GetCommitByIdA job.commit
-      jobUrl <- lift $ getLinkUrl $ LinkTo.Job job.jobId
-      a_ [href_ jobUrl, class_ "block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-colors"] $ do
-        -- Single-line columnar layout for easy scanning
-        div_ [class_ "grid grid-cols-12 gap-4 items-center"] $ do
-          -- Column 1: Job ID (2 columns)
-          div_ [class_ "col-span-2 flex items-center space-x-2"] $ do
-            div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"] $ toHtmlRaw Icon.git_commit
-            span_ [class_ "text-sm font-semibold text-gray-900 dark:text-gray-100"] $ "#" <> toHtml (show @Text job.jobId)
-
-          -- Column 2: Commit info (6 columns)
-          div_ [class_ "col-span-6 min-w-0"] $ do
-            W.viraCommitInfoCompact_ maybeCommit
-
-          -- Column 3: Build duration and status (4 columns)
-          div_ [class_ "col-span-4 flex items-center justify-end space-x-2"] $ do
-            -- Build duration
-            case St.jobEndTime job of
-              Just endTime -> do
-                let duration = diffUTCTime endTime job.jobCreatedTime
-                Time.viraDuration_ duration
-              Nothing -> mempty
-            -- Status badge
-            Status.viraStatusBadge_ job.jobStatus
+      W.viraJobRow_ Nothing job

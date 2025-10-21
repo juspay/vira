@@ -4,7 +4,7 @@ Entity-scoped Server-Sent Events for automatic page refresh.
 Bridges breadcrumbs to broadcast events: extracts entity scope from page hierarchy,
 subscribes to updates, triggers page reload when matching events occur.
 
-Flow: breadcrumbs → 'sseScope' → 'viewStreamScoped' → SSE → 'streamRouteHandler' → reload
+Flow: breadcrumbs → 'pageScopePatterns' → 'viewStreamScoped' → SSE → 'streamRouteHandler' → reload
 -}
 module Vira.Web.Stream.ScopedRefresh (
   -- * Routes and handlers
@@ -13,21 +13,23 @@ module Vira.Web.Stream.ScopedRefresh (
 
   -- * Views
   viewStreamScoped,
-  sseScope,
+  pageScopePatterns,
 ) where
 
 import Colog.Core (Severity (Debug))
+import Data.Text qualified as Text
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
 import Htmx.Lucid.Extra (hxExt_)
 import Lucid
 import Lucid.Htmx.Contrib (hxSseConnect_, hxSseSwap_)
-import Servant.API (SourceIO)
+import Servant.API (QueryParam, SourceIO, type (:>))
 import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
+import System.FilePath ((</>))
 import Vira.App.Broadcast.Core qualified as Broadcast
-import Vira.App.Broadcast.Type (BroadcastScope (..))
+import Vira.App.Broadcast.Type (ScopePattern, matchesAnyPattern, parseScopePatterns)
 import Vira.App.Stack (AppStack)
 import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
@@ -35,45 +37,47 @@ import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Stack (tagStreamThread)
 import Prelude hiding (Reader, ask, asks, runReader)
 
-type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO ScopedRefresh))
+type StreamRoute = QueryParam "events" Text :> ServerSentEvents (RecommendedEventSourceHeaders (SourceIO ScopedRefresh))
 
 -- A scoped refresh signal sent from server to client
-newtype ScopedRefresh = ScopedRefresh BroadcastScope
+data ScopedRefresh = ScopedRefresh
 
 instance ToServerEvent ScopedRefresh where
-  toServerEvent (ScopedRefresh scope) =
+  toServerEvent ScopedRefresh =
     ServerEvent
-      (Just $ show scope)
-      Nothing
+      Nothing -- No event type = defaults to "message"
+      Nothing -- Event ID
       "location.reload()"
 
--- | Extract SSE event scope from breadcrumbs (rightmost entity wins)
-sseScope :: [LinkTo] -> Maybe BroadcastScope
-sseScope crumbs = case reverse crumbs of
-  (Job jobId : _) -> Just $ JobScope jobId
-  (RepoBranch repoName _ : _) -> Just $ RepoScope repoName
-  (Repo repoName : _) -> Just $ RepoScope repoName
-  _ -> Nothing
+-- | `BroadcastScope` patterns monitored by the current page, derived from breadcrumbs
+pageScopePatterns :: [LinkTo] -> Maybe (NonEmpty ScopePattern)
+pageScopePatterns crumbs = case reverse crumbs of
+  (Job jobId : _) -> Just $ ("job" </> show jobId) :| []
+  (RepoBranch repoName _ : _) -> Just $ ("repo" </> toString repoName </> "*") :| []
+  (Repo repoName : _) -> Just $ ("repo" </> toString repoName </> "*") :| []
+  [] -> Just $ ("job" </> "*") :| [] -- Index page: subscribe to all job events
+  _ -> Nothing -- No refresh for other pages
 
--- | SSE listener scoped to specific entity (e.g., "repo:my-repo", "job:123")
-viewStreamScoped :: BroadcastScope -> AppHtml ()
-viewStreamScoped scope = do
-  link <- lift $ getLinkUrl LinkTo.Refresh
+-- | SSE listener with event pattern filtering
+viewStreamScoped :: NonEmpty ScopePattern -> AppHtml ()
+viewStreamScoped patterns = do
+  let patternsParam = Text.intercalate "," (map toText $ toList patterns)
+  link <- lift $ getLinkUrl $ LinkTo.Refresh (Just patternsParam)
   div_ [hxExt_ "sse", hxSseConnect_ link] $ do
-    script_ [hxSseSwap_ (show scope)] ("" :: Text)
+    -- Listen for "message" events (default SSE event type) - server filters and sends only matching ones
+    script_ [hxSseSwap_ "message"] ("" :: Text)
 
-streamRouteHandler :: (HasCallStack) => SourceT (Eff AppStack) ScopedRefresh
-streamRouteHandler = S.fromStepT $ S.Effect $ do
+streamRouteHandler :: (HasCallStack) => Maybe Text -> SourceT (Eff AppStack) ScopedRefresh
+streamRouteHandler mEventPatterns = S.fromStepT $ S.Effect $ do
+  let patterns = parseScopePatterns $ fromMaybe "*" mEventPatterns
+  log Debug $ "Starting stream with patterns: " <> show patterns
   tagStreamThread
-  log Debug "Starting stream"
-  step 0 <$> Broadcast.subscribeToBroadcasts
+  step 0 patterns <$> Broadcast.subscribeToBroadcasts
   where
-    step (n :: Int) chan = S.Effect $ do
+    step (n :: Int) patterns chan = S.Effect $ do
       scopes <- Broadcast.consumeBroadcasts chan
-      log Debug $ "Triggering refresh for scopes: " <> show scopes <> "; n=" <> show n
-      -- Send multiple events, one per scope (allows HTMX to filter by event name)
-      pure $ yieldAll scopes $ step (n + 1) chan
-
-    yieldAll [] next = next
-    yieldAll (scope : rest) next =
-      S.Yield (ScopedRefresh scope) (yieldAll rest next)
+      -- Filter scopes by patterns
+      let matching = filter (matchesAnyPattern patterns) scopes
+      unless (null matching) $ do
+        log Debug $ "Filtered scopes: " <> show matching <> " events; n=" <> show n
+      pure $ S.Yield ScopedRefresh $ step (n + 1) patterns chan

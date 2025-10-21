@@ -126,6 +126,15 @@ getJobsByBranchA repo branch = do
   ViraState {jobs} <- ask
   pure $ Ix.toDescList (Proxy @JobId) $ jobs @= repo @= branch
 
+-- | Get the N most recent jobs across all repos/branches, showing only latest job per repo/branch
+getRecentJobsA :: Natural -> Query ViraState [Job]
+getRecentJobsA limit = do
+  ViraState {jobs} <- ask
+  let allJobs = sortWith (Down . (.jobCreatedTime)) $ Ix.toList jobs
+      -- Keep first occurrence of each (repo, branch) - already sorted newest-first
+      latestPerBranch = ordNubOn (\job -> (job.repo, job.branch)) allJobs
+  pure $ take (fromIntegral limit) latestPerBranch
+
 -- | Get all running jobs
 getRunningJobs :: Query ViraState [Job]
 getRunningJobs = do
@@ -204,6 +213,7 @@ $( makeAcidic
      , 'getCommitByIdA
      , 'storeCommitA
      , 'getJobsByBranchA
+     , 'getRecentJobsA
      , 'getRunningJobs
      , 'getJobA
      , 'addNewJobA

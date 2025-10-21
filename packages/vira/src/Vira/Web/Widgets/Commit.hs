@@ -42,7 +42,7 @@ viraCommitInfo_ commitId = do
 viraCommitInfoCompact_ :: Maybe Git.Commit -> AppHtml ()
 viraCommitInfoCompact_ mCommit = do
   now <- liftIO getCurrentTime
-  div_ [class_ "flex items-center space-x-2"] $ do
+  div_ [class_ "flex items-baseline space-x-2"] $ do
     case mCommit of
       Just commit -> do
         viraCommitHash_ commit.id

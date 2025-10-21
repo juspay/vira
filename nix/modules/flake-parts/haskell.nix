@@ -46,6 +46,7 @@ in
         servant-event-stream.source = inputs.servant-event-stream;
         record-hasfield.source = inputs.record-hasfield;
         toml-reader.source = "0.3.0.0";
+        filepattern.source = "0.1.3";
       };
 
       # Add your package overrides here

@@ -23,7 +23,7 @@ data LinkTo
   | JobLogStream JobId
   | Kill JobId
   | Environment
-  | Refresh
+  | Refresh (Maybe Text) -- Query parameter for event patterns
 
 linkShortTitle :: LinkTo -> Text
 linkShortTitle = \case
@@ -41,7 +41,7 @@ linkShortTitle = \case
   JobLogStream jobId -> "Job Log Stream " <> show jobId
   Kill _ -> "Kill" -- unused
   Environment -> "Environment"
-  Refresh -> "Refresh"
+  Refresh _ -> "Refresh"
 
 linkTitle :: LinkTo -> Text
 linkTitle = \case
