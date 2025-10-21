@@ -32,6 +32,7 @@ import Effectful.Reader.Static qualified as ER
 import GH.Signoff qualified as Signoff
 import System.FilePath ((</>))
 import System.Nix.Core (nix)
+import System.Nix.System (System)
 import System.Process (proc)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
@@ -159,7 +160,7 @@ buildImpl repoDir pipeline = do
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
   -- Build each flake sequentially
   forM pipeline.build.flakes $ \flake -> do
-    buildFlake repoDir pipeline flake
+    buildFlake repoDir pipeline.build.systems flake
 
 -- | Build a single flake
 buildFlake ::
@@ -173,17 +174,17 @@ buildFlake ::
   , Error PipelineError :> es
   ) =>
   FilePath ->
-  ViraPipeline ->
+  [System] ->
   Flake ->
   Eff es FilePath
-buildFlake repoDir pipeline (Flake flakePath overrideInputs) = do
+buildFlake repoDir systems (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
   let buildProc =
         proc nix $
           devourFlake $
             DevourFlakeArgs
               { flakePath = flakePath
-              , systems = pipeline.build.systems
+              , systems
               , outLink = Just (flakePath </> "result")
               , overrideInputs = overrideInputs
               }
