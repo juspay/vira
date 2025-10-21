@@ -22,6 +22,7 @@ import Vira.Web.Stack qualified as Web
 import Vira.Web.Stream.ScopedRefresh qualified as Refresh
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
+import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (Reader, ask, runReader)
 
 data Routes mode = Routes
@@ -69,9 +70,12 @@ viewRecentJobs jobs = do
         div_ [class_ "space-y-1"] $ do
           -- Context header: repo → branch (no commit info - redundant with job row)
           W.viraJobContextHeader_ branchUrl $ do
-            span_ $ toHtml $ toString job.repo
-            span_ [class_ "mx-2 text-gray-500 dark:text-gray-400"] "→"
-            span_ $ toHtml $ toString job.branch
+            div_ [class_ "flex items-center space-x-2"] $ do
+              div_ [class_ "w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.book_2
+              span_ $ toHtml $ toString job.repo
+              span_ [class_ "mx-2 opacity-50 group-hover:opacity-100"] "→"
+              div_ [class_ "w-4 h-4 flex items-center justify-center opacity-50 group-hover:opacity-100"] $ toHtmlRaw Icon.git_branch
+              span_ [class_ "opacity-50 group-hover:opacity-100"] $ toHtml $ toString job.branch
           -- Job row
           W.viraJobRow_ Nothing job
 
