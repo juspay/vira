@@ -200,7 +200,8 @@ viewBranchListing repo branchDetails isPruned = do
 
         -- Job row - only shown if job exists
         whenJust details.mLatestJob $ \latestJob -> do
-          W.viraJobRow_ Nothing latestJob
+          div_ [class_ "ml-7"] $ do
+            W.viraJobRow_ Nothing latestJob
 
 {- | The effective build-status of a branch.
 
