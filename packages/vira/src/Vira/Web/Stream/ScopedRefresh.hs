@@ -29,7 +29,7 @@ import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import System.FilePath ((</>))
 import Vira.App.Broadcast.Core qualified as Broadcast
-import Vira.App.Broadcast.Type (BroadcastScope (..), ScopePattern, matchesAnyPattern, parseScopePatterns)
+import Vira.App.Broadcast.Type (ScopePattern, matchesAnyPattern, parseScopePatterns)
 import Vira.App.Stack (AppStack)
 import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
@@ -40,10 +40,10 @@ import Prelude hiding (Reader, ask, asks, runReader)
 type StreamRoute = QueryParam "events" Text :> ServerSentEvents (RecommendedEventSourceHeaders (SourceIO ScopedRefresh))
 
 -- A scoped refresh signal sent from server to client
-newtype ScopedRefresh = ScopedRefresh BroadcastScope
+data ScopedRefresh = ScopedRefresh
 
 instance ToServerEvent ScopedRefresh where
-  toServerEvent (ScopedRefresh _) =
+  toServerEvent ScopedRefresh =
     ServerEvent
       Nothing -- No event type = defaults to "message"
       Nothing -- Event ID
@@ -80,9 +80,4 @@ streamRouteHandler mEventPatterns = S.fromStepT $ S.Effect $ do
       let matching = filter (matchesAnyPattern patterns) scopes
       unless (null matching) $ do
         log Debug $ "Filtered scopes: " <> show matching <> " events; n=" <> show n
-      -- Send multiple events, one per scope (allows HTMX to filter by event name)
-      pure $ yieldAll matching $ step (n + 1) patterns chan
-
-    yieldAll [] next = next
-    yieldAll (scope : rest) next =
-      S.Yield (ScopedRefresh scope) (yieldAll rest next)
+      pure $ S.Yield ScopedRefresh $ step (n + 1) patterns chan
