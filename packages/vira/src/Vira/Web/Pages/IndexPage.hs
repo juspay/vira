@@ -65,14 +65,13 @@ viewRecentJobs jobs = do
     h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6"] "Recent Jobs"
     div_ [class_ "space-y-3"] $ do
       forM_ jobs $ \job -> do
-        repoUrl <- lift $ getLinkUrl $ LinkTo.Repo job.repo
         branchUrl <- lift $ getLinkUrl $ LinkTo.RepoBranch job.repo job.branch
         div_ [class_ "space-y-1"] $ do
           -- Context header: repo → branch (no commit info - redundant with job row)
           W.viraJobContextHeader_ branchUrl $ do
-            a_ [href_ repoUrl, class_ "hover:underline"] $ toHtml $ toString job.repo
-            span_ [class_ "text-gray-400 dark:text-gray-500 mx-2"] "→"
-            toHtml $ toString job.branch
+            span_ $ toHtml $ toString job.repo
+            span_ [class_ "mx-2 text-gray-500 dark:text-gray-400"] "→"
+            span_ $ toHtml $ toString job.branch
           -- Job row
           W.viraJobRow_ Nothing job
 

@@ -121,5 +121,7 @@ viraJobContextHeader_ branchUrl $ do
 viraJobContextHeader_ :: Text -> AppHtml () -> AppHtml ()
 viraJobContextHeader_ url content = do
   a_
-    [href_ url, class_ "block mb-1 text-base font-semibold text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"]
+    [ href_ url
+    , class_ "block mb-2 text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+    ]
     content

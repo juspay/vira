@@ -81,7 +81,7 @@ viewCommitTimeline branch jobs = do
         div_ [class_ "w-5 h-5 mr-3 flex items-center justify-center text-gray-500 dark:text-gray-400"] $ toHtmlRaw Icon.git_commit
         div_ [class_ "flex-1"] $ do
           div_ [class_ "flex items-center space-x-4"] $ do
-            div_ [class_ "text-sm font-mono text-gray-600 dark:text-gray-300"] $ toHtml $ show @Text branch.headCommit.id
+            W.viraCommitInfoCompact_ (Just branch.headCommit)
             span_ [class_ "text-sm text-gray-500 dark:text-gray-400"] "No builds yet"
 
     -- Show all jobs for this branch
