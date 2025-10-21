@@ -31,7 +31,7 @@
     record-hasfield.url = "github:ndmitchell/record-hasfield";
     record-hasfield.flake = false;
     nix-systems.url = "github:srid/nix-systems";
-    devour-flake.url = "github:srid/devour-flake/tidy";
+    devour-flake.url = "github:srid/devour-flake";
     devour-flake.flake = false;
 
     # Runtime dependencies
