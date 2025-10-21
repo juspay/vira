@@ -7,8 +7,8 @@ import Data.List qualified
 import Language.Haskell.Interpreter (GhcError (..), InterpreterError (..))
 import System.Exit (ExitCode)
 import Text.Show qualified as TS
+import Vira.Environment.Tool.Core (ToolError (..))
 import Vira.Supervisor.Type (Terminated)
-import Vira.Tool.Core (ToolError (..))
 
 -- | Pipeline-specific errors
 data PipelineError

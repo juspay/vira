@@ -49,6 +49,15 @@ library
       Vira.CI.Pipeline.Process
       Vira.CI.Pipeline.Program
       Vira.CI.Workspace
+      Vira.Environment.Tool.Core
+      Vira.Environment.Tool.Status
+      Vira.Environment.Tool.Tools.Attic
+      Vira.Environment.Tool.Tools.Cachix
+      Vira.Environment.Tool.Tools.Git
+      Vira.Environment.Tool.Tools.GitHub
+      Vira.Environment.Tool.Tools.Nix
+      Vira.Environment.Tool.Type.ToolData
+      Vira.Environment.Tool.Type.Tools
       Vira.Lib.STM
       Vira.Lib.TimeExtra
       Vira.Refresh.Core
@@ -62,15 +71,6 @@ library
       Vira.Supervisor.Core
       Vira.Supervisor.Task
       Vira.Supervisor.Type
-      Vira.Tool.Core
-      Vira.Tool.Status
-      Vira.Tool.Tools.Attic
-      Vira.Tool.Tools.Cachix
-      Vira.Tool.Tools.Git
-      Vira.Tool.Tools.GitHub
-      Vira.Tool.Tools.Nix
-      Vira.Tool.Type.ToolData
-      Vira.Tool.Type.Tools
       Vira.Web.LinkTo.Resolve
       Vira.Web.LinkTo.Type
       Vira.Web.Lucid

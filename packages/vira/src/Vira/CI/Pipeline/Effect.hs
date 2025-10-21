@@ -17,8 +17,8 @@ import System.FilePath ((</>))
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
 import Vira.CI.Pipeline.Type (ViraPipeline)
+import Vira.Environment.Tool.Type.Tools (Tools)
 import Vira.State.Type (Branch (..), Repo)
-import Vira.Tool.Type.Tools (Tools)
 
 -- | Wrapper for the logger function (to avoid impredicative types)
 newtype PipelineLogger = PipelineLogger

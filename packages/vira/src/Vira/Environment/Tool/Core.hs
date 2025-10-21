@@ -1,10 +1,10 @@
 {-# LANGUAGE RecordWildCards #-}
 
 -- | Tool definitions and data operations
-module Vira.Tool.Core (
+module Vira.Environment.Tool.Core (
   -- Re-export types
-  module Vira.Tool.Type.ToolData,
-  module Vira.Tool.Type.Tools,
+  module Vira.Environment.Tool.Type.ToolData,
+  module Vira.Environment.Tool.Type.Tools,
   ToolError (..),
   -- Operations
   newToolsTVar,
@@ -18,13 +18,13 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Process (Process)
 import Effectful.Reader.Dynamic qualified as Reader
 import Vira.App.Type (ViraRuntimeState (..))
-import Vira.Tool.Tools.Attic qualified as AtticTool
-import Vira.Tool.Tools.Cachix qualified as CachixTool
-import Vira.Tool.Tools.Git qualified as GitTool
-import Vira.Tool.Tools.GitHub qualified as GitHubTool
-import Vira.Tool.Tools.Nix qualified as NixTool
-import Vira.Tool.Type.ToolData
-import Vira.Tool.Type.Tools
+import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
+import Vira.Environment.Tool.Tools.Cachix qualified as CachixTool
+import Vira.Environment.Tool.Tools.Git qualified as GitTool
+import Vira.Environment.Tool.Tools.GitHub qualified as GitHubTool
+import Vira.Environment.Tool.Tools.Nix qualified as NixTool
+import Vira.Environment.Tool.Type.ToolData
+import Vira.Environment.Tool.Type.Tools
 import Prelude hiding (Reader)
 
 -- | Tool-related errors

@@ -29,13 +29,13 @@ import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Pipeline.Program qualified as Program
+import Vira.Environment.Tool.Core qualified as Tool
 import Vira.Refresh.Daemon qualified as Daemon
 import Vira.Refresh.Type qualified as Refresh
 import Vira.State.Core (closeViraState, openViraState, startPeriodicArchival, viraDbVersion)
 import Vira.State.JSON (getExportData, importViraState)
 import Vira.State.Type (ViraState)
 import Vira.Supervisor.Core qualified as Supervisor
-import Vira.Tool.Core qualified as Tool
 import Vira.Web.LinkTo.Resolve (linkTo)
 import Vira.Web.Server qualified as Server
 import Prelude hiding (Reader, ask, runReader)

@@ -7,11 +7,11 @@ module Vira.Web.Pages.EnvironmentPage.Tools (
 
 import Data.Text qualified as T
 import Lucid
-import Vira.Tool.Core (ToolData (..), Tools (..))
-import Vira.Tool.Core qualified as Tool
-import Vira.Tool.Tools.Attic qualified as AtticTool
-import Vira.Tool.Tools.GitHub qualified as GitHubTool
-import Vira.Tool.Tools.Nix qualified as NixTool
+import Vira.Environment.Tool.Core (ToolData (..), Tools (..))
+import Vira.Environment.Tool.Core qualified as Tool
+import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
+import Vira.Environment.Tool.Tools.GitHub qualified as GitHubTool
+import Vira.Environment.Tool.Tools.Nix qualified as NixTool
 import Vira.Web.Lucid (AppHtml)
 import Vira.Web.Widgets.Card qualified as W
 import Web.TablerIcons.Outline qualified as Icon

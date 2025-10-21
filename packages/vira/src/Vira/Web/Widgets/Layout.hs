@@ -43,7 +43,7 @@ import Vira.App.CLI (WebSettings (..))
 import Vira.App.GitRev qualified as GitRev
 import Vira.App.InstanceInfo (InstanceInfo (..), platform)
 import Vira.App.Type (ViraRuntimeState (..))
-import Vira.Tool.Status qualified as ToolStatus
+import Vira.Environment.Tool.Status qualified as ToolStatus
 import Vira.Web.LinkTo.Type (LinkTo (..), linkShortTitle, linkTitle)
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Pages.Common.User qualified as User

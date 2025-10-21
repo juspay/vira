@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
 -- | Attic tool-specific logic
-module Vira.Tool.Tools.Attic (
+module Vira.Environment.Tool.Tools.Attic (
   getToolData,
   viewToolStatus,
   ConfigError (..),
@@ -21,7 +21,7 @@ import Effectful (Eff, IOE, (:>))
 import Lucid (HtmlT, ToHtml (..), class_, code_, div_, p_, span_, strong_, toHtml)
 import TOML (TOMLError)
 import Text.Show qualified as TS
-import Vira.Tool.Type.ToolData (ToolData (..))
+import Vira.Environment.Tool.Type.ToolData (ToolData (..))
 import Vira.Web.Widgets.Alert (AlertType (..), viraAlertWithTitle_, viraAlert_)
 import Vira.Web.Widgets.Code qualified as W
 

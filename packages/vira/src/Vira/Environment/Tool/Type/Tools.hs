@@ -1,15 +1,15 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 
 -- | Tools type definition
-module Vira.Tool.Type.Tools (
+module Vira.Environment.Tool.Type.Tools (
   Tools (..),
 ) where
 
 import Attic.Config (AtticConfig)
 import GH.Auth.Status (AuthStatus)
 import System.Nix.Version (NixVersion)
-import Vira.Tool.Tools.Attic (ConfigError)
-import Vira.Tool.Type.ToolData (ToolData)
+import Vira.Environment.Tool.Tools.Attic (ConfigError)
+import Vira.Environment.Tool.Type.ToolData (ToolData)
 
 -- | All tools with their metadata and runtime status
 data Tools = Tools

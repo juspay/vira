@@ -1,11 +1,11 @@
 -- | Cachix tool-specific logic
-module Vira.Tool.Tools.Cachix (
+module Vira.Environment.Tool.Tools.Cachix (
   getToolData,
 ) where
 
 import Cachix qualified
 import Effectful (Eff, IOE, (:>))
-import Vira.Tool.Type.ToolData (ToolData (..))
+import Vira.Environment.Tool.Type.ToolData (ToolData (..))
 
 -- | Get Cachix tool data with metadata and runtime info
 getToolData :: (IOE :> es) => Eff es (ToolData ())

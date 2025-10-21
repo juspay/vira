@@ -9,10 +9,10 @@ import Data.Acid (AcidState)
 import Servant.Links (Link)
 import Vira.App.Broadcast.Type (UpdateBroadcast)
 import Vira.App.InstanceInfo (InstanceInfo)
+import Vira.Environment.Tool.Type.Tools (Tools)
 import Vira.Refresh.Type (RefreshState)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
-import Vira.Tool.Type.Tools (Tools)
 import Vira.Web.LinkTo.Type (LinkTo)
 
 -- | Application-wide state available in Effectful stack

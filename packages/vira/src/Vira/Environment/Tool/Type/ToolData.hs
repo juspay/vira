@@ -1,7 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 
 -- | ToolData type definition
-module Vira.Tool.Type.ToolData (
+module Vira.Environment.Tool.Type.ToolData (
   ToolData (..),
 ) where
 

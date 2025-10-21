@@ -1,5 +1,5 @@
 -- | GitHub tool-specific logic
-module Vira.Tool.Tools.GitHub (
+module Vira.Environment.Tool.Tools.GitHub (
   getToolData,
   viewToolStatus,
   GitHubSuggestion (..),
@@ -14,7 +14,7 @@ import GH.Core qualified as GH
 import GH.Signoff qualified as GH
 import Lucid (HtmlT, ToHtml (..), class_, div_, p_, strong_, toHtml)
 import Text.Show qualified as TS
-import Vira.Tool.Type.ToolData (ToolData (..))
+import Vira.Environment.Tool.Type.ToolData (ToolData (..))
 import Vira.Web.Widgets.Alert (AlertType (..), viraAlertWithTitle_, viraAlert_)
 import Vira.Web.Widgets.Code qualified as W
 

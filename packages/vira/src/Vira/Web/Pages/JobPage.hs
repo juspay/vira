@@ -21,13 +21,13 @@ import Vira.App.CLI (WebSettings)
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Workspace qualified as Workspace
+import Vira.Environment.Tool.Core qualified as Tool
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (JobId, jobWorkingDir)
 import Vira.Supervisor.Task qualified as Supervisor
 import Vira.Supervisor.Type (Terminated (Terminated))
-import Vira.Tool.Core qualified as Tool
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
 import Vira.Web.Pages.JobLog qualified as JobLog

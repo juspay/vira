@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 
 -- | Tool status views for the UI
-module Vira.Tool.Status (
+module Vira.Environment.Tool.Status (
   viewToolsStatus,
 ) where
 
@@ -10,8 +10,8 @@ import Effectful.Reader.Dynamic (ask)
 import GH.Auth.Status (AuthStatus (..))
 import Lucid
 import Vira.App.Type (ViraRuntimeState (..))
-import Vira.Tool.Core (ToolData (..))
-import Vira.Tool.Type.Tools qualified as Tool
+import Vira.Environment.Tool.Core (ToolData (..))
+import Vira.Environment.Tool.Type.Tools qualified as Tool
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Web.TablerIcons.Outline qualified as Icon

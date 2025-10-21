@@ -40,11 +40,11 @@ import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Process (runProcess)
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
+import Vira.Environment.Tool.Core (ToolError (..))
+import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
+import Vira.Environment.Tool.Type.ToolData (status)
+import Vira.Environment.Tool.Type.Tools (attic)
 import Vira.State.Type (Branch (..), Repo (..))
-import Vira.Tool.Core (ToolError (..))
-import Vira.Tool.Tools.Attic qualified as AtticTool
-import Vira.Tool.Type.ToolData (status)
-import Vira.Tool.Type.Tools (attic)
 
 -- | Run the unified Pipeline effect
 runPipeline ::
