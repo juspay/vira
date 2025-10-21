@@ -168,4 +168,4 @@ The version is automatically used by the --auto-reset-state feature to detect sc
 When enabled, auto-reset will remove ViraState/ and workspace/*/jobs directories on mismatch.
 Run `vira info` to see the current schema version.
 -}
-$(deriveSafeCopy 1 'base ''ViraState)
+$(deriveSafeCopy 2 'base ''ViraState)
