@@ -9,7 +9,7 @@ import Data.Data (Data)
 import Data.IxSet.Typed
 import Data.SafeCopy
 import Data.Time (UTCTime)
-import Effectful.Git (BranchName, Commit, CommitID, IxCommit, RepoName (..))
+import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit, RepoName (..))
 import Servant.API (FromHttpApiData, ToHttpApiData)
 import Vira.Refresh.Type (RefreshResult)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
@@ -69,9 +69,18 @@ data BranchDetails = BranchDetails
   }
   deriving stock (Generic, Show, Eq)
 
--- | Sorts branches by head commit date descending (most recent first).
+{- | Sorts branches by most recent activity descending (most recent first).
+
+Activity is defined as max(head commit date, latest job created time).
+This ensures branches with recent commits OR recent builds appear first.
+-}
 instance Ord BranchDetails where
-  compare a b = compare (Down a.branch.headCommit) (Down b.branch.headCommit)
+  compare a b = compare (Down $ getMostRecentActivity a) (Down $ getMostRecentActivity b)
+    where
+      getMostRecentActivity :: BranchDetails -> UTCTime
+      getMostRecentActivity details = case details.mLatestJob of
+        Nothing -> details.branch.headCommit.date
+        Just job -> max details.branch.headCommit.date job.jobCreatedTime
 
 newtype JobId = JobId {unJobId :: Natural}
   deriving stock (Generic, Data)
