@@ -149,16 +149,15 @@
     },
     "nix-systems": {
       "locked": {
-        "lastModified": 1761007979,
-        "narHash": "sha256-Jb6h5CJRj9t9duhrTm+PdZgrlZC3hgS7xo6pSITKVmA=",
+        "lastModified": 1761008537,
+        "narHash": "sha256-DO8mKzyspJC9PKmFw0mggILxqNa/5gabbG4mQB2y61A=",
         "owner": "srid",
         "repo": "nix-systems",
-        "rev": "37c2c25cc1ec907185e5e35253875bc7985c2563",
+        "rev": "df75b6951dd3be1872869cc04f3d53baa588184c",
         "type": "github"
       },
       "original": {
         "owner": "srid",
-        "ref": "static",
         "repo": "nix-systems",
         "type": "github"
       }

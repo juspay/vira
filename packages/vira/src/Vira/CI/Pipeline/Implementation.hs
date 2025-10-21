@@ -32,7 +32,6 @@ import Effectful.Reader.Static qualified as ER
 import GH.Signoff qualified as Signoff
 import System.FilePath ((</>))
 import System.Nix.Core (nix)
-import System.Nix.System (nixSystem)
 import System.Process (proc)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
@@ -279,8 +278,7 @@ signoffImpl repoDir pipeline = do
   if pipeline.signoff.enable
     then do
       logPipeline Info "Creating commit signoff"
-      let signoffProc = Signoff.create Signoff.Force statusTitle
-          statusTitle = "vira/" <> toString nixSystem <> "/ci"
+      let signoffProc = Signoff.create Signoff.Force "vira/ci"
       runProcess repoDir env.outputLog signoffProc
       logPipeline Info "Signoff succeeded"
     else
