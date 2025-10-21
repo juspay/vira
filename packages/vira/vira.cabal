@@ -96,6 +96,7 @@ library
       Vira.Web.Widgets.Code
       Vira.Web.Widgets.Commit
       Vira.Web.Widgets.Form
+      Vira.Web.Widgets.JobsListing
       Vira.Web.Widgets.Layout
       Vira.Web.Widgets.Modal
       Vira.Web.Widgets.Status

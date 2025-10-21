@@ -20,11 +20,8 @@ import Vira.Web.Pages.RegistryPage qualified as RegistryPage
 import Vira.Web.Servant ((//))
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Stream.ScopedRefresh qualified as Refresh
-import Vira.Web.Widgets.Card qualified as W
-import Vira.Web.Widgets.Commit qualified as W
+import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
-import Vira.Web.Widgets.Status qualified as W
-import Vira.Web.Widgets.Time qualified as Time
 import Prelude hiding (Reader, ask, runReader)
 
 data Routes mode = Routes
@@ -68,35 +65,16 @@ viewRecentJobs jobs = do
     h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6"] "Recent Jobs"
     div_ [class_ "space-y-3"] $ do
       forM_ jobs $ \job -> do
-        maybeCommit <- lift $ App.query $ St.GetCommitByIdA job.commit
-        jobUrl <- lift $ getLinkUrl $ LinkTo.Job job.jobId
         repoUrl <- lift $ getLinkUrl $ LinkTo.Repo job.repo
         branchUrl <- lift $ getLinkUrl $ LinkTo.RepoBranch job.repo job.branch
-        W.viraCard_ [class_ "p-4 hover:shadow-lg transition-shadow group relative"] $ do
-          a_ [href_ jobUrl, class_ "absolute inset-0 z-0"] ""
-          -- Use grid for proper column alignment (pointer-events-none allows clicks through to overlay)
-          div_ [class_ "grid grid-cols-12 gap-4 items-center relative z-10 pointer-events-none"] $ do
-            -- Column 1: Job ID (1 col)
-            div_ [class_ "col-span-1"] $ do
-              span_ [class_ "text-sm font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap group-hover:text-indigo-600 dark:group-hover:text-indigo-400"] $ "#" <> toHtml (show @Text job.jobId)
-
-            -- Column 2: Repo / Branch (3 cols, vertically stacked)
-            div_ [class_ "col-span-3"] $ do
-              div_ [class_ "flex flex-col space-y-0.5"] $ do
-                a_ [href_ repoUrl, class_ "font-semibold text-sm text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400 truncate relative z-20 pointer-events-auto"] $ toHtml $ toString job.repo
-                a_ [href_ branchUrl, class_ "text-xs text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 truncate relative z-20 pointer-events-auto"] $ toHtml $ toString job.branch
-
-            -- Column 3: Commit info (5 cols)
-            div_ [class_ "col-span-5 min-w-0"] $ do
-              W.viraCommitInfoCompact_ maybeCommit
-
-            -- Column 4: Time (2 cols)
-            div_ [class_ "col-span-2 text-xs text-gray-500 dark:text-gray-400"] $ do
-              Time.viraRelativeTime_ job.jobCreatedTime
-
-            -- Column 5: Status (1 col)
-            div_ [class_ "col-span-1 flex justify-end"] $ do
-              W.viraStatusBadge_ job.jobStatus
+        div_ [class_ "space-y-1"] $ do
+          -- Context header: repo → branch (no commit info - redundant with job row)
+          W.viraJobContextHeader_ branchUrl $ do
+            a_ [href_ repoUrl, class_ "hover:underline"] $ toHtml $ toString job.repo
+            span_ [class_ "text-gray-400 dark:text-gray-500 mx-2"] "→"
+            toHtml $ toString job.branch
+          -- Job row
+          W.viraJobRow_ Nothing job
 
 heroWelcome :: (Monad m) => Text -> Text -> Text -> HtmlT m ()
 heroWelcome logoUrl reposLink envLink = do
