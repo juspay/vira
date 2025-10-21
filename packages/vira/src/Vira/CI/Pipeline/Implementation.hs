@@ -32,7 +32,7 @@ import Effectful.Reader.Static qualified as ER
 import GH.Signoff qualified as Signoff
 import System.FilePath ((</>))
 import System.Nix.Core (nix)
-import System.Nix.System (nixSystem)
+import System.Nix.System (System)
 import System.Process (proc)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
@@ -160,7 +160,7 @@ buildImpl repoDir pipeline = do
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
   -- Build each flake sequentially
   forM pipeline.build.flakes $ \flake -> do
-    buildFlake repoDir flake
+    buildFlake repoDir pipeline.build.systems flake
 
 -- | Build a single flake
 buildFlake ::
@@ -174,16 +174,17 @@ buildFlake ::
   , Error PipelineError :> es
   ) =>
   FilePath ->
+  [System] ->
   Flake ->
   Eff es FilePath
-buildFlake repoDir (Flake flakePath overrideInputs) = do
+buildFlake repoDir systems (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
   let buildProc =
         proc nix $
           devourFlake $
             DevourFlakeArgs
               { flakePath = flakePath
-              , systems = Nothing
+              , systems
               , outLink = Just (flakePath </> "result")
               , overrideInputs = overrideInputs
               }
@@ -278,8 +279,7 @@ signoffImpl repoDir pipeline = do
   if pipeline.signoff.enable
     then do
       logPipeline Info "Creating commit signoff"
-      let signoffProc = Signoff.create Signoff.Force statusTitle
-          statusTitle = "vira/" <> toString nixSystem <> "/ci"
+      let signoffProc = Signoff.create Signoff.Force "vira"
       runProcess repoDir env.outputLog signoffProc
       logPipeline Info "Signoff succeeded"
     else
@@ -289,7 +289,7 @@ signoffImpl repoDir pipeline = do
 defaultPipeline :: ViraPipeline
 defaultPipeline =
   ViraPipeline
-    { build = BuildStage (one defaultFlake)
+    { build = BuildStage {flakes = one defaultFlake, systems = []}
     , cache = CacheStage Nothing
     , signoff = SignoffStage False
     }

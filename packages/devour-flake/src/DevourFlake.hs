@@ -8,6 +8,7 @@ module DevourFlake (
   devourFlakePath,
 ) where
 
+import DevourFlake.NixSystems (nixSystemsFlakeFor)
 import IncludeEnv.TH (includeEnv)
 import System.Nix.System (System (..))
 
@@ -29,7 +30,7 @@ devourFlake args =
 
 data DevourFlakeArgs = DevourFlakeArgs
   { flakePath :: FilePath
-  , systems :: Maybe (NonEmpty System)
+  , systems :: [System]
   , outLink :: Maybe FilePath
   , overrideInputs :: [(Text, Text)]
   }
@@ -41,8 +42,7 @@ toCliArgs args =
     [ ["--override-input", "flake", args.flakePath]
     , maybe ["--no-link"] (\link -> ["--out-link", link]) args.outLink
     , concatMap (\(k, v) -> ["--override-input", "flake/" <> toString k, toString v]) args.overrideInputs
-    , case args.systems of
+    , case nixSystemsFlakeFor args.systems of
         Nothing -> []
-        Just _systemsList ->
-          error "Not implemented"
+        Just systemsFlake -> ["--override-input", "systems", systemsFlake]
     ]

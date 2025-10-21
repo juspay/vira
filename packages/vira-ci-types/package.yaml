@@ -28,6 +28,7 @@ dependencies:
   - http-api-data
   - ixset-typed
   - modern-uri
+  - nix
   - optics-core
   - optics-th
   - safecopy

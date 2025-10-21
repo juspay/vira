@@ -17,6 +17,7 @@ module Vira.CI.Pipeline.Type where
 import Data.String (IsString (..))
 import GHC.Records.Compat
 import Relude (Bool (..), FilePath, Generic, Maybe, NonEmpty, Show, Text)
+import System.Nix.System (System)
 
 -- | CI Pipeline configuration types
 data ViraPipeline = ViraPipeline
@@ -26,8 +27,9 @@ data ViraPipeline = ViraPipeline
   }
   deriving stock (Generic, Show)
 
-newtype BuildStage = BuildStage
+data BuildStage = BuildStage
   { flakes :: NonEmpty Flake
+  , systems :: [System]
   }
   deriving stock (Generic, Show)
 
@@ -69,7 +71,10 @@ instance HasField "overrideInputs" Flake [(Text, Text)] where
   hasField (Flake path overrideInputs) = (Flake path, overrideInputs)
 
 instance HasField "flakes" BuildStage (NonEmpty Flake) where
-  hasField (BuildStage flakes) = (BuildStage, flakes)
+  hasField (BuildStage flakes systems) = (\x -> BuildStage x systems, flakes)
+
+instance HasField "systems" BuildStage [System] where
+  hasField (BuildStage flakes systems) = (BuildStage flakes, systems)
 
 instance HasField "enable" SignoffStage Bool where
   hasField (SignoffStage enable) = (SignoffStage, enable)

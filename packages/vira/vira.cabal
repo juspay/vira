@@ -48,7 +48,6 @@ library
       Vira.CI.Pipeline.Implementation
       Vira.CI.Pipeline.Process
       Vira.CI.Pipeline.Program
-      Vira.CI.Processes
       Vira.CI.Workspace
       Vira.Lib.STM
       Vira.Lib.TimeExtra
