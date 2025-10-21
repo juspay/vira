@@ -11,6 +11,37 @@ Vira provides a Home Manager module for running Vira as a user service. Supports
 > [!note]
 > Vira is only supported as a user-space service via Home Manager. System-wide deployment via NixOS modules is no longer supported, as Vira relies on user-space tools (attic, git, ssh, etc.) and user-space configuration (attic authentication tokens, SSH keys, git credentials, etc.).
 
+### Linux: Enable Lingering
+
+> [!important]
+> On Linux, you must enable "lingering" for your user to allow the Vira service to run as a daemon. Lingering enables systemd user services to start at boot and continue running without requiring an active login session.
+
+**For NixOS users:**
+
+Add the following to your NixOS configuration:
+
+```nix
+users.users.<username>.linger = true;
+```
+
+Replace `<username>` with your actual username.
+
+**For other Linux distributions:**
+
+Run the following command:
+
+```sh
+loginctl enable-linger $USER
+```
+
+You can verify lingering is enabled by running:
+
+```sh
+loginctl show-user $USER | grep Linger
+```
+
+This should output `Linger=yes`.
+
 ### macOS Limitations
 
 > [!warning]
