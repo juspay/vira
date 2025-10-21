@@ -74,6 +74,44 @@ in
       };
     };
 
+    systemd = mkOption {
+      description = "Systemd service configuration overrides";
+      default = { };
+      type = types.submodule {
+        options = {
+          serviceConfig = mkOption {
+            description = ''
+              Additional systemd Service section attributes.
+              These will be merged with the default service configuration.
+              See systemd.service(5) for available options.
+            '';
+            default = { };
+            type = types.attrsOf types.str;
+            example = literalExpression ''
+              {
+                CPUQuota = "50%";
+                MemoryMax = "2G";
+              }
+            '';
+          };
+
+          environment = mkOption {
+            description = ''
+              Additional environment variables for the service.
+              These will be merged with the default environment.
+            '';
+            default = { };
+            type = types.attrsOf types.str;
+            example = literalExpression ''
+              {
+                GIT_SSH_COMMAND = "ssh -i /path/to/key";
+              }
+            '';
+          };
+        };
+      };
+    };
+
     # Read-only computed outputs
     outputs = mkOption {
       type = types.submodule {

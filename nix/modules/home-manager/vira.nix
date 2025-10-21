@@ -29,21 +29,29 @@ in
         Wants = [ "network.target" ];
       };
 
-      Service = {
-        Type = "exec";
-        ExecStart = cfg.outputs.serviceCommand;
-        Restart = "on-failure";
-        RestartSec = "5s";
+      Service =
+        let
+          # Build environment variable list, avoiding duplicate PATH entries
+          defaultEnv = optionalAttrs (cfg.extraPackages != [ ]) {
+            PATH = "${makeBinPath cfg.extraPackages}:$PATH";
+          };
+          # User environment overrides defaults
+          mergedEnv = defaultEnv // cfg.systemd.environment;
+          envList = mapAttrsToList (name: value: "${name}=${value}") mergedEnv;
+        in
+        {
+          Type = "exec";
+          ExecStart = cfg.outputs.serviceCommand;
+          Restart = "on-failure";
+          RestartSec = "5s";
 
-        # Security settings for user service
-        NoNewPrivileges = true;
-        PrivateTmp = true;
+          # Security settings for user service
+          NoNewPrivileges = true;
+          PrivateTmp = true;
 
-        # Environment
-        Environment = [
-          "PATH=${makeBinPath cfg.extraPackages}:$PATH"
-        ];
-      };
+          # Environment
+          Environment = envList;
+        } // cfg.systemd.serviceConfig;
 
       Install = {
         WantedBy = [ "default.target" ];

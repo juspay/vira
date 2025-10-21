@@ -52,6 +52,34 @@ The Home Manager module supports the following configuration options:
 - `autoResetState` - Automatically reset state on schema mismatch, removing ViraState and job workspaces (default: `true`)
 - `extraPackages` - Extra packages to add to the Vira service PATH
 - `initialState.repositories` - Map of repository names to clone URLs for initial state
+- `systemd.environment` - Additional environment variables for the service (Linux only)
+- `systemd.serviceConfig` - Additional systemd Service section attributes (Linux only)
 
 > [!note]
 > The `autoResetState` option is enabled by default to ensure smooth upgrades when Vira's internal state schema changes. If you prefer to preserve state across schema changes (and handle migrations manually), set this to `false`.
+
+#### Systemd Service Customization
+
+On Linux, you can customize the systemd service configuration using the `systemd` options:
+
+**Environment Variables:**
+
+```nix
+services.vira = {
+  systemd.environment = {
+    GIT_SSH_COMMAND = "ssh -i /path/to/key";
+    CUSTOM_VAR = "value";
+  };
+};
+```
+
+**Service Configuration:**
+
+```nix
+services.vira = {
+  systemd.serviceConfig = {
+    CPUQuota = "50%";
+    MemoryMax = "2G";
+  };
+};
+```
