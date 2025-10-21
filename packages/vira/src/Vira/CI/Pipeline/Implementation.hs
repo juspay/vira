@@ -160,7 +160,7 @@ buildImpl repoDir pipeline = do
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
   -- Build each flake sequentially
   forM pipeline.build.flakes $ \flake -> do
-    buildFlake repoDir flake
+    buildFlake repoDir pipeline flake
 
 -- | Build a single flake
 buildFlake ::
@@ -174,16 +174,17 @@ buildFlake ::
   , Error PipelineError :> es
   ) =>
   FilePath ->
+  ViraPipeline ->
   Flake ->
   Eff es FilePath
-buildFlake repoDir (Flake flakePath overrideInputs) = do
+buildFlake repoDir pipeline (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
   let buildProc =
         proc nix $
           devourFlake $
             DevourFlakeArgs
               { flakePath = flakePath
-              , systems = Nothing
+              , systems = pipeline.build.systems
               , outLink = Just (flakePath </> "result")
               , overrideInputs = overrideInputs
               }
@@ -289,7 +290,7 @@ signoffImpl repoDir pipeline = do
 defaultPipeline :: ViraPipeline
 defaultPipeline =
   ViraPipeline
-    { build = BuildStage (one defaultFlake)
+    { build = BuildStage {flakes = one defaultFlake, systems = []}
     , cache = CacheStage Nothing
     , signoff = SignoffStage False
     }

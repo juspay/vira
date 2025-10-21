@@ -2,7 +2,8 @@
 
 \ctx pipeline ->
   pipeline
-    { build.flakes =
+    { build.systems = ["x86_64-linux"]
+    , build.flakes =
         [ "."
         , "./doc"
         , "./nix/examples/home-manager" { overrideInputs = [("vira", ".")] }

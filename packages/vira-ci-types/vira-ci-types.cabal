@@ -69,6 +69,7 @@ library
     , http-api-data
     , ixset-typed
     , modern-uri
+    , nix
     , optics-core
     , optics-th
     , record-hasfield
