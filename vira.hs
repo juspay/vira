@@ -2,7 +2,10 @@
 
 \ctx pipeline ->
   pipeline
-    { build.systems = ["x86_64-linux"]
+    { build.systems = 
+        [ "x86_64-linux"
+        , "aarch64-darwin"
+        ]
     , build.flakes =
         [ "."
         , "./doc"

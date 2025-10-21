@@ -20,8 +20,8 @@ For multiple systems, uses comma-separated sorted naming (srid/nix-systems#3)
 nixSystemsFlakeFor :: [System] -> Maybe FilePath
 nixSystemsFlakeFor = \case
   [] -> Nothing
-  systems -> Just $ nixSystemsPath </> systemsToPath systems
+  systems -> Just $ nixSystemsPath </> systemsToPath (sort systems)
   where
     systemsToPath :: [System] -> FilePath
     systemsToPath syss =
-      intercalate "," $ map toString $ sort syss
+      intercalate "," $ map toString syss

@@ -30,7 +30,7 @@
     warp-tls-simple.flake = false;
     record-hasfield.url = "github:ndmitchell/record-hasfield";
     record-hasfield.flake = false;
-    nix-systems.url = "github:srid/nix-systems/combo";
+    nix-systems.url = "github:srid/nix-systems/static";
     devour-flake.url = "github:srid/devour-flake";
     devour-flake.flake = false;
 

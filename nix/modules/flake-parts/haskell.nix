@@ -122,7 +122,7 @@ in
         };
         devour-flake = {
           drvAttrs = {
-            NIX_SYSTEMS_PATH = "${inputs'.nix-systems.packages.default}";
+            NIX_SYSTEMS_PATH = "${inputs.nix-systems}";
             DEVOUR_FLAKE_PATH = "${devour-flake}";
           };
         };
@@ -147,7 +147,7 @@ in
           lib.listToAttrs (lib.map (p: lib.nameValuePair p.name p) v.package.getCabalDeps.buildDepends)
         );
         mkShellArgs.shellHook = ''
-          export NIX_SYSTEMS_PATH="${inputs'.nix-systems.packages.default}"
+          export NIX_SYSTEMS_PATH="${inputs.nix-systems}"
           export DEVOUR_FLAKE_PATH="${devour-flake}"
         '';
       };
