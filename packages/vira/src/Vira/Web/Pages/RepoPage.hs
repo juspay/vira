@@ -192,7 +192,7 @@ viewBranchListing repo branchDetails isPruned = do
                 div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
                 "Out of date"
         -- Branch HEAD commit info and metadata (below header)
-        div_ [class_ "ml-7 mb-1 text-sm text-gray-600 dark:text-gray-300 flex items-center space-x-3"] $ do
+        div_ [class_ "ml-7 mb-1 text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-3"] $ do
           W.viraCommitInfoCompact_ (Just details.branch.headCommit)
           when (details.jobsCount > 0) $ do
             span_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $
