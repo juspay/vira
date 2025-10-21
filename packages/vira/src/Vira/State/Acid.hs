@@ -131,11 +131,9 @@ getRecentJobsA :: Natural -> Query ViraState [Job]
 getRecentJobsA limit = do
   ViraState {jobs} <- ask
   let allJobs = sortWith (Down . (.jobCreatedTime)) $ Ix.toList jobs
-      -- Group by (repo, branch) and take only the most recent job for each
-      -- fromListWith f: when duplicate key found, calls f newValue oldValue
-      -- We want to keep oldValue (first in list = newest), so use \_ old -> old
-      latestPerBranch = Map.elems $ Map.fromListWith (\_ old -> old) [((job.repo, job.branch), job) | job <- allJobs]
-  pure $ take (fromIntegral limit) $ sortWith (Down . (.jobCreatedTime)) latestPerBranch
+      -- Keep first occurrence of each (repo, branch) - already sorted newest-first
+      latestPerBranch = ordNubOn (\job -> (job.repo, job.branch)) allJobs
+  pure $ take (fromIntegral limit) latestPerBranch
 
 -- | Get all running jobs
 getRunningJobs :: Query ViraState [Job]
