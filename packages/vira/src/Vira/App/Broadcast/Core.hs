@@ -37,9 +37,12 @@ module Vira.App.Broadcast.Core (
 import Colog (Severity (Debug))
 import Colog.Message (RichMessage)
 import Control.Concurrent.STM (dupTChan, writeTChan)
+import Control.Concurrent.STM qualified as STM
+import Data.List.NonEmpty qualified as NE
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext, log)
+import Effectful.Concurrent (Concurrent, threadDelay)
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful.Reader.Static qualified as ER
 import Vira.App.Broadcast.Type (BroadcastScope, UpdateBroadcast)
@@ -65,7 +68,7 @@ broadcastUpdate ::
   Eff es ()
 broadcastUpdate scope = do
   chan <- asks @ViraRuntimeState updateBroadcast
-  liftIO $ atomically $ writeTChan chan scope
+  liftIO $ STM.atomically $ writeTChan chan scope
   log Debug $ "📡 Broadcasting scope: " <> show scope
 
 {- | Subscribe to broadcast updates by creating a duplicate channel
@@ -82,27 +85,34 @@ subscribeToBroadcasts ::
   Eff es UpdateBroadcast
 subscribeToBroadcasts = do
   chan <- asks @ViraRuntimeState updateBroadcast
-  liftIO $ atomically $ do
+  liftIO $ STM.atomically $ do
     dup <- dupTChan chan
     void $ drainRemainingTChan dup
     pure dup
 
-{- | Consume all pending broadcast events from a duplicate channel
+{- | Consume broadcast events from a duplicate channel with debouncing
 
-Drains all events currently in the channel and returns them as a list.
-This is non-blocking - returns immediately with whatever events are available.
+Blocks until at least one event arrives, then waits 2.5 seconds to batch additional events.
+This debouncing prevents rapid page reloads when multiple broadcasts occur in quick succession.
 
-Each event is logged at Debug level.
+Returns all events collected during the debounce window (guaranteed non-empty).
 -}
 consumeBroadcasts ::
   ( IOE :> es
+  , Concurrent :> es
   , Log (RichMessage IO) :> es
   , ER.Reader LogContext :> es
   ) =>
   UpdateBroadcast ->
-  Eff es [BroadcastScope]
+  Eff es (NonEmpty BroadcastScope)
 consumeBroadcasts chan = do
-  scopes <- liftIO $ atomically $ drainTChan chan
-  forM (toList scopes) $ \scope -> do
-    log Debug $ "Broadcast event received: scope=" <> show scope
+  -- Block until first event arrives
+  firstBatch <- liftIO $ STM.atomically $ drainTChan chan
+  -- Debounce: wait for more events to batch together
+  threadDelay 2_500_000 -- 2.5 seconds
+  moreScopes <- liftIO $ STM.atomically $ drainRemainingTChan chan
+  let allScopes = NE.appendList firstBatch moreScopes
+  log Debug $ "Consumed " <> show (length allScopes) <> " broadcast events (initial=" <> show (length firstBatch) <> " batched=" <> show (length moreScopes) <> ")"
+  forM allScopes $ \scope -> do
+    log Debug $ "  - scope=" <> show scope
     pure scope

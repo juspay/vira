@@ -69,15 +69,19 @@ viewStreamScoped patterns = do
 
 streamRouteHandler :: (HasCallStack) => Maybe Text -> SourceT (Eff AppStack) ScopedRefresh
 streamRouteHandler mEventPatterns = S.fromStepT $ S.Effect $ do
+  tagStreamThread
   let patterns = parseScopePatterns $ fromMaybe "*" mEventPatterns
   log Debug $ "Starting stream with patterns: " <> show patterns
-  tagStreamThread
   step 0 patterns <$> Broadcast.subscribeToBroadcasts
   where
     step (n :: Int) patterns chan = S.Effect $ do
       scopes <- Broadcast.consumeBroadcasts chan
-      -- Filter scopes by patterns
-      let matching = filter (matchesAnyPattern patterns) scopes
-      unless (null matching) $ do
-        log Debug $ "Filtered scopes: " <> show matching <> " events; n=" <> show n
-      pure $ S.Yield ScopedRefresh $ step (n + 1) patterns chan
+      -- Filter scopes by patterns (consumeBroadcasts already debounces)
+      let matching = filter (matchesAnyPattern patterns) (toList scopes)
+      if null matching
+        then do
+          log Debug $ "No matching events, skipping refresh; n=" <> show n
+          pure $ S.Skip $ step n patterns chan
+        else do
+          log Debug $ "Sending refresh for " <> show (length matching) <> " matching events; n=" <> show n
+          pure $ S.Yield ScopedRefresh $ step (n + 1) patterns chan
