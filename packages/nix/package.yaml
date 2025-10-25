@@ -39,6 +39,7 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - nix
+      - effectful-core
       - hspec
       - hspec-discover
       - megaparsec

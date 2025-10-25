@@ -10,6 +10,8 @@ module System.Nix.Config.Core (
   parseBuilderValue,
   pConfigFile,
   pConfigLine,
+  parseNatural,
+  parseSpaceSeparated,
 ) where
 
 import Colog (Severity (..))
@@ -35,6 +37,20 @@ import Prelude hiding (many)
 data NixConfig = NixConfig
   { builders :: [RemoteBuilder]
   -- ^ Remote builders configured in the system
+  , maxJobs :: Natural
+  -- ^ Maximum parallel build jobs (0 means auto)
+  , cores :: Natural
+  -- ^ CPU cores available per build job (0 means all cores)
+  , substituters :: [Text]
+  -- ^ Binary cache URLs (Nix caches)
+  , trustedPublicKeys :: [Text]
+  -- ^ Public keys for cache verification
+  , system :: Text
+  -- ^ Current system architecture
+  , extraPlatforms :: [Text]
+  -- ^ Additional platforms this system can build for
+  , experimentalFeatures :: [Text]
+  -- ^ Enabled experimental Nix features
   , rawConfig :: Map Text Text
   -- ^ Raw configuration key-value pairs
   }
@@ -62,11 +78,26 @@ nixConfigShow = do
       Left err -> throwError err
       Right cfg -> pure cfg
 
+    -- Parse required fields, surface errors
+    maxJobs <- parseNatural "max-jobs" rawConfig
+    cores <- parseNatural "cores" rawConfig
+    system <- case Map.lookup "system" rawConfig of
+      Nothing -> throwError @Text "Missing required field: system"
+      Just s | T.null s -> throwError @Text "Empty system field"
+      Just s -> pure s
+
+    -- Parse list fields (allow missing/empty)
+    let substituters = parseSpaceSeparated "substituters" rawConfig
+        trustedPublicKeys = parseSpaceSeparated "trusted-public-keys" rawConfig
+        extraPlatforms = parseSpaceSeparated "extra-platforms" rawConfig
+        experimentalFeatures = parseSpaceSeparated "experimental-features" rawConfig
+
+    -- Parse builders
     builders <- case Map.lookup "builders" rawConfig of
       Nothing -> pure []
       Just val -> parseBuilderValue val
 
-    pure NixConfig {builders, rawConfig}
+    pure NixConfig {builders, maxJobs, cores, substituters, trustedPublicKeys, system, extraPlatforms, experimentalFeatures, rawConfig}
 
 -- | Parse builder value (either @file or inline)
 parseBuilderValue :: (Error Text :> es, IOE :> es) => Text -> Eff es [RemoteBuilder]
@@ -107,3 +138,16 @@ pConfigLine = do
   key <- toText <$> someTill anySingle (string " = ")
   value <- toText <$> manyTill anySingle eol
   pure (key, value)
+
+-- | Parse Natural from config, surface errors
+parseNatural :: (Error Text :> es) => Text -> Map Text Text -> Eff es Natural
+parseNatural field cfg = case Map.lookup field cfg of
+  Nothing -> throwError $ "Missing field: " <> field
+  Just val -> case readMaybe @Natural (toString val) of
+    Nothing -> throwError $ "Invalid number for " <> field <> ": " <> val
+    Just n -> pure n
+
+-- | Parse space-separated list, return [] if missing/empty
+parseSpaceSeparated :: Text -> Map Text Text -> [Text]
+parseSpaceSeparated field cfg =
+  maybe [] (filter (not . T.null) . words) (Map.lookup field cfg)

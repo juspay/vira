@@ -444,6 +444,9 @@
   .h-px {
     height: 1px;
   }
+  .max-h-64 {
+    max-height: calc(var(--spacing) * 64);
+  }
   .max-h-\[80vh\] {
     max-height: 80vh;
   }
@@ -943,6 +946,9 @@
   .text-xs {
     font-size: var(--text-xs);
     line-height: var(--tw-leading, var(--text-xs--line-height));
+  }
+  .text-\[10px\] {
+    font-size: 10px;
   }
   .leading-relaxed {
     --tw-leading: var(--leading-relaxed);
