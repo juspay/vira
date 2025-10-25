@@ -22,9 +22,7 @@ import Colog.Core (Severity (Debug, Error))
 import Data.Aeson (encode)
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
-import Htmx.Lucid.Extra (hxExt_)
 import Lucid
-import Lucid.Htmx.Contrib (hxSseConnect_, hxSseSwap_)
 import Servant.API (QueryParam, SourceIO, type (:>))
 import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
@@ -52,9 +50,9 @@ data ScopedRefresh = ScopedRefresh
 instance ToServerEvent ScopedRefresh where
   toServerEvent ScopedRefresh =
     ServerEvent
-      Nothing -- No event type = defaults to "message"
+      (Just "refresh") -- Custom event type to distinguish from heartbeat "message" events
       Nothing -- Event ID
-      "location.reload()"
+      "Refresh"
 
 -- | `BroadcastScope` patterns monitored by the current page, derived from breadcrumbs
 pageScopePatterns :: [LinkTo] -> Maybe (NonEmpty BroadcastScope)
@@ -70,9 +68,9 @@ viewStreamScoped :: NonEmpty BroadcastScope -> AppHtml ()
 viewStreamScoped patterns = do
   let patternsParam = decodeUtf8 (encode $ toList patterns)
   link <- lift $ getLinkUrl $ LinkTo.Refresh (Just patternsParam)
-  div_ [hxExt_ "sse", hxSseConnect_ link] $ do
-    -- Listen for "message" events (default SSE event type) - server filters and sends only matching ones
-    script_ [hxSseSwap_ "message"] ("" :: Text)
+  -- Use native EventSource for reliable refresh-triggered reloads
+  script_ $
+    "new EventSource('" <> link <> "').addEventListener('refresh', () => location.reload());"
 
 data StreamConfig = StreamConfig
   { counter :: Int
