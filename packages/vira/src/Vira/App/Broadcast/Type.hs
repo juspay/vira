@@ -36,8 +36,10 @@ data BroadcastScope
 type UpdateBroadcast = TChan BroadcastScope
 
 -- | Parse JSON-encoded list of scopes
-parseScopes :: Text -> [BroadcastScope]
-parseScopes = fromMaybe [] . decode . encodeUtf8
+parseScopes :: Text -> Either Text [BroadcastScope]
+parseScopes txt = case decode (encodeUtf8 txt) of
+  Nothing -> Left $ "Failed to parse broadcast scopes from JSON: " <> txt
+  Just scopes -> Right scopes
 
 {- | Check if a broadcast matches any of the patterns
 

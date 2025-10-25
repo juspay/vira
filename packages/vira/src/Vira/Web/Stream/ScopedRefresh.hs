@@ -16,7 +16,7 @@ module Vira.Web.Stream.ScopedRefresh (
   pageScopePatterns,
 ) where
 
-import Colog.Core (Severity (Debug))
+import Colog.Core (Severity (Debug, Error))
 import Data.Aeson (encode)
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
@@ -69,7 +69,11 @@ viewStreamScoped patterns = do
 streamRouteHandler :: (HasCallStack) => Maybe Text -> SourceT (Eff AppStack) ScopedRefresh
 streamRouteHandler mEventPatterns = S.fromStepT $ S.Effect $ do
   tagStreamThread
-  let patterns = parseScopes $ fromMaybe "[]" mEventPatterns
+  patterns <- case parseScopes $ fromMaybe "[]" mEventPatterns of
+    Left err -> do
+      log Error $ "Invalid broadcast scope patterns: " <> err
+      pure [] -- Fall back to empty patterns (no refresh) when parse fails
+    Right pats -> pure pats
   log Debug $ "Starting stream with patterns: " <> show patterns
   step 0 patterns <$> Broadcast.subscribeToBroadcasts
   where
