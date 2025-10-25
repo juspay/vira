@@ -90,7 +90,7 @@ viewToolStatus = \case
         span_ [class_ "text-gray-500 dark:text-gray-400"] "Extra Platforms: "
         span_ [class_ "text-gray-700 dark:text-gray-300 font-mono"] $
           toHtml $
-            T.intercalate ", " cfg.extraPlatforms
+            T.intercalate ", " (map (toText . toString) cfg.extraPlatforms)
 
     -- Experimental features
     unless (null cfg.experimentalFeatures) $ do

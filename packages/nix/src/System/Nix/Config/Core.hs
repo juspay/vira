@@ -29,6 +29,7 @@ import Effectful.Reader.Static qualified as ER
 import System.Directory (doesFileExist)
 import System.Nix.Config.Machine (RemoteBuilder (..), pBuilders)
 import System.Nix.Core (nix)
+import System.Nix.System (System (..))
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Prelude hiding (many)
@@ -45,9 +46,9 @@ data NixConfig = NixConfig
   -- ^ Binary cache URLs (Nix caches)
   , trustedPublicKeys :: [Text]
   -- ^ Public keys for cache verification
-  , system :: Text
+  , system :: System
   -- ^ Current system architecture
-  , extraPlatforms :: [Text]
+  , extraPlatforms :: [System]
   -- ^ Additional platforms this system can build for
   , experimentalFeatures :: [Text]
   -- ^ Enabled experimental Nix features
@@ -84,12 +85,12 @@ nixConfigShow = do
     system <- case Map.lookup "system" rawConfig of
       Nothing -> throwError @Text "Missing required field: system"
       Just s | T.null s -> throwError @Text "Empty system field"
-      Just s -> pure s
+      Just s -> pure $ fromString $ toString s
 
     -- Parse list fields (allow missing/empty)
     let substituters = parseSpaceSeparated "substituters" rawConfig
         trustedPublicKeys = parseSpaceSeparated "trusted-public-keys" rawConfig
-        extraPlatforms = parseSpaceSeparated "extra-platforms" rawConfig
+        extraPlatforms = map (fromString . toString) $ parseSpaceSeparated "extra-platforms" rawConfig
         experimentalFeatures = parseSpaceSeparated "experimental-features" rawConfig
 
     -- Parse builders
