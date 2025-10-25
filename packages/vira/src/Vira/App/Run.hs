@@ -10,6 +10,7 @@ import Control.Exception (bracket)
 import Data.Acid (AcidState)
 import Data.Aeson (encode)
 import Data.ByteString.Lazy qualified as LBS
+import Data.Time (getCurrentTime)
 import Data.Version (showVersion)
 import Effectful (runEff)
 import Effectful.Colog.Simple (runLogActionStdout)
@@ -64,6 +65,7 @@ runVira = do
         whenJust (importFile webSettings) $ \filePath -> do
           importFromFileOrStdin acid (Just filePath)
 
+        startTime <- getCurrentTime
         instanceInfo <- getInstanceInfo
         supervisor <- Supervisor.newSupervisor (stateDir globalSettings)
         -- Initialize broadcast channel for state update tracking
@@ -72,7 +74,7 @@ runVira = do
         toolsVar <- runEff $ runLogActionStdout (logLevel globalSettings) $ runProcess Tool.newToolsTVar
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
-        let viraRuntimeState = App.ViraRuntimeState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.updateBroadcast = stateUpdateBuffer, App.tools = toolsVar, App.refreshState = refreshState}
+        let viraRuntimeState = App.ViraRuntimeState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.updateBroadcast = stateUpdateBuffer, App.tools = toolsVar, App.refreshState = refreshState, App.startTime = startTime}
             appServer = do
               startPeriodicArchival acid
               Daemon.startRefreshDaemon

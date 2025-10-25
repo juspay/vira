@@ -50,6 +50,7 @@ import Vira.Web.Pages.Common.User qualified as User
 import Vira.Web.Stream.ScopedRefresh qualified as Stream
 import Vira.Web.Widgets.Modal qualified as W
 import Vira.Web.Widgets.Status qualified as Status
+import Vira.Web.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (asks)
 
@@ -126,6 +127,7 @@ layout crumbs content = do
     footer :: [LinkTo] -> AppHtml ()
     footer _crumbs = do
       instanceInfo <- lift $ asks @ViraRuntimeState instanceInfo
+      startTime <- lift $ asks @ViraRuntimeState startTime
       div_ [class_ "bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-auto"] $ do
         div_ [class_ "container mx-auto px-4 py-3 lg:px-8"] $ do
           div_ [class_ "flex justify-between items-center text-sm text-gray-600 dark:text-gray-300"] $ do
@@ -135,6 +137,8 @@ layout crumbs content = do
               span_ [title_ "Hostname", class_ "cursor-help"] $ toHtml instanceInfo.hostname
               span_ [class_ "text-gray-400 dark:text-gray-500"] "•"
               span_ [title_ "Platform", class_ "cursor-help"] $ toHtml (platform instanceInfo)
+              span_ [class_ "text-gray-400 dark:text-gray-500"] "•"
+              Time.viraUptime_ startTime
             div_
               [class_ "text-xs text-gray-500 dark:text-gray-400"]
               viraVersionLink

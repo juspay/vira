@@ -6,6 +6,7 @@ module Vira.App.Type (
 ) where
 
 import Data.Acid (AcidState)
+import Data.Time (UTCTime)
 import Servant.Links (Link)
 import Vira.App.Broadcast.Type (UpdateBroadcast)
 import Vira.App.InstanceInfo (InstanceInfo)
@@ -33,4 +34,6 @@ data ViraRuntimeState = ViraRuntimeState
     tools :: TVar Tools
   , -- Git repository auto-refresh state
     refreshState :: RefreshState
+  , -- Server start time for uptime tracking
+    startTime :: UTCTime
   }

@@ -3,9 +3,11 @@ module Vira.Web.Widgets.Time (
   viraUTCTime_,
   viraDuration_,
   viraRelativeTime_,
+  viraUptime_,
 ) where
 
-import Data.Time (NominalDiffTime, UTCTime, getCurrentTime)
+import Data.Time (NominalDiffTime, UTCTime, diffUTCTime, getCurrentTime)
+import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import Lucid
 import Vira.Lib.TimeExtra (formatDuration, formatRelativeTime, formatTimestamp)
 import Vira.Web.Lucid (AppHtml)
@@ -38,3 +40,38 @@ viraRelativeTime_ utcTime = do
     , title_ fullTimestamp
     ]
     $ toHtml relativeText
+
+{- | Real-time uptime display that updates every second
+
+Shows server uptime in a compact format (e.g., "Uptime: 2h 15m 30s").
+Self-contained with inline JavaScript.
+-}
+viraUptime_ :: UTCTime -> AppHtml ()
+viraUptime_ startTime = do
+  now <- liftIO getCurrentTime
+  let uptime = diffUTCTime now startTime
+      startTimestamp = show @Text (floor (realToFrac (utcTimeToPOSIXSeconds startTime) :: Double) :: Integer)
+  span_
+    [ title_ "Server uptime"
+    , class_ "cursor-help"
+    , id_ "uptime"
+    ]
+    $ toHtml
+    $ "Uptime: " <> formatDuration uptime
+  script_ $
+    unlines
+      [ "(function() {"
+      , "  const el = document.getElementById('uptime');"
+      , "  const start = " <> startTimestamp <> ";"
+      , "  function update() {"
+      , "    const s = Math.floor(Date.now() / 1000 - start);"
+      , "    const h = Math.floor(s / 3600);"
+      , "    const m = Math.floor((s % 3600) / 60);"
+      , "    const sec = s % 60;"
+      , "    if (h === 0 && m === 0) el.textContent = 'Uptime: ' + sec + 's';"
+      , "    else if (h === 0) el.textContent = 'Uptime: ' + m + 'm ' + sec + 's';"
+      , "    else el.textContent = 'Uptime: ' + h + 'h ' + m + 'm ' + sec + 's';"
+      , "  }"
+      , "  setInterval(update, 1000);"
+      , "})();"
+      ]
