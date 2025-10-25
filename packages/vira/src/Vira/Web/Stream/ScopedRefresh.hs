@@ -16,8 +16,8 @@ module Vira.Web.Stream.ScopedRefresh (
   pageScopePatterns,
 ) where
 
-import Colog.Core (Severity (Debug))
-import Data.Text qualified as Text
+import Colog.Core (Severity (Debug, Error))
+import Data.Aeson (encode)
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
 import Htmx.Lucid.Extra (hxExt_)
@@ -27,9 +27,8 @@ import Servant.API (QueryParam, SourceIO, type (:>))
 import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
-import System.FilePath ((</>))
 import Vira.App.Broadcast.Core qualified as Broadcast
-import Vira.App.Broadcast.Type (ScopePattern, matchesAnyPattern, parseScopePatterns)
+import Vira.App.Broadcast.Type (BroadcastScope (..), matchesAnyScope, parseScopes)
 import Vira.App.Stack (AppStack)
 import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
@@ -50,18 +49,18 @@ instance ToServerEvent ScopedRefresh where
       "location.reload()"
 
 -- | `BroadcastScope` patterns monitored by the current page, derived from breadcrumbs
-pageScopePatterns :: [LinkTo] -> Maybe (NonEmpty ScopePattern)
+pageScopePatterns :: [LinkTo] -> Maybe (NonEmpty BroadcastScope)
 pageScopePatterns crumbs = case reverse crumbs of
-  (Job jobId : _) -> Just $ ("job" </> show jobId) :| []
-  (RepoBranch repoName _ : _) -> Just $ ("repo" </> toString repoName </> "*") :| []
-  (Repo repoName : _) -> Just $ ("repo" </> toString repoName </> "*") :| []
-  [] -> Just $ ("job" </> "*") :| [] -- Index page: subscribe to all job events
+  (Job jobId : _) -> Just $ JobScope (Just jobId) :| []
+  (RepoBranch repoName _ : _) -> Just $ RepoScope repoName :| []
+  (Repo repoName : _) -> Just $ RepoScope repoName :| []
+  [] -> Just $ JobScope Nothing :| [] -- Index page: subscribe to all job events
   _ -> Nothing -- No refresh for other pages
 
 -- | SSE listener with event pattern filtering
-viewStreamScoped :: NonEmpty ScopePattern -> AppHtml ()
+viewStreamScoped :: NonEmpty BroadcastScope -> AppHtml ()
 viewStreamScoped patterns = do
-  let patternsParam = Text.intercalate "," (map toText $ toList patterns)
+  let patternsParam = decodeUtf8 (encode $ toList patterns)
   link <- lift $ getLinkUrl $ LinkTo.Refresh (Just patternsParam)
   div_ [hxExt_ "sse", hxSseConnect_ link] $ do
     -- Listen for "message" events (default SSE event type) - server filters and sends only matching ones
@@ -70,14 +69,18 @@ viewStreamScoped patterns = do
 streamRouteHandler :: (HasCallStack) => Maybe Text -> SourceT (Eff AppStack) ScopedRefresh
 streamRouteHandler mEventPatterns = S.fromStepT $ S.Effect $ do
   tagStreamThread
-  let patterns = parseScopePatterns $ fromMaybe "*" mEventPatterns
+  patterns <- case parseScopes $ fromMaybe "[]" mEventPatterns of
+    Left err -> do
+      log Error $ "Invalid broadcast scope patterns: " <> err
+      pure [] -- Fall back to empty patterns (no refresh) when parse fails
+    Right pats -> pure pats
   log Debug $ "Starting stream with patterns: " <> show patterns
   step 0 patterns <$> Broadcast.subscribeToBroadcasts
   where
     step (n :: Int) patterns chan = S.Effect $ do
       scopes <- Broadcast.consumeBroadcasts chan
       -- Filter scopes by patterns (consumeBroadcasts already debounces)
-      let matching = filter (matchesAnyPattern patterns) (toList scopes)
+      let matching = filter (matchesAnyScope patterns) (toList scopes)
       if null matching
         then do
           log Debug $ "No matching events, skipping refresh; n=" <> show n

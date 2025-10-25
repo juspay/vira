@@ -192,5 +192,5 @@ triggerNewBuild minSeverity repoName branchName = do
     log Info "Started task"
   where
     broadcastUpdate jobId = do
-      Broadcast.broadcastUpdate $ JobScope jobId
+      Broadcast.broadcastUpdate $ JobScope (Just jobId)
       Broadcast.broadcastUpdate $ RepoScope repoName

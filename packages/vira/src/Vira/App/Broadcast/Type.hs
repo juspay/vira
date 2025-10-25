@@ -1,42 +1,56 @@
+{-# LANGUAGE DeriveAnyClass #-}
+
 -- | Broadcast channel type for entity-scoped SSE events
 module Vira.App.Broadcast.Type (
   BroadcastScope (..),
   UpdateBroadcast,
-  ScopePattern,
-  matchesAnyPattern,
-  parseScopePatterns,
+  matchesAnyScope,
+  parseScopes,
 ) where
 
 import Control.Concurrent.STM (TChan)
-import Data.Text (splitOn, strip)
-import Effectful.Git (RepoName (..))
-import System.FilePath ((</>))
-import System.FilePattern (FilePattern, (?==))
-import Text.Show qualified
-import Vira.State.Type (JobId (..))
+import Data.Aeson (FromJSON, ToJSON, decode)
+import Effectful.Git (RepoName)
+import Vira.State.Type (JobId)
 
--- | Entity scope for broadcast events
+{- | Entity scope for broadcast events and patterns
+
+This type serves dual purposes:
+1. Broadcasting: Sent when an entity changes (always uses specific IDs with Just)
+2. Pattern matching: Subscriptions that filter broadcasts (can use Nothing for wildcards)
+
+Examples:
+- @JobScope (Just 123)@ - Specific job broadcast or pattern
+- @JobScope Nothing@ - Wildcard pattern matching all jobs (used on home page)
+- @RepoScope "my-repo"@ - Specific repo broadcast or pattern (no wildcard needed)
+-}
 data BroadcastScope
-  = JobScope JobId
-  | RepoScope RepoName
-  deriving stock (Eq)
-
--- | Custom Show instance for SSE event names (using "/" for filepattern compatibility)
-instance Show BroadcastScope where
-  show (JobScope jobId) = "job" </> Text.Show.show jobId
-  show (RepoScope (RepoName name)) = "repo" </> toString name
+  = -- | Job-scoped events. Nothing matches all jobs, Just matches specific job.
+    JobScope (Maybe JobId)
+  | -- | Repo-scoped events. Always matches specific repository.
+    RepoScope RepoName
+  deriving stock (Eq, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 -- | Broadcast channel for entity-scoped update events
 type UpdateBroadcast = TChan BroadcastScope
 
--- | Pattern for matching broadcast scopes (filepattern glob)
-type ScopePattern = FilePattern
+-- | Parse JSON-encoded list of scopes
+parseScopes :: Text -> Either Text [BroadcastScope]
+parseScopes txt = case decode (encodeUtf8 txt) of
+  Nothing -> Left $ "Failed to parse broadcast scopes from JSON: " <> txt
+  Just scopes -> Right scopes
 
--- | Parse comma-separated scope patterns
-parseScopePatterns :: Text -> [ScopePattern]
-parseScopePatterns = map (toString . strip) . splitOn ","
+{- | Check if a broadcast matches any of the patterns
 
--- | Check if a scope matches any of the patterns (using filepattern globbing)
-matchesAnyPattern :: [ScopePattern] -> BroadcastScope -> Bool
-matchesAnyPattern patterns scope =
-  any (?== show scope) patterns
+Matching rules:
+- @JobScope Nothing@ (wildcard) matches any @JobScope (Just _)@ broadcast
+- All other patterns require exact equality
+-}
+matchesAnyScope :: [BroadcastScope] -> BroadcastScope -> Bool
+matchesAnyScope patterns broadcast =
+  any (`matches` broadcast) patterns
+  where
+    -- JobScope Nothing is a wildcard matching any job
+    matches (JobScope Nothing) (JobScope _) = True
+    matches pat scope = pat == scope

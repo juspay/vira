@@ -5,6 +5,7 @@
 
 module Vira.State.Type where
 
+import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Data)
 import Data.IxSet.Typed
 import Data.SafeCopy
@@ -91,6 +92,8 @@ newtype JobId = JobId {unJobId :: Natural}
     , Num
     , ToHttpApiData
     , FromHttpApiData
+    , ToJSON
+    , FromJSON
     )
 
 data Job = Job
