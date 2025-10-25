@@ -63,6 +63,7 @@ runServer globalSettings webSettings = do
       Warp.defaultSettings
         & Warp.setHost (fromString $ toString ws.host)
         & Warp.setPort ws.port
+        & Warp.setTimeout 600 -- 10 minutes (for long builds with SSE heartbeats)
 
 -- Like Paths_vira.getDataDir but GHC multi-home friendly
 getDataDirMultiHome :: (IOE :> es, FileSystem :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es) => Eff es FilePath
