@@ -343,6 +343,7 @@ executable vira
 executable vira-tests
   main-is: Spec.hs
   other-modules:
+      Vira.App.Broadcast.TypeSpec
       Vira.CI.ConfigurationSpec
       Vira.State.ResetSpec
       Paths_vira
