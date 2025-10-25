@@ -96,6 +96,7 @@ dependencies:
   - text
   - time
   - toml-reader
+  - unliftio
   - vira-ci-types
   - hint-nix
   - wai

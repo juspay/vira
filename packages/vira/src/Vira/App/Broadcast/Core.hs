@@ -77,6 +77,11 @@ Creates an independent read-only view of the broadcast channel for a new listene
 Old messages are drained so the listener only receives updates from "now" onwards.
 
 This should be called once per listener (e.g., once per SSE connection).
+
+Note: Draining old messages on subscribe is safe because SSE streams use heartbeats
+(see "Vira.Web.Stream.KeepAlive") to prevent connection timeouts. Under normal
+operation, connections stay alive indefinitely, so draining only affects the initial
+connection (no messages yet) and intentional reconnections (user refreshes page).
 -}
 subscribeToBroadcasts ::
   ( Reader ViraRuntimeState :> es
