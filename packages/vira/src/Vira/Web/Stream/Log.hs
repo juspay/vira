@@ -39,7 +39,7 @@ import Vira.Supervisor.Type (Task (..), TaskInfo (tailHandle), TaskSupervisor (.
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Stack (tagStreamThread)
-import Vira.Web.Stream.KeepAlive (KeepAlive, yieldEvent)
+import Vira.Web.Stream.KeepAlive (KeepAlive)
 import Vira.Web.Stream.KeepAlive qualified as KeepAlive
 import Vira.Web.Widgets.Status qualified as Status
 
@@ -106,17 +106,16 @@ data StreamConfig = StreamConfig
 streamRouteHandler :: JobId -> SourceT (Eff AppStack) (KeepAlive LogChunk)
 streamRouteHandler jobId = S.fromStepT $ S.Effect $ do
   tagStreamThread
-  pure $ S.Skip $ step 0 Init
+  -- Get job first to create initial config
+  mJob :: Maybe Job <- App.query (St.GetJobA jobId)
+  case mJob of
+    Nothing -> do
+      App.log Error "Job not found"
+      pure $ S.Error "Job not found"
+    Just job -> do
+      pure $ S.Skip $ step StreamConfig {counter = 0, job, streamState = Init}
   where
-    step (n :: Int) (st :: StreamState) = S.Effect $ do
-      mJob :: Maybe Job <- App.query (St.GetJobA jobId)
-      case mJob of
-        Nothing -> do
-          App.log Error "Job not found"
-          pure $ S.Error "Job not found"
-        Just job -> do
-          handleState StreamConfig {counter = n, job, streamState = st}
-    handleState cfg =
+    step cfg = S.Effect $ do
       case cfg.streamState of
         Init -> do
           -- Get the task from supervisor to reuse its Tail handle
@@ -133,11 +132,11 @@ streamRouteHandler jobId = S.fromStepT $ S.Effect $ do
         Streaming queue -> do
           streamLog cfg queue
         StreamEnding -> do
-          pure $ yieldEvent (Stop cfg.counter) $ step (cfg.counter + 1) Stopping
+          pure $ KeepAlive.yieldEvent (Stop cfg.counter) $ step (cfg {counter = cfg.counter + 1, streamState = Stopping})
         Stopping -> do
           -- Keep going until the htmx client has time to catch up.
           liftIO $ threadDelay 1_000_000
-          pure $ yieldEvent (Stop cfg.counter) $ step (cfg.counter + 1) cfg.streamState
+          pure $ KeepAlive.yieldEvent (Stop cfg.counter) $ step cfg
     streamLog cfg queue =
       pure $
         KeepAlive.withKeepAlive
@@ -152,7 +151,7 @@ streamRouteHandler jobId = S.fromStepT $ S.Effect $ do
                 pure $ Just (Chunk cfg.counter availableLines, cfg {counter = cfg.counter + 1, streamState = Streaming queue})
           )
           cfg
-          (\cfg' -> step cfg'.counter cfg'.streamState)
+          step
 
 viewStream :: St.Job -> AppHtml ()
 viewStream job = do

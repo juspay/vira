@@ -26,11 +26,18 @@ indefinitely during long operations, preventing lost broadcasts.
 @
 type MyStreamRoute = ServerSentEvents (SourceIO (KeepAlive MyEvent))
 
+data StreamConfig = StreamConfig { counter :: Int, channel :: Chan MyEvent }
+
 handler :: SourceT (Eff es) (KeepAlive MyEvent)
-handler = ...
-  timeout keepAliveInterval (consumeEvents chan) >>= \\case
-    Nothing -> pure $ S.Yield Heartbeat step
-    Just event -> pure $ S.Yield (Data event) step
+handler = S.fromStepT $ S.Effect $ do
+  chan <- subscribe
+  pure $ step StreamConfig {counter = 0, channel = chan}
+  where
+    step cfg = KeepAlive.withKeepAlive
+      (consumeEvents cfg.channel)
+      (\\event -> pure $ Just (event, cfg {counter = cfg.counter + 1}))
+      cfg
+      step
 @
 -}
 module Vira.Web.Stream.KeepAlive (
@@ -89,14 +96,16 @@ This completely hides KeepAlive implementation details from stream handlers.
 
 Example usage:
 @
-step (n, patterns, chan) = KeepAlive.withKeepAlive
-  (consumeBroadcasts chan)
+data StreamConfig = StreamConfig { counter :: Int, patterns :: [Pattern], channel :: Chan }
+
+step cfg = KeepAlive.withKeepAlive
+  (consumeBroadcasts cfg.channel)
   (\\scopes ->
-    let matching = filter (matchesAnyScope patterns) (toList scopes)
+    let matching = filter (matchesAnyScope cfg.patterns) (toList scopes)
     in if null matching
        then pure Nothing  -- Skip
-       else pure $ Just (ScopedRefresh, (n+1, patterns, chan)))  -- Yield + new state
-  (n, patterns, chan)
+       else pure $ Just (ScopedRefresh, cfg {counter = cfg.counter + 1}))  -- Yield + new state
+  cfg
   step
 @
 -}
