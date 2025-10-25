@@ -39,9 +39,11 @@ import Vira.Supervisor.Type (Task (..), TaskInfo (tailHandle), TaskSupervisor (.
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Stack (tagStreamThread)
+import Vira.Web.Stream.KeepAlive (KeepAlive, yieldEvent)
+import Vira.Web.Stream.KeepAlive qualified as KeepAlive
 import Vira.Web.Widgets.Status qualified as Status
 
-type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO LogChunk))
+type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO (KeepAlive LogChunk)))
 
 -- | SSE message for log streaming
 data LogChunk
@@ -95,7 +97,13 @@ instance ToServerEvent LogChunk where
 
 data StreamState = Init | Streaming (CircularBuffer Text) | StreamEnding | Stopping
 
-streamRouteHandler :: JobId -> SourceT (Eff AppStack) LogChunk
+data StreamConfig = StreamConfig
+  { counter :: Int
+  , job :: Job
+  , streamState :: StreamState
+  }
+
+streamRouteHandler :: JobId -> SourceT (Eff AppStack) (KeepAlive LogChunk)
 streamRouteHandler jobId = S.fromStepT $ S.Effect $ do
   tagStreamThread
   pure $ S.Skip $ step 0 Init
@@ -107,9 +115,9 @@ streamRouteHandler jobId = S.fromStepT $ S.Effect $ do
           App.log Error "Job not found"
           pure $ S.Error "Job not found"
         Just job -> do
-          handleState job n st
-    handleState job n st =
-      case st of
+          handleState StreamConfig {counter = n, job, streamState = st}
+    handleState cfg =
+      case cfg.streamState of
         Init -> do
           -- Get the task from supervisor to reuse its Tail handle
           supervisor <- Effectful.Reader.Dynamic.asks supervisor
@@ -121,24 +129,30 @@ streamRouteHandler jobId = S.fromStepT $ S.Effect $ do
             Just task -> do
               -- Subscribe to the existing Tail handle
               queue <- liftIO $ Tail.tailSubscribe task.info.tailHandle
-              streamLog n job queue
+              streamLog cfg queue
         Streaming queue -> do
-          streamLog n job queue
+          streamLog cfg queue
         StreamEnding -> do
-          pure $ S.Yield (Stop n) $ step (n + 1) Stopping
+          pure $ yieldEvent (Stop cfg.counter) $ step (cfg.counter + 1) Stopping
         Stopping -> do
           -- Keep going until the htmx client has time to catch up.
           liftIO $ threadDelay 1_000_000
-          pure $ S.Yield (Stop n) $ step (n + 1) st
-    streamLog n job queue = do
-      liftIO (atomically (CB.drain queue)) >>= \case
-        Nothing -> do
-          -- Queue is closed, no more lines will come. End the stream.
-          App.log Info $ "Job " <> show job.jobId <> " log queue closed; ending stream"
-          pure $ S.Yield (Stop n) $ step (n + 1) Stopping
-        Just availableLines -> do
-          -- Send all available lines as a single chunk
-          pure $ S.Yield (Chunk n availableLines) $ step (n + 1) (Streaming queue)
+          pure $ yieldEvent (Stop cfg.counter) $ step (cfg.counter + 1) cfg.streamState
+    streamLog cfg queue =
+      pure $
+        KeepAlive.withKeepAlive
+          (atomically $ CB.drain queue)
+          ( \case
+              Nothing -> do
+                -- Queue is closed, no more lines will come. End the stream.
+                App.log Info $ "Job " <> show cfg.job.jobId <> " log queue closed; ending stream"
+                pure $ Just (Stop cfg.counter, cfg {counter = cfg.counter + 1, streamState = Stopping})
+              Just availableLines -> do
+                -- Send all available lines as a single chunk
+                pure $ Just (Chunk cfg.counter availableLines, cfg {counter = cfg.counter + 1, streamState = Streaming queue})
+          )
+          cfg
+          (\cfg' -> step cfg'.counter cfg'.streamState)
 
 viewStream :: St.Job -> AppHtml ()
 viewStream job = do
