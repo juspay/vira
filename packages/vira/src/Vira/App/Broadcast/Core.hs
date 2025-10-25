@@ -11,7 +11,7 @@ Producer side (broadcasting updates):
 
 @
 broadcastUpdate (RepoScope "my-repo")
-broadcastUpdate (JobScope 123)
+broadcastUpdate (JobScope (Just 123))
 @
 
 Consumer side (listening for updates):

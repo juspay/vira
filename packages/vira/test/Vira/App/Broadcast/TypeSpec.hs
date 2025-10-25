@@ -3,63 +3,52 @@
 module Vira.App.Broadcast.TypeSpec (spec) where
 
 import Effectful.Git (RepoName (..))
-import System.FilePath ((</>))
 import Test.Hspec
-import Vira.App.Broadcast.Type (BroadcastScope (..), matchesAnyPattern)
+import Vira.App.Broadcast.Type (BroadcastScope (..), matchesAnyScope)
 import Vira.State.Type (JobId (..))
 
 spec :: Spec
 spec = describe "Vira.App.Broadcast.Type" $ do
-  describe "matchesAnyPattern" $ do
+  describe "matchesAnyScope" $ do
     describe "RepoScope pattern matching" $ do
-      it "BUG: pattern 'repo/my-repo/*' should match broadcast 'repo/my-repo'" $ do
-        let scope = RepoScope (RepoName "my-repo")
-            pattern = "repo" </> "my-repo" </> "*"
-        matchesAnyPattern [pattern] scope `shouldBe` True
+      it "exact RepoScope pattern matches same broadcast" $ do
+        let broadcast = RepoScope (RepoName "my-repo")
+            pat = RepoScope (RepoName "my-repo")
+        matchesAnyScope [pat] broadcast `shouldBe` True
 
-      it "pattern 'repo/my-repo/**' matches broadcast 'repo/my-repo'" $ do
-        let scope = RepoScope (RepoName "my-repo")
-            pattern = "repo" </> "my-repo" <> "**"
-        matchesAnyPattern [pattern] scope `shouldBe` True
-
-      it "exact pattern 'repo/my-repo' matches broadcast 'repo/my-repo'" $ do
-        let scope = RepoScope (RepoName "my-repo")
-            pattern = "repo" </> "my-repo"
-        matchesAnyPattern [pattern] scope `shouldBe` True
-
-      it "wildcard pattern 'repo/*' matches broadcast 'repo/my-repo'" $ do
-        let scope = RepoScope (RepoName "my-repo")
-            pattern = "repo" </> "*"
-        matchesAnyPattern [pattern] scope `shouldBe` True
-
-      it "pattern 'repo/other-repo/*' does not match broadcast 'repo/my-repo'" $ do
-        let scope = RepoScope (RepoName "my-repo")
-            pattern = "repo" </> "other-repo" </> "*"
-        matchesAnyPattern [pattern] scope `shouldBe` False
+      it "different RepoScope pattern does not match" $ do
+        let broadcast = RepoScope (RepoName "my-repo")
+            pat = RepoScope (RepoName "other-repo")
+        matchesAnyScope [pat] broadcast `shouldBe` False
 
     describe "JobScope pattern matching" $ do
-      it "pattern 'job/123' matches broadcast 'job/123'" $ do
-        let scope = JobScope (JobId 123)
-            pattern = "job" </> "123"
-        matchesAnyPattern [pattern] scope `shouldBe` True
+      it "exact JobScope pattern matches same broadcast" $ do
+        let broadcast = JobScope (Just (JobId 123))
+            pat = JobScope (Just (JobId 123))
+        matchesAnyScope [pat] broadcast `shouldBe` True
 
-      it "pattern 'job/*' matches broadcast 'job/123'" $ do
-        let scope = JobScope (JobId 123)
-            pattern = "job" </> "*"
-        matchesAnyPattern [pattern] scope `shouldBe` True
+      it "wildcard JobScope Nothing matches any job broadcast" $ do
+        let broadcast = JobScope (Just (JobId 123))
+            pat = JobScope Nothing
+        matchesAnyScope [pat] broadcast `shouldBe` True
 
-      it "pattern 'job/456' does not match broadcast 'job/123'" $ do
-        let scope = JobScope (JobId 123)
-            pattern = "job" </> "456"
-        matchesAnyPattern [pattern] scope `shouldBe` False
+      it "different JobScope pattern does not match" $ do
+        let broadcast = JobScope (Just (JobId 123))
+            pat = JobScope (Just (JobId 456))
+        matchesAnyScope [pat] broadcast `shouldBe` False
+
+      it "specific JobScope pattern does not match wildcard broadcast (unused case)" $ do
+        let broadcast = JobScope Nothing
+            pat = JobScope (Just (JobId 123))
+        matchesAnyScope [pat] broadcast `shouldBe` False
 
     describe "multiple patterns" $ do
       it "matches when any pattern in list matches" $ do
-        let scope = RepoScope (RepoName "my-repo")
-            patterns = ["repo/other-repo/*", "repo/my-repo", "job/*"]
-        matchesAnyPattern patterns scope `shouldBe` True
+        let broadcast = RepoScope (RepoName "my-repo")
+            patterns = [RepoScope (RepoName "other-repo"), RepoScope (RepoName "my-repo"), JobScope Nothing]
+        matchesAnyScope patterns broadcast `shouldBe` True
 
       it "does not match when no patterns match" $ do
-        let scope = RepoScope (RepoName "my-repo")
-            patterns = ["repo/other-repo/*", "job/*"]
-        matchesAnyPattern patterns scope `shouldBe` False
+        let broadcast = RepoScope (RepoName "my-repo")
+            patterns = [RepoScope (RepoName "other-repo"), JobScope Nothing]
+        matchesAnyScope patterns broadcast `shouldBe` False
