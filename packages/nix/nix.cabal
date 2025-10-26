@@ -23,8 +23,8 @@ library
   exposed-modules:
       System.Nix
       System.Nix.Config
+      System.Nix.Config.Builders
       System.Nix.Config.Core
-      System.Nix.Config.Machine
       System.Nix.Core
       System.Nix.Flake.Develop
       System.Nix.System
@@ -85,7 +85,7 @@ test-suite nix-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      System.Nix.Config.MachineSpec
+      System.Nix.Config.BuildersSpec
       System.Nix.ConfigSpec
       System.Nix.VersionSpec
       Paths_nix

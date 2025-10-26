@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module System.Nix.Config.MachineSpec (spec) where
+module System.Nix.Config.BuildersSpec (spec) where
 
-import System.Nix.Config.Machine
+import System.Nix.Config.Builders
 import Test.Hspec
 import Text.Megaparsec (parse)
 

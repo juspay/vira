@@ -18,7 +18,6 @@ import Data.Aeson (FromJSON (..), genericParseJSON)
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types (defaultOptions, fieldLabelModifier)
 import Data.Char (isUpper, toLower)
-import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext, log)
@@ -28,7 +27,7 @@ import Effectful.Exception (catchIO)
 import Effectful.Process (Process, proc, readCreateProcess)
 import Effectful.Reader.Static qualified as ER
 import System.Directory (doesFileExist)
-import System.Nix.Config.Machine (RemoteBuilder (..), pBuilders)
+import System.Nix.Config.Builders (Builders (..), RemoteBuilder (..), pBuilders)
 import System.Nix.Core (nix)
 import System.Nix.System (System)
 import Text.Megaparsec (parse)
@@ -42,27 +41,6 @@ data NixConfigField a = NixConfigField
   }
   deriving stock (Show, Eq, Generic)
   deriving anyclass (FromJSON)
-
--- | Builders specification - either inline or file reference
-data Builders
-  = -- | Inline builder specifications
-    BuildersList [RemoteBuilder]
-  | -- | File path reference (@/path/to/machines)
-    BuildersFile FilePath
-  | -- | No builders configured
-    BuildersEmpty
-  deriving stock (Show, Eq)
-
-instance FromJSON Builders where
-  parseJSON = Aeson.withText "Builders" $ \txt ->
-    if T.null txt
-      then pure BuildersEmpty
-      else
-        if T.isPrefixOf "@" txt
-          then pure $ BuildersFile (toString $ T.drop 1 txt)
-          else case parse pBuilders "<inline>" txt of
-            Left err -> fail $ "Failed to parse inline builders: " <> show err
-            Right bs -> pure $ BuildersList bs
 
 -- | Nix configuration from `nix.conf`
 data NixConfig = NixConfig
