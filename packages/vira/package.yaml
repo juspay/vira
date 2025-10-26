@@ -49,6 +49,7 @@ dependencies:
   - dependent-sum
   - data-default
   - deriving-aeson
+  - aeson-pretty
   - devour-flake
   - directory
   - effectful
