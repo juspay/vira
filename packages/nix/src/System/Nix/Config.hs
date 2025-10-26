@@ -3,4 +3,4 @@ module System.Nix.Config (
   module System.Nix.Config.Core,
 ) where
 
-import System.Nix.Config.Core (NixConfig (..), NixConfigField (..), RemoteBuilder (..), nixConfigShow)
+import System.Nix.Config.Core (Builders (..), NixConfig (..), NixConfigField (..), RemoteBuilder (..), nixConfigShow, resolveBuilders)

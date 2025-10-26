@@ -1,15 +1,15 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | Nix configuration and remote builders - core implementation
 module System.Nix.Config.Core (
   NixConfig (..),
   NixConfigField (..),
+  Builders (..),
   RemoteBuilder (..),
   nixConfigShow,
-  parseBuilderValue,
+  resolveBuilders,
 ) where
 
 import Colog (Severity (..))
@@ -43,9 +43,30 @@ data NixConfigField a = NixConfigField
   deriving stock (Show, Eq, Generic)
   deriving anyclass (FromJSON)
 
+-- | Builders specification - either inline or file reference
+data Builders
+  = -- | Inline builder specifications
+    BuildersList [RemoteBuilder]
+  | -- | File path reference (@/path/to/machines)
+    BuildersFile FilePath
+  | -- | No builders configured
+    BuildersEmpty
+  deriving stock (Show, Eq)
+
+instance FromJSON Builders where
+  parseJSON = Aeson.withText "Builders" $ \txt ->
+    if T.null txt
+      then pure BuildersEmpty
+      else
+        if T.isPrefixOf "@" txt
+          then pure $ BuildersFile (toString $ T.drop 1 txt)
+          else case parse pBuilders "<inline>" txt of
+            Left err -> fail $ "Failed to parse inline builders: " <> show err
+            Right bs -> pure $ BuildersList bs
+
 -- | Nix configuration from `nix.conf`
 data NixConfig = NixConfig
-  { builders :: [RemoteBuilder]
+  { builders :: NixConfigField Builders
   -- ^ Remote builders configured in the system
   , maxJobs :: NixConfigField Natural
   -- ^ Maximum parallel build jobs (0 means auto)
@@ -61,26 +82,10 @@ data NixConfig = NixConfig
   -- ^ Additional platforms this system can build for
   , experimentalFeatures :: NixConfigField [Text]
   -- ^ Enabled experimental Nix features
-  , rawConfig :: Aeson.Value
-  -- ^ Full raw JSON for debugging/inspection
-  }
-  deriving stock (Show, Eq)
-
--- | Raw config structure matching JSON output from `nix config show --json`
-data NixConfigRaw = NixConfigRaw
-  { maxJobs :: NixConfigField Natural
-  , cores :: NixConfigField Natural
-  , substituters :: NixConfigField [Text]
-  , trustedPublicKeys :: NixConfigField [Text]
-  , system :: NixConfigField System
-  , extraPlatforms :: NixConfigField [System]
-  , experimentalFeatures :: NixConfigField [Text]
-  , builders :: NixConfigField Text
-  -- ^ Builders as text (needs separate parsing)
   }
   deriving stock (Show, Eq, Generic)
 
-instance FromJSON NixConfigRaw where
+instance FromJSON NixConfig where
   parseJSON = genericParseJSON defaultOptions {fieldLabelModifier = camelToKebab}
 
 {- | Convert camelCase to kebab-case for JSON field names
@@ -94,7 +99,7 @@ camelToKebab = go
       | isUpper x = '-' : toLower x : go xs
       | otherwise = x : go xs
 
--- | Parse the output of `nix config show --json`
+-- | Read Nix configuration from `nix config show --json`
 nixConfigShow ::
   ( Error Text :> es
   , Log (RichMessage IO) :> es
@@ -112,47 +117,23 @@ nixConfigShow = do
         `catchIO` \ex -> do
           throwError $ "nix config show --json failed: " <> show @Text ex
 
-    -- Parse JSON with aeson
-    rawConfig <- case Aeson.eitherDecode (encodeUtf8 $ toText output) of
+    -- Parse JSON directly into NixConfig
+    case Aeson.eitherDecode (encodeUtf8 $ toText output) of
       Left err -> throwError $ "Failed to parse nix config JSON: " <> toText err
       Right cfg -> pure cfg
 
-    NixConfigRaw {maxJobs, cores, substituters, trustedPublicKeys, system, extraPlatforms, experimentalFeatures, builders} <- case Aeson.fromJSON rawConfig of
-      Aeson.Error err -> throwError $ "Failed to decode config fields: " <> toText err
-      Aeson.Success v -> pure v
-
-    -- Parse builders separately from text value
-    let buildersText = builders.value
-    parsedBuilders <- parseBuilderValue buildersText
-
-    pure
-      NixConfig
-        { builders = parsedBuilders
-        , maxJobs
-        , cores
-        , substituters
-        , trustedPublicKeys
-        , system
-        , extraPlatforms
-        , experimentalFeatures
-        , rawConfig
-        }
-
--- | Parse builder value (either @file or inline)
-parseBuilderValue :: (Error Text :> es, IOE :> es) => Text -> Eff es [RemoteBuilder]
-parseBuilderValue val
-  | T.isPrefixOf "@" val = do
-      let filePath = toString $ T.drop 1 val
-      -- Allow missing builders file - Nix allows this and treats it as empty
-      exists <- liftIO $ doesFileExist filePath
-      if not exists
-        then pure []
-        else do
-          buildersContent <- decodeUtf8 <$> readFileBS filePath
-          case parse pBuilders filePath buildersContent of
-            Left err -> throwError $ "Failed to parse builders file: " <> show @Text err
-            Right bs -> pure bs
-  | T.null val = pure []
-  | otherwise = case parse pBuilders "<inline>" val of
-      Left err -> throwError $ "Failed to parse builders: " <> show @Text err
-      Right bs -> pure bs
+-- | Resolve builders specification into a list of remote builders
+resolveBuilders :: (Error Text :> es, IOE :> es) => Builders -> Eff es [RemoteBuilder]
+resolveBuilders = \case
+  BuildersEmpty -> pure []
+  BuildersList bs -> pure bs
+  BuildersFile filePath -> do
+    -- Allow missing builders file - Nix allows this and treats it as empty
+    exists <- liftIO $ doesFileExist filePath
+    if not exists
+      then pure []
+      else do
+        buildersContent <- decodeUtf8 <$> readFileBS filePath
+        case parse pBuilders filePath buildersContent of
+          Left err -> throwError $ "Failed to parse builders file: " <> show @Text err
+          Right bs -> pure bs

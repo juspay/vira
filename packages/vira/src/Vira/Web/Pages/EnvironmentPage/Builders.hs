@@ -9,7 +9,7 @@ import Data.Text qualified as T
 import Effectful.Colog.Simple (Severity (..), log, withLogContext)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Lucid
-import System.Nix.Config (NixConfig (..), RemoteBuilder (..), nixConfigShow)
+import System.Nix.Config qualified as Nix
 import System.Nix.System (System (..))
 import Vira.Web.Lucid (AppHtml)
 import Vira.Web.Widgets.Card qualified as W
@@ -24,16 +24,21 @@ viewBuilders = do
   p_ [class_ "text-gray-600 dark:text-gray-300 mb-4"] "Distributed build infrastructure from Nix configuration"
 
   -- Fetch nix config and handle errors
-  result <- lift $ runErrorNoCallStack nixConfigShow
+  result <- lift $ runErrorNoCallStack Nix.nixConfigShow
   case result of
     Left err -> viewErrorState err
     Right nixConfig -> do
       lift $ withLogContext [("config", show nixConfig)] $ do
         log Debug "Nix configuration loaded successfully"
 
-      if null nixConfig.builders
-        then viewEmptyState
-        else viewBuildersTable nixConfig.builders
+      -- Resolve builders from the config
+      buildersResult <- lift $ runErrorNoCallStack $ Nix.resolveBuilders nixConfig.builders.value
+      case buildersResult of
+        Left err -> viewErrorState $ "Failed to resolve builders: " <> err
+        Right builders ->
+          if null builders
+            then viewEmptyState
+            else viewBuildersTable builders
 
 -- | View error state when config loading fails
 viewErrorState :: (Monad m) => Text -> HtmlT m ()
@@ -54,7 +59,7 @@ viewEmptyState = do
     p_ [class_ "text-sm text-gray-500 dark:text-gray-400"] "Configure builders in your Nix configuration to enable distributed builds"
 
 -- | View builders in a responsive table
-viewBuildersTable :: (Monad m) => [RemoteBuilder] -> HtmlT m ()
+viewBuildersTable :: (Monad m) => [Nix.RemoteBuilder] -> HtmlT m ()
 viewBuildersTable builders = do
   W.viraCard_ [class_ "overflow-hidden"] $ do
     div_ [class_ "overflow-x-auto"] $ do
@@ -70,7 +75,7 @@ viewBuildersTable builders = do
           forM_ builders viewBuilderRow
 
 -- | View a single builder row
-viewBuilderRow :: (Monad m) => RemoteBuilder -> HtmlT m ()
+viewBuilderRow :: (Monad m) => Nix.RemoteBuilder -> HtmlT m ()
 viewBuilderRow builder = do
   tr_ [class_ "hover:bg-gray-50 dark:hover:bg-gray-800"] $ do
     -- URI

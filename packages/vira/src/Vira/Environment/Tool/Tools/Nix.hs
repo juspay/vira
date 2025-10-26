@@ -17,7 +17,7 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
 import Lucid (HtmlT, class_, details_, div_, span_, summary_, title_, toHtml)
-import System.Nix.Config (NixConfig (..), NixConfigField (..), nixConfigShow)
+import System.Nix.Config qualified as Nix
 import System.Nix.Core (nix)
 import System.Nix.Version (NixVersion (..), getVersion)
 import Vira.Environment.Tool.Type.ToolData (ToolData (..))
@@ -25,7 +25,7 @@ import Vira.Environment.Tool.Type.ToolData (ToolData (..))
 -- | Status type for Nix tool (version + configuration)
 data NixStatus = NixStatus
   { version :: NixVersion
-  , config :: NixConfig
+  , config :: Nix.NixConfig
   }
   deriving stock (Show)
 
@@ -39,7 +39,7 @@ getToolData ::
   Eff es (ToolData (Either Text NixStatus))
 getToolData = do
   versionResult <- getVersion
-  configResult <- runErrorNoCallStack nixConfigShow
+  configResult <- runErrorNoCallStack Nix.nixConfigShow
 
   let status = case (versionResult, configResult) of
         (Right ver, Right cfg) -> Right $ NixStatus ver cfg
@@ -61,14 +61,15 @@ viewToolStatus = \case
     div_ [class_ "text-sm text-red-600 dark:text-red-400"] $
       "Error: " <> toHtml err
   Right (NixStatus (NixVersion ver) cfg) -> do
-    let NixConfig
-          { maxJobs = NixConfigField {value = maxJobsVal, description = maxJobsDesc}
-          , cores = NixConfigField {value = coresVal, description = coresDesc}
-          , system = NixConfigField {value = systemVal, description = systemDesc}
-          , extraPlatforms = NixConfigField {value = extraPlatformsVal, description = extraPlatformsDesc}
-          , experimentalFeatures = NixConfigField {value = experimentalFeaturesVal, description = experimentalFeaturesDesc}
-          , substituters = NixConfigField {value = substitutersVal, description = substitutersDesc}
-          , trustedPublicKeys = NixConfigField {value = trustedKeysVal, description = trustedKeysDesc}
+    let Nix.NixConfig
+          { builders = Nix.NixConfigField {value = buildersVal, description = buildersDesc}
+          , maxJobs = Nix.NixConfigField {value = maxJobsVal, description = maxJobsDesc}
+          , cores = Nix.NixConfigField {value = coresVal, description = coresDesc}
+          , system = Nix.NixConfigField {value = systemVal, description = systemDesc}
+          , extraPlatforms = Nix.NixConfigField {value = extraPlatformsVal, description = extraPlatformsDesc}
+          , experimentalFeatures = Nix.NixConfigField {value = experimentalFeaturesVal, description = experimentalFeaturesDesc}
+          , substituters = Nix.NixConfigField {value = substitutersVal, description = substitutersDesc}
+          , trustedPublicKeys = Nix.NixConfigField {value = trustedKeysVal, description = trustedKeysDesc}
           } = cfg
 
     -- Version
@@ -92,6 +93,14 @@ viewToolStatus = \case
       div_ [title_ systemDesc] $ do
         span_ [class_ "text-gray-500 dark:text-gray-400"] "System: "
         span_ [class_ "text-gray-700 dark:text-gray-300 font-mono"] $ toHtml @Text $ toText $ toString systemVal
+
+      -- Builders
+      div_ [title_ buildersDesc] $ do
+        span_ [class_ "text-gray-500 dark:text-gray-400"] "Builders: "
+        span_ [class_ "text-gray-700 dark:text-gray-300 font-mono"] $ case buildersVal of
+          Nix.BuildersEmpty -> "none"
+          Nix.BuildersFile fp -> toHtml @Text $ "@" <> toText fp
+          Nix.BuildersList bs -> toHtml @Text $ show (length bs) <> " inline"
 
     -- Extra platforms
     unless (null extraPlatformsVal) $ do

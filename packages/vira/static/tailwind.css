@@ -447,9 +447,6 @@
   .h-px {
     height: 1px;
   }
-  .max-h-64 {
-    max-height: calc(var(--spacing) * 64);
-  }
   .max-h-\[80vh\] {
     max-height: 80vh;
   }
@@ -841,9 +838,6 @@
   .bg-yellow-100 {
     background-color: var(--color-yellow-100);
   }
-  .p-2 {
-    padding: calc(var(--spacing) * 2);
-  }
   .p-3 {
     padding: calc(var(--spacing) * 3);
   }
@@ -988,9 +982,6 @@
   }
   .whitespace-nowrap {
     white-space: nowrap;
-  }
-  .whitespace-pre {
-    white-space: pre;
   }
   .whitespace-pre-wrap {
     white-space: pre-wrap;
