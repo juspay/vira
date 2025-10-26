@@ -13,5 +13,5 @@ module System.Nix.Config (
   nixConfigShow,
 ) where
 
-import System.Nix.Config.Builders (Builders (..), RemoteBuilder (..))
-import System.Nix.Config.Core (NixConfig (..), NixConfigField (..), nixConfigShow, resolveBuilders)
+import System.Nix.Config.Builders (Builders (..), RemoteBuilder (..), resolveBuilders)
+import System.Nix.Config.Core (NixConfig (..), NixConfigField (..), nixConfigShow)

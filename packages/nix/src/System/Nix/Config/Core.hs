@@ -6,18 +6,15 @@
 module System.Nix.Config.Core (
   NixConfig (..),
   NixConfigField (..),
-  Builders (..),
-  RemoteBuilder (..),
   nixConfigShow,
-  resolveBuilders,
 ) where
 
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (FromJSON (..), genericParseJSON)
 import Data.Aeson qualified as Aeson
+import Data.Aeson.Casing (trainCase)
 import Data.Aeson.Types (defaultOptions, fieldLabelModifier)
-import Data.Char (isUpper, toLower)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext, log)
@@ -26,11 +23,9 @@ import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (catchIO)
 import Effectful.Process (Process, proc, readCreateProcess)
 import Effectful.Reader.Static qualified as ER
-import System.Directory (doesFileExist)
-import System.Nix.Config.Builders (Builders (..), RemoteBuilder (..), pBuilders)
+import System.Nix.Config.Builders (Builders)
 import System.Nix.Core (nix)
 import System.Nix.System (System)
-import Text.Megaparsec (parse)
 
 -- | A field in `nix.conf`.
 data NixConfigField a = NixConfigField
@@ -64,18 +59,7 @@ data NixConfig = NixConfig
   deriving stock (Show, Eq, Generic)
 
 instance FromJSON NixConfig where
-  parseJSON = genericParseJSON defaultOptions {fieldLabelModifier = camelToKebab}
-
-{- | Convert camelCase to kebab-case for JSON field names
-maxJobs -> max-jobs, trustedPublicKeys -> trusted-public-keys
--}
-camelToKebab :: String -> String
-camelToKebab = go
-  where
-    go [] = []
-    go (x : xs)
-      | isUpper x = '-' : toLower x : go xs
-      | otherwise = x : go xs
+  parseJSON = genericParseJSON defaultOptions {fieldLabelModifier = trainCase}
 
 -- | Read Nix configuration from `nix config show --json`
 nixConfigShow ::
@@ -99,19 +83,3 @@ nixConfigShow = do
     case Aeson.eitherDecode (encodeUtf8 $ toText output) of
       Left err -> throwError $ "Failed to parse nix config JSON: " <> toText err
       Right cfg -> pure cfg
-
--- | Resolve builders specification into a list of remote builders
-resolveBuilders :: (Error Text :> es, IOE :> es) => Builders -> Eff es [RemoteBuilder]
-resolveBuilders = \case
-  BuildersEmpty -> pure []
-  BuildersList bs -> pure bs
-  BuildersFile filePath -> do
-    -- Allow missing builders file - Nix allows this and treats it as empty
-    exists <- liftIO $ doesFileExist filePath
-    if not exists
-      then pure []
-      else do
-        buildersContent <- decodeUtf8 <$> readFileBS filePath
-        case parse pBuilders filePath buildersContent of
-          Left err -> throwError $ "Failed to parse builders file: " <> show @Text err
-          Right bs -> pure bs
