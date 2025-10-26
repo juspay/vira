@@ -78,7 +78,7 @@ echo '/nix/var/nix/profiles/default/bin/bash' | sudo tee -a /etc/shells
 chsh -s /nix/var/nix/profiles/default/bin/bash
 ```
 
-After changing the shell, log out and log back in for the changes to take effect. SSH connections will now properly source Nix into the PATH.
+SSH connections will now properly source Nix into the PATH.
 
 ## See Also
 
