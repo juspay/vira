@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 -- | Environment page HTTP handlers and views
 module Vira.Web.Pages.EnvironmentPage (
   Routes (..),
@@ -10,6 +12,8 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
+import Vira.Environment.Tool.Core (Tools (..))
+import Vira.Environment.Tool.Type.ToolData (ToolData (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, runAppHtml)
 import Vira.Web.Pages.Common.User qualified as User
@@ -41,8 +45,8 @@ viewEnvironment = do
         p_ [class_ "text-gray-600 dark:text-gray-300"] "User environment under which Vira runs"
         span_ [class_ "text-indigo-800 dark:text-indigo-300 font-semibold"] User.viewUserInfo
 
-    -- Tools Section
-    Tools.viewTools
+    -- Tools Section (returns tools data for reuse)
+    tools <- Tools.viewTools
 
-    -- Builders Section
-    Builders.viewBuilders
+    -- Builders Section (reuses nix config from tools)
+    Builders.viewBuilders tools.nix.status

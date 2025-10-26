@@ -16,7 +16,7 @@ import Vira.Web.Lucid (AppHtml)
 import Vira.Web.Widgets.Card qualified as W
 import Web.TablerIcons.Outline qualified as Icon
 
-viewTools :: AppHtml ()
+viewTools :: AppHtml Tools
 viewTools = do
   -- Refresh tools data every time the page is loaded
   tools <- lift Tool.refreshTools
@@ -33,6 +33,8 @@ viewTools = do
     viewToolCard tools.attic (AtticTool.viewToolStatus tools.attic.status)
     viewToolCard tools.cachix mempty
     viewToolCard tools.github (GitHubTool.viewToolStatus tools.github.status)
+
+  pure tools
 
 -- | View a tool card with its metadata and runtime info
 viewToolCard :: (Monad m) => ToolData statusType -> HtmlT m () -> HtmlT m ()

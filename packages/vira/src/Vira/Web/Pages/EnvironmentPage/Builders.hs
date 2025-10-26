@@ -11,25 +11,25 @@ import Effectful.Error.Static (runErrorNoCallStack)
 import Lucid
 import System.Nix.Config qualified as Nix
 import System.Nix.System (System (..))
+import Vira.Environment.Tool.Tools.Nix (NixStatus (..))
 import Vira.Web.Lucid (AppHtml)
 import Vira.Web.Widgets.Card qualified as W
 import Web.TablerIcons.Outline qualified as Icon
 
-viewBuilders :: AppHtml ()
-viewBuilders = do
+viewBuilders :: Either Text NixStatus -> AppHtml ()
+viewBuilders nixStatusResult = do
   -- Builders Section
   h2_ [class_ "text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center"] $ do
     div_ [class_ "w-5 h-5 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.server
     "Remote Builders"
   p_ [class_ "text-gray-600 dark:text-gray-300 mb-4"] "Distributed build infrastructure from Nix configuration"
 
-  -- Fetch nix config and handle errors
-  result <- lift $ runErrorNoCallStack Nix.nixConfigShow
-  case result of
+  -- Use already-fetched nix config from tools
+  case nixStatusResult of
     Left err -> viewErrorState err
-    Right nixConfig -> do
+    Right (NixStatus _ nixConfig) -> do
       lift $ withLogContext [("config", show nixConfig)] $ do
-        log Debug "Nix configuration loaded successfully"
+        log Debug "Using Nix configuration from tools cache"
 
       -- Resolve builders from the config
       buildersResult <- lift $ runErrorNoCallStack $ Nix.resolveBuilders nixConfig.builders.value
