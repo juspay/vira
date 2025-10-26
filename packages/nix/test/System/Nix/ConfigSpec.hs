@@ -4,7 +4,8 @@
 module System.Nix.ConfigSpec (spec) where
 
 import Data.Aeson qualified as Aeson
-import System.Nix.Config.Core (Builders (..), NixConfigField (..))
+import System.Nix.Config.Builders (Builders (..))
+import System.Nix.Config.Core (NixConfigField (..))
 import Test.Hspec
 
 spec :: Spec
@@ -46,7 +47,7 @@ spec = do
       result `shouldBe` Right (BuildersFile "/home/user/.config/nix/machines")
 
     it "parses inline builders" $ do
-      let json = "\"ssh://builder x86_64-linux - 4 1 - - -\""
+      let json = "\"ssh://builder x86_64-linux - 4 1 - - -\\n\""
           result = Aeson.eitherDecode @Builders json
       case result of
         Left err -> expectationFailure err
