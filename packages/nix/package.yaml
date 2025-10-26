@@ -20,6 +20,7 @@ library:
   source-dirs: src
   dependencies:
     - aeson
+    - aeson-casing
     - co-log
     - co-log-effectful
     - co-log-effectful-simple
