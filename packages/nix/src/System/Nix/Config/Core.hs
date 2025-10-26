@@ -33,17 +33,17 @@ import System.Nix.Core (nix)
 import System.Nix.System (System)
 import Text.Megaparsec (parse)
 
--- | Wrapper for config fields with metadata from JSON
+-- | A field in `nix.conf`.
 data NixConfigField a = NixConfigField
   { value :: a
   -- ^ Actual config value
   , description :: Text
-  -- ^ Description from nix.conf (for UI tooltips)
+  -- ^ Description of the config field
   }
   deriving stock (Show, Eq, Generic)
   deriving anyclass (FromJSON)
 
--- | Nix configuration
+-- | Nix configuration from `nix.conf`
 data NixConfig = NixConfig
   { builders :: [RemoteBuilder]
   -- ^ Remote builders configured in the system

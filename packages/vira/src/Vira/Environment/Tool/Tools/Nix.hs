@@ -1,5 +1,4 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE OverloadedRecordDot #-}
 
 -- | Nix tool-specific logic
 module Vira.Environment.Tool.Tools.Nix (
@@ -9,7 +8,6 @@ module Vira.Environment.Tool.Tools.Nix (
 ) where
 
 import Colog.Message (RichMessage)
-import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Text qualified as T
 import DevourFlake (devourFlakePath)
 import Effectful (Eff, IOE, (:>))
@@ -18,7 +16,7 @@ import Effectful.Colog.Simple (LogContext)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
-import Lucid (HtmlT, class_, code_, details_, div_, span_, summary_, title_, toHtml)
+import Lucid (HtmlT, class_, details_, div_, span_, summary_, title_, toHtml)
 import System.Nix.Config (NixConfig (..), NixConfigField (..), nixConfigShow)
 import System.Nix.Core (nix)
 import System.Nix.Version (NixVersion (..), getVersion)
@@ -123,14 +121,3 @@ viewToolStatus = \case
               unless (T.null key) $
                 div_ [class_ "text-gray-500 dark:text-gray-400 font-mono text-[10px] ml-2", title_ trustedKeysDesc] $
                   "🔑 " <> toHtml (T.take 40 key) <> if T.length key > 40 then "..." else ""
-
-    -- Raw config (collapsible, show JSON)
-    details_ [class_ "mt-3"] $ do
-      summary_
-        [class_ "text-xs text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"]
-        "Raw configuration (JSON)"
-      div_ [class_ "mt-2 max-h-64 overflow-y-auto"] $ do
-        code_ [class_ "text-[10px] font-mono text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 p-2 rounded block whitespace-pre"] $
-          toHtml @Text $
-            decodeUtf8 $
-              encodePretty cfg.rawConfig
