@@ -1,18 +1,46 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedStrings #-}
 
--- | Nix remote builder (machine) specification
-module System.Nix.Config.Machine (
+-- | Nix builders configuration and remote builder specification
+module System.Nix.Config.Builders (
+  Builders (..),
   RemoteBuilder (..),
   pBuilders,
+  resolveBuilders,
 ) where
 
+import Data.Aeson (FromJSON (..))
+import Data.Aeson qualified as Aeson
 import Data.Text qualified as T
+import Effectful (Eff, IOE, (:>))
+import Effectful.Error.Static (Error, throwError)
+import System.Directory (doesFileExist)
 import System.Nix.System (System (..))
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
 import Prelude hiding (many)
+
+-- | Builders specification - either inline or file reference
+data Builders
+  = -- | Inline builder specifications
+    BuildersList [RemoteBuilder]
+  | -- | File path reference (@/path/to/machines)
+    BuildersFile FilePath
+  | -- | No builders configured
+    BuildersEmpty
+  deriving stock (Show, Eq)
+
+instance FromJSON Builders where
+  parseJSON = Aeson.withText "Builders" $ \txt ->
+    if T.null txt
+      then pure BuildersEmpty
+      else
+        if T.isPrefixOf "@" txt
+          then pure $ BuildersFile (toString $ T.drop 1 txt)
+          else case parse pBuilders "<inline>" txt of
+            Left err -> fail $ "Failed to parse inline builders: " <> show err
+            Right bs -> pure $ BuildersList bs
 
 -- | Remote builder specification from Nix machines file
 data RemoteBuilder = RemoteBuilder
@@ -104,3 +132,19 @@ pOptionalField = do
 -- | Parse an integer field
 pIntField :: Parsec Void Text Int
 pIntField = space *> L.decimal <* space1
+
+-- | Resolve builders specification into a list of remote builders
+resolveBuilders :: (Error Text :> es, IOE :> es) => Builders -> Eff es [RemoteBuilder]
+resolveBuilders = \case
+  BuildersEmpty -> pure []
+  BuildersList bs -> pure bs
+  BuildersFile filePath -> do
+    -- Allow missing builders file - Nix allows this and treats it as empty
+    exists <- liftIO $ doesFileExist filePath
+    if not exists
+      then pure []
+      else do
+        buildersContent <- decodeUtf8 <$> readFileBS filePath
+        case parse pBuilders filePath buildersContent of
+          Left err -> throwError $ "Failed to parse builders file: " <> show @Text err
+          Right bs -> pure bs

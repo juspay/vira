@@ -19,6 +19,8 @@ extra-source-files:
 library:
   source-dirs: src
   dependencies:
+    - aeson
+    - aeson-casing
     - co-log
     - co-log-effectful
     - co-log-effectful-simple
@@ -39,6 +41,8 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - nix
+      - aeson
+      - effectful-core
       - hspec
       - hspec-discover
       - megaparsec

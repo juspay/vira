@@ -1,49 +1,55 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module System.Nix.ConfigSpec (spec) where
 
-import Data.Map.Strict qualified as Map
-import System.Nix.Config.Core
+import Data.Aeson qualified as Aeson
+import System.Nix.Config.Builders (Builders (..))
+import System.Nix.Config.Core (NixConfigField (..))
 import Test.Hspec
-import Text.Megaparsec (parse)
 
 spec :: Spec
 spec = do
-  describe "pConfigFile" $ do
-    it "parses real nix config show output" $ do
-      let input =
-            "abort-on-warn = false\n\
-            \accept-flake-config = false\n\
-            \access-tokens = \n\
-            \allow-dirty = true\n\
-            \builders = @/home/srid/.config/nix/machines\n\
-            \build-users-group = \n\
-            \cores = 0\n\
-            \max-jobs = 16\n\
-            \system = x86_64-linux\n"
-      case parse pConfigFile "<test>" input of
-        Left err -> expectationFailure $ show err
-        Right cfg -> do
-          Map.lookup "abort-on-warn" cfg `shouldBe` Just "false"
-          Map.lookup "accept-flake-config" cfg `shouldBe` Just "false"
-          Map.lookup "allow-dirty" cfg `shouldBe` Just "true"
-          Map.lookup "builders" cfg `shouldBe` Just "@/home/srid/.config/nix/machines"
-          Map.lookup "cores" cfg `shouldBe` Just "0"
-          Map.lookup "max-jobs" cfg `shouldBe` Just "16"
-          Map.lookup "system" cfg `shouldBe` Just "x86_64-linux"
+  describe "NixConfigField FromJSON" $ do
+    it "parses config field with value and description" $ do
+      let json =
+            "{\
+            \  \"value\": 42,\
+            \  \"description\": \"Maximum parallel jobs\"\
+            \}"
+          result = Aeson.eitherDecode @(NixConfigField Natural) json
+      case result of
+        Left err -> expectationFailure err
+        Right (NixConfigField {value, description}) -> do
+          value `shouldBe` 42
+          description `shouldBe` "Maximum parallel jobs"
 
-    it "handles empty values" $ do
-      let input = "access-tokens = \nbuild-users-group = \n"
-      case parse pConfigFile "<test>" input of
-        Left err -> expectationFailure $ show err
-        Right cfg -> do
-          Map.lookup "access-tokens" cfg `shouldBe` Just ""
-          Map.lookup "build-users-group" cfg `shouldBe` Just ""
+    it "parses config field with list value" $ do
+      let json =
+            "{\
+            \  \"value\": [\"https://cache.nixos.org\", \"https://cache.garnix.io\"],\
+            \  \"description\": \"List of substituters\"\
+            \}"
+          result = Aeson.eitherDecode @(NixConfigField [Text]) json
+      case result of
+        Left err -> expectationFailure err
+        Right (NixConfigField {value, description}) -> do
+          value `shouldBe` ["https://cache.nixos.org", "https://cache.garnix.io"]
+          description `shouldBe` "List of substituters"
 
-    it "handles trailing newlines" $ do
-      let input = "foo = bar\nbaz = qux\n\n"
-      case parse pConfigFile "<test>" input of
-        Left err -> expectationFailure $ show err
-        Right cfg -> do
-          Map.lookup "foo" cfg `shouldBe` Just "bar"
-          Map.lookup "baz" cfg `shouldBe` Just "qux"
+  describe "Builders FromJSON" $ do
+    it "parses empty string as BuildersEmpty" $ do
+      let result = Aeson.eitherDecode @Builders "\"\""
+      result `shouldBe` Right BuildersEmpty
+
+    it "parses file reference" $ do
+      let result = Aeson.eitherDecode @Builders "\"@/home/user/.config/nix/machines\""
+      result `shouldBe` Right (BuildersFile "/home/user/.config/nix/machines")
+
+    it "parses inline builders" $ do
+      let json = "\"ssh://builder x86_64-linux - 4 1 - - -\\n\""
+          result = Aeson.eitherDecode @Builders json
+      case result of
+        Left err -> expectationFailure err
+        Right (BuildersList bs) -> length bs `shouldBe` 1
+        Right other -> expectationFailure $ "Expected BuildersList but got: " <> show other

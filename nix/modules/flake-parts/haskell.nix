@@ -47,6 +47,7 @@ in
         record-hasfield.source = inputs.record-hasfield;
         toml-reader.source = "0.3.0.0";
         filepattern.source = "0.1.3";
+        aeson-casing.source = "0.2.0.0";
       };
 
       # Add your package overrides here

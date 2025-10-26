@@ -1,6 +1,17 @@
+{-# LANGUAGE DuplicateRecordFields #-}
+
 -- | Nix configuration and remote builders
 module System.Nix.Config (
-  module System.Nix.Config.Core,
+  -- * Builders
+  Builders (..),
+  RemoteBuilder (..),
+  resolveBuilders,
+
+  -- * Configuration
+  NixConfig (..),
+  NixConfigField (..),
+  nixConfigShow,
 ) where
 
-import System.Nix.Config.Core (NixConfig (..), RemoteBuilder (..), nixConfigShow)
+import System.Nix.Config.Builders (Builders (..), RemoteBuilder (..), resolveBuilders)
+import System.Nix.Config.Core (NixConfig (..), NixConfigField (..), nixConfigShow)
