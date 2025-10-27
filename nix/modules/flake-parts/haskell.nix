@@ -94,6 +94,8 @@ in
         git-effectful = {
           extraBuildDepends = [
             pkgs.git # For git
+            pkgs.git-lfs
+            pkgs.openssh # `ssh` cli, for cloning private repos
           ];
         };
         tail = {
