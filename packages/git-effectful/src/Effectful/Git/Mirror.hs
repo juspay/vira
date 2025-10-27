@@ -95,7 +95,7 @@ ensureMirror cloneUrl mirrorPath = do
 
         (exitCode, stdoutStr, stderrStr) <-
           withLogCommand cloneCmd $ do
-            log Debug "Running git clone"
+            log Info "Running git clone"
             readCreateProcessWithExitCode
               cloneCmd {cwd = Just parentDir}
               ""
