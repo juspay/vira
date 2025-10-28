@@ -23,13 +23,13 @@ and focused on what users actually need for conditional logic in vira.hs files.
 -}
 data ViraContext = ViraContext
   { branch :: BranchName
-  , -- Whether the working directory has uncommitted changes
-    dirty :: Bool
+  , -- Whether running in CLI mode (vs web/CI mode)
+    cli :: Bool
   }
 
 -- HasField instances for ViraContext
 instance HasField "branch" ViraContext BranchName where
-  hasField (ViraContext branch dirty) = (\x -> ViraContext x dirty, branch)
+  hasField (ViraContext branch cli) = (\x -> ViraContext x cli, branch)
 
-instance HasField "dirty" ViraContext Bool where
-  hasField (ViraContext branch dirty) = (\x -> ViraContext branch x, dirty)
+instance HasField "cli" ViraContext Bool where
+  hasField (ViraContext branch cli) = (\x -> ViraContext branch x, cli)
