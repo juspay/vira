@@ -26,9 +26,11 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext, log)
 import Effectful.Colog.Simple.Process (withLogCommand)
+import Effectful.Environment (Environment)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.Exception (finally)
 import Effectful.Git (git)
+import Effectful.Git.Core (withNonInteractiveSSH)
 import Effectful.Process (CreateProcess (..), Process, proc, readCreateProcessWithExitCode)
 import Effectful.Reader.Static qualified as ER
 import Lukko (LockMode (ExclusiveLock))
@@ -49,6 +51,7 @@ syncMirror ::
   , ER.Reader LogContext :> es
   , Process :> es
   , IOE :> es
+  , Environment :> es
   ) =>
   -- | Clone URL
   Text ->
@@ -71,6 +74,7 @@ ensureMirror ::
   , ER.Reader LogContext :> es
   , Process :> es
   , IOE :> es
+  , Environment :> es
   ) =>
   Text ->
   FilePath ->
@@ -90,8 +94,8 @@ ensureMirror cloneUrl mirrorPath = do
         liftIO $ createDirectoryIfMissing True (takeDirectory mirrorPath)
 
         -- Clone the repository
-        let cloneCmd = cloneAllBranches cloneUrl (takeFileName mirrorPath)
-            parentDir = takeDirectory mirrorPath
+        cloneCmd <- cloneAllBranches cloneUrl (takeFileName mirrorPath)
+        let parentDir = takeDirectory mirrorPath
 
         (exitCode, stdoutStr, stderrStr) <-
           withLogCommand cloneCmd $ do
@@ -124,6 +128,7 @@ updateMirror ::
   , ER.Reader LogContext :> es
   , Process :> es
   , IOE :> es
+  , Environment :> es
   ) =>
   FilePath ->
   Eff es ()
@@ -132,7 +137,7 @@ updateMirror mirrorPath = do
 
   withFileLock mirrorPath $ do
     -- Use --force to handle forced pushes
-    let fetchCmd = fetchAllBranches
+    fetchCmd <- fetchAllBranches
 
     (exitCode, stdoutStr, stderrStr) <-
       withLogCommand fetchCmd $ do
@@ -181,25 +186,27 @@ withFileLock dirPath action = do
   action `finally` liftIO (Lukko.fdUnlock fd >> Lukko.fdClose fd)
 
 -- | Return the `CreateProcess` to clone a repo with all branches (blob:none for efficiency)
-cloneAllBranches :: Text -> FilePath -> CreateProcess
+cloneAllBranches :: (Environment :> es) => Text -> FilePath -> Eff es CreateProcess
 cloneAllBranches url path =
-  proc
-    git
-    [ "clone"
-    , "-v"
-    , "--filter=blob:none"
-    , "--no-single-branch"
-    , toString url
-    , path
-    ]
+  withNonInteractiveSSH $
+    proc
+      git
+      [ "clone"
+      , "-v"
+      , "--filter=blob:none"
+      , "--no-single-branch"
+      , toString url
+      , path
+      ]
 
 -- | Return the `CreateProcess` to fetch all branches with force
-fetchAllBranches :: CreateProcess
+fetchAllBranches :: (Environment :> es) => Eff es CreateProcess
 fetchAllBranches =
-  proc
-    git
-    [ "fetch"
-    , "--force"
-    , "origin"
-    , "+refs/heads/*:refs/remotes/origin/*"
-    ]
+  withNonInteractiveSSH $
+    proc
+      git
+      [ "fetch"
+      , "--force"
+      , "origin"
+      , "+refs/heads/*:refs/remotes/origin/*"
+      ]

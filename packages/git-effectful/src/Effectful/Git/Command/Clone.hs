@@ -7,23 +7,26 @@ module Effectful.Git.Command.Clone (
   cloneAtCommit,
 ) where
 
-import Effectful.Git.Core (git)
+import Effectful (Eff, (:>))
+import Effectful.Environment (Environment)
+import Effectful.Git.Core (git, withNonInteractiveSSH)
 import Effectful.Git.Types (CommitID)
 import Effectful.Process (CreateProcess, proc)
 
 -- | Return the `CreateProcess` to clone a repo at a specific commit
-cloneAtCommit :: Text -> CommitID -> FilePath -> CreateProcess
+cloneAtCommit :: (Environment :> es) => Text -> CommitID -> FilePath -> Eff es CreateProcess
 cloneAtCommit url commit path =
-  proc
-    git
-    [ "-c"
-    , "advice.detachedHead=false"
-    , "clone"
-    , "--depth"
-    , "1"
-    , "--single-branch"
-    , "--revision"
-    , toString commit
-    , toString url
-    , path
-    ]
+  withNonInteractiveSSH $
+    proc
+      git
+      [ "-c"
+      , "advice.detachedHead=false"
+      , "clone"
+      , "--depth"
+      , "1"
+      , "--single-branch"
+      , "--revision"
+      , toString commit
+      , toString url
+      , path
+      ]

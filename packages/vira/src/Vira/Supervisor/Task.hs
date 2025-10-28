@@ -15,6 +15,7 @@ import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..), log, withLogContext, withoutLogContext)
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar_, readMVar)
+import Effectful.Environment (Environment)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.Process (Process)
@@ -46,6 +47,7 @@ startTask ::
   , Log (RichMessage IO) :> es
   , IOE :> es
   , FileSystem :> es
+  , Environment :> es
   , HasCallStack
   , Show err
   , ER.Reader LogContext :> es
@@ -62,6 +64,7 @@ startTask ::
     , FileSystem :> es1
     , ER.Reader LogContext :> es1
     , Error err :> es1
+    , Environment :> es1
     ) =>
     (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ()) ->
     Eff es1 ()
