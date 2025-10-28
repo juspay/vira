@@ -55,8 +55,9 @@ newtype SignoffStage = SignoffStage
   deriving stock (Generic, Show)
 
 -- TODO: Switch url type to URI from modern-uri for better type safety
-newtype CacheStage = CacheStage
+data CacheStage = CacheStage
   { url :: Maybe Text
+  , whitelist :: Maybe [Text]
   }
   deriving stock (Generic, Show)
 
@@ -80,7 +81,10 @@ instance HasField "enable" SignoffStage Bool where
   hasField (SignoffStage enable) = (SignoffStage, enable)
 
 instance HasField "url" CacheStage (Maybe Text) where
-  hasField (CacheStage url) = (CacheStage, url)
+  hasField (CacheStage url whitelist) = (\x -> CacheStage x whitelist, url)
+
+instance HasField "whitelist" CacheStage (Maybe [Text]) where
+  hasField (CacheStage url whitelist) = (CacheStage url, whitelist)
 
 instance HasField "build" ViraPipeline BuildStage where
   hasField (ViraPipeline build cache signoff) = (\x -> ViraPipeline x cache signoff, build)

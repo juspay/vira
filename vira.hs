@@ -15,4 +15,7 @@
     , cache.url = if
         | ctx.branch == "main" -> Just "https://cache.nixos.asia/oss"
         | otherwise -> Nothing
+    , cache.whitelist = if
+        | ctx.branch == "main" -> Just ["vira"]
+        | otherwise -> Nothing
     }

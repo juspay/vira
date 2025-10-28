@@ -11,7 +11,7 @@ import Effectful.Error.Static (Error)
 import Effectful.Reader.Static qualified as ER
 import Shower qualified
 import Vira.CI.Error (PipelineError (..))
-import Vira.CI.Pipeline.Effect
+import Vira.CI.Pipeline.Effect (Pipeline, PipelineEnv, build, cache, clone, loadConfig, logPipeline, signoff)
 import Vira.State.Type (Branch, Repo)
 
 -- | Pipeline program for CLI (uses existing local directory)

@@ -17,7 +17,9 @@ import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
-import DevourFlake (DevourFlakeArgs (..), devourFlake)
+import Data.Aeson (eitherDecodeFileStrict)
+import Data.Map.Strict qualified as Map
+import DevourFlake (DevourFlakeArgs (..), DevourFlakeResult (..), SystemOutputs (..), devourFlake)
 import Effectful
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..))
@@ -31,6 +33,7 @@ import Effectful.Git.Types (Commit (..))
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
 import GH.Signoff qualified as Signoff
+import Shower qualified
 import System.FilePath ((</>))
 import System.Nix.Core (nix)
 import System.Nix.System (System)
@@ -160,12 +163,25 @@ buildImpl ::
   ) =>
   FilePath ->
   ViraPipeline ->
-  Eff es (NonEmpty FilePath)
+  Eff es (NonEmpty BuildResult)
 buildImpl repoDir pipeline = do
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
-  -- Build each flake sequentially
-  forM pipeline.build.flakes $ \flake -> do
-    buildFlake repoDir pipeline.build.systems flake
+  -- Build each flake sequentially and return BuildResult for each
+  forM pipeline.build.flakes $ \flake@(Flake flakePath _) -> do
+    resultPath <- buildFlake repoDir pipeline.build.systems flake
+
+    -- Parse the JSON result
+    let jsonPath = repoDir </> resultPath
+    devourResult <- liftIO $ eitherDecodeFileStrict jsonPath
+    case devourResult of
+      Left err ->
+        throwError $
+          PipelineConfigurationError $
+            MalformedConfig $
+              "Failed to parse devour-flake result JSON at '" <> toText jsonPath <> "': " <> toText err
+      Right parsed -> do
+        logPipeline Info $ toText $ "Build result for " <> flakePath <> ":\n" <> Shower.shower parsed
+        pure $ BuildResult flakePath resultPath parsed
 
 -- | Build a single flake
 buildFlake ::
@@ -217,7 +233,7 @@ cacheImpl ::
   ) =>
   FilePath ->
   ViraPipeline ->
-  NonEmpty FilePath ->
+  NonEmpty BuildResult ->
   Eff es ()
 cacheImpl repoDir pipeline buildResults = do
   env <- ER.ask @PipelineEnv
@@ -225,7 +241,7 @@ cacheImpl repoDir pipeline buildResults = do
     Nothing -> do
       logPipeline Warning "Cache disabled, skipping"
     Just urlText -> do
-      logPipeline Info $ "Pushing " <> show (length buildResults) <> " result files to cache"
+      logPipeline Info $ "Pushing " <> show (length buildResults) <> " build results to cache"
 
       -- Parse cache URL
       (serverEndpoint, cacheName) <- case Attic.Url.parseCacheUrl urlText of
@@ -244,12 +260,58 @@ cacheImpl repoDir pipeline buildResults = do
         Left err -> throwError $ atticErrorToPipelineError urlText serverEndpoint err
         Right result -> pure result
 
-      -- Push all results to cache - paths are relative to repoDir
-      logPipeline Info $ "Pushing " <> show (length buildResults) <> " paths: " <> show (toList buildResults)
-      let pushProc = Attic.atticPushProcess server cacheName buildResults
+      -- Extract paths to push
+      pathsToPush <- getPathsToPush pipeline.cache.whitelist buildResults
+
+      -- Push to cache - paths are relative to repoDir
+      logPipeline Info $ "Pushing " <> show (length pathsToPush) <> " paths: " <> show (toList pathsToPush)
+      let pushProc = Attic.atticPushProcess server cacheName pathsToPush
       runProcess repoDir env.outputLog pushProc
       logPipeline Info "Cache push succeeded"
   where
+    getPathsToPush ::
+      ( Error PipelineError :> es
+      , Log (RichMessage IO) :> es
+      , IOE :> es
+      , ER.Reader LogContext :> es
+      , ER.Reader PipelineEnv :> es
+      ) =>
+      Maybe [Text] ->
+      NonEmpty BuildResult ->
+      Eff es (NonEmpty FilePath)
+    getPathsToPush whitelist results =
+      case whitelist of
+        Nothing -> do
+          logPipeline Info "No whitelist configured, pushing all result files"
+          -- Just push the result symlinks directly
+          pure $ fmap (.resultPath) results
+        Just whitelistedNames -> do
+          logPipeline Info $ "Filtering by whitelist: " <> show whitelistedNames
+          filterByWhitelist results whitelistedNames
+
+    filterByWhitelist ::
+      (Error PipelineError :> es) =>
+      NonEmpty BuildResult ->
+      [Text] ->
+      Eff es (NonEmpty FilePath)
+    filterByWhitelist results whitelistedNames = do
+      -- Collect all package names across all build results
+      let allOutputs = foldMap (\br -> foldMap (.byName) br.devourResult.systems) results
+
+      -- For each whitelisted name, find its store path
+      storePaths <- forM whitelistedNames $ \name -> do
+        case Map.lookup name allOutputs of
+          Nothing ->
+            throwError $
+              PipelineConfigurationError $
+                MalformedConfig $
+                  "Whitelisted package '" <> name <> "' not found in build results. Available packages: " <> show (Map.keys allOutputs)
+          Just path -> pure path
+
+      case nonEmpty storePaths of
+        Nothing -> throwError $ PipelineConfigurationError $ MalformedConfig "Whitelist resulted in empty list"
+        Just paths -> pure paths
+
     parseErrorToPipelineError :: Text -> Attic.Url.ParseError -> PipelineError
     parseErrorToPipelineError url err =
       PipelineConfigurationError $
@@ -295,7 +357,7 @@ defaultPipeline :: ViraPipeline
 defaultPipeline =
   ViraPipeline
     { build = BuildStage {flakes = one defaultFlake, systems = []}
-    , cache = CacheStage Nothing
+    , cache = CacheStage Nothing Nothing
     , signoff = SignoffStage False
     }
   where

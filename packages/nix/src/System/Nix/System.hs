@@ -4,13 +4,13 @@ module System.Nix.System (
   nixSystem,
 ) where
 
-import Data.Aeson (FromJSON)
+import Data.Aeson (FromJSON, FromJSONKey)
 import System.Info qualified as SysInfo
 
 -- | Nix system identifier (e.g., "x86_64-linux", "aarch64-darwin")
 newtype System = System {unSystem :: Text}
   deriving stock (Show, Eq, Ord)
-  deriving newtype (ToString, IsString, FromJSON)
+  deriving newtype (ToString, IsString, FromJSON, FromJSONKey)
 
 -- | Get the current Nix system
 nixSystem :: System

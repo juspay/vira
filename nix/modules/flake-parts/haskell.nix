@@ -48,6 +48,7 @@ in
         toml-reader.source = "0.3.0.0";
         filepattern.source = "0.1.3";
         aeson-casing.source = "0.2.0.0";
+        neat-interpolation.source = "0.5.1.4";
       };
 
       # Add your package overrides here
