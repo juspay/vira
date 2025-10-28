@@ -29,6 +29,8 @@ import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import System.Tail qualified as Tail
 import Vira.App qualified as App
+import Vira.App.Broadcast.Core qualified as Broadcast
+import Vira.App.Broadcast.Type (BroadcastScope (..))
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.CI.Log (decodeViraLog)
@@ -68,7 +70,7 @@ logChunkMsg = \case
   Stop _ -> Lucid.renderBS $
     div_ [class_ "flex items-center space-x-2 text-sm text-gray-600"] $ do
       Status.indicator False
-      span_ [class_ "font-medium"] "Build completed"
+      span_ [class_ "font-medium"] "Log streaming stopped"
 
 -- | Render log lines with special styling for viralog lines (JSON format)
 renderLogLines :: (Monad m) => [Text] -> HtmlT m ()
@@ -103,16 +105,34 @@ data StreamConfig = StreamConfig
   , streamState :: StreamState
   }
 
+data JobLookup = Active Job | Stale
+
+-- | Lookup a job and check if it's active or stale.
+lookupActiveJob :: JobId -> Eff AppStack (Maybe JobLookup)
+lookupActiveJob jobId = do
+  mJob <- App.query (St.GetJobA jobId)
+  pure $ case mJob of
+    Nothing -> Nothing
+    Just job ->
+      if St.jobIsActive job
+        then Just (Active job)
+        else Just Stale
+
 streamRouteHandler :: JobId -> SourceT (Eff AppStack) (KeepAlive LogChunk)
 streamRouteHandler jobId = S.fromStepT $ S.Effect $ do
   tagStreamThread
-  -- Get job first to create initial config
-  mJob :: Maybe Job <- App.query (St.GetJobA jobId)
-  case mJob of
+  lookupActiveJob jobId >>= \case
     Nothing -> do
       App.log Error "Job not found"
       pure $ S.Error "Job not found"
-    Just job -> do
+    Just Stale -> do
+      -- Job is stale/finished - send Stop event to close SSE connection gracefully
+      -- This triggers hx-sse-close and prevents reconnection attempts
+      App.log Warning $ "SSE stream requested for inactive job " <> show jobId <> ", closing stream"
+      -- Broadcast update to trigger page refresh via scoped refresh stream
+      Broadcast.broadcastUpdate $ JobScope (Just jobId)
+      pure $ KeepAlive.yieldEvent (Stop 0) S.Stop
+    Just (Active job) -> do
       pure $ S.Skip $ step StreamConfig {counter = 0, job, streamState = Init}
   where
     step cfg = S.Effect $ do
