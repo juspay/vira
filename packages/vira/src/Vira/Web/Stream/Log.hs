@@ -29,6 +29,8 @@ import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import System.Tail qualified as Tail
 import Vira.App qualified as App
+import Vira.App.Broadcast.Core qualified as Broadcast
+import Vira.App.Broadcast.Type (BroadcastScope (..))
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.CI.Log (decodeViraLog)
@@ -113,7 +115,16 @@ streamRouteHandler jobId = S.fromStepT $ S.Effect $ do
       App.log Error "Job not found"
       pure $ S.Error "Job not found"
     Just job -> do
-      pure $ S.Skip $ step StreamConfig {counter = 0, job, streamState = Init}
+      if not (St.jobIsActive job)
+        then do
+          -- Job is stale/finished - send Stop event to close SSE connection gracefully
+          -- This triggers hx-sse-close and prevents reconnection attempts
+          App.log Warning $ "SSE stream requested for inactive job " <> show jobId <> ", closing stream"
+          -- Broadcast update to trigger page refresh via scoped refresh stream
+          Broadcast.broadcastUpdate $ JobScope (Just jobId)
+          pure $ KeepAlive.yieldEvent (Stop 0) S.Stop
+        else
+          pure $ S.Skip $ step StreamConfig {counter = 0, job, streamState = Init}
   where
     step cfg = S.Effect $ do
       case cfg.streamState of
