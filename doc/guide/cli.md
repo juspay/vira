@@ -16,12 +16,9 @@ vira ci [DIRECTORY]
 
 If no directory is specified, runs in the current directory. The directory must be a git repository.
 
-### Dirty Working Tree Handling {#dirty}
+### CLI Mode Restrictions {#build-only}
 
-When running CI on a dirty working tree (uncommitted changes), certain pipeline stages are automatically disabled:
-
-- **Signoff**: Disabled (can't signoff on a commit when the build includes uncommitted changes)
-- **Cache**: Disabled (shouldn't push build artifacts from dirty working tree to shared cache)
+When running CI via the command line, only the build stage will run and for current system only.
 
 This behavior is enforced automatically, regardless of what [[config|`vira.hs`]] specifies.
 
