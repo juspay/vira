@@ -128,20 +128,22 @@ loadConfigImpl repoDir = do
         Left err -> throwError $ PipelineConfigurationError $ InterpreterError err
         Right p -> do
           logPipeline Info "Successfully applied vira.hs configuration"
-          pure $ patchPipelineForDirty env.viraContext p
+          pure $ patchPipelineForCli env.viraContext p
     False -> do
       logPipeline Info "No vira.hs found - using default pipeline"
-      pure $ patchPipelineForDirty env.viraContext defaultPipeline
+      pure $ patchPipelineForCli env.viraContext defaultPipeline
   where
-    -- Certain stages don't make sense when running CI on a dirty working copy
-    patchPipelineForDirty :: ViraContext -> ViraPipeline -> ViraPipeline
-    patchPipelineForDirty ctx pipeline
-      | ctx.dirty =
+    -- When running in CLI mode, restrict to current system and disable cache/signoff
+    patchPipelineForCli :: ViraContext -> ViraPipeline -> ViraPipeline
+    patchPipelineForCli ctx pipeline
+      | ctx.cli =
           pipeline
-            { -- Can't signoff on commit when build was on dirty working copy
+            { -- Don't signoff when running in CLI
               signoff = pipeline.signoff {enable = False}
-            , -- Don't push unless on clean branch
+            , -- Don't push to cache when running in CLI
               cache = pipeline.cache {url = Nothing}
+            , -- Only build for current system in CLI mode
+              build = BuildStage {flakes = pipeline.build.flakes, systems = []}
             }
       | otherwise = pipeline
 

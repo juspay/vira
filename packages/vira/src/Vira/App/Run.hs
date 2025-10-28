@@ -124,8 +124,8 @@ runVira = do
         . runConcurrent
         . runErrorNoCallStack
         $ do
-          GitStatusPorcelain {branch, dirty} <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
-          let ctx = ViraContext branch dirty
+          GitStatusPorcelain {branch} <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
+          let ctx = ViraContext branch True
           tools <- Tool.getAllTools
           Pipeline.runPipeline (Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx) (Program.pipelineProgram repoDir)
             $> ExitSuccess
