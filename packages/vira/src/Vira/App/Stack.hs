@@ -6,6 +6,7 @@ import Effectful (Eff, IOE, runEff)
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext, runLogActionStdout)
 import Effectful.Concurrent.Async (Concurrent, runConcurrent)
+import Effectful.Environment (Environment, runEnvironment)
 import Effectful.FileSystem (FileSystem, runFileSystem)
 import Effectful.Process (Process, runProcess)
 import Effectful.Reader.Dynamic (Reader, runReader)
@@ -19,6 +20,7 @@ type AppStack =
    , Concurrent
    , Process
    , FileSystem
+   , Environment
    , ER.Reader LogContext
    , Log (RichMessage IO)
    , IOE
@@ -30,6 +32,7 @@ runApp globalSettings viraRuntimeState =
   do
     runEff
     . runLogActionStdout (logLevel globalSettings)
+    . runEnvironment
     . runFileSystem
     . runProcess
     . runConcurrent

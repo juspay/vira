@@ -15,6 +15,7 @@ import Data.Version (showVersion)
 import Effectful (runEff)
 import Effectful.Colog.Simple (runLogActionStdout)
 import Effectful.Concurrent.Async (runConcurrent)
+import Effectful.Environment (runEnvironment)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.FileSystem (runFileSystem)
 import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
@@ -117,6 +118,7 @@ runVira = do
     runCIEffects gs repoDir =
       runEff
         . runLogActionStdout gs.logLevel
+        . runEnvironment
         . runFileSystem
         . runProcess
         . runConcurrent

@@ -23,6 +23,7 @@ import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Dispatch.Dynamic
+import Effectful.Environment (Environment)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git.Command.Clone qualified as Git
@@ -55,6 +56,7 @@ runPipeline ::
   , FileSystem :> es
   , ER.Reader LogContext :> es
   , Error PipelineError :> es
+  , Environment :> es
   ) =>
   PipelineEnv ->
   Eff (Pipeline : ER.Reader PipelineEnv : es) a ->
@@ -81,6 +83,7 @@ cloneImpl ::
   , ER.Reader LogContext :> es
   , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
+  , Environment :> es
   ) =>
   Repo ->
   Branch ->
@@ -89,11 +92,11 @@ cloneImpl ::
 cloneImpl repo branch workspacePath = do
   env <- ER.ask @PipelineEnv
   let projectDirName = "project"
-      cloneProc =
-        Git.cloneAtCommit
-          repo.cloneUrl
-          branch.headCommit.id
-          projectDirName
+  cloneProc <-
+    Git.cloneAtCommit
+      repo.cloneUrl
+      branch.headCommit.id
+      projectDirName
 
   logPipeline Info $ "Cloning repository at commit " <> toText branch.headCommit.id
 

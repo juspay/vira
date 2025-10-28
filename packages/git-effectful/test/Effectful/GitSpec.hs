@@ -5,6 +5,7 @@ import Data.Map.Strict qualified as Map
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Effectful (runEff)
 import Effectful.Colog (runLogAction)
+import Effectful.Environment (runEnvironment)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Git
 import Effectful.Git.Command.ForEachRef (remoteBranchesFromClone)
@@ -23,12 +24,12 @@ spec = do
         let cloneUrl = "https://github.com/srid/haskell.page-old.git"
             mirrorPath = tempDir </> "mirror"
         -- Clone the repository first
-        mirrorResult <- runEff . runProcess . runErrorNoCallStack @Text . runLogAction (LogAction $ const pass) . ER.runReader mempty $ Mirror.syncMirror cloneUrl mirrorPath
+        mirrorResult <- runEff . runEnvironment . runProcess . runErrorNoCallStack @Text . runLogAction (LogAction $ const pass) . ER.runReader mempty $ Mirror.syncMirror cloneUrl mirrorPath
         case mirrorResult of
           Left err -> expectationFailure $ "Failed to clone: " <> toString err
           Right () -> do
             -- Get branches from the cloned repository
-            result <- runEff . runProcess . runErrorNoCallStack @Text . runLogAction (LogAction $ const pass) . ER.runReader mempty $ remoteBranchesFromClone mirrorPath
+            result <- runEff . runEnvironment . runProcess . runErrorNoCallStack @Text . runLogAction (LogAction $ const pass) . ER.runReader mempty $ remoteBranchesFromClone mirrorPath
             case result of
               Left err -> expectationFailure $ "Failed to get branches: " <> toString err
               Right branches -> do
