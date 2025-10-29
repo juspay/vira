@@ -28,7 +28,7 @@
     hint-nix.flake = false;
     warp-tls-simple.url = "github:srid/warp-tls-simple";
     warp-tls-simple.flake = false;
-    nix-serve-ng.url = "github:juspay/nix-serve-ng/lib";
+    nix-serve-ng.url = "github:juspay/nix-serve-ng";
     nix-serve-ng.flake = false;
     record-hasfield.url = "github:ndmitchell/record-hasfield";
     record-hasfield.flake = false;

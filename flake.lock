@@ -150,16 +150,15 @@
     "nix-serve-ng": {
       "flake": false,
       "locked": {
-        "lastModified": 1761767647,
-        "narHash": "sha256-DJCpYQpgmKloqjRdZagENjjMgrTJBrTtyPTOom4q4NI=",
+        "lastModified": 1748458972,
+        "narHash": "sha256-N6c3NozYqAGwmjf+k5GHOZzlcquDntrJwsZQ7O2sqtQ=",
         "owner": "juspay",
         "repo": "nix-serve-ng",
-        "rev": "4483d68ab73fbcfbbc3863d29a7e3f7d78f54ccb",
+        "rev": "1d21f73a2d563ffbb924a4244c29b35e898caefe",
         "type": "github"
       },
       "original": {
         "owner": "juspay",
-        "ref": "lib",
         "repo": "nix-serve-ng",
         "type": "github"
       }
