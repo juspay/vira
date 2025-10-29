@@ -17,6 +17,7 @@ import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
+import Data.Aeson (eitherDecodeFileStrict)
 import DevourFlake (DevourFlakeArgs (..), devourFlake)
 import Effectful
 import Effectful.Colog (Log)
@@ -31,6 +32,7 @@ import Effectful.Git.Types (Commit (..))
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
 import GH.Signoff qualified as Signoff
+import Shower qualified
 import System.FilePath ((</>))
 import System.Nix.Core (nix)
 import System.Nix.System (System)
@@ -160,11 +162,11 @@ buildImpl ::
   ) =>
   FilePath ->
   ViraPipeline ->
-  Eff es (NonEmpty FilePath)
+  Eff es (NonEmpty BuildResult)
 buildImpl repoDir pipeline = do
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
-  -- Build each flake sequentially
-  forM pipeline.build.flakes $ \flake -> do
+  -- Build each flake sequentially and return BuildResult for each
+  forM pipeline.build.flakes $ \flake ->
     buildFlake repoDir pipeline.build.systems flake
 
 -- | Build a single flake
@@ -181,7 +183,7 @@ buildFlake ::
   FilePath ->
   [System] ->
   Flake ->
-  Eff es FilePath
+  Eff es BuildResult
 buildFlake repoDir systems (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
   let buildProc =
@@ -202,7 +204,15 @@ buildFlake repoDir systems (Flake flakePath overrideInputs) = do
   -- Return relative path to result symlink (relative to repo root)
   let resultPath = flakePath </> "result"
   logPipeline Info $ "Build succeeded, result at " <> toText resultPath
-  pure resultPath
+
+  -- Parse the JSON result
+  devourResult <- liftIO $ eitherDecodeFileStrict $ repoDir </> resultPath
+  case devourResult of
+    Left err ->
+      throwError $ DevourFlakeMalformedOutput resultPath err
+    Right parsed -> do
+      logPipeline Info $ toText $ "Build result for " <> flakePath <> ":\n" <> Shower.shower parsed
+      pure $ BuildResult flakePath resultPath parsed
 
 -- | Implementation: Push to cache
 cacheImpl ::
@@ -217,7 +227,7 @@ cacheImpl ::
   ) =>
   FilePath ->
   ViraPipeline ->
-  NonEmpty FilePath ->
+  NonEmpty BuildResult ->
   Eff es ()
 cacheImpl repoDir pipeline buildResults = do
   env <- ER.ask @PipelineEnv
@@ -225,7 +235,7 @@ cacheImpl repoDir pipeline buildResults = do
     Nothing -> do
       logPipeline Warning "Cache disabled, skipping"
     Just urlText -> do
-      logPipeline Info $ "Pushing " <> show (length buildResults) <> " result files to cache"
+      logPipeline Info $ "Pushing " <> show (length buildResults) <> " build results to cache"
 
       -- Parse cache URL
       (serverEndpoint, cacheName) <- case Attic.Url.parseCacheUrl urlText of
@@ -244,9 +254,10 @@ cacheImpl repoDir pipeline buildResults = do
         Left err -> throwError $ atticErrorToPipelineError urlText serverEndpoint err
         Right result -> pure result
 
-      -- Push all results to cache - paths are relative to repoDir
-      logPipeline Info $ "Pushing " <> show (length buildResults) <> " paths: " <> show (toList buildResults)
-      let pushProc = Attic.atticPushProcess server cacheName buildResults
+      -- Push to cache - paths are relative to repoDir
+      let pathsToPush = fmap (.resultPath) buildResults
+      logPipeline Info $ "Pushing " <> show (length pathsToPush) <> " result files: " <> show (toList pathsToPush)
+      let pushProc = Attic.atticPushProcess server cacheName pathsToPush
       runProcess repoDir env.outputLog pushProc
       logPipeline Info "Cache push succeeded"
   where

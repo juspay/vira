@@ -17,6 +17,8 @@ data PipelineError
   | PipelineTerminated Terminated
   | -- | A process in the pipeline failed with non-zero exit code
     PipelineProcessFailed ExitCode
+  | -- | devour-flake produced malformed JSON output
+    DevourFlakeMalformedOutput FilePath String
 
 -- | Configuration error types
 data ConfigurationError
@@ -37,3 +39,5 @@ instance TS.Show PipelineError where
     "vira.hs has malformed config: " <> toString msg
   show (PipelineTerminated err) = displayException err
   show (PipelineProcessFailed exitCode) = "Process failed: " <> show exitCode
+  show (DevourFlakeMalformedOutput path err) =
+    "devour-flake produced malformed JSON at '" <> path <> "':\n" <> err

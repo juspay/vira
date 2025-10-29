@@ -6,9 +6,11 @@ module DevourFlake (
   DevourFlakeArgs (..),
   devourFlake,
   devourFlakePath,
+  module DevourFlake.Result,
 ) where
 
 import DevourFlake.NixSystems (nixSystemsFlakeFor)
+import DevourFlake.Result
 import IncludeEnv.TH (includeEnv)
 import System.Nix.System (System (..))
 

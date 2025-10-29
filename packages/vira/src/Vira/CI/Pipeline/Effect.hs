@@ -8,6 +8,7 @@ import Prelude hiding (asks)
 
 import Colog (Severity)
 import Colog.Message (RichMessage)
+import DevourFlake (DevourFlakeResult)
 import Effectful
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext)
@@ -52,16 +53,24 @@ logPipeline severity msg = do
   env <- ER.ask @PipelineEnv
   unPipelineLogger env.logger severity msg
 
+-- | Result from building a single flake
+data BuildResult = BuildResult
+  { flakePath :: FilePath
+  , resultPath :: FilePath
+  , devourResult :: DevourFlakeResult
+  }
+  deriving stock (Generic, Show)
+
 -- | CI Pipeline Effect - unified pipeline operations
 data Pipeline :: Effect where
   -- | Clone repository and return cloned directory path
   Clone :: Repo -> Branch -> FilePath -> Pipeline m FilePath
   -- | Load vira.hs configuration from repository directory
   LoadConfig :: FilePath -> Pipeline m ViraPipeline
-  -- | Build flakes and return result paths (relative to repo root)
-  Build :: FilePath -> ViraPipeline -> Pipeline m (NonEmpty FilePath)
+  -- | Build flakes and return list of build results
+  Build :: FilePath -> ViraPipeline -> Pipeline m (NonEmpty BuildResult)
   -- | Push build results to cache
-  Cache :: FilePath -> ViraPipeline -> NonEmpty FilePath -> Pipeline m ()
+  Cache :: FilePath -> ViraPipeline -> NonEmpty BuildResult -> Pipeline m ()
   -- | Create GitHub commit status
   Signoff :: FilePath -> ViraPipeline -> Pipeline m ()
 

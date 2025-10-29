@@ -18,6 +18,20 @@ extra-source-files:
 library:
   source-dirs: src
   dependencies:
+    - aeson
+    - containers
     - include-env
     - nix
     - filepath
+
+tests:
+  devour-flake-test:
+    main: Spec.hs
+    source-dirs: test
+    dependencies:
+      - devour-flake
+      - hspec
+      - nix
+      - containers
+      - aeson
+      - neat-interpolation
