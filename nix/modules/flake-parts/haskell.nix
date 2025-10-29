@@ -45,6 +45,7 @@ in
         tabler-icons.source = inputs.tabler-icons-hs;
         servant-event-stream.source = inputs.servant-event-stream;
         record-hasfield.source = inputs.record-hasfield;
+        nix-serve-ng.source = inputs.nix-serve-ng;
         toml-reader.source = "0.3.0.0";
         filepattern.source = "0.1.3";
         aeson-casing.source = "0.2.0.0";
@@ -124,6 +125,17 @@ in
           extraBuildDepends = [
             self'.packages.nix # For nix
           ];
+        };
+        nix-serve-ng = {
+          check = false; # Disable tests which have missing deps
+          custom = drv: pkgs.haskell.lib.overrideCabal drv (old: {
+            librarySystemDepends = (old.librarySystemDepends or [ ]) ++ [
+              pkgs.boost.dev
+              pkgs.nixVersions.nix_2_28
+            ];
+            # Don't build the executable - it has incomplete deps on lib branch
+            buildTarget = "lib:nix-serve-ng";
+          });
         };
         devour-flake = {
           drvAttrs = {

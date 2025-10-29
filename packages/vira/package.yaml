@@ -78,6 +78,7 @@ dependencies:
   - modern-uri
   - mtl
   - nix
+  - nix-serve-ng
   - optics-core
   - optics-th
   - optparse-applicative

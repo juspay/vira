@@ -147,6 +147,23 @@
         "type": "github"
       }
     },
+    "nix-serve-ng": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1761767647,
+        "narHash": "sha256-DJCpYQpgmKloqjRdZagENjjMgrTJBrTtyPTOom4q4NI=",
+        "owner": "juspay",
+        "repo": "nix-serve-ng",
+        "rev": "4483d68ab73fbcfbbc3863d29a7e3f7d78f54ccb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "juspay",
+        "ref": "lib",
+        "repo": "nix-serve-ng",
+        "type": "github"
+      }
+    },
     "nix-systems": {
       "locked": {
         "lastModified": 1761008537,
@@ -235,6 +252,7 @@
         "hint-nix": "hint-nix",
         "htmx": "htmx",
         "htmx-extensions": "htmx-extensions",
+        "nix-serve-ng": "nix-serve-ng",
         "nix-systems": "nix-systems",
         "nixos-unified": "nixos-unified",
         "nixpkgs": "nixpkgs",

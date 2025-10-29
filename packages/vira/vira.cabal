@@ -187,6 +187,7 @@ library
     , modern-uri
     , mtl
     , nix
+    , nix-serve-ng
     , optics-core
     , optics-th
     , optparse-applicative
@@ -309,6 +310,7 @@ executable vira
     , modern-uri
     , mtl
     , nix
+    , nix-serve-ng
     , optics-core
     , optics-th
     , optparse-applicative
@@ -435,6 +437,7 @@ executable vira-tests
     , modern-uri
     , mtl
     , nix
+    , nix-serve-ng
     , optics-core
     , optics-th
     , optparse-applicative
