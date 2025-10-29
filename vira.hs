@@ -15,10 +15,7 @@
         , "./nix/examples/home-manager" { overrideInputs = [("vira", ".")] }
         ]
     , signoff.enable = True
-    {- , cache.url = if
+    , cache.url = if
         | isMain -> Just "https://cache.nixos.asia/oss"
         | otherwise -> Nothing
-    -}
-    , cache.url = Just "https://cache.nixos.asia/oss"
-    , cache.whitelist = Just ["vira"]
     }
