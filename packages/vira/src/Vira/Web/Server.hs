@@ -5,6 +5,7 @@ module Vira.Web.Server (
 ) where
 
 import Colog.Message (RichMessage)
+import Data.ByteString qualified as ByteString
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple
@@ -12,7 +13,7 @@ import Effectful.FileSystem (FileSystem, doesDirectoryExist)
 import Effectful.Reader.Dynamic qualified as Reader
 import Effectful.Reader.Static qualified as ER
 import Network.HTTP.Types (status404)
-import Network.Wai (Application, Middleware, pathInfo, responseLBS, responseStatus)
+import Network.Wai (Application, Middleware, pathInfo, rawPathInfo, responseLBS, responseStatus)
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Handler.WarpTLS.Simple (TLSConfig (..), startWarpServer)
 import Network.Wai.Middleware.Static (
@@ -100,8 +101,10 @@ cacheMiddleware :: Application -> Middleware
 cacheMiddleware cacheApp app req respond =
   case pathInfo req of
     ("cache" : rest) -> do
-      -- Strip "cache" from path and forward to cache app
-      let req' = req {pathInfo = rest}
+      -- Strip "cache" from both pathInfo and rawPathInfo
+      let rawPath = rawPathInfo req
+          rawPath' = fromMaybe rawPath $ ByteString.stripPrefix "/cache" rawPath
+          req' = req {pathInfo = rest, rawPathInfo = rawPath'}
       cacheApp req' respond
     _ -> app req respond
 
