@@ -12,7 +12,7 @@ import Effectful.FileSystem (FileSystem, doesDirectoryExist)
 import Effectful.Reader.Dynamic qualified as Reader
 import Effectful.Reader.Static qualified as ER
 import Network.HTTP.Types (status404)
-import Network.Wai (Middleware, responseLBS, responseStatus)
+import Network.Wai (Application, Middleware, pathInfo, responseLBS, responseStatus)
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Handler.WarpTLS.Simple (TLSConfig (..), startWarpServer)
 import Network.Wai.Middleware.Static (
@@ -27,6 +27,7 @@ import System.Nix.Flake.Develop qualified as Nix
 import Vira.App (AppStack)
 import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
 import Vira.App.Type (ViraRuntimeState)
+import Vira.Cache.Server (CacheConfig (..), makeCacheApplication)
 import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
 
@@ -44,11 +45,23 @@ runServer globalSettings webSettings = do
       let servantApp = genericServe $ IndexPage.handlers globalSettings viraRuntimeState webSettings
       staticDir <- getDataDirMultiHome
       log Debug $ "Static dir = " <> toText staticDir
+
+      -- Create cache application
+      cacheApp <-
+        liftIO $
+          makeCacheApplication
+            CacheConfig
+              { cacheStateDir = globalSettings.stateDir
+              , cachePriority = 30
+              }
+
       let middlewares =
-            [ -- Middleware to serve static files
-              staticPolicy $ noDots >-> addBase staticDir
-            , -- 404 handler
+            [ -- 404 handler (innermost, applied last)
               notFoundMiddleware globalSettings viraRuntimeState webSettings
+            , -- Middleware to serve static files
+              staticPolicy $ noDots >-> addBase staticDir
+            , -- Cache server middleware (outermost, applied first - mount at /cache)
+              cacheMiddleware cacheApp
             ]
           app = foldl' (&) servantApp middlewares
       pure app
@@ -81,6 +94,16 @@ getDataDirMultiHome = do
         False -> do
           log Error $ "Data dir not found at " <> toText p
           die "Data directory not found"
+
+-- | Middleware to mount cache server at /cache/*
+cacheMiddleware :: Application -> Middleware
+cacheMiddleware cacheApp app req respond =
+  case pathInfo req of
+    ("cache" : rest) -> do
+      -- Strip "cache" from path and forward to cache app
+      let req' = req {pathInfo = rest}
+      cacheApp req' respond
+    _ -> app req respond
 
 -- | WAI middleware to handle 404 errors with custom page
 notFoundMiddleware :: GlobalSettings -> ViraRuntimeState -> WebSettings -> Middleware

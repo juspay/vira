@@ -40,6 +40,8 @@ library
       Vira.App.Run
       Vira.App.Stack
       Vira.App.Type
+      Vira.Cache.Keys
+      Vira.Cache.Server
       Vira.CI.Configuration
       Vira.CI.Error
       Vira.CI.Log
