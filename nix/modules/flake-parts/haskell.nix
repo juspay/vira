@@ -13,7 +13,7 @@ in
     (inputs.warp-tls-simple + /flake-module.nix)
   ];
   debug = true;
-  perSystem = { self', inputs', lib, config, pkgs, ... }: {
+  perSystem = { self', lib, config, pkgs, ... }: {
     # Configure hint-nix with packages that vira needs
     hint-nix = {
       workaroundGhcPanic = true;

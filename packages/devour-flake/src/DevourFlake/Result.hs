@@ -7,7 +7,7 @@ module DevourFlake.Result (
   SystemOutputs (..),
 ) where
 
-import Data.Aeson (FromJSON)
+import Data.Aeson (FromJSON (..))
 import Data.Map.Strict qualified as Map
 import System.Nix.System (System)
 
@@ -16,7 +16,7 @@ newtype DevourFlakeResult = DevourFlakeResult
   { systems :: Map System SystemOutputs
   }
   deriving stock (Eq, Show, Generic)
-  deriving anyclass (FromJSON)
+  deriving newtype (FromJSON)
 
 instance Semigroup DevourFlakeResult where
   r1 <> r2 =
