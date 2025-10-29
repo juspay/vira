@@ -3,7 +3,9 @@
 
 #ifndef LIX
     #include <nix/store/store-api.hh>
+    #include <nix/store/store-open.hh>
     #include <nix/store/log-store.hh>
+    #include <nix/store/globals.hh>
     #include <nix/main/shared.hh>
 #else
     #include <lix/libstore/store-api.hh>

@@ -147,7 +147,7 @@ in
             ]);
             librarySystemDepends = (old.librarySystemDepends or [ ]) ++ [
               pkgs.boost.dev
-              pkgs.nixVersions.nix_2_28
+              pkgs.nixVersions.latest
             ];
             libraryToolDepends = (old.libraryToolDepends or [ ]) ++ [ pkgs.pkg-config ];
             libraryPkgconfigDepends = (old.libraryPkgconfigDepends or [ ]) ++ [
