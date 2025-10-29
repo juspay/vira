@@ -15,7 +15,7 @@
         };
         hlint = {
           enable = true;
-          excludes = [ "sample\-configs/.+\.hs" "vira\.hs" ];
+          excludes = [ "sample\-configs/.+\.hs" "vira\.hs" "packages/nix\-serve\-ng\-lib/.+\.hs" ];
         };
         hpack.enable = true;
         prettier.enable = true;
