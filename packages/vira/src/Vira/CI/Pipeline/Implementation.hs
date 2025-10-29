@@ -166,21 +166,8 @@ buildImpl ::
 buildImpl repoDir pipeline = do
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
   -- Build each flake sequentially and return BuildResult for each
-  forM pipeline.build.flakes $ \flake@(Flake flakePath _) -> do
-    resultPath <- buildFlake repoDir pipeline.build.systems flake
-
-    -- Parse the JSON result
-    let jsonPath = repoDir </> resultPath
-    devourResult <- liftIO $ eitherDecodeFileStrict jsonPath
-    case devourResult of
-      Left err ->
-        throwError $
-          PipelineConfigurationError $
-            MalformedConfig $
-              "Failed to parse devour-flake result JSON at '" <> toText jsonPath <> "': " <> toText err
-      Right parsed -> do
-        logPipeline Info $ toText $ "Build result for " <> flakePath <> ":\n" <> Shower.shower parsed
-        pure $ BuildResult flakePath resultPath parsed
+  forM pipeline.build.flakes $ \flake ->
+    buildFlake repoDir pipeline.build.systems flake
 
 -- | Build a single flake
 buildFlake ::
@@ -196,7 +183,7 @@ buildFlake ::
   FilePath ->
   [System] ->
   Flake ->
-  Eff es FilePath
+  Eff es BuildResult
 buildFlake repoDir systems (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
   let buildProc =
@@ -217,7 +204,15 @@ buildFlake repoDir systems (Flake flakePath overrideInputs) = do
   -- Return relative path to result symlink (relative to repo root)
   let resultPath = flakePath </> "result"
   logPipeline Info $ "Build succeeded, result at " <> toText resultPath
-  pure resultPath
+
+  -- Parse the JSON result
+  devourResult <- liftIO $ eitherDecodeFileStrict $ repoDir </> resultPath
+  case devourResult of
+    Left err ->
+      throwError $ DevourFlakeMalformedOutput resultPath err
+    Right parsed -> do
+      logPipeline Info $ toText $ "Build result for " <> flakePath <> ":\n" <> Shower.shower parsed
+      pure $ BuildResult flakePath resultPath parsed
 
 -- | Implementation: Push to cache
 cacheImpl ::
