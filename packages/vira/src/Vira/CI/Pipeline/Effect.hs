@@ -2,10 +2,7 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Vira.CI.Pipeline.Effect (
-  BuildResult (..),
-  module Vira.CI.Pipeline.Effect,
-) where
+module Vira.CI.Pipeline.Effect where
 
 import Prelude hiding (asks)
 

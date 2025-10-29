@@ -254,10 +254,8 @@ cacheImpl repoDir pipeline buildResults = do
         Left err -> throwError $ atticErrorToPipelineError urlText serverEndpoint err
         Right result -> pure result
 
-      -- Extract paths to push (just the result symlinks)
-      let pathsToPush = fmap (.resultPath) buildResults
-
       -- Push to cache - paths are relative to repoDir
+      let pathsToPush = fmap (.resultPath) buildResults
       logPipeline Info $ "Pushing " <> show (length pathsToPush) <> " result files: " <> show (toList pathsToPush)
       let pushProc = Attic.atticPushProcess server cacheName pathsToPush
       runProcess repoDir env.outputLog pushProc
