@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 -- | Binary cache page HTTP handlers and views
 module Vira.Web.Pages.CachePage (
@@ -8,6 +9,7 @@ module Vira.Web.Pages.CachePage (
 
 import Effectful.Reader.Dynamic (asks)
 import Lucid
+import NeatInterpolation (trimming)
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
@@ -50,15 +52,7 @@ viewCache cacheInfo = do
         -- Cache URL section
         div_ [] $ do
           h3_ [class_ "text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"] "Cache URL"
-          Code.viraCodeBlockCopyableJs "cache-url"
-          -- Client-side script to construct URL
-          script_ $
-            unlines
-              [ "document.addEventListener('DOMContentLoaded', function() {"
-              , "  const cacheUrl = window.location.origin + '/cache';"
-              , "  document.getElementById('cache-url').textContent = cacheUrl;"
-              , "});"
-              ]
+          Code.viraCodeBlockCopyable (Just "cache-url") cacheUrl
           p_ [class_ "text-sm text-gray-500 dark:text-gray-500 mt-2"] $ do
             "Check cache info: "
             a_ [href_ "/cache/nix-cache-info", class_ "text-indigo-600 dark:text-indigo-400 hover:underline", target_ "_blank"] "/cache/nix-cache-info"
@@ -66,7 +60,7 @@ viewCache cacheInfo = do
         -- Public key section
         div_ [] $ do
           h3_ [class_ "text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"] "Public Key"
-          Code.viraCodeBlockCopyable cacheInfo.publicKey
+          Code.viraCodeBlockCopyable Nothing cacheInfo.publicKey
 
         -- Usage instructions
         div_ [] $ do
@@ -75,46 +69,46 @@ viewCache cacheInfo = do
           -- nix.conf subsection
           div_ [class_ "mb-4"] $ do
             h4_ [class_ "text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2"] "In nix.conf"
-            Code.viraCodeBlockCopyableJs "nix-conf-example"
-            script_ $
-              unlines
-                [ "document.addEventListener('DOMContentLoaded', function() {"
-                , "  const cacheUrl = window.location.origin + '/cache';"
-                , "  const publicKey = '" <> cacheInfo.publicKey <> "';"
-                , "  const example = 'substituters = ' + cacheUrl + '\\n' + 'trusted-public-keys = ' + publicKey;"
-                , "  document.getElementById('nix-conf-example').textContent = example;"
-                , "});"
-                ]
+            Code.viraCodeBlockCopyable
+              (Just "nix-conf-example")
+              [trimming|
+              substituters = ${cacheUrl}
+              trusted-public-keys = ${cacheInfo.publicKey}
+            |]
 
           -- flake.nix subsection
           div_ [class_ "mb-4"] $ do
             h4_ [class_ "text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2"] "In flake.nix (nixConfig)"
-            Code.viraCodeBlockCopyableJs "flake-nix-example"
-            script_ $
-              unlines
-                [ "document.addEventListener('DOMContentLoaded', function() {"
-                , "  const cacheUrl = window.location.origin + '/cache';"
-                , "  const publicKey = '" <> cacheInfo.publicKey <> "';"
-                , "  const example = 'nixConfig = {\\n' +"
-                , "    '  extra-substituters = [ \"' + cacheUrl + '\" ];\\n' +"
-                , "    '  extra-trusted-public-keys = [ \"' + publicKey + '\" ];\\n' +"
-                , "    '};';"
-                , "  document.getElementById('flake-nix-example').textContent = example;"
-                , "});"
-                ]
+            Code.viraCodeBlockCopyable
+              (Just "flake-nix-example")
+              [trimming|
+              nixConfig = {
+                extra-substituters = [ "${cacheUrl}" ];
+                extra-trusted-public-keys = [ "${cacheInfo.publicKey}" ];
+              };
+            |]
 
           -- CLI subsection
           div_ [] $ do
             h4_ [class_ "text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2"] "CLI (--option flags)"
-            Code.viraCodeBlockCopyableJs "cli-example"
-            script_ $
-              unlines
-                [ "document.addEventListener('DOMContentLoaded', function() {"
-                , "  const cacheUrl = window.location.origin + '/cache';"
-                , "  const publicKey = '" <> cacheInfo.publicKey <> "';"
-                , "  const example = 'nix build \\\\\\n' +"
-                , "    '  --option extra-substituters \"' + cacheUrl + '\" \\\\\\n' +"
-                , "    '  --option extra-trusted-public-keys \"' + publicKey + '\"';"
-                , "  document.getElementById('cli-example').textContent = example;"
-                , "});"
-                ]
+            Code.viraCodeBlockCopyable
+              (Just "cli-example")
+              [trimming|
+              nix build \
+                --option extra-substituters "${cacheUrl}" \
+                --option extra-trusted-public-keys "${cacheInfo.publicKey}"
+            |]
+
+      -- Single script to replace all VIRA-DOMAIN placeholders
+      script_
+        [trimming|
+        document.addEventListener('DOMContentLoaded', () => {
+          const origin = window.location.origin;
+          ['cache-url', 'nix-conf-example', 'flake-nix-example', 'cli-example'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = el.textContent.replaceAll('VIRA-DOMAIN', origin);
+          });
+        });
+      |]
+  where
+    cacheUrl = "VIRA-DOMAIN/cache"

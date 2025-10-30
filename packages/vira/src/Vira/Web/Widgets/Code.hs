@@ -4,7 +4,6 @@
 -- | Code display components with copyable functionality
 module Vira.Web.Widgets.Code (
   viraCodeBlockCopyable,
-  viraCodeBlockCopyableJs,
   viraCodeInlineCopyable,
 ) where
 
@@ -15,6 +14,7 @@ import Lucid
 data ViraCodeConfig = ViraCodeConfig
   { display :: CodeDisplay
   , copyable :: Maybe CopyConfig
+  , elementId :: Maybe Text
   }
 
 -- | How to display code
@@ -71,8 +71,9 @@ renderInline cfg txt =
 
 renderBlock :: (Monad m) => ViraCodeConfig -> BlockStyle -> Text -> HtmlT m ()
 renderBlock cfg style txt =
-  code_ [baseBlockClass <> copyAttrs cfg txt] $ toHtml txt
+  code_ (idAttr <> [baseBlockClass <> copyAttrs cfg txt]) $ toHtml txt
   where
+    idAttr = maybe [] (\eid -> [id_ eid]) cfg.elementId
     baseBlockClass =
       class_ $
         T.intercalate
@@ -92,42 +93,32 @@ copyAttrs cfg displayText = case cfg.copyable of
   Nothing -> mempty
   Just copyCfg ->
     let copyText = fromMaybe displayText copyCfg.textToCopy
+        needsCustomCopy = isJust copyCfg.textToCopy
+        -- Escape for JavaScript template literals
+        escapeJs t = T.replace "\\" "\\\\" $ T.replace "`" "\\`" t
      in title_ "Click to copy"
           <> onclick_
             ( "event.stopPropagation(); event.preventDefault(); "
-                <> "navigator.clipboard.writeText(`"
-                <> copyText
-                <> "`); "
-                <> "this.innerText = '"
+                <> "const orig = this.textContent; "
+                <> (if needsCustomCopy then "navigator.clipboard.writeText(`" <> escapeJs copyText <> "`); " else "navigator.clipboard.writeText(this.textContent); ")
+                <> "this.textContent = '"
                 <> copyCfg.feedback
                 <> "'; "
-                <> "setTimeout(() => { this.innerText = `"
-                <> displayText
-                <> "`; }, "
+                <> "setTimeout(() => { this.textContent = orig; }, "
                 <> show copyCfg.feedbackDuration
                 <> "); "
                 <> "return false;"
             )
 
 -- | Block code with copy functionality
-viraCodeBlockCopyable :: (Monad m) => Text -> HtmlT m ()
-viraCodeBlockCopyable =
+viraCodeBlockCopyable :: (Monad m) => Maybe Text -> Text -> HtmlT m ()
+viraCodeBlockCopyable mId =
   viraCode
     ViraCodeConfig
       { display = Block MultiLine
       , copyable = Just defaultCopy
+      , elementId = mId
       }
-
--- | Copyable code block for JavaScript-populated content
-viraCodeBlockCopyableJs :: (Monad m) => Text -> HtmlT m ()
-viraCodeBlockCopyableJs elemId =
-  code_
-    [ id_ elemId
-    , class_ "block px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded font-mono whitespace-pre transition-colors cursor-pointer"
-    , title_ "Click to copy"
-    , onclick_ "navigator.clipboard.writeText(this.textContent); const orig = this.textContent; this.textContent = 'Copied!'; setTimeout(() => { this.textContent = orig; }, 1000);"
-    ]
-    ""
 
 -- | Inline code with custom copy text (display one thing, copy another)
 viraCodeInlineCopyable :: (Monad m) => Text -> Text -> HtmlT m ()
@@ -140,5 +131,6 @@ viraCodeInlineCopyable displayText copyText =
             defaultCopy
               { textToCopy = Just copyText
               }
+      , elementId = Nothing
       }
     displayText

@@ -36,6 +36,7 @@ test COMPONENT='vira-tests':
 # Run ghcid, whilst writing output to ghcid.log (useful for LLM)
 [group('2. haskell')]
 ghcid COMPONENT='vira':
+    @just hpack
     ghcid --outputfile=ghcid.log -c "./cabal-repl {{ COMPONENT }}"
 
 # Delete and recreate vira state during next `just run`

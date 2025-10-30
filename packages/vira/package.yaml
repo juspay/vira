@@ -77,6 +77,7 @@ dependencies:
   - lucid2
   - modern-uri
   - mtl
+  - neat-interpolation
   - nix
   - nix-serve-ng
   - optics-core

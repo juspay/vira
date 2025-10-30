@@ -189,6 +189,7 @@ library
     , lucid2
     , modern-uri
     , mtl
+    , neat-interpolation
     , nix
     , nix-serve-ng
     , optics-core
@@ -312,6 +313,7 @@ executable vira
     , lucid2
     , modern-uri
     , mtl
+    , neat-interpolation
     , nix
     , nix-serve-ng
     , optics-core
@@ -439,6 +441,7 @@ executable vira-tests
     , lucid2
     , modern-uri
     , mtl
+    , neat-interpolation
     , nix
     , nix-serve-ng
     , optics-core
