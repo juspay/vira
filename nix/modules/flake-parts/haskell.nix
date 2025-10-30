@@ -35,11 +35,6 @@ in
         ];
       };
 
-      # Add nix-serve-ng overlay
-      otherOverlays = [
-        (import (root + /nix/overlays/nix-serve-ng.nix) { inherit inputs pkgs; })
-      ];
-
       packages = {
         htmx.source = inputs.htmx + /htmx;
         htmx-lucid.source = inputs.htmx + /htmx-lucid;
@@ -50,12 +45,15 @@ in
         tabler-icons.source = inputs.tabler-icons-hs;
         servant-event-stream.source = inputs.servant-event-stream;
         record-hasfield.source = inputs.record-hasfield;
-        # nix-serve-ng provided via otherOverlays
         toml-reader.source = "0.3.0.0";
         filepattern.source = "0.1.3";
         aeson-casing.source = "0.2.0.0";
         neat-interpolation.source = "0.5.1.4";
       };
+      # Add nix-serve-ng overlay
+      otherOverlays = [
+        (import (root + /nix/overlays/nix-serve-ng.nix) { inherit inputs pkgs; })
+      ];
 
       # Add your package overrides here
       settings = {
@@ -72,9 +70,7 @@ in
             config.settings.nix
             config.settings.devour-flake
           ];
-          # Disabled: nix-serve-ng links against libnix which has C++ global constructor bugs
-          # that crash when vira --bash-completion-script runs during build
-          # generateOptparseApplicativeCompletions = [ "vira" ];
+          generateOptparseApplicativeCompletions = [ "vira" ];
           extraBuildDepends = [
             pkgs.attic-client # For attic
             pkgs.cachix # For cachix
