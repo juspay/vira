@@ -20,7 +20,7 @@ module System.Nix.Cache.Keys (
 ) where
 
 import Colog.Message (RichMessage)
-import Data.Char (isSpace)
+import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple
@@ -115,17 +115,17 @@ generateKeys cacheDir = do
   log Debug $ "  Secret key: " <> toText secretKeyPath
   log Debug $ "  Public key: " <> toText publicKeyPath
 
+-- | Read and strip a key file
+readKeyFile :: (IOE :> es) => FilePath -> Eff es Text
+readKeyFile path = T.strip . decodeUtf8 <$> liftIO (readFileBS path)
+
 {- | Read the secret signing key
 
 Reads and strips whitespace from the secret key file.
 Used for signing NARs in nix-serve-ng.
 -}
 readSecretKey :: (IOE :> es) => FilePath -> Eff es SecretKey
-readSecretKey path = do
-  content <- liftIO $ readFileBS path
-  let contentText :: Text = decodeUtf8 content
-  let stripped :: String = filter (not . isSpace) (toString contentText)
-  pure $ SecretKey $ encodeUtf8 (toText stripped)
+readSecretKey path = SecretKey . encodeUtf8 <$> readKeyFile path
 
 {- | Read the public key
 
@@ -133,8 +133,4 @@ Reads the public key for display in the UI.
 Users need this to configure their nix.conf.
 -}
 readPublicKey :: (IOE :> es) => FilePath -> Eff es PublicKey
-readPublicKey path = do
-  content <- liftIO $ readFileBS path
-  let contentText :: Text = decodeUtf8 content
-  let stripped :: String = filter (not . isSpace) (toString contentText)
-  pure $ PublicKey $ toText stripped
+readPublicKey path = PublicKey <$> readKeyFile path

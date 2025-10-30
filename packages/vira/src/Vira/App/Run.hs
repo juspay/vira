@@ -80,9 +80,9 @@ runVira = do
         refreshState <- Refresh.newRefreshState
         -- Ensure cache keys exist and create cache application
         let cacheKeysDir = stateDir globalSettings <> "/cache-keys"
-        CacheKeys.CacheKeys {CacheKeys.secretKey, CacheKeys.publicKey = cachePublicKey} <-
-          runEff $ runLogActionStdout (logLevel globalSettings) $ CacheKeys.ensureCacheKeys cacheKeysDir
-        cacheApp <- Cache.makeCacheServer secretKey
+        cacheKeys <- runEff $ runLogActionStdout (logLevel globalSettings) $ CacheKeys.ensureCacheKeys cacheKeysDir
+        let cachePublicKey = cacheKeys.publicKey
+        cacheApp <- Cache.makeCacheServer cacheKeys.secretKey
         let viraRuntimeState = App.ViraRuntimeState {linkTo, ..}
             appServer = do
               startPeriodicArchival acid
