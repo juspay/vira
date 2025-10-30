@@ -58,7 +58,7 @@ viewBranch repo branch jobs = do
         div_ [class_ "flex items-center gap-2"] $ do
           buildLink <- lift $ getLink $ LinkTo.Build repo.name branch.branchName
           W.viraRequestButton_
-            W.ButtonPrimary
+            W.ButtonSuccess
             buildLink
             [title_ "Build this branch"]
             $ do

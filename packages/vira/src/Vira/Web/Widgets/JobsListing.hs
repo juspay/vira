@@ -11,14 +11,19 @@ module Vira.Web.Widgets.JobsListing (
   viraBranchDetailsRow_,
 ) where
 
+import Data.Text qualified as T
 import Data.Time (diffUTCTime)
 import Effectful.Git (Commit (..))
+import Htmx.Lucid.Core (hxSwapS_)
+import Htmx.Swap (Swap (..))
 import Lucid
+import Lucid.Htmx.Contrib (hxPostSafe_)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
 import Vira.State.Type qualified as St
 import Vira.Web.LinkTo.Type qualified as LinkTo
-import Vira.Web.Lucid (AppHtml, getLinkUrl)
+import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl)
+import Vira.Web.Widgets.Button qualified as W
 import Vira.Web.Widgets.Commit qualified as W
 import Vira.Web.Widgets.Status qualified as Status
 import Vira.Web.Widgets.Time qualified as Time
@@ -146,6 +151,12 @@ viraBranchDetailsRow_ ::
   AppHtml ()
 viraBranchDetailsRow_ showRepo details = do
   branchUrl <- lift $ getLinkUrl $ LinkTo.RepoBranch details.branch.repoName details.branch.branchName
+  buildLink <- lift $ getLink $ LinkTo.Build details.branch.repoName details.branch.branchName
+
+  -- Determine where clicking the row should go
+  rowUrl <- case details.mLatestJob of
+    Just job -> lift $ getLinkUrl $ LinkTo.Job job.jobId
+    Nothing -> pure branchUrl
 
   -- Smarter badge logic
   let badgeState = case details.mLatestJob of
@@ -154,49 +165,85 @@ viraBranchDetailsRow_ showRepo details = do
           | job.commit /= details.branch.headCommit.id -> Just OutOfDate
           | otherwise -> Nothing
 
-  div_ [class_ "space-y-1"] $ do
-    -- Branch header: repo → branch → commit with optional status badge
-    viraJobContextHeader_ branchUrl $ do
-      div_ [class_ "flex items-center justify-between"] $ do
-        -- Left: branch identifier → commit info (natural flow)
-        div_ [class_ "flex items-center space-x-2"] $ do
-          -- Repo name (if shown)
-          when showRepo $ do
-            div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"] $ toHtmlRaw Icon.book_2
-            span_ [class_ "text-gray-900 dark:text-gray-100"] $ toHtml $ toString details.branch.repoName
-            span_ [class_ "mx-2 text-gray-400 dark:text-gray-500"] "→"
+  -- Single unified row with responsive grid and subtle gradient background
+  div_ [class_ "relative mb-6"] $ do
+    -- Repo → Branch label sticking to top border (individually linked) with light purple theme
+    div_ [class_ "absolute -top-3 left-3 flex items-center gap-1 px-3 py-1 bg-indigo-100 dark:bg-indigo-900 border border-indigo-300 dark:border-indigo-700 rounded-full shadow-sm z-10"] $ do
+      -- Repo name (if shown) - individually linked
+      when showRepo $ do
+        repoUrl <- lift $ getLinkUrl $ LinkTo.Repo details.branch.repoName
+        a_ [href_ repoUrl, class_ "flex items-center gap-1 hover:opacity-70 transition-opacity"] $ do
+          div_ [class_ "w-4 h-4 flex items-center justify-center text-indigo-700 dark:text-indigo-200"] $ toHtmlRaw Icon.book_2
+          span_ [class_ "text-sm font-semibold text-indigo-900 dark:text-indigo-100"] $ toHtml $ toString details.branch.repoName
+        span_ [class_ "text-indigo-400 dark:text-indigo-500 mx-0.5"] "→"
 
-          -- Branch name
-          div_ [class_ "w-5 h-5 flex items-center justify-center text-gray-600 dark:text-gray-400"] $ toHtmlRaw Icon.git_branch
-          span_ [class_ "text-gray-900 dark:text-gray-100"] $ toHtml $ toString details.branch.branchName
+      -- Branch name - individually linked
+      a_ [href_ branchUrl, class_ "flex items-center gap-1 hover:opacity-70 transition-opacity"] $ do
+        div_ [class_ "w-4 h-4 flex items-center justify-center text-indigo-700 dark:text-indigo-200"] $ toHtmlRaw Icon.git_branch
+        span_ [class_ "text-sm font-semibold text-indigo-900 dark:text-indigo-100"] $ toHtml $ toString details.branch.branchName
 
-          -- Commit info right next to branch
-          span_ [class_ "text-gray-400 dark:text-gray-500"] "·"
-          div_ [class_ "text-xs text-gray-600 dark:text-gray-400"] $ do
-            W.viraCommitInfoCompact_ (Just details.branch.headCommit)
+    -- Main row - clickable, single line layout with gray background and border
+    a_
+      [ href_ rowUrl
+      , class_ "block pt-6 pb-4 px-4 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-2 border-gray-200 dark:border-gray-700 transition-all cursor-pointer"
+      ]
+      $ do
+        div_ [class_ "grid grid-cols-1 lg:grid-cols-12 gap-3 items-center"] $ do
+          -- LEFT SECTION: Commit details (8 cols on desktop)
+          div_ [class_ "lg:col-span-8 flex items-center gap-2 flex-wrap text-sm"] $ do
+            W.viraCommitHash_ details.branch.headCommit.id
 
-        -- Right: status badge + build count (only when no job)
-        div_ [class_ "flex items-center space-x-2"] $ do
-          -- Build count only shown when no job exists
-          when (isNothing details.mLatestJob && details.jobsCount > 0) $ do
-            span_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $
-              "(" <> toHtml (show @Text details.jobsCount) <> " builds)"
+            -- Commit message (truncated with tooltip)
+            unless (T.null details.branch.headCommit.message) $ do
+              span_ [class_ "text-gray-400 dark:text-gray-500"] "·"
+              span_
+                [ class_ "text-gray-700 dark:text-gray-300 truncate max-w-md"
+                , title_ details.branch.headCommit.message
+                ]
+                $ toHtml details.branch.headCommit.message
 
-          -- Status badge
-          whenJust badgeState $ \case
-            NeverBuilt ->
-              span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"] $ do
-                div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.alert_circle
-                "Never built"
-            OutOfDate ->
-              span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
-                div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
-                "Out of date"
+            -- Commit time
+            span_ [class_ "text-gray-400 dark:text-gray-500"] "·"
+            div_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $
+              Time.viraRelativeTime_ details.branch.headCommit.date
 
-    -- Job row - only if job exists
-    whenJust details.mLatestJob $ \latestJob -> do
-      div_ [class_ "ml-7"] $ do
-        viraJobRow_ Nothing latestJob
+          -- RIGHT SECTION: Job status OR Build button (4 cols on desktop, vertically centered)
+          div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
+            case details.mLatestJob of
+              -- Has job and it's current: show job info
+              Just job | isNothing badgeState -> do
+                span_ [class_ "text-sm text-gray-600 dark:text-gray-400"] $ "#" <> toHtml (show @Text job.jobId)
+                span_ [class_ "text-gray-400 dark:text-gray-500"] "·"
+                case St.jobEndTime job of
+                  Just endTime -> do
+                    let duration = diffUTCTime endTime job.jobCreatedTime
+                    Time.viraDuration_ duration
+                  Nothing -> mempty
+                Status.viraStatusBadge_ job.jobStatus
+
+              -- Has badge (never built or out of date): show badge + Build button
+              _ -> do
+                whenJust badgeState $ \case
+                  NeverBuilt ->
+                    span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"] $ do
+                      div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.alert_circle
+                      "Never built"
+                  OutOfDate ->
+                    span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
+                      div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
+                      "Out of date"
+
+                -- Build button (prevent link propagation) - smaller size for inline row
+                W.viraButton_
+                  W.ButtonSuccess
+                  [ hxPostSafe_ buildLink
+                  , hxSwapS_ AfterEnd
+                  , onclick_ "event.preventDefault(); event.stopPropagation();"
+                  , class_ "!px-3 !py-1.5 !text-xs"
+                  ]
+                  $ do
+                    W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
+                    "Build"
 
 -- | Badge state for branch
 data BadgeState = NeverBuilt | OutOfDate

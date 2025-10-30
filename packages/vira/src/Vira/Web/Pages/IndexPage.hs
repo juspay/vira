@@ -68,7 +68,7 @@ viewRecentActivity :: [St.BranchDetails] -> AppHtml ()
 viewRecentActivity activities = do
   W.viraSection_ [] $ do
     h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6"] "Recent Activity"
-    div_ [class_ "space-y-3"] $ do
+    div_ [] $ do
       forM_ activities $ \details ->
         W.viraBranchDetailsRow_ True details
 
