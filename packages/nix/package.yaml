@@ -30,9 +30,7 @@ library:
     - effectful-core
     - filepath
     - megaparsec
-    - nix-serve-ng
     - process
-    - wai
     - which
 
 tests:

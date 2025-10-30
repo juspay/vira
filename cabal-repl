@@ -4,4 +4,4 @@
 # https://x.com/sridca/status/1901283945779544362
 
 exec cabal repl "$@" \
-    vira vira-ci-types attic cachix tail htmx-lucid-contrib git-effectful co-log-effectful-simple gh nix devour-flake
+    vira vira-ci-types attic cachix tail htmx-lucid-contrib git-effectful co-log-effectful-simple gh nix nix-cache-server devour-flake
