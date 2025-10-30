@@ -56,34 +56,59 @@ getRepoByNameA name = do
   ViraState {repos} <- ask
   pure $ Ix.getOne $ repos @= name
 
--- | Get all branches (sorted) of a repository with enriched metadata
-getBranchesByRepoA :: RepoName -> Maybe Text -> Query ViraState [BranchDetails]
-getBranchesByRepoA name mFilter = do
-  ViraState {branches, jobs} <- ask
-  pure
-    . sort
-    . fmap (enrichBranch jobs)
-    . filter (matchesFilter mFilter)
-    . Ix.toList
-    $ branches @= name
-  where
-    matchesFilter Nothing _ = True
-    matchesFilter (Just s) branch =
-      T.toLower s `T.isInfixOf` T.toLower (toText branch.branchName)
+-- | Enrich a branch with its job metadata
+enrichBranchWithJobs :: IxJob -> Branch -> BranchDetails
+enrichBranchWithJobs jobsIx branch =
+  let branchJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= branch.repoName @= branch.branchName
+      mLatestJob = viaNonEmpty head branchJobs
+      -- Compute badge state based on job and commit comparison
+      badgeState = case mLatestJob of
+        Nothing -> Just NeverBuilt
+        Just job
+          | job.commit /= branch.headCommit.id -> Just OutOfDate
+          | otherwise -> Nothing
+   in BranchDetails
+        { branch
+        , mLatestJob
+        , jobsCount = fromIntegral $ length branchJobs
+        , badgeState
+        }
 
-    enrichBranch jobsIx branch =
-      let branchJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= name @= branch.branchName
-       in BranchDetails
-            { branch
-            , mLatestJob = viaNonEmpty head branchJobs
-            , jobsCount = fromIntegral $ length branchJobs
-            }
+{- | Get branches with enriched metadata, optionally filtered by repo and/or name.
+
+This is the canonical query for getting branches - used by both RepoPage and IndexPage.
+
+- Nothing repo: all repos (IndexPage)
+- Just repo: single repo (RepoPage)
+- Filter by branch name if provided
+- Sorted by activity time (most recent first)
+-}
+getAllBranchesA :: Maybe RepoName -> Maybe Text -> Natural -> Query ViraState [BranchDetails]
+getAllBranchesA mRepo mFilter limit = do
+  ViraState {branches, jobs} <- ask
+  let candidateBranches = case mRepo of
+        Nothing -> Ix.toList branches
+        Just repo -> Ix.toList $ branches @= repo
+      matchesFilter branch = case mFilter of
+        Nothing -> True
+        Just s -> T.toLower s `T.isInfixOf` T.toLower (toText branch.branchName)
+      enriched = enrichBranchWithJobs jobs <$> filter matchesFilter candidateBranches
+      sorted = sortWith (Down . branchActivityTime) enriched
+  pure $ take (fromIntegral limit) sorted
 
 -- | Get a repo's branch by name
 getBranchByNameA :: RepoName -> BranchName -> Query ViraState (Maybe Branch)
 getBranchByNameA repo branch = do
   ViraState {branches} <- ask
   pure $ Ix.getOne $ branches @= repo @= branch
+
+-- | Get branch with enriched metadata
+getBranchDetailsA :: RepoName -> BranchName -> Query ViraState (Maybe BranchDetails)
+getBranchDetailsA repo branchName = do
+  ViraState {branches, jobs} <- ask
+  case Ix.getOne $ branches @= repo @= branchName of
+    Nothing -> pure Nothing
+    Just branch -> pure $ Just $ enrichBranchWithJobs jobs branch
 
 -- | Set a repository
 setRepoA :: Repo -> Update ViraState ()
@@ -206,8 +231,9 @@ $( makeAcidic
      [ 'setAllReposA
      , 'getAllReposA
      , 'getRepoByNameA
-     , 'getBranchesByRepoA
+     , 'getAllBranchesA
      , 'getBranchByNameA
+     , 'getBranchDetailsA
      , 'setRepoA
      , 'setRepoBranchesA
      , 'getCommitByIdA

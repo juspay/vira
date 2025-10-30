@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedRecordDot #-}
-
 -- | Top-level routes and views
 module Vira.Web.Pages.IndexPage where
 
@@ -12,8 +10,7 @@ import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
 import Vira.State.Type qualified as St
-import Vira.Web.LinkTo.Type qualified as LinkTo
-import Vira.Web.Lucid (AppHtml, getLinkUrl, runAppHtml)
+import Vira.Web.Lucid (AppHtml, runAppHtml)
 import Vira.Web.Pages.CachePage qualified as CachePage
 import Vira.Web.Pages.EnvironmentPage qualified as EnvironmentPage
 import Vira.Web.Pages.JobPage qualified as JobPage
@@ -51,37 +48,29 @@ handlers globalSettings viraRuntimeState webSettings =
         Web.runStreamHandler globalSettings viraRuntimeState . Refresh.streamRouteHandler
     }
 
+activityLimit :: Natural
+activityLimit = 15
+
 indexView :: AppHtml ()
 indexView = do
   logoUrl <- W.appLogoUrl
-  recentJobs <- lift $ App.query (St.GetRecentJobsA 10)
+  activities <- lift $ App.query (St.GetAllBranchesA Nothing Nothing activityLimit)
   let linkText = show . linkURI
       reposLink = linkText $ fieldLink _repos // RegistryPage._listing
       envLink = linkText $ fieldLink _environment // EnvironmentPage._view
       cacheLink = linkText $ fieldLink _cache // CachePage._view
   W.layout mempty $ do
     heroWelcome logoUrl reposLink envLink cacheLink
-    unless (null recentJobs) $ do
-      viewRecentJobs recentJobs
+    unless (null activities) $
+      viewRecentActivity activities
 
-viewRecentJobs :: [St.Job] -> AppHtml ()
-viewRecentJobs jobs = do
+viewRecentActivity :: [St.BranchDetails] -> AppHtml ()
+viewRecentActivity activities = do
   W.viraSection_ [] $ do
-    h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6"] "Recent Jobs"
-    div_ [class_ "space-y-3"] $ do
-      forM_ jobs $ \job -> do
-        branchUrl <- lift $ getLinkUrl $ LinkTo.RepoBranch job.repo job.branch
-        div_ [class_ "space-y-1"] $ do
-          -- Context header: repo → branch (no commit info - redundant with job row)
-          W.viraJobContextHeader_ branchUrl $ do
-            div_ [class_ "flex items-center space-x-2"] $ do
-              div_ [class_ "w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.book_2
-              span_ $ toHtml $ toString job.repo
-              span_ [class_ "mx-2 opacity-50 group-hover:opacity-100"] "→"
-              div_ [class_ "w-4 h-4 flex items-center justify-center opacity-50 group-hover:opacity-100"] $ toHtmlRaw Icon.git_branch
-              span_ [class_ "opacity-50 group-hover:opacity-100"] $ toHtml $ toString job.branch
-          -- Job row
-          W.viraJobRow_ Nothing job
+    h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6"] "Recent Activity"
+    div_ [] $ do
+      forM_ activities $ \details ->
+        W.viraBranchDetailsRow_ True details
 
 heroWelcome :: (Monad m) => Text -> Text -> Text -> Text -> HtmlT m ()
 heroWelcome logoUrl reposLink envLink cacheLink = do

@@ -12,7 +12,7 @@ import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type
+import Vira.State.Type (BadgeState (..), BranchDetails (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, runAppHtml)
 import Vira.Web.Stack qualified as Web
@@ -38,27 +38,34 @@ handlers globalSettings viraRuntimeState webSettings repoName branchName = do
 viewHandler :: RepoName -> BranchName -> AppHtml ()
 viewHandler repoName branchName = do
   repo <- lift $ App.query (St.GetRepoByNameA repoName) >>= maybe (throwError err404) pure
-  branch <- lift $ App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError err404) pure
+  branchDetails <- lift $ App.query (St.GetBranchDetailsA repoName branchName) >>= maybe (throwError err404) pure
   jobs <- lift $ App.query $ St.GetJobsByBranchA repoName branchName
   let branchCrumbs = [LinkTo.RepoListing, LinkTo.Repo repoName, LinkTo.RepoBranch repoName branchName]
-  W.layout branchCrumbs $ viewBranch repo branch jobs
+  W.layout branchCrumbs $ viewBranch repo branchDetails jobs
 
-viewBranch :: St.Repo -> St.Branch -> [St.Job] -> AppHtml ()
-viewBranch repo branch jobs = do
+viewBranch :: St.Repo -> BranchDetails -> [St.Job] -> AppHtml ()
+viewBranch repo branchDetails jobs = do
   -- Branch header with build and refresh buttons
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.git_branch)
-    (toText $ toString repo.name <> " → " <> toString branch.branchName)
+    (toText $ toString repo.name <> " → " <> toString branchDetails.branch.branchName)
     ( div_ [class_ "flex items-center justify-between"] $ do
         div_ [class_ "flex items-center space-x-3 text-gray-600 dark:text-gray-300 min-w-0 flex-1"] $ do
           span_ [class_ "text-sm shrink-0"] "Latest commit:"
           div_ [class_ "flex items-center space-x-2 min-w-0"] $ do
             div_ [class_ "w-4 h-4 flex items-center justify-center shrink-0"] $ toHtmlRaw Icon.git_commit
-            div_ [class_ "min-w-0"] $ W.viraCommitInfo_ branch.headCommit.id
+            div_ [class_ "min-w-0"] $ W.viraCommitInfo_ branchDetails.branch.headCommit.id
+          -- Out of date badge
+          whenJust branchDetails.badgeState $ \case
+            OutOfDate ->
+              span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
+                div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
+                "Out of date"
+            NeverBuilt -> mempty -- Don't show in header
         div_ [class_ "flex items-center gap-2"] $ do
-          buildLink <- lift $ getLink $ LinkTo.Build repo.name branch.branchName
+          buildLink <- lift $ getLink $ LinkTo.Build repo.name branchDetails.branch.branchName
           W.viraRequestButton_
-            W.ButtonPrimary
+            W.ButtonSuccess
             buildLink
             [title_ "Build this branch"]
             $ do
@@ -69,15 +76,15 @@ viewBranch repo branch jobs = do
 
   W.viraSection_ [] $ do
     div_ [class_ "bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 lg:p-8"] $ do
-      viewCommitTimeline branch jobs
+      viewCommitTimeline branchDetails.branch jobs
 
 -- Simple job list showing commit id, job id, and status
 viewCommitTimeline :: St.Branch -> [St.Job] -> AppHtml ()
 viewCommitTimeline branch jobs = do
-  div_ [class_ "space-y-3"] $ do
+  div_ [] $ do
     -- Show current branch commit if no jobs exist
     when (null jobs) $ do
-      div_ [class_ "flex items-center p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600"] $ do
+      div_ [class_ "mb-6 flex items-center p-4 rounded-lg bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700"] $ do
         div_ [class_ "w-5 h-5 mr-3 flex items-center justify-center text-gray-500 dark:text-gray-400"] $ toHtmlRaw Icon.git_commit
         div_ [class_ "flex-1"] $ do
           div_ [class_ "flex items-center space-x-4"] $ do

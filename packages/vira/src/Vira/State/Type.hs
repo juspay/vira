@@ -59,6 +59,10 @@ instance Indexable BranchIxs Branch where
       (ixFun $ \Branch {repoName} -> [repoName])
       (ixFun $ \Branch {branchName} -> [branchName])
 
+-- | Badge state for branch status
+data BadgeState = NeverBuilt | OutOfDate
+  deriving stock (Generic, Show, Eq)
+
 -- | Branch with enriched metadata for display
 data BranchDetails = BranchDetails
   { branch :: Branch
@@ -67,21 +71,24 @@ data BranchDetails = BranchDetails
   -- ^ The most recent CI job for this branch, if any
   , jobsCount :: Natural
   -- ^ Total number of jobs for this branch
+  , badgeState :: Maybe BadgeState
+  -- ^ Badge state computed from job/commit comparison
   }
   deriving stock (Generic, Show, Eq)
 
-{- | Sorts branches by most recent activity descending (most recent first).
+{- | Get the most recent activity time for a branch.
 
 Activity is defined as max(head commit date, latest job created time).
 This ensures branches with recent commits OR recent builds appear first.
 -}
+branchActivityTime :: BranchDetails -> UTCTime
+branchActivityTime details = case details.mLatestJob of
+  Nothing -> details.branch.headCommit.date
+  Just job -> max details.branch.headCommit.date job.jobCreatedTime
+
+-- | Sorts branches by most recent activity descending (most recent first).
 instance Ord BranchDetails where
-  compare a b = compare (Down $ getMostRecentActivity a) (Down $ getMostRecentActivity b)
-    where
-      getMostRecentActivity :: BranchDetails -> UTCTime
-      getMostRecentActivity details = case details.mLatestJob of
-        Nothing -> details.branch.headCommit.date
-        Just job -> max details.branch.headCommit.date job.jobCreatedTime
+  compare a b = compare (Down $ branchActivityTime a) (Down $ branchActivityTime b)
 
 newtype JobId = JobId {unJobId :: Natural}
   deriving stock (Generic, Data)
@@ -172,6 +179,7 @@ $(deriveSafeCopy 0 'base ''JobStatus)
 $(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
 $(deriveSafeCopy 0 'base ''Branch)
+$(deriveSafeCopy 0 'base ''BadgeState)
 $(deriveSafeCopy 0 'base ''BranchDetails)
 $(deriveSafeCopy 0 'base ''Repo)
 
