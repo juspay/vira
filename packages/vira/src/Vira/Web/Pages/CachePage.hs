@@ -19,6 +19,7 @@ import Vira.Cache.Server (CacheInfo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, runAppHtml)
 import Vira.Web.Stack qualified as Web
+import Vira.Web.Widgets.Alert qualified as Alert
 import Vira.Web.Widgets.Card qualified as W
 import Vira.Web.Widgets.Code qualified as Code
 import Vira.Web.Widgets.Layout qualified as Layout
@@ -47,6 +48,11 @@ viewCache cacheInfo = do
     Layout.viraPageHeaderWithIcon_ (toHtmlRaw Icon.database) "Binary Cache" $ do
       p_ [class_ "text-gray-600 dark:text-gray-300"] "Vira exposes the local Nix store as a binary cache server. Use this to get CI binaries on your local machine."
 
+    Alert.viraAlert_ Alert.AlertWarning $ do
+      p_ [class_ "text-yellow-800 dark:text-yellow-200"] $ do
+        strong_ [class_ "font-semibold"] "Warning: "
+        "This cache server is provided for lightweight use only. For production use, use an external cache like Attic or Cachix."
+
     W.viraCard_ [class_ "p-6"] $ do
       div_ [class_ "space-y-4"] $ do
         -- Cache URL section
@@ -60,7 +66,7 @@ viewCache cacheInfo = do
         -- Public key section
         div_ [] $ do
           h3_ [class_ "text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"] "Public Key"
-          Code.viraCodeBlockCopyable Nothing cacheInfo.publicKey
+          Code.viraCodeBlockCopyable Nothing cacheKey
 
         -- Usage instructions
         div_ [] $ do
@@ -73,7 +79,7 @@ viewCache cacheInfo = do
               (Just "nix-conf-example")
               [trimming|
               substituters = ${cacheUrl}
-              trusted-public-keys = ${cacheInfo.publicKey}
+              trusted-public-keys = ${cacheKey}
             |]
 
           -- flake.nix subsection
@@ -84,7 +90,7 @@ viewCache cacheInfo = do
               [trimming|
               nixConfig = {
                 extra-substituters = [ "${cacheUrl}" ];
-                extra-trusted-public-keys = [ "${cacheInfo.publicKey}" ];
+                extra-trusted-public-keys = [ "${cacheKey}" ];
               };
             |]
 
@@ -96,10 +102,10 @@ viewCache cacheInfo = do
               [trimming|
               nix build \
                 --option extra-substituters "${cacheUrl}" \
-                --option extra-trusted-public-keys "${cacheInfo.publicKey}"
+                --option extra-trusted-public-keys "${cacheKey}"
             |]
 
-      -- Single script to replace all VIRA-DOMAIN placeholders
+      -- Single script to replace VIRA-DOMAIN placeholder
       script_
         [trimming|
         document.addEventListener('DOMContentLoaded', () => {
@@ -112,3 +118,4 @@ viewCache cacheInfo = do
       |]
   where
     cacheUrl = "VIRA-DOMAIN/cache"
+    cacheKey = cacheInfo.publicKey
