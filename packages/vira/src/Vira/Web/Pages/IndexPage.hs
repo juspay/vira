@@ -99,6 +99,12 @@ heroWelcome logoUrl reposLink envLink cacheLink = do
 
     -- Navigation links - prominent horizontal bar
     div_ [class_ "flex gap-3"] $ do
-      a_ [href_ reposLink, class_ "flex-1 text-center py-2 px-4 bg-indigo-600 dark:bg-indigo-700 text-white font-semibold rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"] "Repositories"
-      a_ [href_ cacheLink, class_ "flex-1 text-center py-2 px-4 bg-indigo-600 dark:bg-indigo-700 text-white font-semibold rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"] "Binary Cache"
-      a_ [href_ envLink, class_ "flex-1 text-center py-2 px-4 bg-indigo-600 dark:bg-indigo-700 text-white font-semibold rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"] "Environment"
+      heroButton reposLink Icon.book_2 "Repositories"
+      heroButton envLink Icon.cpu "Environment"
+      heroButton cacheLink Icon.database "Binary Cache"
+  where
+    heroButton :: (Monad m) => Text -> ByteString -> Text -> HtmlT m ()
+    heroButton url icon label =
+      a_ [href_ url, class_ "flex-1 flex items-center justify-center gap-2 py-2 px-4 bg-indigo-600 dark:bg-indigo-700 text-white font-semibold rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"] $ do
+        div_ [class_ "w-4 h-4 flex items-center justify-center"] $ toHtmlRaw icon
+        toHtml label

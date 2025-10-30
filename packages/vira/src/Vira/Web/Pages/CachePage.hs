@@ -43,7 +43,7 @@ viewCache :: CacheInfo -> AppHtml ()
 viewCache cacheInfo = do
   Layout.viraSection_ [] $ do
     Layout.viraPageHeaderWithIcon_ (toHtmlRaw Icon.database) "Binary Cache" $ do
-      p_ [class_ "text-gray-600 dark:text-gray-300"] "Nix binary cache server serving local builds"
+      p_ [class_ "text-gray-600 dark:text-gray-300"] "Vira exposes the local Nix store as a binary cache server. Use this to get CI binaries on your local machine."
 
     W.viraCard_ [class_ "p-6"] $ do
       div_ [class_ "space-y-4"] $ do
@@ -70,22 +70,51 @@ viewCache cacheInfo = do
 
         -- Usage instructions
         div_ [] $ do
-          h3_ [class_ "text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"] "Usage"
-          p_ [class_ "text-sm text-gray-600 dark:text-gray-400 mb-2"] "Add to your nix.conf or use with --option:"
+          h3_ [class_ "text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3"] "Usage"
 
-          Code.viraCodeBlockCopyableJs "nix-conf-example"
-          -- Client-side script to construct config example
-          script_ $
-            unlines
-              [ "document.addEventListener('DOMContentLoaded', function() {"
-              , "  const cacheUrl = window.location.origin + '/cache';"
-              , "  const publicKey = '" <> cacheInfo.publicKey <> "';"
-              , "  const example = 'substituters = ' + cacheUrl + '\\n' + 'trusted-public-keys = ' + publicKey;"
-              , "  document.getElementById('nix-conf-example').textContent = example;"
-              , "});"
-              ]
+          -- nix.conf subsection
+          div_ [class_ "mb-4"] $ do
+            h4_ [class_ "text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2"] "In nix.conf"
+            Code.viraCodeBlockCopyableJs "nix-conf-example"
+            script_ $
+              unlines
+                [ "document.addEventListener('DOMContentLoaded', function() {"
+                , "  const cacheUrl = window.location.origin + '/cache';"
+                , "  const publicKey = '" <> cacheInfo.publicKey <> "';"
+                , "  const example = 'substituters = ' + cacheUrl + '\\n' + 'trusted-public-keys = ' + publicKey;"
+                , "  document.getElementById('nix-conf-example').textContent = example;"
+                , "});"
+                ]
 
-          p_ [class_ "text-sm text-gray-500 dark:text-gray-500 mt-2"] $ do
-            "Or use "
-            code_ [class_ "px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded font-mono"] "--option"
-            " flags when running nix commands"
+          -- flake.nix subsection
+          div_ [class_ "mb-4"] $ do
+            h4_ [class_ "text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2"] "In flake.nix (nixConfig)"
+            Code.viraCodeBlockCopyableJs "flake-nix-example"
+            script_ $
+              unlines
+                [ "document.addEventListener('DOMContentLoaded', function() {"
+                , "  const cacheUrl = window.location.origin + '/cache';"
+                , "  const publicKey = '" <> cacheInfo.publicKey <> "';"
+                , "  const example = 'nixConfig = {\\n' +"
+                , "    '  extra-substituters = [ \"' + cacheUrl + '\" ];\\n' +"
+                , "    '  extra-trusted-public-keys = [ \"' + publicKey + '\" ];\\n' +"
+                , "    '};';"
+                , "  document.getElementById('flake-nix-example').textContent = example;"
+                , "});"
+                ]
+
+          -- CLI subsection
+          div_ [] $ do
+            h4_ [class_ "text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2"] "CLI (--option flags)"
+            Code.viraCodeBlockCopyableJs "cli-example"
+            script_ $
+              unlines
+                [ "document.addEventListener('DOMContentLoaded', function() {"
+                , "  const cacheUrl = window.location.origin + '/cache';"
+                , "  const publicKey = '" <> cacheInfo.publicKey <> "';"
+                , "  const example = 'nix build \\\\\\n' +"
+                , "    '  --option extra-substituters \"' + cacheUrl + '\" \\\\\\n' +"
+                , "    '  --option extra-trusted-public-keys \"' + publicKey + '\"';"
+                , "  document.getElementById('cli-example').textContent = example;"
+                , "});"
+                ]
