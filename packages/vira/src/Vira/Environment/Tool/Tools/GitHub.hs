@@ -58,7 +58,7 @@ instance ToHtml GitHubSuggestion where
   toHtml suggestion = do
     div_ [class_ "mt-2"] $ do
       p_ [class_ "text-sm text-red-700 dark:text-red-300 mb-1"] "Run:"
-      W.viraCodeCopyable_ $ show @Text suggestion
+      W.viraCodeBlockCopyable $ show @Text suggestion
 
 -- | View GitHub tool status
 viewToolStatus :: (Monad m) => AuthStatus -> HtmlT m ()

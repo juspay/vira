@@ -123,7 +123,7 @@ instance ToHtml AtticSuggestion where
   toHtml suggestion = do
     div_ [class_ "mt-2"] $ do
       p_ [class_ "text-sm text-yellow-700 dark:text-yellow-300 mb-1"] "Run:"
-      W.viraCodeCopyable_ $ show @Text suggestion
+      W.viraCodeBlockCopyable $ show @Text suggestion
 
 -- | View Attic tool status
 viewToolStatus :: (Monad m) => Either ConfigError AtticConfig -> HtmlT m ()

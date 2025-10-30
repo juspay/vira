@@ -49,7 +49,7 @@ viewCacheCard publicKey = do
       -- Public key section
       div_ [] $ do
         h3_ [class_ "text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"] "Public Key"
-        Code.viraCodeCopyable_ publicKey
+        Code.viraCodeBlockCopyable publicKey
 
       -- Usage instructions
       div_ [] $ do
@@ -70,5 +70,5 @@ viewCacheCard publicKey = do
 
         p_ [class_ "text-sm text-gray-500 dark:text-gray-500 mt-2"] $ do
           "Or use "
-          Code.viraCodeInline_ "--option"
+          code_ [class_ "px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded font-mono"] "--option"
           " flags when running nix commands"
