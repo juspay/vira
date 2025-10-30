@@ -9,6 +9,11 @@ following the pattern of TLS certificate auto-generation.
 module Vira.Cache.Keys (
   -- * Types
   CacheKeys (..),
+  SecretKey,
+  PublicKey,
+
+  -- * Conversion
+  secretKeyByteString,
 
   -- * Key generation
   ensureCacheKeys,
@@ -20,14 +25,25 @@ import System.FilePath ((</>))
 import System.Process (callProcess)
 import System.Which (staticWhich)
 
+-- | Secret signing key for nix-serve-ng
+newtype SecretKey = SecretKey ByteString
+
+-- | Public key for nix.conf
+newtype PublicKey = PublicKey Text
+  deriving stock (Show)
+  deriving newtype (IsString, ToString, ToText)
+
 -- | Cache signing keys
 data CacheKeys = CacheKeys
-  { secretKey :: ByteString
+  { secretKey :: SecretKey
   -- ^ Private signing key for nix-serve-ng
-  , publicKey :: Text
+  , publicKey :: PublicKey
   -- ^ Public key for users to add to nix.conf
   }
-  deriving stock (Show)
+
+-- | Convert SecretKey to ByteString
+secretKeyByteString :: SecretKey -> ByteString
+secretKeyByteString (SecretKey bs) = bs
 
 {- | Path to the `nix-store` executable
 
@@ -98,21 +114,21 @@ generateKeys cacheDir = do
 Reads and strips whitespace from the secret key file.
 Used for signing NARs in nix-serve-ng.
 -}
-readSecretKey :: FilePath -> IO ByteString
+readSecretKey :: FilePath -> IO SecretKey
 readSecretKey path = do
   content <- readFileBS path
   let contentText :: Text = decodeUtf8 content
   let stripped :: String = filter (not . isSpace) (toString contentText)
-  pure $ encodeUtf8 (toText stripped)
+  pure $ SecretKey $ encodeUtf8 (toText stripped)
 
 {- | Read the public key
 
 Reads the public key for display in the UI.
 Users need this to configure their nix.conf.
 -}
-readPublicKey :: FilePath -> IO Text
+readPublicKey :: FilePath -> IO PublicKey
 readPublicKey path = do
   content <- readFileBS path
   let contentText :: Text = decodeUtf8 content
   let stripped :: String = filter (not . isSpace) (toString contentText)
-  pure $ toText stripped
+  pure $ PublicKey $ toText stripped
