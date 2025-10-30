@@ -146,33 +146,57 @@ viraBranchDetailsRow_ ::
   AppHtml ()
 viraBranchDetailsRow_ showRepo details = do
   branchUrl <- lift $ getLinkUrl $ LinkTo.RepoBranch details.branch.repoName details.branch.branchName
-  let isOutOfDate = case details.mLatestJob of
-        Nothing -> True
-        Just job -> details.branch.headCommit.id /= job.commit
+
+  -- Smarter badge logic
+  let badgeState = case details.mLatestJob of
+        Nothing -> Just NeverBuilt
+        Just job
+          | job.commit /= details.branch.headCommit.id -> Just OutOfDate
+          | otherwise -> Nothing
 
   div_ [class_ "space-y-1"] $ do
-    -- Branch header: repo → branch (or just branch) with status badge and commit info
+    -- Branch header: repo → branch → commit with optional status badge
     viraJobContextHeader_ branchUrl $ do
       div_ [class_ "flex items-center justify-between"] $ do
-        -- Left: branch identifier with out-of-date badge
+        -- Left: branch identifier → commit info (natural flow)
         div_ [class_ "flex items-center space-x-2"] $ do
+          -- Repo name (if shown)
           when showRepo $ do
-            div_ [class_ "w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.book_2
-            span_ $ toHtml $ toString details.branch.repoName
-            span_ [class_ "mx-2 opacity-50 group-hover:opacity-100"] "→"
-          div_ [class_ "w-5 h-5 flex items-center justify-center opacity-50 group-hover:opacity-100"] $ toHtmlRaw Icon.git_branch
-          span_ [class_ "opacity-50 group-hover:opacity-100"] $ toHtml $ toString details.branch.branchName
-          when isOutOfDate $ do
-            span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
-              div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
-              "Out of date"
-        -- Right: commit info
-        div_ [class_ "text-xs opacity-50 group-hover:opacity-100 flex items-center space-x-3"] $ do
-          W.viraCommitInfoCompact_ (Just details.branch.headCommit)
-          when (details.jobsCount > 0) $ do
-            span_ $ "(" <> toHtml (show @Text details.jobsCount) <> " builds)"
+            div_ [class_ "w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"] $ toHtmlRaw Icon.book_2
+            span_ [class_ "text-gray-900 dark:text-gray-100"] $ toHtml $ toString details.branch.repoName
+            span_ [class_ "mx-2 text-gray-400 dark:text-gray-500"] "→"
+
+          -- Branch name
+          div_ [class_ "w-5 h-5 flex items-center justify-center text-gray-600 dark:text-gray-400"] $ toHtmlRaw Icon.git_branch
+          span_ [class_ "text-gray-900 dark:text-gray-100"] $ toHtml $ toString details.branch.branchName
+
+          -- Commit info right next to branch
+          span_ [class_ "text-gray-400 dark:text-gray-500"] "·"
+          div_ [class_ "text-xs text-gray-600 dark:text-gray-400"] $ do
+            W.viraCommitInfoCompact_ (Just details.branch.headCommit)
+
+        -- Right: status badge + build count (only when no job)
+        div_ [class_ "flex items-center space-x-2"] $ do
+          -- Build count only shown when no job exists
+          when (isNothing details.mLatestJob && details.jobsCount > 0) $ do
+            span_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $
+              "(" <> toHtml (show @Text details.jobsCount) <> " builds)"
+
+          -- Status badge
+          whenJust badgeState $ \case
+            NeverBuilt ->
+              span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"] $ do
+                div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.alert_circle
+                "Never built"
+            OutOfDate ->
+              span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
+                div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
+                "Out of date"
 
     -- Job row - only if job exists
     whenJust details.mLatestJob $ \latestJob -> do
       div_ [class_ "ml-7"] $ do
         viraJobRow_ Nothing latestJob
+
+-- | Badge state for branch
+data BadgeState = NeverBuilt | OutOfDate
