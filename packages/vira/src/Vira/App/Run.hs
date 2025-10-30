@@ -1,5 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Vira.App.Run (
   runVira,
@@ -71,9 +72,9 @@ runVira = do
         instanceInfo <- getInstanceInfo
         supervisor <- Supervisor.newSupervisor (stateDir globalSettings)
         -- Initialize broadcast channel for state update tracking
-        stateUpdateBuffer <- atomically newBroadcastTChan
+        updateBroadcast <- atomically newBroadcastTChan
         -- Create TVar with all tools data for caching
-        toolsVar <- runEff $ runLogActionStdout (logLevel globalSettings) $ runProcess Tool.newToolsTVar
+        tools <- runEff $ runLogActionStdout (logLevel globalSettings) $ runProcess Tool.newToolsTVar
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
         -- Create cache application and get cache info
@@ -83,11 +84,11 @@ runVira = do
               { Cache.cacheStateDir = stateDir globalSettings
               , Cache.cachePriority = Cache.defaultCachePriority
               }
-        let viraRuntimeState = App.ViraRuntimeState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.updateBroadcast = stateUpdateBuffer, App.tools = toolsVar, App.refreshState = refreshState, App.startTime = startTime, App.cacheApp = cacheApp, App.cacheInfo = cacheInfo}
+        let viraRuntimeState = App.ViraRuntimeState {linkTo, ..}
             appServer = do
               startPeriodicArchival acid
               Daemon.startRefreshDaemon
-              Server.runServer globalSettings webSettings
+              Server.runServer globalSettings webSettings cacheApp
         App.runApp globalSettings viraRuntimeState appServer
 
     runExport :: GlobalSettings -> IO ()

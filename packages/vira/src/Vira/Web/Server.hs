@@ -31,8 +31,8 @@ import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
 
 -- | Run the Vira server with the given settings
-runServer :: (HasCallStack) => GlobalSettings -> WebSettings -> Eff AppStack ()
-runServer globalSettings webSettings = do
+runServer :: (HasCallStack) => GlobalSettings -> WebSettings -> Application -> Eff AppStack ()
+runServer globalSettings webSettings cacheApp = do
   log Info $ "Launching at " <> buildUrl webSettings
   log Debug $ "Global settings: " <> show globalSettings
   log Debug $ "Web settings: " <> show webSettings
@@ -51,7 +51,7 @@ runServer globalSettings webSettings = do
             , -- Middleware to serve static files
               staticPolicy $ noDots >-> addBase staticDir
             , -- Cache server middleware
-              cacheMiddleware viraRuntimeState.cacheApp
+              cacheMiddleware cacheApp
             ]
           app = foldl' (&) servantApp middlewares
       pure app
