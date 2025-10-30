@@ -10,7 +10,7 @@ import Data.Time (UTCTime)
 import Servant.Links (Link)
 import Vira.App.Broadcast.Type (UpdateBroadcast)
 import Vira.App.InstanceInfo (InstanceInfo)
-import Vira.Cache.Server (CacheInfo)
+import Vira.Cache.Keys (PublicKey)
 import Vira.Environment.Tool.Type.Tools (Tools)
 import Vira.Refresh.Type (RefreshState)
 import Vira.State.Core (ViraState)
@@ -37,6 +37,6 @@ data ViraRuntimeState = ViraRuntimeState
     refreshState :: RefreshState
   , -- Server start time for uptime tracking
     startTime :: UTCTime
-  , -- Cache server information (for UI display)
-    cacheInfo :: CacheInfo
+  , -- Cache public key (for UI display)
+    cachePublicKey :: PublicKey
   }

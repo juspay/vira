@@ -77,13 +77,11 @@ runVira = do
         tools <- runEff $ runLogActionStdout (logLevel globalSettings) $ runProcess Tool.newToolsTVar
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
-        -- Create cache application and get cache info
-        (cacheApp, cacheInfo) <-
+        -- Create cache application and get public key
+        (cacheApp, cachePublicKey) <-
           Cache.makeCacheApplication
-            Cache.CacheConfig
-              { Cache.cacheStateDir = stateDir globalSettings
-              , Cache.cachePriority = Cache.defaultCachePriority
-              }
+            (stateDir globalSettings)
+            Cache.defaultCachePriority
         let viraRuntimeState = App.ViraRuntimeState {linkTo, ..}
             appServer = do
               startPeriodicArchival acid

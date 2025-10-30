@@ -15,7 +15,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
-import Vira.Cache.Server (CacheInfo (..))
+import Vira.Cache.Keys (PublicKey)
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, runAppHtml)
 import Vira.Web.Stack qualified as Web
@@ -39,11 +39,11 @@ handlers globalSettings viraRuntimeState webSettings =
 
 viewHandler :: AppHtml ()
 viewHandler = do
-  cacheInfo <- lift $ asks @App.ViraRuntimeState (.cacheInfo)
-  Layout.layout [LinkTo.Cache] (viewCache cacheInfo)
+  cachePublicKey <- lift $ asks @App.ViraRuntimeState (.cachePublicKey)
+  Layout.layout [LinkTo.Cache] (viewCache cachePublicKey)
 
-viewCache :: CacheInfo -> AppHtml ()
-viewCache cacheInfo = do
+viewCache :: PublicKey -> AppHtml ()
+viewCache cachePublicKey = do
   Layout.viraSection_ [] $ do
     Layout.viraPageHeaderWithIcon_ (toHtmlRaw Icon.database) "Binary Cache" $ do
       p_ [class_ "text-gray-600 dark:text-gray-300"] "Vira exposes the local Nix store as a binary cache server. Use this to get CI binaries on your local machine."
@@ -118,4 +118,4 @@ viewCache cacheInfo = do
       |]
   where
     cacheUrl = "VIRA-DOMAIN/cache"
-    cacheKey = cacheInfo.publicKey
+    cacheKey = toText cachePublicKey
