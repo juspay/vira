@@ -25,9 +25,11 @@ protocols and signing of NAR files.
 module System.Nix.Cache.Server (
   -- * Cache server
   makeCacheServer,
+  cacheMiddleware,
 ) where
 
-import Network.Wai (Application)
+import Data.ByteString qualified as ByteString
+import Network.Wai (Application, Middleware, pathInfo, rawPathInfo)
 import Nix qualified
 import NixServeNg (ApplicationOptions (..), makeApplication)
 import System.Nix.Cache.Keys (SecretKey, secretKeyByteString)
@@ -73,3 +75,34 @@ makeCacheServer secretKey = do
 
   -- Return the application
   pure $ makeApplication options
+
+{- | Middleware to mount cache server at a path prefix
+
+This middleware intercepts requests starting with the given path prefix
+(e.g., @\/cache\/*@) and routes them to the cache application, while allowing
+requests to the prefix itself (e.g., @\/cache@) to pass through to the main
+application.
+
+This is useful when you want to serve a UI page at @\/cache@ while serving
+the actual cache protocol at @\/cache\/nix-cache-info@, @\/cache\/*.narinfo@, etc.
+
+Example:
+
+@
+cacheApp <- makeCacheServer secretKey
+let middleware = cacheMiddleware "cache" cacheApp
+@
+-}
+cacheMiddleware :: Text -> Application -> Middleware
+cacheMiddleware prefix cacheApp app req respond =
+  case pathInfo req of
+    (p : rest@(_ : _)) | p == prefix -> do
+      -- Only intercept if there's at least one path segment after prefix
+      -- This allows /prefix (UI page) to pass through to servant
+      -- while /prefix/nix-cache-info, /prefix/*.narinfo, etc go to cache app
+      let rawPath = rawPathInfo req
+          prefixBytes = "/" <> encodeUtf8 prefix
+          rawPath' = fromMaybe rawPath $ ByteString.stripPrefix prefixBytes rawPath
+          req' = req {pathInfo = rest, rawPathInfo = rawPath'}
+      cacheApp req' respond
+    _ -> app req respond

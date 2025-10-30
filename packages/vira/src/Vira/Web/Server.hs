@@ -5,7 +5,6 @@ module Vira.Web.Server (
 ) where
 
 import Colog.Message (RichMessage)
-import Data.ByteString qualified as ByteString
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple
@@ -13,7 +12,7 @@ import Effectful.FileSystem (FileSystem, doesDirectoryExist)
 import Effectful.Reader.Dynamic qualified as Reader
 import Effectful.Reader.Static qualified as ER
 import Network.HTTP.Types (status404)
-import Network.Wai (Application, Middleware, pathInfo, rawPathInfo, responseLBS, responseStatus)
+import Network.Wai (Application, Middleware, responseLBS, responseStatus)
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Handler.WarpTLS.Simple (TLSConfig (..), startWarpServer)
 import Network.Wai.Middleware.Static (
@@ -24,6 +23,7 @@ import Network.Wai.Middleware.Static (
  )
 import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
+import System.Nix.Cache.Server qualified as Cache
 import System.Nix.Flake.Develop qualified as Nix
 import Vira.App (AppStack, ViraRuntimeState (..))
 import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
@@ -51,7 +51,7 @@ runServer globalSettings webSettings cacheApp = do
             , -- Middleware to serve static files
               staticPolicy $ noDots >-> addBase staticDir
             , -- Cache server middleware
-              cacheMiddleware cacheApp
+              Cache.cacheMiddleware "cache" cacheApp
             ]
           app = foldl' (&) servantApp middlewares
       pure app
@@ -84,20 +84,6 @@ getDataDirMultiHome = do
         False -> do
           log Error $ "Data dir not found at " <> toText p
           die "Data directory not found"
-
--- | Middleware to mount cache server at /cache/* (but not /cache itself)
-cacheMiddleware :: Application -> Middleware
-cacheMiddleware cacheApp app req respond =
-  case pathInfo req of
-    ("cache" : rest@(_ : _)) -> do
-      -- Only intercept if there's at least one path segment after "cache"
-      -- This allows /cache (UI page) to pass through to servant
-      -- while /cache/nix-cache-info, /cache/*.narinfo, etc go to nix-serve-ng
-      let rawPath = rawPathInfo req
-          rawPath' = fromMaybe rawPath $ ByteString.stripPrefix "/cache" rawPath
-          req' = req {pathInfo = rest, rawPathInfo = rawPath'}
-      cacheApp req' respond
-    _ -> app req respond
 
 -- | WAI middleware to handle 404 errors with custom page
 notFoundMiddleware :: GlobalSettings -> ViraRuntimeState -> WebSettings -> Middleware
