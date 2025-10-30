@@ -36,7 +36,7 @@ viewCacheCard publicKey = do
       -- Cache URL section
       div_ [] $ do
         h3_ [class_ "text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"] "Cache URL"
-        code_ [id_ "cache-url", class_ "block px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded font-mono"] ""
+        Code.viraCodeBlockCopyableJs "cache-url"
         -- Client-side script to construct URL
         script_ $
           unlines
@@ -56,7 +56,7 @@ viewCacheCard publicKey = do
         h3_ [class_ "text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"] "Usage"
         p_ [class_ "text-sm text-gray-600 dark:text-gray-400 mb-2"] "Add to your nix.conf or use with --option:"
 
-        code_ [id_ "nix-conf-example", class_ "block px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded font-mono whitespace-pre"] ""
+        Code.viraCodeBlockCopyableJs "nix-conf-example"
         -- Client-side script to construct config example
         script_ $
           unlines

@@ -4,6 +4,7 @@
 -- | Code display components with copyable functionality
 module Vira.Web.Widgets.Code (
   viraCodeBlockCopyable,
+  viraCodeBlockCopyableJs,
   viraCodeInlineCopyable,
 ) where
 
@@ -116,6 +117,17 @@ viraCodeBlockCopyable =
       { display = Block MultiLine
       , copyable = Just defaultCopy
       }
+
+-- | Copyable code block for JavaScript-populated content
+viraCodeBlockCopyableJs :: (Monad m) => Text -> HtmlT m ()
+viraCodeBlockCopyableJs elemId =
+  code_
+    [ id_ elemId
+    , class_ "block px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded font-mono whitespace-pre transition-colors cursor-pointer"
+    , title_ "Click to copy"
+    , onclick_ "navigator.clipboard.writeText(this.textContent); const orig = this.textContent; this.textContent = 'Copied!'; setTimeout(() => { this.textContent = orig; }, 1000);"
+    ]
+    ""
 
 -- | Inline code with custom copy text (display one thing, copy another)
 viraCodeInlineCopyable :: (Monad m) => Text -> Text -> HtmlT m ()
