@@ -61,8 +61,10 @@ runServer globalSettings webSettings = do
               notFoundMiddleware globalSettings viraRuntimeState webSettings
             , -- Middleware to serve static files
               staticPolicy $ noDots >-> addBase staticDir
-            , -- Cache server middleware (outermost, applied first - mount at /cache)
+            , -- Cache server middleware
               cacheMiddleware cacheApp
+            , -- Request logging (outermost, applied first - logs all requests)
+              loggingMiddleware
             ]
           app = foldl' (&) servantApp middlewares
       pure app
@@ -105,8 +107,15 @@ cacheMiddleware cacheApp app req respond =
       let rawPath = rawPathInfo req
           rawPath' = fromMaybe rawPath $ ByteString.stripPrefix "/cache" rawPath
           req' = req {pathInfo = rest, rawPathInfo = rawPath'}
+      putStrLn $ "[Cache] Request: " <> show (pathInfo req) <> " | rawPath: " <> show rawPath <> " -> " <> show rawPath'
       cacheApp req' respond
     _ -> app req respond
+
+-- | Middleware to log all requests
+loggingMiddleware :: Middleware
+loggingMiddleware app req respond = do
+  putStrLn $ "[Request] " <> show (pathInfo req) <> " | rawPath: " <> show (rawPathInfo req)
+  app req respond
 
 -- | WAI middleware to handle 404 errors with custom page
 notFoundMiddleware :: GlobalSettings -> ViraRuntimeState -> WebSettings -> Middleware
