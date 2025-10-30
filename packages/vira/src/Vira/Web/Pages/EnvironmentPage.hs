@@ -6,26 +6,22 @@ module Vira.Web.Pages.EnvironmentPage (
   handlers,
 ) where
 
-import Effectful.Reader.Dynamic (asks)
 import Lucid
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
-import Vira.Cache.Server (CacheInfo)
 import Vira.Environment.Tool.Core (Tools (..))
 import Vira.Environment.Tool.Type.ToolData (ToolData (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, runAppHtml)
 import Vira.Web.Pages.Common.User qualified as User
 import Vira.Web.Pages.EnvironmentPage.Builders qualified as Builders
-import Vira.Web.Pages.EnvironmentPage.Cache qualified as Cache
 import Vira.Web.Pages.EnvironmentPage.Tools qualified as Tools
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Widgets.Layout qualified as W
 import Web.TablerIcons.Outline qualified as Icon
-import Prelude hiding (asks)
 
 newtype Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
@@ -39,20 +35,15 @@ handlers globalSettings viraRuntimeState webSettings =
     }
 
 viewHandler :: AppHtml ()
-viewHandler = do
-  cacheInfo <- lift $ asks @App.ViraRuntimeState (.cacheInfo)
-  W.layout [LinkTo.Environment] (viewEnvironment cacheInfo)
+viewHandler = W.layout [LinkTo.Environment] viewEnvironment
 
-viewEnvironment :: CacheInfo -> AppHtml ()
-viewEnvironment cacheInfo = do
+viewEnvironment :: AppHtml ()
+viewEnvironment = do
   W.viraSection_ [] $ do
     W.viraPageHeaderWithIcon_ (toHtmlRaw Icon.cpu) "Environment" $ do
       div_ [class_ "flex items-center justify-between"] $ do
         p_ [class_ "text-gray-600 dark:text-gray-300"] "User environment under which Vira runs"
         span_ [class_ "text-indigo-800 dark:text-indigo-300 font-semibold"] User.viewUserInfo
-
-    -- Cache Section
-    Cache.viewCache cacheInfo
 
     -- Tools Section (returns tools data for reuse)
     tools <- Tools.viewTools

@@ -85,12 +85,14 @@ getDataDirMultiHome = do
           log Error $ "Data dir not found at " <> toText p
           die "Data directory not found"
 
--- | Middleware to mount cache server at /cache/*
+-- | Middleware to mount cache server at /cache/* (but not /cache itself)
 cacheMiddleware :: Application -> Middleware
 cacheMiddleware cacheApp app req respond =
   case pathInfo req of
-    ("cache" : rest) -> do
-      -- Strip "cache" from both pathInfo and rawPathInfo
+    ("cache" : rest@(_ : _)) -> do
+      -- Only intercept if there's at least one path segment after "cache"
+      -- This allows /cache (UI page) to pass through to servant
+      -- while /cache/nix-cache-info, /cache/*.narinfo, etc go to nix-serve-ng
       let rawPath = rawPathInfo req
           rawPath' = fromMaybe rawPath $ ByteString.stripPrefix "/cache" rawPath
           req' = req {pathInfo = rest, rawPathInfo = rawPath'}

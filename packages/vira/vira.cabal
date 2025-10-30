@@ -77,10 +77,10 @@ library
       Vira.Web.LinkTo.Type
       Vira.Web.Lucid
       Vira.Web.Pages.BranchPage
+      Vira.Web.Pages.CachePage
       Vira.Web.Pages.Common.User
       Vira.Web.Pages.EnvironmentPage
       Vira.Web.Pages.EnvironmentPage.Builders
-      Vira.Web.Pages.EnvironmentPage.Cache
       Vira.Web.Pages.EnvironmentPage.Tools
       Vira.Web.Pages.IndexPage
       Vira.Web.Pages.JobLog

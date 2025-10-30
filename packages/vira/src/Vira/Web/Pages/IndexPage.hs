@@ -14,6 +14,7 @@ import Vira.State.Acid qualified as St
 import Vira.State.Type qualified as St
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl, runAppHtml)
+import Vira.Web.Pages.CachePage qualified as CachePage
 import Vira.Web.Pages.EnvironmentPage qualified as EnvironmentPage
 import Vira.Web.Pages.JobPage qualified as JobPage
 import Vira.Web.Pages.RegistryPage qualified as RegistryPage
@@ -30,6 +31,7 @@ data Routes mode = Routes
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _environment :: mode :- "env" Servant.API.:> NamedRoutes EnvironmentPage.Routes
+  , _cache :: mode :- "cache" Servant.API.:> NamedRoutes CachePage.Routes
   , _refresh :: mode :- "refresh" Servant.API.:> Refresh.StreamRoute
   }
   deriving stock (Generic)
@@ -44,6 +46,7 @@ handlers globalSettings viraRuntimeState webSettings =
     , _repos = RegistryPage.handlers globalSettings viraRuntimeState webSettings
     , _jobs = JobPage.handlers globalSettings viraRuntimeState webSettings
     , _environment = EnvironmentPage.handlers globalSettings viraRuntimeState webSettings
+    , _cache = CachePage.handlers globalSettings viraRuntimeState webSettings
     , _refresh =
         Web.runStreamHandler globalSettings viraRuntimeState . Refresh.streamRouteHandler
     }
@@ -55,8 +58,9 @@ indexView = do
   let linkText = show . linkURI
       reposLink = linkText $ fieldLink _repos // RegistryPage._listing
       envLink = linkText $ fieldLink _environment // EnvironmentPage._view
+      cacheLink = linkText $ fieldLink _cache // CachePage._view
   W.layout mempty $ do
-    heroWelcome logoUrl reposLink envLink
+    heroWelcome logoUrl reposLink envLink cacheLink
     unless (null recentJobs) $ do
       viewRecentJobs recentJobs
 
@@ -79,8 +83,8 @@ viewRecentJobs jobs = do
           -- Job row
           W.viraJobRow_ Nothing job
 
-heroWelcome :: (Monad m) => Text -> Text -> Text -> HtmlT m ()
-heroWelcome logoUrl reposLink envLink = do
+heroWelcome :: (Monad m) => Text -> Text -> Text -> Text -> HtmlT m ()
+heroWelcome logoUrl reposLink envLink cacheLink = do
   -- Compact hero banner
   div_ [class_ "bg-indigo-50 dark:bg-indigo-900/20 border-2 border-t-0 border-indigo-200 dark:border-indigo-800 rounded-b-xl p-6 mb-6"] $ do
     -- Logo and title
@@ -96,4 +100,5 @@ heroWelcome logoUrl reposLink envLink = do
     -- Navigation links - prominent horizontal bar
     div_ [class_ "flex gap-3"] $ do
       a_ [href_ reposLink, class_ "flex-1 text-center py-2 px-4 bg-indigo-600 dark:bg-indigo-700 text-white font-semibold rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"] "Repositories"
+      a_ [href_ cacheLink, class_ "flex-1 text-center py-2 px-4 bg-indigo-600 dark:bg-indigo-700 text-white font-semibold rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"] "Binary Cache"
       a_ [href_ envLink, class_ "flex-1 text-center py-2 px-4 bg-indigo-600 dark:bg-indigo-700 text-white font-semibold rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors"] "Environment"

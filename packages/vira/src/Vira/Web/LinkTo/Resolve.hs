@@ -4,6 +4,7 @@ module Vira.Web.LinkTo.Resolve where
 import Servant.Links (Link, fieldLink)
 import Vira.Web.LinkTo.Type
 import Vira.Web.Pages.BranchPage qualified as BranchPage
+import Vira.Web.Pages.CachePage qualified as CachePage
 import Vira.Web.Pages.EnvironmentPage qualified as EnvironmentPage
 import Vira.Web.Pages.IndexPage
 import Vira.Web.Pages.JobLog qualified as JobLog
@@ -29,4 +30,5 @@ linkTo = \case
   JobLogStream jobId -> fieldLink _jobs // JobPage._log /: jobId // JobLog._streamLog
   Kill jobId -> fieldLink _jobs // JobPage._kill /: jobId
   Environment -> fieldLink _environment // EnvironmentPage._view
+  Cache -> fieldLink _cache // CachePage._view
   Refresh mPatterns -> fieldLink _refresh mPatterns
