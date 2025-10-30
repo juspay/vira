@@ -28,6 +28,7 @@ testBranchStaging =
           , author = "Test Author"
           , authorEmail = "test@example.com"
           }
+    , deleted = False
     }
 
 testContextStaging :: ViraContext

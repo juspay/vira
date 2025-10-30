@@ -199,7 +199,7 @@ cloneAllBranches url path =
       , path
       ]
 
--- | Return the `CreateProcess` to fetch all branches with force
+-- | Return the `CreateProcess` to fetch all branches with force and prune deleted branches
 fetchAllBranches :: (Environment :> es) => Eff es CreateProcess
 fetchAllBranches =
   withNonInteractiveSSH $
@@ -207,6 +207,7 @@ fetchAllBranches =
       git
       [ "fetch"
       , "--force"
+      , "--prune"
       , "origin"
       , "+refs/heads/*:refs/remotes/origin/*"
       ]

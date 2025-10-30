@@ -130,18 +130,32 @@ setRepoA repo = do
       { repos = Ix.updateIx repo.name repo s.repos
       }
 
--- | Set a repository's branches
+-- | Set a repository's branches, marking deleted branches (keeps jobs for history)
 setRepoBranchesA :: RepoName -> Map BranchName Commit -> Update ViraState ()
 setRepoBranchesA repo branches = do
-  modify $ \s ->
-    let
-      repoBranches = Map.toList branches <&> uncurry (Branch repo)
+  s <- get
+  let oldBranches = Ix.toList $ s.branches @= repo
+      newBranchNames = Map.keys branches
+
+      -- Old branches that are no longer on remote - mark as deleted
+      deletedBranches =
+        filter (\b -> b.branchName `notElem` newBranchNames) oldBranches
+          <&> \b -> b {deleted = True}
+
+      -- Branches from remote - create with deleted=False
+      activeBranches =
+        Map.toList branches <&> \(branchName, commit) ->
+          Branch repo branchName commit False
+
+      -- Combine deleted + active branches
+      allBranches = deletedBranches <> activeBranches
       commits = Map.elems branches
-     in
-      s
-        { branches = updateIxMulti repo (Ix.fromList repoBranches) s.branches
-        , commits = s.commits ||| Ix.fromList commits
-        }
+
+  put $
+    s
+      { branches = updateIxMulti repo (Ix.fromList allBranches) s.branches
+      , commits = s.commits ||| Ix.fromList commits
+      }
 
 -- | Get a commit by its ID
 getCommitByIdA :: CommitID -> Query ViraState (Maybe Commit)

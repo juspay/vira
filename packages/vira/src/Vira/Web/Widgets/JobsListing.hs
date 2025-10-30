@@ -170,10 +170,25 @@ viraBranchDetailsRow_ showRepo details = do
           div_ [class_ "w-4 h-4 flex items-center justify-center text-purple-700 dark:text-purple-200 shrink-0"] $ toHtmlRaw Icon.book_2
           span_ [class_ "text-sm font-semibold text-purple-900 dark:text-purple-100"] $ toHtml $ toString details.branch.repoName
 
-      -- Branch tag - blue theme, flat left edge when repo shown
-      a_ [href_ branchUrl, class_ $ "flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700 shadow-sm hover:opacity-70 transition-opacity" <> if showRepo then " rounded-r-full border-l-0" else " rounded-full"] $ do
-        div_ [class_ "w-4 h-4 flex items-center justify-center text-blue-700 dark:text-blue-200"] $ toHtmlRaw Icon.git_branch
-        span_ [class_ "text-sm font-semibold text-blue-900 dark:text-blue-100"] $ toHtml $ toString details.branch.branchName
+      -- Branch tag - blue theme (or red if deleted), flat left edge when repo shown
+      let branchClasses =
+            if details.branch.deleted
+              then "flex items-center gap-1 px-3 py-1 bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 shadow-sm hover:opacity-70 transition-opacity"
+              else "flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700 shadow-sm hover:opacity-70 transition-opacity"
+          branchClasses' = branchClasses <> if showRepo then " rounded-r-full border-l-0" else " rounded-full"
+          branchIconColor =
+            if details.branch.deleted
+              then "w-4 h-4 flex items-center justify-center text-red-700 dark:text-red-200"
+              else "w-4 h-4 flex items-center justify-center text-blue-700 dark:text-blue-200"
+          branchTextColor =
+            if details.branch.deleted
+              then "text-sm font-semibold text-red-900 dark:text-red-100"
+              else "text-sm font-semibold text-blue-900 dark:text-blue-100"
+      a_ [href_ branchUrl, class_ branchClasses'] $ do
+        div_ [class_ branchIconColor] $ toHtmlRaw Icon.git_branch
+        span_ [class_ branchTextColor] $ toHtml $ toString details.branch.branchName
+        when details.branch.deleted $
+          span_ [class_ "text-xs text-red-700 dark:text-red-300 ml-1"] "(deleted)"
 
     -- Main row - clickable, single line layout with gray background and border
     a_
