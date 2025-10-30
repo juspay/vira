@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 {- | Cache key generation and management
@@ -6,12 +7,11 @@ Provides automatic generation and management of Nix binary cache signing keys,
 following the pattern of TLS certificate auto-generation.
 -}
 module Vira.Cache.Keys (
+  -- * Types
+  CacheKeys (..),
+
   -- * Key generation
   ensureCacheKeys,
-
-  -- * Key reading
-  readSecretKey,
-  readPublicKey,
 ) where
 
 import Data.Char (isSpace)
@@ -19,6 +19,15 @@ import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath ((</>))
 import System.Process (callProcess)
 import System.Which (staticWhich)
+
+-- | Cache signing keys
+data CacheKeys = CacheKeys
+  { secretKey :: ByteString
+  -- ^ Private signing key for nix-serve-ng
+  , publicKey :: Text
+  -- ^ Public key for users to add to nix.conf
+  }
+  deriving stock (Show)
 
 {- | Path to the `nix-store` executable
 
@@ -29,16 +38,16 @@ nixStore = $(staticWhich "nix-store")
 
 {- | Ensure cache signing keys exist, generating if necessary
 
-Returns a tuple of (secretKeyPath, publicKeyPath).
-
 The keys are stored in @<cacheDir>/@:
 - @secret-key@ - Private signing key
 - @public-key@ - Public key for cache users
 
 If keys already exist, they are reused. Otherwise, new keys are generated
 using @nix-store --generate-binary-cache-key@.
+
+Returns the keys as strings.
 -}
-ensureCacheKeys :: FilePath -> IO (FilePath, FilePath)
+ensureCacheKeys :: FilePath -> IO CacheKeys
 ensureCacheKeys cacheDir = do
   let (secretKeyPath, publicKeyPath) = keyPaths cacheDir
 
@@ -53,7 +62,10 @@ ensureCacheKeys cacheDir = do
       createDirectoryIfMissing True cacheDir
       generateKeys cacheDir
 
-  pure (secretKeyPath, publicKeyPath)
+  -- Read and return keys
+  secretKey <- readSecretKey secretKeyPath
+  publicKey <- readPublicKey publicKeyPath
+  pure CacheKeys {..}
 
 -- | Helper to construct key file paths
 keyPaths :: FilePath -> (FilePath, FilePath)

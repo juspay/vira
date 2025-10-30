@@ -20,7 +20,7 @@ module Vira.Cache.Server (
 import Network.Wai (Application)
 import Nix qualified
 import NixServeNg (ApplicationOptions (..), makeApplication)
-import Vira.Cache.Keys (ensureCacheKeys, readPublicKey, readSecretKey)
+import Vira.Cache.Keys (CacheKeys (..), ensureCacheKeys)
 
 -- | Configuration for the cache server
 data CacheConfig = CacheConfig
@@ -31,11 +31,9 @@ data CacheConfig = CacheConfig
   }
 
 -- | Information about the cache server for display in UI
-data CacheInfo = CacheInfo
+newtype CacheInfo = CacheInfo
   { publicKey :: Text
   -- ^ Public key for users to add to their nix.conf
-  , publicKeyPath :: FilePath
-  -- ^ Path to the public key file (for display only)
   }
 
 -- | Default cache priority (lower is higher priority)
@@ -62,13 +60,9 @@ makeCacheApplication config = do
   -- Get store directory
   storeDir <- Nix.getStoreDir
 
-  -- Ensure cache keys exist
+  -- Ensure cache keys exist and read them
   let cacheKeysDir = config.cacheStateDir <> "/cache-keys"
-  (secretKeyPath, publicKeyPath) <- ensureCacheKeys cacheKeysDir
-
-  -- Read keys
-  secretKey <- readSecretKey secretKeyPath
-  publicKey <- readPublicKey publicKeyPath
+  CacheKeys {secretKey, publicKey} <- ensureCacheKeys cacheKeysDir
 
   -- Create application options
   let options =
@@ -80,5 +74,5 @@ makeCacheApplication config = do
 
   -- Return both the application and cache info
   let app = makeApplication options
-      info = CacheInfo {publicKey, publicKeyPath}
+      info = CacheInfo {publicKey}
   pure (app, info)
