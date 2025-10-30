@@ -79,7 +79,6 @@ dependencies:
   - mtl
   - neat-interpolation
   - nix
-  - nix-serve-ng
   - optics-core
   - optics-th
   - optparse-applicative

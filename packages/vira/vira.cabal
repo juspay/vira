@@ -189,7 +189,6 @@ library
     , mtl
     , neat-interpolation
     , nix
-    , nix-serve-ng
     , optics-core
     , optics-th
     , optparse-applicative
@@ -313,7 +312,6 @@ executable vira
     , mtl
     , neat-interpolation
     , nix
-    , nix-serve-ng
     , optics-core
     , optics-th
     , optparse-applicative
@@ -441,7 +439,6 @@ executable vira-tests
     , mtl
     , neat-interpolation
     , nix
-    , nix-serve-ng
     , optics-core
     , optics-th
     , optparse-applicative
