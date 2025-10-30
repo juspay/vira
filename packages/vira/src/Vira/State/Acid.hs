@@ -135,6 +135,29 @@ getRecentJobsA limit = do
       latestPerBranch = ordNubOn (\job -> (job.repo, job.branch)) allJobs
   pure $ take (fromIntegral limit) latestPerBranch
 
+{- | Get recent activity for the index page.
+
+Returns all branches sorted by most recent activity (newest first).
+Activity is based on max(latest job time, head commit time).
+-}
+getRecentActivityA :: Natural -> Query ViraState [BranchDetails]
+getRecentActivityA limit = do
+  ViraState {branches, jobs} <- ask
+  let allBranches = Ix.toList branches
+      enrichBranch branch =
+        let branchJobs = Ix.toDescList (Proxy @JobId) $ jobs @= branch.repoName @= branch.branchName
+         in BranchDetails
+              { branch
+              , mLatestJob = viaNonEmpty head branchJobs
+              , jobsCount = fromIntegral $ length branchJobs
+              }
+      enriched = enrichBranch <$> allBranches
+      activityTime details = case details.mLatestJob of
+        Nothing -> details.branch.headCommit.date
+        Just job -> max details.branch.headCommit.date job.jobCreatedTime
+      sorted = sortWith (Down . activityTime) enriched
+  pure $ take (fromIntegral limit) sorted
+
 -- | Get all running jobs
 getRunningJobs :: Query ViraState [Job]
 getRunningJobs = do
@@ -214,6 +237,7 @@ $( makeAcidic
      , 'storeCommitA
      , 'getJobsByBranchA
      , 'getRecentJobsA
+     , 'getRecentActivityA
      , 'getRunningJobs
      , 'getJobA
      , 'addNewJobA
