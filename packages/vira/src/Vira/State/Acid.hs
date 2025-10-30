@@ -36,13 +36,25 @@ addNewRepoA repo = do
       { repos = Ix.insert repo s.repos
       }
 
--- | Delete a repository by name
-deleteRepoByNameA :: RepoName -> Update ViraState ()
+{- | Delete a repository by name and all associated data (branches and jobs)
+Returns Left with error message if there are running jobs
+-}
+deleteRepoByNameA :: RepoName -> Update ViraState (Either Text ())
 deleteRepoByNameA name = do
-  modify $ \s ->
-    s
-      { repos = Ix.deleteIx name s.repos
-      }
+  s <- get
+  -- Check for running jobs
+  let repoJobs = Ix.toList $ s.jobs @= name
+      runningJobs = filter jobIsActive repoJobs
+  if not (Prelude.null runningJobs)
+    then pure $ Left "Cannot delete repository with running jobs. Please wait for jobs to finish or kill them first."
+    else do
+      modify $ \st ->
+        st
+          { repos = Ix.deleteIx name st.repos
+          , branches = deleteIxMulti name st.branches
+          , jobs = deleteIxMulti name st.jobs
+          }
+      pure $ Right ()
 
 -- | Get all repositories
 getAllReposA :: Query ViraState [Repo]

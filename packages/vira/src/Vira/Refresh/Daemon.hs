@@ -72,7 +72,11 @@ workerLoop = do
 
     -- Fetch repo data and refresh
     App.query (GetRepoByNameA repoName) >>= \case
-      Nothing -> log Warning $ "Repo not found: " <> show repoName
+      Nothing -> do
+        -- Repo was deleted - clean up refresh state
+        log Info $ "Repo not found (deleted), cleaning up refresh state: " <> show repoName
+        st <- asks (.refreshState)
+        atomically $ modifyTVar' st.statusMap (Map.delete repoName)
       Just repo -> void $ refreshRepo repo
 
 {- | Atomically pop the next pending repo and mark it as InProgress
