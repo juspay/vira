@@ -152,10 +152,7 @@ getRecentActivityA limit = do
               , jobsCount = fromIntegral $ length branchJobs
               }
       enriched = enrichBranch <$> allBranches
-      activityTime details = case details.mLatestJob of
-        Nothing -> details.branch.headCommit.date
-        Just job -> max details.branch.headCommit.date job.jobCreatedTime
-      sorted = sortWith (Down . activityTime) enriched
+      sorted = sortWith (Down . branchActivityTime) enriched
   pure $ take (fromIntegral limit) sorted
 
 -- | Get all running jobs

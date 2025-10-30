@@ -70,18 +70,19 @@ data BranchDetails = BranchDetails
   }
   deriving stock (Generic, Show, Eq)
 
-{- | Sorts branches by most recent activity descending (most recent first).
+{- | Get the most recent activity time for a branch.
 
 Activity is defined as max(head commit date, latest job created time).
 This ensures branches with recent commits OR recent builds appear first.
 -}
+branchActivityTime :: BranchDetails -> UTCTime
+branchActivityTime details = case details.mLatestJob of
+  Nothing -> details.branch.headCommit.date
+  Just job -> max details.branch.headCommit.date job.jobCreatedTime
+
+-- | Sorts branches by most recent activity descending (most recent first).
 instance Ord BranchDetails where
-  compare a b = compare (Down $ getMostRecentActivity a) (Down $ getMostRecentActivity b)
-    where
-      getMostRecentActivity :: BranchDetails -> UTCTime
-      getMostRecentActivity details = case details.mLatestJob of
-        Nothing -> details.branch.headCommit.date
-        Just job -> max details.branch.headCommit.date job.jobCreatedTime
+  compare a b = compare (Down $ branchActivityTime a) (Down $ branchActivityTime b)
 
 newtype JobId = JobId {unJobId :: Natural}
   deriving stock (Generic, Data)
