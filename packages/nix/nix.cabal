@@ -22,6 +22,8 @@ extra-source-files:
 library
   exposed-modules:
       System.Nix
+      System.Nix.Cache.Keys
+      System.Nix.Cache.Server
       System.Nix.Config
       System.Nix.Config.Builders
       System.Nix.Config.Core
@@ -73,8 +75,12 @@ library
     , directory
     , effectful
     , effectful-core
+    , filepath
     , megaparsec
+    , nix-serve-ng
+    , process
     , relude >=1.0
+    , wai
     , which
   mixins:
       base hiding (Prelude)

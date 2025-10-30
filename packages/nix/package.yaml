@@ -28,7 +28,11 @@ library:
     - directory
     - effectful
     - effectful-core
+    - filepath
     - megaparsec
+    - nix-serve-ng
+    - process
+    - wai
     - which
 
 tests:

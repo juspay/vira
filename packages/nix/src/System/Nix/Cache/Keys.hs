@@ -6,7 +6,7 @@
 Provides automatic generation and management of Nix binary cache signing keys,
 following the pattern of TLS certificate auto-generation.
 -}
-module Vira.Cache.Keys (
+module System.Nix.Cache.Keys (
   -- * Types
   CacheKeys (..),
   SecretKey,
@@ -19,7 +19,12 @@ module Vira.Cache.Keys (
   ensureCacheKeys,
 ) where
 
+import Colog.Message (RichMessage)
 import Data.Char (isSpace)
+import Effectful (Eff, IOE, (:>))
+import Effectful.Colog (Log)
+import Effectful.Colog.Simple
+import Effectful.Reader.Static qualified as ER
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath ((</>))
 import System.Process (callProcess)
@@ -63,19 +68,19 @@ using @nix-store --generate-binary-cache-key@.
 
 Returns the keys as strings.
 -}
-ensureCacheKeys :: FilePath -> IO CacheKeys
+ensureCacheKeys :: (IOE :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es) => FilePath -> Eff es CacheKeys
 ensureCacheKeys cacheDir = do
   let (secretKeyPath, publicKeyPath) = keyPaths cacheDir
 
-  secretExists <- doesFileExist secretKeyPath
-  publicExists <- doesFileExist publicKeyPath
+  secretExists <- liftIO $ doesFileExist secretKeyPath
+  publicExists <- liftIO $ doesFileExist publicKeyPath
 
   if secretExists && publicExists
     then do
-      putStrLn $ "Using existing cache keys from " <> cacheDir <> "/"
+      log Info $ "Using existing cache keys from " <> toText cacheDir <> "/"
     else do
-      putStrLn "Generating cache signing keys..."
-      createDirectoryIfMissing True cacheDir
+      log Info "Generating cache signing keys..."
+      liftIO $ createDirectoryIfMissing True cacheDir
       generateKeys cacheDir
 
   -- Read and return keys
@@ -91,32 +96,33 @@ keyPaths cacheDir =
    in (secretKeyPath, publicKeyPath)
 
 -- | Generate cache signing keys using nix-store
-generateKeys :: FilePath -> IO ()
+generateKeys :: (IOE :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es) => FilePath -> Eff es ()
 generateKeys cacheDir = do
   let (secretKeyPath, publicKeyPath) = keyPaths cacheDir
 
   -- Generate keys using nix-store --generate-binary-cache-key
   -- Key name is "cache" - this appears in the signature
-  callProcess
-    nixStore
-    [ "--generate-binary-cache-key"
-    , "cache"
-    , secretKeyPath
-    , publicKeyPath
-    ]
+  liftIO $
+    callProcess
+      nixStore
+      [ "--generate-binary-cache-key"
+      , "cache"
+      , secretKeyPath
+      , publicKeyPath
+      ]
 
-  putStrLn "Generated cache signing keys:"
-  putStrLn $ "  Secret key: " <> secretKeyPath
-  putStrLn $ "  Public key: " <> publicKeyPath
+  log Info "Generated cache signing keys"
+  log Debug $ "  Secret key: " <> toText secretKeyPath
+  log Debug $ "  Public key: " <> toText publicKeyPath
 
 {- | Read the secret signing key
 
 Reads and strips whitespace from the secret key file.
 Used for signing NARs in nix-serve-ng.
 -}
-readSecretKey :: FilePath -> IO SecretKey
+readSecretKey :: (IOE :> es) => FilePath -> Eff es SecretKey
 readSecretKey path = do
-  content <- readFileBS path
+  content <- liftIO $ readFileBS path
   let contentText :: Text = decodeUtf8 content
   let stripped :: String = filter (not . isSpace) (toString contentText)
   pure $ SecretKey $ encodeUtf8 (toText stripped)
@@ -126,9 +132,9 @@ readSecretKey path = do
 Reads the public key for display in the UI.
 Users need this to configure their nix.conf.
 -}
-readPublicKey :: FilePath -> IO PublicKey
+readPublicKey :: (IOE :> es) => FilePath -> Eff es PublicKey
 readPublicKey path = do
-  content <- readFileBS path
+  content <- liftIO $ readFileBS path
   let contentText :: Text = decodeUtf8 content
   let stripped :: String = filter (not . isSpace) (toString contentText)
   pure $ PublicKey $ toText stripped

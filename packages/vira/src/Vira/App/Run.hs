@@ -25,6 +25,8 @@ import Main.Utf8 qualified as Utf8
 import Paths_vira qualified
 import System.Directory (getCurrentDirectory, makeAbsolute)
 import System.Exit (ExitCode (..))
+import System.Nix.Cache.Keys qualified as CacheKeys
+import System.Nix.Cache.Server qualified as Cache
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
@@ -32,7 +34,6 @@ import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Pipeline.Program qualified as Program
-import Vira.Cache.Server qualified as Cache
 import Vira.Environment.Tool.Core qualified as Tool
 import Vira.Refresh.Daemon qualified as Daemon
 import Vira.Refresh.Type qualified as Refresh
@@ -77,11 +78,11 @@ runVira = do
         tools <- runEff $ runLogActionStdout (logLevel globalSettings) $ runProcess Tool.newToolsTVar
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
-        -- Create cache application and get public key
-        (cacheApp, cachePublicKey) <-
-          Cache.makeCacheApplication
-            (stateDir globalSettings)
-            Cache.defaultCachePriority
+        -- Ensure cache keys exist and create cache application
+        let cacheKeysDir = stateDir globalSettings <> "/cache-keys"
+        CacheKeys.CacheKeys {CacheKeys.secretKey, CacheKeys.publicKey = cachePublicKey} <-
+          runEff $ runLogActionStdout (logLevel globalSettings) $ CacheKeys.ensureCacheKeys cacheKeysDir
+        cacheApp <- Cache.makeCacheServer secretKey
         let viraRuntimeState = App.ViraRuntimeState {linkTo, ..}
             appServer = do
               startPeriodicArchival acid

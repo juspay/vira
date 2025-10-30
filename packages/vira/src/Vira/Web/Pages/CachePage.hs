@@ -13,9 +13,9 @@ import NeatInterpolation (trimming)
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
+import System.Nix.Cache.Keys (PublicKey)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
-import Vira.Cache.Keys (PublicKey)
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, runAppHtml)
 import Vira.Web.Stack qualified as Web
