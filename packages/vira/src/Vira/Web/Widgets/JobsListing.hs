@@ -66,12 +66,12 @@ viraJobRow_ mExtraInfo job = do
   maybeCommit <- lift $ App.query $ St.GetCommitByIdA job.commit
   jobUrl <- lift $ getLinkUrl $ LinkTo.Job job.jobId
 
-  div_ [class_ "space-y-1"] $ do
+  div_ [class_ "mb-6"] $ do
     -- Extra info rendered outside/above the row
     whenJust mExtraInfo Prelude.id
 
-    -- Job row as simple clickable link
-    a_ [href_ jobUrl, class_ "block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-colors"] $ do
+    -- Job row as clickable link with consistent styling
+    a_ [href_ jobUrl, class_ "block p-4 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-2 border-gray-200 dark:border-gray-700 transition-all cursor-pointer"] $ do
       div_ [class_ "grid grid-cols-12 gap-4 items-center"] $ do
         -- Column 1: Job ID (2 columns)
         div_ [class_ "col-span-2 flex items-center space-x-2"] $ do

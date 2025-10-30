@@ -74,10 +74,10 @@ viewBranch repo branch jobs = do
 -- Simple job list showing commit id, job id, and status
 viewCommitTimeline :: St.Branch -> [St.Job] -> AppHtml ()
 viewCommitTimeline branch jobs = do
-  div_ [class_ "space-y-3"] $ do
+  div_ [] $ do
     -- Show current branch commit if no jobs exist
     when (null jobs) $ do
-      div_ [class_ "flex items-center p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600"] $ do
+      div_ [class_ "mb-6 flex items-center p-4 rounded-lg bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700"] $ do
         div_ [class_ "w-5 h-5 mr-3 flex items-center justify-center text-gray-500 dark:text-gray-400"] $ toHtmlRaw Icon.git_commit
         div_ [class_ "flex-1"] $ do
           div_ [class_ "flex items-center space-x-4"] $ do
