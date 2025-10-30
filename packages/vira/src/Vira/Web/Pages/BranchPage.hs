@@ -46,15 +46,25 @@ viewHandler repoName branchName = do
 viewBranch :: St.Repo -> BranchDetails -> [St.Job] -> AppHtml ()
 viewBranch repo branchDetails jobs = do
   -- Branch header with build and refresh buttons
+  let branchTitle =
+        toString repo.name
+          <> " → "
+          <> toString branchDetails.branch.branchName
+          <> if branchDetails.branch.deleted then " (deleted)" else ""
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.git_branch)
-    (toText $ toString repo.name <> " → " <> toString branchDetails.branch.branchName)
+    (toText branchTitle)
     ( div_ [class_ "flex items-center justify-between"] $ do
         div_ [class_ "flex items-center space-x-3 text-gray-600 dark:text-gray-300 min-w-0 flex-1"] $ do
           span_ [class_ "text-sm shrink-0"] "Latest commit:"
           div_ [class_ "flex items-center space-x-2 min-w-0"] $ do
             div_ [class_ "w-4 h-4 flex items-center justify-center shrink-0"] $ toHtmlRaw Icon.git_commit
             div_ [class_ "min-w-0"] $ W.viraCommitInfo_ branchDetails.branch.headCommit.id
+          -- Deleted badge
+          when branchDetails.branch.deleted $
+            span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"] $ do
+              div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.alert_triangle
+              "Branch deleted from remote"
           -- Out of date badge
           whenJust branchDetails.badgeState $ \case
             OutOfDate ->

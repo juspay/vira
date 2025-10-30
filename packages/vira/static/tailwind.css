@@ -398,6 +398,9 @@
   .mb-8 {
     margin-bottom: calc(var(--spacing) * 8);
   }
+  .ml-1 {
+    margin-left: calc(var(--spacing) * 1);
+  }
   .ml-2 {
     margin-left: calc(var(--spacing) * 2);
   }
@@ -1663,6 +1666,11 @@
       background-color: var(--color-purple-900);
     }
   }
+  .dark\:bg-red-900 {
+    @media (prefers-color-scheme: dark) {
+      background-color: var(--color-red-900);
+    }
+  }
   .dark\:bg-red-900\/20 {
     @media (prefers-color-scheme: dark) {
       background-color: color-mix(in srgb, oklch(39.6% 0.141 25.723) 20%, transparent);
@@ -1816,6 +1824,11 @@
   .dark\:text-purple-200 {
     @media (prefers-color-scheme: dark) {
       color: var(--color-purple-200);
+    }
+  }
+  .dark\:text-red-100 {
+    @media (prefers-color-scheme: dark) {
+      color: var(--color-red-100);
     }
   }
   .dark\:text-red-200 {

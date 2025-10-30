@@ -47,6 +47,8 @@ data Branch = Branch
   -- ^ The name of the branch
   , headCommit :: Commit
   -- ^ The commit at the head of the branch
+  , deleted :: Bool
+  -- ^ Whether this branch has been deleted from the remote
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
@@ -178,7 +180,7 @@ $(deriveSafeCopy 0 'base ''JobResult)
 $(deriveSafeCopy 0 'base ''JobStatus)
 $(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
-$(deriveSafeCopy 0 'base ''Branch)
+$(deriveSafeCopy 1 'base ''Branch)
 $(deriveSafeCopy 0 'base ''BadgeState)
 $(deriveSafeCopy 0 'base ''BranchDetails)
 $(deriveSafeCopy 0 'base ''Repo)
@@ -188,4 +190,4 @@ The version is automatically used by the --auto-reset-state feature to detect sc
 When enabled, auto-reset will remove ViraState/ and workspace/*/jobs directories on mismatch.
 Run `vira info` to see the current schema version.
 -}
-$(deriveSafeCopy 2 'base ''ViraState)
+$(deriveSafeCopy 3 'base ''ViraState)
