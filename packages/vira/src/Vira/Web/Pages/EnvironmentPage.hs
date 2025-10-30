@@ -6,12 +6,14 @@ module Vira.Web.Pages.EnvironmentPage (
   handlers,
 ) where
 
+import Effectful.Reader.Dynamic (asks)
 import Lucid
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
+import Vira.Cache.Server (CacheInfo)
 import Vira.Environment.Tool.Core (Tools (..))
 import Vira.Environment.Tool.Type.ToolData (ToolData (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
@@ -23,6 +25,7 @@ import Vira.Web.Pages.EnvironmentPage.Tools qualified as Tools
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Widgets.Layout qualified as W
 import Web.TablerIcons.Outline qualified as Icon
+import Prelude hiding (asks)
 
 newtype Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
@@ -32,14 +35,16 @@ newtype Routes mode = Routes
 handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> Routes AsServer
 handlers globalSettings viraRuntimeState webSettings =
   Routes
-    { _view = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml $ viewHandler globalSettings
+    { _view = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml $ viewHandler
     }
 
-viewHandler :: App.GlobalSettings -> AppHtml ()
-viewHandler globalSettings = W.layout [LinkTo.Environment] (viewEnvironment globalSettings)
+viewHandler :: AppHtml ()
+viewHandler = do
+  cacheInfo <- lift $ asks @App.ViraRuntimeState (.cacheInfo)
+  W.layout [LinkTo.Environment] (viewEnvironment cacheInfo)
 
-viewEnvironment :: App.GlobalSettings -> AppHtml ()
-viewEnvironment globalSettings = do
+viewEnvironment :: CacheInfo -> AppHtml ()
+viewEnvironment cacheInfo = do
   W.viraSection_ [] $ do
     W.viraPageHeaderWithIcon_ (toHtmlRaw Icon.cpu) "Environment" $ do
       div_ [class_ "flex items-center justify-between"] $ do
@@ -47,7 +52,7 @@ viewEnvironment globalSettings = do
         span_ [class_ "text-indigo-800 dark:text-indigo-300 font-semibold"] User.viewUserInfo
 
     -- Cache Section
-    Cache.viewCache globalSettings
+    Cache.viewCache cacheInfo
 
     -- Tools Section (returns tools data for reuse)
     tools <- Tools.viewTools

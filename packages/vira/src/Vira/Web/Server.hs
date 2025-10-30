@@ -25,10 +25,8 @@ import Network.Wai.Middleware.Static (
 import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
 import System.Nix.Flake.Develop qualified as Nix
-import Vira.App (AppStack)
+import Vira.App (AppStack, ViraRuntimeState (..))
 import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
-import Vira.App.Type (ViraRuntimeState)
-import Vira.Cache.Server (CacheConfig (..), makeCacheApplication)
 import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
 
@@ -47,24 +45,13 @@ runServer globalSettings webSettings = do
       staticDir <- getDataDirMultiHome
       log Debug $ "Static dir = " <> toText staticDir
 
-      -- Create cache application
-      cacheApp <-
-        liftIO $
-          makeCacheApplication
-            CacheConfig
-              { cacheStateDir = globalSettings.stateDir
-              , cachePriority = 30
-              }
-
       let middlewares =
             [ -- 404 handler (innermost, applied last)
               notFoundMiddleware globalSettings viraRuntimeState webSettings
             , -- Middleware to serve static files
               staticPolicy $ noDots >-> addBase staticDir
             , -- Cache server middleware
-              cacheMiddleware cacheApp
-            , -- Request logging (outermost, applied first - logs all requests)
-              loggingMiddleware
+              cacheMiddleware viraRuntimeState.cacheApp
             ]
           app = foldl' (&) servantApp middlewares
       pure app
@@ -107,15 +94,8 @@ cacheMiddleware cacheApp app req respond =
       let rawPath = rawPathInfo req
           rawPath' = fromMaybe rawPath $ ByteString.stripPrefix "/cache" rawPath
           req' = req {pathInfo = rest, rawPathInfo = rawPath'}
-      putStrLn $ "[Cache] Request: " <> show (pathInfo req) <> " | rawPath: " <> show rawPath <> " -> " <> show rawPath'
       cacheApp req' respond
     _ -> app req respond
-
--- | Middleware to log all requests
-loggingMiddleware :: Middleware
-loggingMiddleware app req respond = do
-  putStrLn $ "[Request] " <> show (pathInfo req) <> " | rawPath: " <> show (rawPathInfo req)
-  app req respond
 
 -- | WAI middleware to handle 404 errors with custom page
 notFoundMiddleware :: GlobalSettings -> ViraRuntimeState -> WebSettings -> Middleware

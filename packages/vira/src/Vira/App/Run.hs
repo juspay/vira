@@ -31,6 +31,7 @@ import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Pipeline.Program qualified as Program
+import Vira.Cache.Server qualified as Cache
 import Vira.Environment.Tool.Core qualified as Tool
 import Vira.Refresh.Daemon qualified as Daemon
 import Vira.Refresh.Type qualified as Refresh
@@ -75,7 +76,14 @@ runVira = do
         toolsVar <- runEff $ runLogActionStdout (logLevel globalSettings) $ runProcess Tool.newToolsTVar
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
-        let viraRuntimeState = App.ViraRuntimeState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.updateBroadcast = stateUpdateBuffer, App.tools = toolsVar, App.refreshState = refreshState, App.startTime = startTime}
+        -- Create cache application and get cache info
+        (cacheApp, cacheInfo) <-
+          Cache.makeCacheApplication
+            Cache.CacheConfig
+              { Cache.cacheStateDir = stateDir globalSettings
+              , Cache.cachePriority = Cache.defaultCachePriority
+              }
+        let viraRuntimeState = App.ViraRuntimeState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.updateBroadcast = stateUpdateBuffer, App.tools = toolsVar, App.refreshState = refreshState, App.startTime = startTime, App.cacheApp = cacheApp, App.cacheInfo = cacheInfo}
             appServer = do
               startPeriodicArchival acid
               Daemon.startRefreshDaemon

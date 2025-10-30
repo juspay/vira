@@ -6,22 +6,13 @@ module Vira.Web.Pages.EnvironmentPage.Cache (
 ) where
 
 import Lucid
-import System.Directory (doesFileExist)
-import Vira.App.CLI (GlobalSettings (..))
-import Vira.Cache.Keys (readPublicKey)
-import Vira.Web.Lucid (AppHtml)
+import Vira.Cache.Server (CacheInfo (..))
 import Vira.Web.Widgets.Card qualified as W
 import Vira.Web.Widgets.Code qualified as Code
 import Web.TablerIcons.Outline qualified as Icon
 
-viewCache :: GlobalSettings -> AppHtml ()
-viewCache globalSettings = do
-  let publicKeyPath = globalSettings.stateDir <> "/cache-keys/public-key"
-  publicKeyExists <- liftIO $ doesFileExist publicKeyPath
-
-  when publicKeyExists $ do
-    publicKey <- liftIO $ readPublicKey publicKeyPath
-    viewCacheCard publicKey
+viewCache :: (Monad m) => CacheInfo -> HtmlT m ()
+viewCache cacheInfo = viewCacheCard cacheInfo.publicKey
 
 -- | View the cache server card
 viewCacheCard :: (Monad m) => Text -> HtmlT m ()
