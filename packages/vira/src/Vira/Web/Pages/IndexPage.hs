@@ -53,10 +53,13 @@ handlers globalSettings viraRuntimeState webSettings =
         Web.runStreamHandler globalSettings viraRuntimeState . Refresh.streamRouteHandler
     }
 
+activityLimit :: Natural
+activityLimit = 15
+
 indexView :: AppHtml ()
 indexView = do
   logoUrl <- W.appLogoUrl
-  activities <- lift $ App.query (St.GetRecentActivityA 15)
+  activities <- lift $ App.query (St.GetAllBranchesA Nothing Nothing activityLimit)
   let linkText = show . linkURI
       reposLink = linkText $ fieldLink _repos // RegistryPage._listing
       envLink = linkText $ fieldLink _environment // EnvironmentPage._view

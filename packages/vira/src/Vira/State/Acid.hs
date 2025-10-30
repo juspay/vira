@@ -56,28 +56,37 @@ getRepoByNameA name = do
   ViraState {repos} <- ask
   pure $ Ix.getOne $ repos @= name
 
--- | Get all branches (sorted) of a repository with enriched metadata
-getBranchesByRepoA :: RepoName -> Maybe Text -> Query ViraState [BranchDetails]
-getBranchesByRepoA name mFilter = do
-  ViraState {branches, jobs} <- ask
-  pure
-    . sort
-    . fmap (enrichBranch jobs)
-    . filter (matchesFilter mFilter)
-    . Ix.toList
-    $ branches @= name
-  where
-    matchesFilter Nothing _ = True
-    matchesFilter (Just s) branch =
-      T.toLower s `T.isInfixOf` T.toLower (toText branch.branchName)
+-- | Enrich a branch with its job metadata
+enrichBranchWithJobs :: IxJob -> Branch -> BranchDetails
+enrichBranchWithJobs jobsIx branch =
+  let branchJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= branch.repoName @= branch.branchName
+   in BranchDetails
+        { branch
+        , mLatestJob = viaNonEmpty head branchJobs
+        , jobsCount = fromIntegral $ length branchJobs
+        }
 
-    enrichBranch jobsIx branch =
-      let branchJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= name @= branch.branchName
-       in BranchDetails
-            { branch
-            , mLatestJob = viaNonEmpty head branchJobs
-            , jobsCount = fromIntegral $ length branchJobs
-            }
+{- | Get branches with enriched metadata, optionally filtered by repo and/or name.
+
+This is the canonical query for getting branches - used by both RepoPage and IndexPage.
+
+- Nothing repo: all repos (IndexPage)
+- Just repo: single repo (RepoPage)
+- Filter by branch name if provided
+- Sorted by activity time (most recent first)
+-}
+getAllBranchesA :: Maybe RepoName -> Maybe Text -> Natural -> Query ViraState [BranchDetails]
+getAllBranchesA mRepo mFilter limit = do
+  ViraState {branches, jobs} <- ask
+  let candidateBranches = case mRepo of
+        Nothing -> Ix.toList branches
+        Just repo -> Ix.toList $ branches @= repo
+      matchesFilter branch = case mFilter of
+        Nothing -> True
+        Just s -> T.toLower s `T.isInfixOf` T.toLower (toText branch.branchName)
+      enriched = enrichBranchWithJobs jobs <$> filter matchesFilter candidateBranches
+      sorted = sortWith (Down . branchActivityTime) enriched
+  pure $ take (fromIntegral limit) sorted
 
 -- | Get a repo's branch by name
 getBranchByNameA :: RepoName -> BranchName -> Query ViraState (Maybe Branch)
@@ -134,26 +143,6 @@ getRecentJobsA limit = do
       -- Keep first occurrence of each (repo, branch) - already sorted newest-first
       latestPerBranch = ordNubOn (\job -> (job.repo, job.branch)) allJobs
   pure $ take (fromIntegral limit) latestPerBranch
-
-{- | Get recent activity for the index page.
-
-Returns all branches sorted by most recent activity (newest first).
-Activity is based on max(latest job time, head commit time).
--}
-getRecentActivityA :: Natural -> Query ViraState [BranchDetails]
-getRecentActivityA limit = do
-  ViraState {branches, jobs} <- ask
-  let allBranches = Ix.toList branches
-      enrichBranch branch =
-        let branchJobs = Ix.toDescList (Proxy @JobId) $ jobs @= branch.repoName @= branch.branchName
-         in BranchDetails
-              { branch
-              , mLatestJob = viaNonEmpty head branchJobs
-              , jobsCount = fromIntegral $ length branchJobs
-              }
-      enriched = enrichBranch <$> allBranches
-      sorted = sortWith (Down . branchActivityTime) enriched
-  pure $ take (fromIntegral limit) sorted
 
 -- | Get all running jobs
 getRunningJobs :: Query ViraState [Job]
@@ -226,7 +215,7 @@ $( makeAcidic
      [ 'setAllReposA
      , 'getAllReposA
      , 'getRepoByNameA
-     , 'getBranchesByRepoA
+     , 'getAllBranchesA
      , 'getBranchByNameA
      , 'setRepoA
      , 'setRepoBranchesA
@@ -234,7 +223,6 @@ $( makeAcidic
      , 'storeCommitA
      , 'getJobsByBranchA
      , 'getRecentJobsA
-     , 'getRecentActivityA
      , 'getRunningJobs
      , 'getJobA
      , 'addNewJobA
