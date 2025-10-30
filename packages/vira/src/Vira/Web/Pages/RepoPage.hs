@@ -8,7 +8,7 @@ module Vira.Web.Pages.RepoPage (
 import Effectful (Eff)
 import Effectful.Colog.Simple (withLogContext)
 import Effectful.Error.Static (throwError)
-import Effectful.Git (Commit (..), RepoName)
+import Effectful.Git (RepoName)
 import Htmx.Lucid.Core (hxGet_, hxSwapS_, hxTarget_, hxTrigger_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (..))
@@ -28,7 +28,6 @@ import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Widgets.Button qualified as W
-import Vira.Web.Widgets.Commit qualified as W
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
 import Vira.Web.Widgets.Modal (ErrorModal (..))
@@ -72,8 +71,8 @@ filterBranchesHandler name mQuery = do
   branchDetails <- lift $ App.query (St.GetAllBranchesA (Just name) mQuery (fromIntegral maxBranchesDisplayed + 1))
   let isPruned = length branchDetails > maxBranchesDisplayed
       displayed = take maxBranchesDisplayed branchDetails
-  repo <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  viewBranchListing repo displayed isPruned
+  _ <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
+  viewBranchListing displayed isPruned
 
 updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
@@ -139,7 +138,7 @@ viewRepo repo branchDetails isPruned = do
           then div_ [class_ "text-center py-12"] $ do
             div_ [class_ "text-gray-500 dark:text-gray-400 mb-4"] "No branches found"
             div_ [class_ "text-sm text-gray-400 dark:text-gray-500"] "Click Refresh to fetch branches from remote"
-          else viewBranchListing repo branchDetails isPruned
+          else viewBranchListing branchDetails isPruned
 
     -- Delete button at bottom
     div_ [class_ "mt-8 pt-8 border-t border-gray-200 dark:border-gray-700"] $ do
@@ -167,8 +166,8 @@ viewRepo repo branchDetails isPruned = do
                 "Delete Repository"
 
 -- Branch listing component for repository page
-viewBranchListing :: St.Repo -> [BranchDetails] -> Bool -> AppHtml ()
-viewBranchListing repo branchDetails isPruned = do
+viewBranchListing :: [BranchDetails] -> Bool -> AppHtml ()
+viewBranchListing branchDetails isPruned = do
   -- Pruning indicator
   when isPruned $
     div_ [class_ "mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"] $ do
@@ -177,53 +176,6 @@ viewBranchListing repo branchDetails isPruned = do
         span_ $ toHtml $ "Showing first " <> show @Text maxBranchesDisplayed <> " branches. Use the filter to narrow results."
 
   div_ [class_ "space-y-3"] $ do
-    forM_ branchDetails $ \details -> do
-      branchUrl <- lift $ getLinkUrl $ LinkTo.RepoBranch repo.name details.branch.branchName
-      let effectiveStatus = getBranchEffectiveStatus details
-
-      div_ [class_ "space-y-1", data_ "branch-item" (toText details.branch.branchName)] $ do
-        -- Branch header with commit info
-        W.viraJobContextHeader_ branchUrl $ do
-          div_ [class_ "flex items-center justify-between"] $ do
-            -- Left side: branch name and status
-            div_ [class_ "flex items-center space-x-2"] $ do
-              div_ [class_ "w-5 h-5 flex items-center justify-center"] $ toHtmlRaw Icon.git_branch
-              span_ $ toHtml $ toText details.branch.branchName
-              when (effectiveStatus == OutOfDate) $ do
-                span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
-                  div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
-                  "Out of date"
-            -- Right side: commit info (less prominent)
-            div_ [class_ "text-xs opacity-50 group-hover:opacity-100 flex items-center space-x-3"] $ do
-              W.viraCommitInfoCompact_ (Just details.branch.headCommit)
-              when (details.jobsCount > 0) $ do
-                span_ $ "(" <> toHtml (show @Text details.jobsCount) <> " builds)"
-
-        -- Job row - only shown if job exists
-        whenJust details.mLatestJob $ \latestJob -> do
-          div_ [class_ "ml-7"] $ do
-            W.viraJobRow_ Nothing latestJob
-
-{- | The effective build-status of a branch.
-
-This type represents the computed status of a branch based on its CI job history
-and current head commit. Used in 'BranchDetails' and computed by
-'getBranchEffectiveStatus'.
--}
-data BranchEffectiveStatus
-  = -- | The branch has never been built by CI
-    NeverBuilt
-  | -- | The branch has been built, with the given job status
-    JobStatus St.JobStatus
-  | -- | The branch was built previously but the head commit has changed
-    OutOfDate
-  deriving stock (Show, Eq, Ord)
-
--- | Determine the 'BranchEffectiveStatus' for a branch.
-getBranchEffectiveStatus :: BranchDetails -> BranchEffectiveStatus
-getBranchEffectiveStatus details = case details.mLatestJob of
-  Nothing -> NeverBuilt
-  Just job ->
-    if details.branch.headCommit.id == job.commit
-      then JobStatus job.jobStatus
-      else OutOfDate
+    forM_ branchDetails $ \details ->
+      div_ [data_ "branch-item" (toText details.branch.branchName)] $
+        W.viraBranchDetailsRow_ False details

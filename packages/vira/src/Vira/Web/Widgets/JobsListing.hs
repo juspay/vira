@@ -8,9 +8,11 @@ Provides a unified, consistent way to display job rows across the application.
 module Vira.Web.Widgets.JobsListing (
   viraJobRow_,
   viraJobContextHeader_,
+  viraBranchDetailsRow_,
 ) where
 
 import Data.Time (diffUTCTime)
+import Effectful.Git (Commit (..))
 import Lucid
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
@@ -61,7 +63,7 @@ viraJobRow_ mExtraInfo job = do
 
   div_ [class_ "space-y-1"] $ do
     -- Extra info rendered outside/above the row
-    whenJust mExtraInfo id
+    whenJust mExtraInfo Prelude.id
 
     -- Job row as simple clickable link
     a_ [href_ jobUrl, class_ "block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 transition-colors"] $ do
@@ -125,3 +127,52 @@ viraJobContextHeader_ url content = do
     , class_ "group block mb-2 pl-3 text-lg font-bold text-gray-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
     ]
     content
+
+{- | Render a branch details row with optional repo name.
+
+Canonical widget for displaying branch information across the application.
+Shows:
+- Branch name (with optional repo prefix)
+- Out-of-date badge if needed
+- Commit info
+- Latest job row (if exists)
+
+Used by both IndexPage (with repo name) and RepoPage (without repo name).
+-}
+viraBranchDetailsRow_ ::
+  -- | Show repo name? (True for IndexPage, False for RepoPage)
+  Bool ->
+  St.BranchDetails ->
+  AppHtml ()
+viraBranchDetailsRow_ showRepo details = do
+  branchUrl <- lift $ getLinkUrl $ LinkTo.RepoBranch details.branch.repoName details.branch.branchName
+  let isOutOfDate = case details.mLatestJob of
+        Nothing -> True
+        Just job -> details.branch.headCommit.id /= job.commit
+
+  div_ [class_ "space-y-1"] $ do
+    -- Branch header: repo → branch (or just branch) with status badge and commit info
+    viraJobContextHeader_ branchUrl $ do
+      div_ [class_ "flex items-center justify-between"] $ do
+        -- Left: branch identifier with out-of-date badge
+        div_ [class_ "flex items-center space-x-2"] $ do
+          when showRepo $ do
+            div_ [class_ "w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.book_2
+            span_ $ toHtml $ toString details.branch.repoName
+            span_ [class_ "mx-2 opacity-50 group-hover:opacity-100"] "→"
+          div_ [class_ "w-5 h-5 flex items-center justify-center opacity-50 group-hover:opacity-100"] $ toHtmlRaw Icon.git_branch
+          span_ [class_ "opacity-50 group-hover:opacity-100"] $ toHtml $ toString details.branch.branchName
+          when isOutOfDate $ do
+            span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
+              div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
+              "Out of date"
+        -- Right: commit info
+        div_ [class_ "text-xs opacity-50 group-hover:opacity-100 flex items-center space-x-3"] $ do
+          W.viraCommitInfoCompact_ (Just details.branch.headCommit)
+          when (details.jobsCount > 0) $ do
+            span_ $ "(" <> toHtml (show @Text details.jobsCount) <> " builds)"
+
+    -- Job row - only if job exists
+    whenJust details.mLatestJob $ \latestJob -> do
+      div_ [class_ "ml-7"] $ do
+        viraJobRow_ Nothing latestJob
