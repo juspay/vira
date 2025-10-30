@@ -35,6 +35,11 @@ in
         ];
       };
 
+      # Add nix-serve-ng overlay
+      otherOverlays = [
+        (import (root + /nix/overlays/nix-serve-ng.nix) { inherit inputs pkgs; })
+      ];
+
       packages = {
         htmx.source = inputs.htmx + /htmx;
         htmx-lucid.source = inputs.htmx + /htmx-lucid;
@@ -45,7 +50,7 @@ in
         tabler-icons.source = inputs.tabler-icons-hs;
         servant-event-stream.source = inputs.servant-event-stream;
         record-hasfield.source = inputs.record-hasfield;
-        nix-serve-ng.source = root + /packages/nix-serve-ng-lib;
+        # nix-serve-ng provided via otherOverlays
         toml-reader.source = "0.3.0.0";
         filepattern.source = "0.1.3";
         aeson-casing.source = "0.2.0.0";
@@ -127,38 +132,6 @@ in
           extraBuildDepends = [
             self'.packages.nix # For nix
           ];
-        };
-        nix-serve-ng = {
-          check = false; # Disable tests
-          custom = drv: pkgs.haskell.lib.overrideCabal drv (old: {
-            libraryHaskellDepends = (old.libraryHaskellDepends or [ ]) ++ (with pkgs.haskellPackages; [
-              base16
-              base32
-              charset
-              managed
-              http-types
-              megaparsec
-              network
-              vector
-              wai
-              wai-extra
-              warp
-              warp-tls
-            ]);
-            librarySystemDepends = (old.librarySystemDepends or [ ]) ++ [
-              pkgs.boost.dev
-              pkgs.nixVersions.latest
-            ];
-            libraryToolDepends = (old.libraryToolDepends or [ ]) ++ [ pkgs.pkg-config ];
-            libraryPkgconfigDepends = (old.libraryPkgconfigDepends or [ ]) ++ [
-              pkgs.libblake3
-              pkgs.openssl
-              pkgs.libsodium
-              pkgs.sqlite
-              pkgs.brotli
-              pkgs.curl
-            ];
-          });
         };
         devour-flake = {
           drvAttrs = {

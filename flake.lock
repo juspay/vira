@@ -147,6 +147,22 @@
         "type": "github"
       }
     },
+    "nix-serve-ng": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1748458972,
+        "narHash": "sha256-N6c3NozYqAGwmjf+k5GHOZzlcquDntrJwsZQ7O2sqtQ=",
+        "owner": "aristanetworks",
+        "repo": "nix-serve-ng",
+        "rev": "1d21f73a2d563ffbb924a4244c29b35e898caefe",
+        "type": "github"
+      },
+      "original": {
+        "owner": "aristanetworks",
+        "repo": "nix-serve-ng",
+        "type": "github"
+      }
+    },
     "nix-systems": {
       "locked": {
         "lastModified": 1761008537,
@@ -235,6 +251,7 @@
         "hint-nix": "hint-nix",
         "htmx": "htmx",
         "htmx-extensions": "htmx-extensions",
+        "nix-serve-ng": "nix-serve-ng",
         "nix-systems": "nix-systems",
         "nixos-unified": "nixos-unified",
         "nixpkgs": "nixpkgs",
