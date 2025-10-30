@@ -20,6 +20,7 @@ import Lucid
 import Lucid.Htmx.Contrib (hxPostSafe_)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
+import Vira.State.Type (BadgeState (..))
 import Vira.State.Type qualified as St
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl)
@@ -158,13 +159,6 @@ viraBranchDetailsRow_ showRepo details = do
     Just job -> lift $ getLinkUrl $ LinkTo.Job job.jobId
     Nothing -> pure branchUrl
 
-  -- Smarter badge logic
-  let badgeState = case details.mLatestJob of
-        Nothing -> Just NeverBuilt
-        Just job
-          | job.commit /= details.branch.headCommit.id -> Just OutOfDate
-          | otherwise -> Nothing
-
   -- Single unified row with responsive grid and subtle gradient background
   div_ [class_ "relative mb-6"] $ do
     -- Repo → Branch label sticking to top border (individually linked) with light purple theme
@@ -211,7 +205,7 @@ viraBranchDetailsRow_ showRepo details = do
           div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
             case details.mLatestJob of
               -- Has job and it's current: show job info
-              Just job | isNothing badgeState -> do
+              Just job | isNothing details.badgeState -> do
                 span_ [class_ "text-sm text-gray-600 dark:text-gray-400"] $ "#" <> toHtml (show @Text job.jobId)
                 span_ [class_ "text-gray-400 dark:text-gray-500"] "·"
                 case St.jobEndTime job of
@@ -223,7 +217,7 @@ viraBranchDetailsRow_ showRepo details = do
 
               -- Has badge (never built or out of date): show badge + Build button
               _ -> do
-                whenJust badgeState $ \case
+                whenJust details.badgeState $ \case
                   NeverBuilt ->
                     span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"] $ do
                       div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.alert_circle
@@ -244,6 +238,3 @@ viraBranchDetailsRow_ showRepo details = do
                   $ do
                     W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
                     "Build"
-
--- | Badge state for branch
-data BadgeState = NeverBuilt | OutOfDate

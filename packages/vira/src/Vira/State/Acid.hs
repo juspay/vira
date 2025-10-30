@@ -60,10 +60,18 @@ getRepoByNameA name = do
 enrichBranchWithJobs :: IxJob -> Branch -> BranchDetails
 enrichBranchWithJobs jobsIx branch =
   let branchJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= branch.repoName @= branch.branchName
+      mLatestJob = viaNonEmpty head branchJobs
+      -- Compute badge state based on job and commit comparison
+      badgeState = case mLatestJob of
+        Nothing -> Just NeverBuilt
+        Just job
+          | job.commit /= branch.headCommit.id -> Just OutOfDate
+          | otherwise -> Nothing
    in BranchDetails
         { branch
-        , mLatestJob = viaNonEmpty head branchJobs
+        , mLatestJob
         , jobsCount = fromIntegral $ length branchJobs
+        , badgeState
         }
 
 {- | Get branches with enriched metadata, optionally filtered by repo and/or name.
@@ -93,6 +101,14 @@ getBranchByNameA :: RepoName -> BranchName -> Query ViraState (Maybe Branch)
 getBranchByNameA repo branch = do
   ViraState {branches} <- ask
   pure $ Ix.getOne $ branches @= repo @= branch
+
+-- | Get branch with enriched metadata
+getBranchDetailsA :: RepoName -> BranchName -> Query ViraState (Maybe BranchDetails)
+getBranchDetailsA repo branchName = do
+  ViraState {branches, jobs} <- ask
+  case Ix.getOne $ branches @= repo @= branchName of
+    Nothing -> pure Nothing
+    Just branch -> pure $ Just $ enrichBranchWithJobs jobs branch
 
 -- | Set a repository
 setRepoA :: Repo -> Update ViraState ()
@@ -217,6 +233,7 @@ $( makeAcidic
      , 'getRepoByNameA
      , 'getAllBranchesA
      , 'getBranchByNameA
+     , 'getBranchDetailsA
      , 'setRepoA
      , 'setRepoBranchesA
      , 'getCommitByIdA
