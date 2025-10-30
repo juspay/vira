@@ -33,6 +33,8 @@
     nix-systems.url = "github:srid/nix-systems";
     devour-flake.url = "github:srid/devour-flake";
     devour-flake.flake = false;
+    nix-serve-ng.url = "github:aristanetworks/nix-serve-ng";
+    nix-serve-ng.flake = false;
 
     # Runtime dependencies
     htmx-extensions.url = "github:juspay/htmx-extensions/sse-unload"; # https://github.com/bigskysoftware/htmx-extensions/pull/147

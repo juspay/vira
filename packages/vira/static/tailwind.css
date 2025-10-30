@@ -1689,6 +1689,11 @@
       color: var(--color-indigo-300);
     }
   }
+  .dark\:text-indigo-400 {
+    @media (prefers-color-scheme: dark) {
+      color: var(--color-indigo-400);
+    }
+  }
   .dark\:text-orange-300 {
     @media (prefers-color-scheme: dark) {
       color: var(--color-orange-300);

@@ -1,0 +1,22 @@
+defaults:
+  - local: ../../hpack-common.yaml
+  - local: ../../hpack-relude.yaml
+
+name: nix-cache-server
+version: 0.1.0.0
+license: MIT
+copyright: 2025 Sridhar Ratnakumar
+maintainer: srid@srid.ca
+author: Sridhar Ratnakumar
+category: System
+homepage: https://github.com/juspay/vira/tree/main/packages/nix-cache-server
+synopsis: Nix binary cache server using nix-serve-ng
+description: WAI application for serving a Nix binary cache using nix-serve-ng
+
+library:
+  source-dirs: src
+  dependencies:
+    - bytestring
+    - nix
+    - nix-serve-ng
+    - wai

@@ -85,11 +85,11 @@
     },
     "haskell-flake": {
       "locked": {
-        "lastModified": 1757958175,
-        "narHash": "sha256-5JZMbyhI5qUTYDTpbJ1Tb7mmIcjXKd2gSTs75dMOWMk=",
+        "lastModified": 1761850356,
+        "narHash": "sha256-K1L7vq25E0JdbBqjtheC75wxEZEeOjeXHmdbOwlzvW4=",
         "owner": "srid",
         "repo": "haskell-flake",
-        "rev": "6df12c6bbf5af89edea64184a62d08db9c92d43d",
+        "rev": "90830616b04500d81207bf15ff5cb13ac81a9c37",
         "type": "github"
       },
       "original": {
@@ -144,6 +144,22 @@
         "owner": "juspay",
         "ref": "sse-unload",
         "repo": "htmx-extensions",
+        "type": "github"
+      }
+    },
+    "nix-serve-ng": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1748458972,
+        "narHash": "sha256-N6c3NozYqAGwmjf+k5GHOZzlcquDntrJwsZQ7O2sqtQ=",
+        "owner": "aristanetworks",
+        "repo": "nix-serve-ng",
+        "rev": "1d21f73a2d563ffbb924a4244c29b35e898caefe",
+        "type": "github"
+      },
+      "original": {
+        "owner": "aristanetworks",
+        "repo": "nix-serve-ng",
         "type": "github"
       }
     },
@@ -235,6 +251,7 @@
         "hint-nix": "hint-nix",
         "htmx": "htmx",
         "htmx-extensions": "htmx-extensions",
+        "nix-serve-ng": "nix-serve-ng",
         "nix-systems": "nix-systems",
         "nixos-unified": "nixos-unified",
         "nixpkgs": "nixpkgs",

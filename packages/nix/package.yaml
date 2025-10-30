@@ -28,7 +28,9 @@ library:
     - directory
     - effectful
     - effectful-core
+    - filepath
     - megaparsec
+    - process
     - which
 
 tests:

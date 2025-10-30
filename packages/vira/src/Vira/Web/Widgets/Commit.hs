@@ -15,7 +15,7 @@ import Vira.App qualified
 import Vira.Lib.TimeExtra (formatRelativeTime)
 import Vira.State.Acid qualified
 import Vira.Web.Lucid (AppHtml)
-import Vira.Web.Widgets.Code (copyable)
+import Vira.Web.Widgets.Code qualified as Code
 
 -- | Commit info: hash, message, author, date
 viraCommitInfo_ :: Git.CommitID -> AppHtml ()
@@ -60,8 +60,4 @@ viraCommitHash_ :: Git.CommitID -> AppHtml ()
 viraCommitHash_ commitId = do
   let shortHash = T.take 8 $ toText commitId
       fullHash = toText commitId
-  code_
-    [ class_ "px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded font-mono transition-colors cursor-pointer"
-        <> copyable fullHash shortHash
-    ]
-    $ toHtml shortHash
+  Code.viraCodeInlineCopyable shortHash fullHash

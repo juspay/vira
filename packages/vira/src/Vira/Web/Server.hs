@@ -12,7 +12,7 @@ import Effectful.FileSystem (FileSystem, doesDirectoryExist)
 import Effectful.Reader.Dynamic qualified as Reader
 import Effectful.Reader.Static qualified as ER
 import Network.HTTP.Types (status404)
-import Network.Wai (Middleware, responseLBS, responseStatus)
+import Network.Wai (Application, Middleware, responseLBS, responseStatus)
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Handler.WarpTLS.Simple (TLSConfig (..), startWarpServer)
 import Network.Wai.Middleware.Static (
@@ -23,16 +23,16 @@ import Network.Wai.Middleware.Static (
  )
 import Paths_vira qualified
 import Servant.Server.Generic (genericServe)
+import System.Nix.Cache.Server qualified as Cache
 import System.Nix.Flake.Develop qualified as Nix
-import Vira.App (AppStack)
+import Vira.App (AppStack, ViraRuntimeState (..))
 import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
-import Vira.App.Type (ViraRuntimeState)
 import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
 
 -- | Run the Vira server with the given settings
-runServer :: (HasCallStack) => GlobalSettings -> WebSettings -> Eff AppStack ()
-runServer globalSettings webSettings = do
+runServer :: (HasCallStack) => GlobalSettings -> WebSettings -> Application -> Eff AppStack ()
+runServer globalSettings webSettings cacheApp = do
   log Info $ "Launching at " <> buildUrl webSettings
   log Debug $ "Global settings: " <> show globalSettings
   log Debug $ "Web settings: " <> show webSettings
@@ -44,11 +44,14 @@ runServer globalSettings webSettings = do
       let servantApp = genericServe $ IndexPage.handlers globalSettings viraRuntimeState webSettings
       staticDir <- getDataDirMultiHome
       log Debug $ "Static dir = " <> toText staticDir
+
       let middlewares =
-            [ -- Middleware to serve static files
-              staticPolicy $ noDots >-> addBase staticDir
-            , -- 404 handler
+            [ -- 404 handler (innermost, applied last)
               notFoundMiddleware globalSettings viraRuntimeState webSettings
+            , -- Middleware to serve static files
+              staticPolicy $ noDots >-> addBase staticDir
+            , -- Cache server middleware
+              Cache.cacheMiddleware "cache" cacheApp
             ]
           app = foldl' (&) servantApp middlewares
       pure app

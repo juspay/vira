@@ -23,6 +23,9 @@ in
       ];
     };
     haskellProjects.default = { config, ... }: {
+      imports = [
+        (root + /packages/nix-cache-server/haskell-module.nix)
+      ];
       # To avoid unnecessary rebuilds, we filter projectRoot:
       # https://community.flake.parts/haskell-flake/local#rebuild
       projectRoot = lib.fileset.toSource {

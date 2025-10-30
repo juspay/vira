@@ -75,6 +75,7 @@ library
       Vira.Web.LinkTo.Type
       Vira.Web.Lucid
       Vira.Web.Pages.BranchPage
+      Vira.Web.Pages.CachePage
       Vira.Web.Pages.Common.User
       Vira.Web.Pages.EnvironmentPage
       Vira.Web.Pages.EnvironmentPage.Builders
@@ -186,7 +187,9 @@ library
     , lucid2
     , modern-uri
     , mtl
+    , neat-interpolation
     , nix
+    , nix-cache-server
     , optics-core
     , optics-th
     , optparse-applicative
@@ -308,7 +311,9 @@ executable vira
     , lucid2
     , modern-uri
     , mtl
+    , neat-interpolation
     , nix
+    , nix-cache-server
     , optics-core
     , optics-th
     , optparse-applicative
@@ -434,7 +439,9 @@ executable vira-tests
     , lucid2
     , modern-uri
     , mtl
+    , neat-interpolation
     , nix
+    , nix-cache-server
     , optics-core
     , optics-th
     , optparse-applicative

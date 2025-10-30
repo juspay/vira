@@ -1,5 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Vira.App.Run (
   runVira,
@@ -24,6 +25,8 @@ import Main.Utf8 qualified as Utf8
 import Paths_vira qualified
 import System.Directory (getCurrentDirectory, makeAbsolute)
 import System.Exit (ExitCode (..))
+import System.Nix.Cache.Keys qualified as CacheKeys
+import System.Nix.Cache.Server qualified as Cache
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
@@ -70,16 +73,21 @@ runVira = do
         instanceInfo <- getInstanceInfo
         supervisor <- Supervisor.newSupervisor (stateDir globalSettings)
         -- Initialize broadcast channel for state update tracking
-        stateUpdateBuffer <- atomically newBroadcastTChan
+        updateBroadcast <- atomically newBroadcastTChan
         -- Create TVar with all tools data for caching
-        toolsVar <- runEff $ runLogActionStdout (logLevel globalSettings) $ runProcess Tool.newToolsTVar
+        tools <- runEff $ runLogActionStdout (logLevel globalSettings) $ runProcess Tool.newToolsTVar
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
-        let viraRuntimeState = App.ViraRuntimeState {App.instanceInfo = instanceInfo, App.linkTo = linkTo, App.acid = acid, App.supervisor = supervisor, App.updateBroadcast = stateUpdateBuffer, App.tools = toolsVar, App.refreshState = refreshState, App.startTime = startTime}
+        -- Ensure cache keys exist and create cache application
+        cacheKeys <- runEff . runLogActionStdout (logLevel globalSettings) $ do
+          CacheKeys.ensureCacheKeys $ stateDir globalSettings <> "/cache-keys"
+        let cachePublicKey = cacheKeys.publicKey
+            viraRuntimeState = App.ViraRuntimeState {linkTo, ..}
             appServer = do
               startPeriodicArchival acid
               Daemon.startRefreshDaemon
-              Server.runServer globalSettings webSettings
+              cacheApp <- liftIO $ Cache.makeCacheServer cacheKeys.secretKey
+              Server.runServer globalSettings webSettings cacheApp
         App.runApp globalSettings viraRuntimeState appServer
 
     runExport :: GlobalSettings -> IO ()

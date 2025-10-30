@@ -8,6 +8,7 @@ module Vira.App.Type (
 import Data.Acid (AcidState)
 import Data.Time (UTCTime)
 import Servant.Links (Link)
+import System.Nix.Cache.Keys (PublicKey)
 import Vira.App.Broadcast.Type (UpdateBroadcast)
 import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.Environment.Tool.Type.Tools (Tools)
@@ -36,4 +37,6 @@ data ViraRuntimeState = ViraRuntimeState
     refreshState :: RefreshState
   , -- Server start time for uptime tracking
     startTime :: UTCTime
+  , -- Cache public key (for UI display)
+    cachePublicKey :: PublicKey
   }
