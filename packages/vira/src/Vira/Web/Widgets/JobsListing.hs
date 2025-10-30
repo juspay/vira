@@ -161,18 +161,16 @@ viraBranchDetailsRow_ showRepo details = do
 
   -- Single unified row with responsive grid and subtle gradient background
   div_ [class_ "relative mb-6"] $ do
-    -- Tags with grid layout for vertical alignment - fixed width for repo column
-    div_ [class_ $ "absolute -top-3 left-3 grid items-center z-10" <> if showRepo then " grid-cols-[12rem_auto]" else ""] $ do
-      -- Column 1: Repo tag (if shown) - takes fixed 12rem width, right-aligned, purple theme, flat right edge
-      if showRepo
-        then do
-          repoUrl <- lift $ getLinkUrl $ LinkTo.Repo details.branch.repoName
-          a_ [href_ repoUrl, class_ "flex items-center gap-1 px-3 py-1 bg-purple-100 dark:bg-purple-900 border border-purple-300 dark:border-purple-700 rounded-l-full border-r-0 shadow-sm hover:opacity-70 transition-opacity justify-self-end max-w-full"] $ do
-            div_ [class_ "w-4 h-4 flex items-center justify-center text-purple-700 dark:text-purple-200 shrink-0"] $ toHtmlRaw Icon.book_2
-            span_ [class_ "text-sm font-semibold text-purple-900 dark:text-purple-100 truncate"] $ toHtml $ toString details.branch.repoName
-        else mempty
+    -- Tags - connected segments with color distinction, left-aligned
+    div_ [class_ "absolute -top-3 left-3 flex items-center z-10"] $ do
+      -- Repo tag (if shown) - purple theme, flat right edge
+      when showRepo $ do
+        repoUrl <- lift $ getLinkUrl $ LinkTo.Repo details.branch.repoName
+        a_ [href_ repoUrl, class_ "flex items-center gap-1 px-3 py-1 bg-purple-100 dark:bg-purple-900 border border-purple-300 dark:border-purple-700 rounded-l-full border-r-0 shadow-sm hover:opacity-70 transition-opacity"] $ do
+          div_ [class_ "w-4 h-4 flex items-center justify-center text-purple-700 dark:text-purple-200 shrink-0"] $ toHtmlRaw Icon.book_2
+          span_ [class_ "text-sm font-semibold text-purple-900 dark:text-purple-100"] $ toHtml $ toString details.branch.repoName
 
-      -- Column 2: Branch tag - always at consistent position, blue theme, flat left edge
+      -- Branch tag - blue theme, flat left edge when repo shown
       a_ [href_ branchUrl, class_ $ "flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700 shadow-sm hover:opacity-70 transition-opacity" <> if showRepo then " rounded-r-full border-l-0" else " rounded-full"] $ do
         div_ [class_ "w-4 h-4 flex items-center justify-center text-blue-700 dark:text-blue-200"] $ toHtmlRaw Icon.git_branch
         span_ [class_ "text-sm font-semibold text-blue-900 dark:text-blue-100"] $ toHtml $ toString details.branch.branchName
