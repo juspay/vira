@@ -30,6 +30,9 @@ import Vira.Refresh.Core (initializeRefreshState, scheduleRepoRefresh)
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (..), RefreshResult (..), RefreshState (..), RefreshStatus (..))
 import Vira.State.Acid (DeleteRepoByNameA (..), GetAllReposA (..), GetRepoByNameA (..))
 import Vira.State.Acid qualified as St
+import Vira.State.AcidInstances ()
+
+-- Orphan instances for AffectedEntities
 import Vira.State.Type (Repo (..))
 import Prelude hiding (asks, atomically)
 

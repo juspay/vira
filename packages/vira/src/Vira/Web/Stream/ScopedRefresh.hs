@@ -1,6 +1,4 @@
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 {- |
@@ -22,20 +20,18 @@ module Vira.Web.Stream.ScopedRefresh (
 
   -- * Typeclass (for App.update constraint)
   AffectedEntities (..),
+  EntityId (..),
 ) where
 
 import Colog.Core (Severity (Debug, Error))
 import Control.Concurrent.STM (retry)
 import Control.Concurrent.STM qualified as STM
-import Data.Acid (EventResult, UpdateEvent)
 import Data.Acid.Events (SomeUpdate (..))
-import Data.Aeson (FromJSON, ToJSON, eitherDecode, encode)
-import Data.Set (Set)
+import Data.Aeson (eitherDecode, encode)
 import Data.Set qualified as Set
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
 import Effectful.Concurrent (threadDelay)
-import Effectful.Git (RepoName)
 import Lucid
 import Servant.API (QueryParam, SourceIO, type (:>))
 import Servant.API.EventStream
@@ -43,89 +39,18 @@ import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
-import Vira.State.Acid
+import Vira.State.AcidInstances ()
+
+-- Orphan instances for AffectedEntities
 import Vira.State.Core (ViraState)
-import Vira.State.Type (Job (jobId), JobId, Repo (name))
 import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Stack (tagStreamThread)
+import Vira.Web.Stream.AffectedEntities (AffectedEntities (..), EntityId (..))
 import Vira.Web.Stream.KeepAlive (KeepAlive)
 import Vira.Web.Stream.KeepAlive qualified as KeepAlive
 import Prelude hiding (Reader, ask, asks, filter, runReader)
-
--- * Entity filtering types
-
--- | Identifiers for entities in Vira
-data EntityId
-  = RepoId RepoName
-  | JobId JobId
-  deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
-
--- | Typeclass for determining which entities an update affects (used for SSE filtering)
-class (UpdateEvent event) => AffectedEntities event where
-  affectedEntities :: event -> EventResult event -> Set EntityId
-  affectedEntities _ _ = Set.empty
-
--- * AffectedEntities instances
-
-instance AffectedEntities SetAllReposA where
-  affectedEntities (SetAllReposA repos) _ =
-    Set.fromList $ fmap (\r -> RepoId r.name) repos
-
-instance AffectedEntities AddNewRepoA where
-  affectedEntities (AddNewRepoA repo) _ =
-    one (RepoId repo.name)
-
-instance AffectedEntities DeleteRepoByNameA where
-  affectedEntities (DeleteRepoByNameA name) (Right ()) =
-    one (RepoId name)
-  affectedEntities _ _ = Set.empty
-
-instance AffectedEntities SetRepoA where
-  affectedEntities (SetRepoA repo) _ =
-    one (RepoId repo.name)
-
-instance AffectedEntities SetRepoBranchesA where
-  affectedEntities (SetRepoBranchesA name _) _ =
-    one (RepoId name)
-
-instance AffectedEntities StoreCommitA where
-  -- Commits don't have direct entity scoping for SSE
-  affectedEntities _ _ = Set.empty
-
-instance AffectedEntities AddNewJobA where
-  affectedEntities (AddNewJobA repo _ _ _ _) job =
-    Set.fromList [RepoId repo, JobId job.jobId]
-
-instance AffectedEntities JobUpdateStatusA where
-  affectedEntities (JobUpdateStatusA jid _) _ =
-    one (JobId jid)
-
-instance AffectedEntities MarkUnfinishedJobsAsStaleA where
-  -- This is internal, no SSE needed
-  affectedEntities _ _ = Set.empty
-
--- * Show instances (for Updates published to event bus)
-
-deriving stock instance Show SetAllReposA
-
-deriving stock instance Show AddNewRepoA
-
-deriving stock instance Show DeleteRepoByNameA
-
-deriving stock instance Show SetRepoA
-
-deriving stock instance Show SetRepoBranchesA
-
-deriving stock instance Show StoreCommitA
-
-deriving stock instance Show AddNewJobA
-
-deriving stock instance Show JobUpdateStatusA
-
-deriving stock instance Show MarkUnfinishedJobsAsStaleA
 
 -- * SSE Routes and handlers
 

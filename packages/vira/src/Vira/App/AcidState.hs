@@ -12,6 +12,7 @@ import Effectful (Eff, IOE, (:>))
 import Effectful.Reader.Dynamic (Reader, asks)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.State.Core (ViraState)
+import Vira.Web.Stream.AffectedEntities (AffectedEntities)
 import Prelude hiding (Reader, ask, asks, runReader)
 
 -- | Like `Acid.query`, but runs in effectful monad, whilst looking up the acid-state in Reader
@@ -30,13 +31,13 @@ query event = do
 {- | Like `Acid.update`, but runs in effectful monad, whilst looking up the acid-state in Reader
 
 AUTOMATICALLY publishes events to the event bus.
-The constraint is determined by ViraRuntimeState.eventBus type.
+All events must implement AffectedEntities for SSE filtering.
 -}
 update ::
-  forall constraint event es.
+  forall event es.
   ( UpdateEvent event
   , EventState event ~ ViraState
-  , constraint event
+  , AffectedEntities event
   , Show event
   , Typeable event
   , Reader ViraRuntimeState :> es
@@ -51,11 +52,11 @@ update event = do
 
 -- | Subscribe to event bus for receiving updates
 subscribe ::
-  forall constraint es.
+  forall es.
   ( Reader ViraRuntimeState :> es
   , IOE :> es
   ) =>
-  Eff es (TChan (SomeUpdate ViraState constraint))
+  Eff es (TChan (SomeUpdate ViraState AffectedEntities))
 subscribe = do
   bus <- asks @ViraRuntimeState eventBus
   liftIO $ Events.subscribe bus

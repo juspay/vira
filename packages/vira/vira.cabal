@@ -62,6 +62,7 @@ library
       Vira.Refresh.Daemon
       Vira.Refresh.Type
       Vira.State.Acid
+      Vira.State.AcidInstances
       Vira.State.Core
       Vira.State.JSON
       Vira.State.Reset
@@ -88,9 +89,11 @@ library
       Vira.Web.Servant
       Vira.Web.Server
       Vira.Web.Stack
+      Vira.Web.Stream.AffectedEntities
       Vira.Web.Stream.KeepAlive
       Vira.Web.Stream.Log
       Vira.Web.Stream.ScopedRefresh
+      Vira.Web.Stream.StateInstances
       Vira.Web.Widgets.Alert
       Vira.Web.Widgets.Button
       Vira.Web.Widgets.Card

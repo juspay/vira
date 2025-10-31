@@ -16,7 +16,7 @@ import Vira.Refresh.Type (RefreshState)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Vira.Web.LinkTo.Type (LinkTo)
-import Vira.Web.Stream.ScopedRefresh (AffectedEntities) -- Constraint for eventBus type
+import Vira.Web.Stream.AffectedEntities (AffectedEntities) -- Constraint for eventBus type
 
 -- | Application-wide state available in Effectful stack
 data ViraRuntimeState = ViraRuntimeState
