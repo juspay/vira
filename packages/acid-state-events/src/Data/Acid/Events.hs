@@ -10,7 +10,7 @@ The event bus:
 - Maintains a circular buffer of recent events for debugging
 - Supports type-safe pattern matching on events via Typeable
 -}
-module Vira.App.Event.Core (
+module Data.Acid.Events (
   -- * Core types
   SomeUpdate (..),
   TimestampedUpdate (..),
@@ -28,12 +28,15 @@ module Vira.App.Event.Core (
   matchUpdate,
 ) where
 
-import Control.Concurrent.STM (TChan, dupTChan, isEmptyTChan, newBroadcastTChanIO, readTChan, writeTChan)
+import Control.Concurrent.STM (TChan, TVar, atomically, dupTChan, isEmptyTChan, modifyTVar', newBroadcastTChanIO, newTVarIO, readTChan, readTVarIO, writeTChan)
+import Control.Monad (unless, void)
 import Data.Acid (EventResult, EventState, UpdateEvent)
-import Data.Sequence ((|>))
+import Data.Foldable (toList)
+import Data.Sequence (Seq, (|>))
 import Data.Sequence qualified as Seq
 import Data.Time (UTCTime, getCurrentTime)
-import Data.Typeable (cast)
+import Data.Typeable (Typeable, cast)
+import GHC.Generics (Generic)
 import Text.Show qualified
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -104,8 +107,8 @@ publishUpdate bus someUpdate = do
     -- Publish to subscribers
     writeTChan (channel bus) timestamped
     -- Append to circular buffer log
-    modifyTVar' (eventLog bus) $ \log ->
-      let newLog = log |> timestamped
+    modifyTVar' (eventLog bus) $ \eventLog' ->
+      let newLog = eventLog' |> timestamped
        in if Seq.length newLog > maxLogSize bus
             then Seq.drop 1 newLog
             else newLog
@@ -130,8 +133,8 @@ getRecentEvents ::
   EventBus someUpdate ->
   IO [TimestampedUpdate someUpdate]
 getRecentEvents bus = do
-  log <- readTVarIO (eventLog bus)
-  pure $ toList log
+  eventLog' <- readTVarIO (eventLog bus)
+  pure $ toList eventLog'
 
 -- * Pattern matching
 

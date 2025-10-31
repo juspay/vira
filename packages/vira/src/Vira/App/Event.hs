@@ -9,7 +9,7 @@ This module provides:
 -}
 module Vira.App.Event (
   -- * Re-exports from Core (with constructors)
-  module Vira.App.Event.Core,
+  module Data.Acid.Events,
   TimestampedUpdate (..),
 
   -- * Re-exports from Entity
@@ -22,10 +22,10 @@ module Vira.App.Event (
 ) where
 
 import Control.Concurrent.STM (TChan)
+import Data.Acid.Events (TimestampedUpdate)
+import Data.Acid.Events qualified as Core
 import Effectful (Eff, IOE, (:>))
 import Effectful.Reader.Dynamic qualified as Reader
-import Vira.App.Event.Core (TimestampedUpdate)
-import Vira.App.Event.Core qualified as Core
 import Vira.App.Event.Entity
 import Vira.App.Type (ViraRuntimeState (..))
 

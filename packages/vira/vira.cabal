@@ -34,7 +34,6 @@ library
       Vira.App.AcidState
       Vira.App.CLI
       Vira.App.Event
-      Vira.App.Event.Core
       Vira.App.Event.Entity
       Vira.App.Event.Instances
       Vira.App.GitRev
@@ -142,6 +141,7 @@ library
   build-depends:
       QuickCheck
     , acid-state
+    , acid-state-events
     , aeson
     , aeson-pretty
     , ansi-terminal
@@ -266,6 +266,7 @@ executable vira
   build-depends:
       QuickCheck
     , acid-state
+    , acid-state-events
     , aeson
     , aeson-pretty
     , ansi-terminal
@@ -393,6 +394,7 @@ executable vira-tests
   build-depends:
       QuickCheck
     , acid-state
+    , acid-state-events
     , aeson
     , aeson-pretty
     , ansi-terminal

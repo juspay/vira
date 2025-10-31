@@ -39,6 +39,15 @@ ghcid COMPONENT='vira':
     @just hpack
     ghcid --outputfile=ghcid.log -c "./cabal-repl {{ COMPONENT }}"
 
+# Re-generate .cabal files whenever necessary (this will trigger ghcid to reload)
+hpack-watch:
+    watchexec \
+    -f "**/package.yaml" \
+    -f "**/hpack-common.yaml" \
+    -f "**/hpack-relude.yaml" \
+    -f "**/cabal-repl" \
+    -- just hpack
+
 # Delete and recreate vira state during next `just run`
 [group('1. vira')]
 resetdb:

@@ -30,6 +30,7 @@ ghc-options:
 
 dependencies:
   - acid-state
+  - acid-state-events
   - aeson
   - ansi-terminal
   - async

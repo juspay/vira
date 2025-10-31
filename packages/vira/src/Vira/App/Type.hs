@@ -6,10 +6,10 @@ module Vira.App.Type (
 ) where
 
 import Data.Acid (AcidState)
+import Data.Acid.Events (EventBus)
 import Data.Time (UTCTime)
 import Servant.Links (Link)
 import System.Nix.Cache.Keys (PublicKey)
-import Vira.App.Event.Core (EventBus)
 import Vira.App.Event.Entity (ViraSomeUpdate)
 import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.Environment.Tool.Type.Tools (Tools)

@@ -15,7 +15,11 @@
         };
         hlint = {
           enable = true;
-          excludes = [ "sample\-configs/.+\.hs" "vira\.hs" ];
+          excludes = [
+            "sample\-configs/.+\.hs"
+            "vira\.hs"
+            "packages/acid-state-events/.+"
+          ];
         };
         hpack.enable = true;
         prettier.enable = true;
