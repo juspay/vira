@@ -7,6 +7,9 @@ import Data.Acid (EventResult, EventState, QueryEvent, UpdateEvent)
 import Data.Acid qualified as Acid
 import Effectful (Eff, IOE, (:>))
 import Effectful.Reader.Dynamic (Reader, asks)
+import Vira.App.Event (AffectedEntities, SomeUpdate (..))
+import Vira.App.Event qualified as Event
+import Vira.App.Event.Instances ()
 import Vira.App.Type (ViraRuntimeState (acid))
 import Vira.State.Core (ViraState)
 import Prelude hiding (Reader, ask, asks, runReader)
@@ -26,12 +29,15 @@ query event = do
 
 {- | Like `Acid.update`, but runs in effectful monad, whilst looking up the acid-state in Reader
 
-NOTE: This does NOT automatically broadcast events. Use `Vira.App.Broadcast.broadcastUpdate`
-explicitly when you want to notify SSE listeners of entity changes.
+Now AUTOMATICALLY publishes events to the event bus for Updates with AffectedEntities instance.
+This enables SSE updates, event subscriptions, and debug logging without manual broadcasting.
 -}
 update ::
   ( UpdateEvent event
   , EventState event ~ ViraState
+  , AffectedEntities event
+  , Show event
+  , Typeable event
   , Reader ViraRuntimeState :> es
   , IOE :> es
   ) =>
@@ -39,7 +45,12 @@ update ::
   Eff es (EventResult event)
 update event = do
   acid <- asks acid
-  liftIO (Acid.update acid event)
+  result <- liftIO (Acid.update acid event)
+
+  -- Auto-publish event to bus
+  Event.publishUpdate (SomeUpdate event result)
+
+  pure result
 
 createCheckpoint :: (Reader ViraRuntimeState :> es, IOE :> es) => Eff es ()
 createCheckpoint = do

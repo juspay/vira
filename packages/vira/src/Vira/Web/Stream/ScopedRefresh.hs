@@ -1,12 +1,13 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 {- |
 Entity-scoped Server-Sent Events for automatic page refresh.
 
-Bridges breadcrumbs to broadcast events: extracts entity scope from page hierarchy,
-subscribes to updates, triggers page reload when matching events occur.
+Uses the event bus to subscribe to relevant updates for the current page,
+triggers page reload when matching events occur.
 
-Flow: breadcrumbs → 'pageScopePatterns' → 'viewStreamScoped' → SSE → 'streamRouteHandler' → reload
+Flow: breadcrumbs → 'pageEntityFilter' → 'viewStreamScoped' → SSE → 'streamRouteHandler' → reload
 -}
 module Vira.Web.Stream.ScopedRefresh (
   -- * Routes and handlers
@@ -15,30 +16,35 @@ module Vira.Web.Stream.ScopedRefresh (
 
   -- * Views
   viewStreamScoped,
-  pageScopePatterns,
+  pageEntityFilter,
 ) where
 
 import Colog.Core (Severity (Debug, Error))
-import Data.Aeson (encode)
+import Control.Concurrent.STM (retry)
+import Control.Concurrent.STM qualified as STM
+import Data.Aeson (FromJSON, ToJSON, eitherDecode, encode)
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
+import Effectful.Concurrent (threadDelay)
+import Effectful.Git (RepoName)
 import Lucid
 import Servant.API (QueryParam, SourceIO, type (:>))
 import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
-import Vira.App.Broadcast.Core qualified as Broadcast
-import Vira.App.Broadcast.Type (BroadcastScope (..), UpdateBroadcast, matchesAnyScope, parseScopes)
+import Vira.App.Event qualified as Event
+import Vira.App.Event.Type (SomeUpdate, TimestampedUpdate (..))
 import Vira.App.Stack (AppStack)
+import Vira.State.Type (JobId)
 import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Stack (tagStreamThread)
 import Vira.Web.Stream.KeepAlive (KeepAlive)
 import Vira.Web.Stream.KeepAlive qualified as KeepAlive
-import Prelude hiding (Reader, ask, asks, runReader)
+import Prelude hiding (Reader, ask, asks, filter, runReader)
 
-type StreamRoute = QueryParam "events" Text :> ServerSentEvents (RecommendedEventSourceHeaders (SourceIO (KeepAlive ScopedRefresh)))
+type StreamRoute = QueryParam "filter" Text :> ServerSentEvents (RecommendedEventSourceHeaders (SourceIO (KeepAlive ScopedRefresh)))
 
 {- | A scoped refresh signal sent from server to client
 
@@ -54,55 +60,101 @@ instance ToServerEvent ScopedRefresh where
       Nothing -- Event ID
       "Refresh"
 
--- | `BroadcastScope` patterns monitored by the current page, derived from breadcrumbs
-pageScopePatterns :: [LinkTo] -> Maybe (NonEmpty BroadcastScope)
-pageScopePatterns crumbs = case reverse crumbs of
-  (Job jobId : _) -> Just $ JobScope (Just jobId) :| []
-  (RepoBranch repoName _ : _) -> Just $ RepoScope repoName :| []
-  (Repo repoName : _) -> Just $ RepoScope repoName :| []
-  [] -> Just $ JobScope Nothing :| [] -- Index page: subscribe to all job events
+-- | Entity filter for SSE - determines which updates are relevant
+data EntityFilter
+  = -- | Filter by specific repo
+    FilterRepo RepoName
+  | -- | Filter by specific job
+    FilterJob JobId
+  | -- | Match any job update (for home page)
+    FilterAnyJob
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (ToJSON, FromJSON)
+
+-- | Derive entity filter from breadcrumbs
+pageEntityFilter :: [LinkTo] -> Maybe EntityFilter
+pageEntityFilter crumbs = case reverse crumbs of
+  (Job jobId : _) -> Just $ FilterJob jobId
+  (RepoBranch repoName _ : _) -> Just $ FilterRepo repoName
+  (Repo repoName : _) -> Just $ FilterRepo repoName
+  [] -> Just FilterAnyJob -- Index page: subscribe to all job events
   _ -> Nothing -- No refresh for other pages
 
--- | SSE listener with event pattern filtering
-viewStreamScoped :: NonEmpty BroadcastScope -> AppHtml ()
-viewStreamScoped patterns = do
-  let patternsParam = decodeUtf8 (encode $ toList patterns)
-  link <- lift $ getLinkUrl $ LinkTo.Refresh (Just patternsParam)
+-- | SSE listener with event filtering
+viewStreamScoped :: EntityFilter -> AppHtml ()
+viewStreamScoped filter = do
+  let filterParam = decodeUtf8 (encode filter)
+  link <- lift $ getLinkUrl $ LinkTo.Refresh (Just filterParam)
   -- Use native EventSource for reliable refresh-triggered reloads
   script_ $
     "new EventSource('" <> link <> "').addEventListener('refresh', () => location.reload());"
 
 data StreamConfig = StreamConfig
   { counter :: Int
-  , patterns :: [BroadcastScope]
-  , channel :: UpdateBroadcast
+  , filter :: EntityFilter
+  , channel :: STM.TChan TimestampedUpdate
   }
 
 streamRouteHandler :: (HasCallStack) => Maybe Text -> SourceT (Eff AppStack) (KeepAlive ScopedRefresh)
-streamRouteHandler mEventPatterns = S.fromStepT $ S.Effect $ do
+streamRouteHandler mFilterParam = S.fromStepT $ S.Effect $ do
   tagStreamThread
-  patterns <- case parseScopes $ fromMaybe "[]" mEventPatterns of
+  filter <- case eitherDecode . encodeUtf8 $ fromMaybe "null" mFilterParam of
     Left err -> do
-      log Error $ "Invalid broadcast scope patterns: " <> err
-      pure [] -- Fall back to empty patterns (no refresh) when parse fails
-    Right pats -> pure pats
-  log Debug $ "Starting stream with patterns: " <> show patterns
-  chan <- Broadcast.subscribeToBroadcasts
-  pure $ step StreamConfig {counter = 0, patterns, channel = chan}
+      log Error $ "Invalid entity filter: " <> toText err
+      pure FilterAnyJob -- Fall back to all jobs when parse fails
+    Right Nothing -> do
+      log Error "Missing entity filter"
+      pure FilterAnyJob
+    Right (Just f) -> pure f
+  log Debug $ "Starting stream with filter: " <> show filter
+  chan <- Event.subscribe
+  pure $ step StreamConfig {counter = 0, filter, channel = chan}
   where
     step cfg =
       KeepAlive.withKeepAlive
-        (Broadcast.consumeBroadcasts cfg.channel)
-        ( \scopes -> do
-            -- Filter scopes by patterns (consumeBroadcasts already debounces)
-            let matching = filter (matchesAnyScope cfg.patterns) (toList scopes)
-            if null matching
-              then do
-                log Debug $ "No matching events, skipping refresh; n=" <> show cfg.counter
-                pure Nothing
-              else do
-                log Debug $ "Sending refresh for " <> show (length matching) <> " matching events; n=" <> show cfg.counter
-                pure $ Just (ScopedRefresh, cfg {counter = cfg.counter + 1})
+        (waitForRelevantUpdate cfg.channel cfg.filter)
+        ( \matchingUpdates -> do
+            log Debug $ "Sending refresh for " <> show (length matchingUpdates) <> " matching events; n=" <> show cfg.counter
+            pure $ Just (ScopedRefresh, cfg {counter = cfg.counter + 1})
         )
         cfg
         step
+
+-- | Wait for and collect relevant updates (with debouncing)
+waitForRelevantUpdate ::
+  STM.TChan TimestampedUpdate ->
+  EntityFilter ->
+  Eff AppStack (NonEmpty TimestampedUpdate)
+waitForRelevantUpdate chan entityFilter = do
+  -- Block until first relevant event
+  firstUpdate <- waitForMatch
+  -- Debounce: wait for more events to batch together
+  threadDelay 2_500_000 -- 2.5 seconds
+  -- Collect any additional matching events
+  moreUpdates <- drainMatching []
+  pure $ firstUpdate :| moreUpdates
+  where
+    -- Wait for an update that matches our filter
+    waitForMatch :: Eff AppStack TimestampedUpdate
+    waitForMatch = liftIO $ STM.atomically $ do
+      timestamped@(TimestampedUpdate _ someUpdate) <- STM.readTChan chan
+      if matchesFilter entityFilter someUpdate
+        then pure timestamped
+        else retry -- Retry in STM - keep reading until match
+
+    -- Drain additional matching updates (non-blocking)
+    drainMatching :: [TimestampedUpdate] -> Eff AppStack [TimestampedUpdate]
+    drainMatching acc = do
+      mUpdate <- liftIO $ STM.atomically $ STM.tryReadTChan chan
+      case mUpdate of
+        Nothing -> pure $ reverse acc
+        Just timestamped@(TimestampedUpdate _ someUpdate) ->
+          if matchesFilter entityFilter someUpdate
+            then drainMatching (timestamped : acc)
+            else drainMatching acc -- Skip non-matching
+
+-- | Check if update matches entity filter
+matchesFilter :: EntityFilter -> SomeUpdate -> Bool
+matchesFilter (FilterRepo repo) update = Event.affectsRepo repo update
+matchesFilter (FilterJob jobId) update = Event.affectsJob jobId update
+matchesFilter FilterAnyJob update = Event.affectsAnyJob update

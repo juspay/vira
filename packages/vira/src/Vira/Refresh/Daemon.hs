@@ -6,6 +6,7 @@ module Vira.Refresh.Daemon (
 ) where
 
 import Control.Concurrent.STM (retry)
+import Control.Concurrent.STM.TChan (readTChan)
 import Data.Acid qualified as Acid
 import Data.Map.Strict qualified as Map
 import Data.Time (diffUTCTime, getCurrentTime)
@@ -20,15 +21,15 @@ import Effectful.Git.Command.ForEachRef qualified as Git
 import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Reader.Dynamic (asks)
 import Vira.App.AcidState qualified as App
-import Vira.App.Broadcast.Core qualified as Broadcast
-import Vira.App.Broadcast.Type (BroadcastScope (..))
+import Vira.App.Event (TimestampedUpdate (..))
+import Vira.App.Event qualified as Event
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Refresh.Core (initializeRefreshState, scheduleRepoRefresh)
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (..), RefreshResult (..), RefreshState (..), RefreshStatus (..))
-import Vira.State.Acid (GetAllReposA (..), GetRepoByNameA (..))
+import Vira.State.Acid (DeleteRepoByNameA (..), GetAllReposA (..), GetRepoByNameA (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..))
 import Prelude hiding (asks, atomically)
@@ -43,12 +44,13 @@ startRefreshDaemon = do
   log Info "🔄 Loaded refresh status from acid-state"
 
   void $ async schedulerLoop
+  void $ async cleanupWorker
   workerHandle <- async workerLoop
 
   st <- asks (.refreshState)
   atomically $ writeTVar st.daemonHandle (Just workerHandle)
 
-  log Info "🔄 Refresh daemon started (scheduler + worker)"
+  log Info "🔄 Refresh daemon started (scheduler + cleanup + worker)"
 
 -- | Scheduler loop: periodically set all repos to Pending with Normal priority
 schedulerLoop :: Eff AppStack Void
@@ -62,6 +64,21 @@ schedulerLoop = do
         scheduleRepoRefresh repo.name Normal
     threadDelay (5 * 60 * 1000000) -- 5 minutes in microseconds
 
+-- | Cleanup worker: subscribe to repo deletion events and clean up refresh state
+cleanupWorker :: Eff AppStack Void
+cleanupWorker = do
+  tagCurrentThread "🔄"
+  chan <- Event.subscribe
+  st <- asks (.refreshState)
+
+  infinitely $ do
+    TimestampedUpdate _ someUpdate <- atomically $ readTChan chan
+    case Event.matchUpdate @DeleteRepoByNameA someUpdate of
+      Just (DeleteRepoByNameA name, Right ()) -> do
+        log Info $ "Repo deleted, cleaning up refresh state: " <> show name
+        atomically $ modifyTVar' st.statusMap (Map.delete name)
+      _ -> pass
+
 -- | Worker loop: continuously process pending repos
 workerLoop :: Eff AppStack Void
 workerLoop = do
@@ -73,10 +90,8 @@ workerLoop = do
     -- Fetch repo data and refresh
     App.query (GetRepoByNameA repoName) >>= \case
       Nothing -> do
-        -- Repo was deleted - clean up refresh state
-        log Info $ "Repo not found (deleted), cleaning up refresh state: " <> show repoName
-        st <- asks (.refreshState)
-        atomically $ modifyTVar' st.statusMap (Map.delete repoName)
+        -- Should not happen - cleanup worker should remove deleted repos
+        log Error $ "Repo not found in state (cleanup worker should have removed it): " <> show repoName
       Just repo -> void $ refreshRepo repo
 
 {- | Atomically pop the next pending repo and mark it as InProgress
@@ -133,10 +148,9 @@ refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
     modifyTVar' st.statusMap $
       Map.insert repo.name (Completed refreshResult)
 
-  -- Update repo.lastRefresh in acid-state and broadcast
+  -- Update repo.lastRefresh in acid-state (broadcast happens automatically)
   let updatedRepo = repo {lastRefresh = Just refreshResult}
   App.update (St.SetRepoA updatedRepo)
-  Broadcast.broadcastUpdate (RepoScope repo.name)
 
   -- Log completion
   case result of

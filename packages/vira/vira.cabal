@@ -32,9 +32,10 @@ library
   exposed-modules:
       Vira.App
       Vira.App.AcidState
-      Vira.App.Broadcast.Core
-      Vira.App.Broadcast.Type
       Vira.App.CLI
+      Vira.App.Event
+      Vira.App.Event.Instances
+      Vira.App.Event.Type
       Vira.App.GitRev
       Vira.App.InstanceInfo
       Vira.App.Run
@@ -80,6 +81,7 @@ library
       Vira.Web.Pages.EnvironmentPage
       Vira.Web.Pages.EnvironmentPage.Builders
       Vira.Web.Pages.EnvironmentPage.Tools
+      Vira.Web.Pages.EventsPage
       Vira.Web.Pages.IndexPage
       Vira.Web.Pages.JobLog
       Vira.Web.Pages.JobPage
@@ -353,7 +355,6 @@ executable vira
 executable vira-tests
   main-is: Spec.hs
   other-modules:
-      Vira.App.Broadcast.TypeSpec
       Vira.CI.ConfigurationSpec
       Vira.State.ResetSpec
       Paths_vira

@@ -9,7 +9,7 @@ import Data.Acid (AcidState)
 import Data.Time (UTCTime)
 import Servant.Links (Link)
 import System.Nix.Cache.Keys (PublicKey)
-import Vira.App.Broadcast.Type (UpdateBroadcast)
+import Vira.App.Event.Type (EventBus)
 import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.Environment.Tool.Type.Tools (Tools)
 import Vira.Refresh.Type (RefreshState)
@@ -29,8 +29,8 @@ data ViraRuntimeState = ViraRuntimeState
     --
     -- This is decoupled from servant types deliberately to avoid cyclic imports.
     linkTo :: LinkTo -> Link
-  , -- Broadcast channel for entity-scoped update events (SSE)
-    updateBroadcast :: UpdateBroadcast
+  , -- Event bus for all Update events (SSE, subscriptions, debug log)
+    eventBus :: EventBus
   , -- Cached tools data (mutable for refreshing)
     tools :: TVar Tools
   , -- Git repository auto-refresh state
