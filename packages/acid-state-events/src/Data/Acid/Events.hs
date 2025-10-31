@@ -42,20 +42,21 @@ import Unsafe.Coerce (unsafeCoerce)
 
 -- * Core types
 
--- | Existential wrapper for any Update event
-data SomeUpdate state
+-- | Existential wrapper for any Update event with optional extra constraint
+data SomeUpdate state constraint
   = forall event.
   ( UpdateEvent event
   , EventState event ~ state
   , Show event
   , Typeable event
+  , constraint event
   ) =>
   SomeUpdate
   { update :: event
   , result :: EventResult event
   }
 
-instance Text.Show.Show (SomeUpdate state) where
+instance Text.Show.Show (SomeUpdate state constraint) where
   showsPrec d (SomeUpdate upd _result) = Text.Show.showsPrec d upd
 
 -- | Timestamped update event (parameterized by the existential wrapper type)
@@ -144,9 +145,9 @@ Note: Returns unsafe-coerced result since EventResult is a type family.
 This is safe because if the update matches, the result type must match too.
 -}
 matchUpdate ::
-  forall event state.
+  forall event state constraint.
   (UpdateEvent event, Typeable event, EventState event ~ state) =>
-  SomeUpdate state ->
+  SomeUpdate state constraint ->
   Maybe (event, EventResult event)
 matchUpdate (SomeUpdate update result) = do
   typedUpdate <- cast update

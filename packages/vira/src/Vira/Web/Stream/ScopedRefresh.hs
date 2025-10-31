@@ -22,6 +22,7 @@ module Vira.Web.Stream.ScopedRefresh (
 import Colog.Core (Severity (Debug, Error))
 import Control.Concurrent.STM (retry)
 import Control.Concurrent.STM qualified as STM
+import Data.Acid.Events (SomeUpdate, TimestampedUpdate (..))
 import Data.Aeson (FromJSON, ToJSON, eitherDecode, encode)
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
@@ -32,9 +33,10 @@ import Servant.API (QueryParam, SourceIO, type (:>))
 import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
-import Vira.App.Event (TimestampedUpdate (..), ViraSomeUpdate)
 import Vira.App.Event qualified as Event
+import Vira.App.Event.Entity (AffectedEntities)
 import Vira.App.Stack (AppStack)
+import Vira.State.Core (ViraState)
 import Vira.State.Type (JobId)
 import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
@@ -92,7 +94,7 @@ viewStreamScoped filter = do
 data StreamConfig = StreamConfig
   { counter :: Int
   , filter :: EntityFilter
-  , channel :: STM.TChan (TimestampedUpdate ViraSomeUpdate)
+  , channel :: STM.TChan (TimestampedUpdate (SomeUpdate ViraState AffectedEntities))
   }
 
 streamRouteHandler :: (HasCallStack) => Maybe Text -> SourceT (Eff AppStack) (KeepAlive ScopedRefresh)
@@ -122,9 +124,9 @@ streamRouteHandler mFilterParam = S.fromStepT $ S.Effect $ do
 
 -- | Wait for and collect relevant updates (with debouncing)
 waitForRelevantUpdate ::
-  STM.TChan (TimestampedUpdate ViraSomeUpdate) ->
+  STM.TChan (TimestampedUpdate (SomeUpdate ViraState AffectedEntities)) ->
   EntityFilter ->
-  Eff AppStack (NonEmpty (TimestampedUpdate ViraSomeUpdate))
+  Eff AppStack (NonEmpty (TimestampedUpdate (SomeUpdate ViraState AffectedEntities)))
 waitForRelevantUpdate chan entityFilter = do
   -- Block until first relevant event
   firstUpdate <- waitForMatch
@@ -135,7 +137,7 @@ waitForRelevantUpdate chan entityFilter = do
   pure $ firstUpdate :| moreUpdates
   where
     -- Wait for an update that matches our filter
-    waitForMatch :: Eff AppStack (TimestampedUpdate ViraSomeUpdate)
+    waitForMatch :: Eff AppStack (TimestampedUpdate (SomeUpdate ViraState AffectedEntities))
     waitForMatch = liftIO $ STM.atomically $ do
       timestamped@(TimestampedUpdate _ someUpdate) <- STM.readTChan chan
       if matchesFilter entityFilter someUpdate
@@ -143,7 +145,7 @@ waitForRelevantUpdate chan entityFilter = do
         else retry -- Retry in STM - keep reading until match
 
     -- Drain additional matching updates (non-blocking)
-    drainMatching :: [TimestampedUpdate ViraSomeUpdate] -> Eff AppStack [TimestampedUpdate ViraSomeUpdate]
+    drainMatching :: [TimestampedUpdate (SomeUpdate ViraState AffectedEntities)] -> Eff AppStack [TimestampedUpdate (SomeUpdate ViraState AffectedEntities)]
     drainMatching acc = do
       mUpdate <- liftIO $ STM.atomically $ STM.tryReadTChan chan
       case mUpdate of
@@ -154,7 +156,7 @@ waitForRelevantUpdate chan entityFilter = do
             else drainMatching acc -- Skip non-matching
 
 -- | Check if update matches entity filter
-matchesFilter :: EntityFilter -> ViraSomeUpdate -> Bool
+matchesFilter :: EntityFilter -> SomeUpdate ViraState AffectedEntities -> Bool
 matchesFilter (FilterRepo repo) update = Event.affectsRepo repo update
 matchesFilter (FilterJob jobId) update = Event.affectsJob jobId update
 matchesFilter FilterAnyJob update = Event.affectsAnyJob update

@@ -4,6 +4,7 @@ module Vira.Web.Pages.EventsPage (
   handlers,
 ) where
 
+import Data.Acid.Events (SomeUpdate (..), TimestampedUpdate (..))
 import Data.Time.Format (defaultTimeLocale, formatTime)
 import Lucid
 import Servant
@@ -11,7 +12,6 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
-import Vira.App.Event (TimestampedUpdate (..), ViraSomeUpdate (..))
 import Vira.App.Event qualified as Event
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, runAppHtml)
@@ -55,8 +55,8 @@ viewEvents = do
               then tr_ $ td_ [colspan_ "2", class_ "px-6 py-4 text-center text-gray-500 dark:text-gray-400"] "No events yet"
               else forM_ events renderEvent
 
-renderEvent :: (Monad m) => TimestampedUpdate ViraSomeUpdate -> HtmlT m ()
-renderEvent (TimestampedUpdate time (ViraSomeUpdate update _result)) = do
+renderEvent :: (Monad m) => TimestampedUpdate (SomeUpdate state constraint) -> HtmlT m ()
+renderEvent (TimestampedUpdate time (SomeUpdate update _result)) = do
   tr_ [class_ "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"] $ do
     td_ [class_ "px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"] $ do
       code_ [class_ "text-xs"] $ toHtml $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" time

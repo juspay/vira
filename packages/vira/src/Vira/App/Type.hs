@@ -6,11 +6,11 @@ module Vira.App.Type (
 ) where
 
 import Data.Acid (AcidState)
-import Data.Acid.Events (EventBus)
+import Data.Acid.Events (EventBus, SomeUpdate)
 import Data.Time (UTCTime)
 import Servant.Links (Link)
 import System.Nix.Cache.Keys (PublicKey)
-import Vira.App.Event.Entity (ViraSomeUpdate)
+import Vira.App.Event.Entity (AffectedEntities)
 import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.Environment.Tool.Type.Tools (Tools)
 import Vira.Refresh.Type (RefreshState)
@@ -31,7 +31,7 @@ data ViraRuntimeState = ViraRuntimeState
     -- This is decoupled from servant types deliberately to avoid cyclic imports.
     linkTo :: LinkTo -> Link
   , -- Event bus for all Update events (SSE, subscriptions, debug log)
-    eventBus :: EventBus ViraSomeUpdate
+    eventBus :: EventBus (SomeUpdate ViraState AffectedEntities)
   , -- Cached tools data (mutable for refreshing)
     tools :: TVar Tools
   , -- Git repository auto-refresh state

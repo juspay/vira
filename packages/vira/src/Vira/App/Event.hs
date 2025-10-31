@@ -9,8 +9,11 @@ This module provides:
 -}
 module Vira.App.Event (
   -- * Re-exports from Core (with constructors)
-  module Data.Acid.Events,
+  SomeUpdate (..),
   TimestampedUpdate (..),
+  EventBus (..),
+  newEventBus,
+  matchUpdate,
 
   -- * Re-exports from Entity
   module Vira.App.Event.Entity,
@@ -22,12 +25,13 @@ module Vira.App.Event (
 ) where
 
 import Control.Concurrent.STM (TChan)
-import Data.Acid.Events (TimestampedUpdate)
+import Data.Acid.Events (EventBus (..), SomeUpdate (..), TimestampedUpdate (..), matchUpdate, newEventBus)
 import Data.Acid.Events qualified as Core
 import Effectful (Eff, IOE, (:>))
 import Effectful.Reader.Dynamic qualified as Reader
 import Vira.App.Event.Entity
 import Vira.App.Type (ViraRuntimeState (..))
+import Vira.State.Type (ViraState)
 
 -- * Effectful wrappers
 
@@ -36,7 +40,7 @@ publishUpdate ::
   ( Reader.Reader ViraRuntimeState :> es
   , IOE :> es
   ) =>
-  ViraSomeUpdate ->
+  SomeUpdate ViraState AffectedEntities ->
   Eff es ()
 publishUpdate someUpdate = do
   bus <- Reader.asks (.eventBus)
@@ -47,7 +51,7 @@ subscribe ::
   ( Reader.Reader ViraRuntimeState :> es
   , IOE :> es
   ) =>
-  Eff es (TChan (TimestampedUpdate ViraSomeUpdate))
+  Eff es (TChan (TimestampedUpdate (SomeUpdate ViraState AffectedEntities)))
 subscribe = do
   bus <- Reader.asks (.eventBus)
   liftIO $ Core.subscribe bus
@@ -57,7 +61,7 @@ getRecentEvents ::
   ( Reader.Reader ViraRuntimeState :> es
   , IOE :> es
   ) =>
-  Eff es [TimestampedUpdate ViraSomeUpdate]
+  Eff es [TimestampedUpdate (SomeUpdate ViraState AffectedEntities)]
 getRecentEvents = do
   bus <- Reader.asks (.eventBus)
   liftIO $ Core.getRecentEvents bus
