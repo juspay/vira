@@ -12,6 +12,7 @@ description:    A generic event bus implementation for acid-state applications.
 category:       Database
 author:         Sridhar Ratnakumar
 maintainer:     srid@srid.ca
+copyright:      2025 Sridhar Ratnakumar
 license:        MIT
 build-type:     Simple
 

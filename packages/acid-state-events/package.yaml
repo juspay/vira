@@ -9,6 +9,7 @@ description: |
   Provides publish/subscribe with event logging and replay capabilities.
 category: Database
 license: MIT
+copyright: 2025 Sridhar Ratnakumar
 author: Sridhar Ratnakumar
 maintainer: srid@srid.ca
 
