@@ -29,7 +29,7 @@ import System.Nix.Cache.Server qualified as Cache
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
-import Vira.App.Event qualified as Event
+import Vira.App.Event.Core qualified as Event
 import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline qualified as Pipeline

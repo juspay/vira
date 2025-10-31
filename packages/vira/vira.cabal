@@ -34,8 +34,9 @@ library
       Vira.App.AcidState
       Vira.App.CLI
       Vira.App.Event
+      Vira.App.Event.Core
+      Vira.App.Event.Entity
       Vira.App.Event.Instances
-      Vira.App.Event.Type
       Vira.App.GitRev
       Vira.App.InstanceInfo
       Vira.App.Run

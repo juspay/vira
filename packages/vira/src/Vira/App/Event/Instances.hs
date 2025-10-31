@@ -5,7 +5,8 @@
 -- | Show and AffectedEntities instances for acid-state Update types
 module Vira.App.Event.Instances () where
 
-import Vira.App.Event.Type (AffectedEntities (..))
+import Data.Set qualified as Set
+import Vira.App.Event.Entity (AffectedEntities (..), EntityId (..))
 import Vira.State.Acid
 import Vira.State.Type (Job (jobId), Repo (name))
 
@@ -52,33 +53,38 @@ deriving stock instance Show MarkUnfinishedJobsAsStaleA
 -- * AffectedEntities instances (for SSE filtering)
 
 instance AffectedEntities SetAllReposA where
-  affectedRepos (SetAllReposA repos) _ = fmap (\r -> r.name) repos
+  affectedEntities (SetAllReposA repos) _ =
+    Set.fromList $ fmap (\r -> RepoId r.name) repos
 
 instance AffectedEntities AddNewRepoA where
-  affectedRepos (AddNewRepoA repo) _ = [repo.name]
+  affectedEntities (AddNewRepoA repo) _ =
+    one (RepoId repo.name)
 
 instance AffectedEntities DeleteRepoByNameA where
-  affectedRepos (DeleteRepoByNameA name) (Right ()) = [name]
-  affectedRepos _ _ = []
+  affectedEntities (DeleteRepoByNameA name) (Right ()) =
+    one (RepoId name)
+  affectedEntities _ _ = Set.empty
 
 instance AffectedEntities SetRepoA where
-  affectedRepos (SetRepoA repo) _ = [repo.name]
+  affectedEntities (SetRepoA repo) _ =
+    one (RepoId repo.name)
 
 instance AffectedEntities SetRepoBranchesA where
-  affectedRepos (SetRepoBranchesA name _) _ = [name]
+  affectedEntities (SetRepoBranchesA name _) _ =
+    one (RepoId name)
 
 instance AffectedEntities StoreCommitA where
   -- Commits don't have direct entity scoping for SSE
-  affectedRepos _ _ = []
+  affectedEntities _ _ = Set.empty
 
 instance AffectedEntities AddNewJobA where
-  affectedRepos (AddNewJobA repo _ _ _ _) _ = [repo]
-  affectedJobs _ job = [job.jobId]
+  affectedEntities (AddNewJobA repo _ _ _ _) job =
+    Set.fromList [RepoId repo, JobId job.jobId]
 
 instance AffectedEntities JobUpdateStatusA where
-  affectedJobs (JobUpdateStatusA jobId _) _ = [jobId]
+  affectedEntities (JobUpdateStatusA jid _) _ =
+    one (JobId jid)
 
 instance AffectedEntities MarkUnfinishedJobsAsStaleA where
   -- This is internal, no SSE needed
-  affectedRepos _ _ = []
-  affectedJobs _ _ = []
+  affectedEntities _ _ = Set.empty

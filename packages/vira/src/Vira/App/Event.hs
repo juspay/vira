@@ -1,117 +1,63 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
--- | General event system using acid-state Update types directly
-module Vira.App.Event (
-  -- * Re-exports
-  module Vira.App.Event.Type,
+{- | Vira event system - Effectful-friendly wrappers and re-exports
 
-  -- * Event bus operations
+This module provides:
+- Re-exports of Core (generic event bus) and Entity (Vira-specific filtering)
+- Effectful-friendly wrappers that use Reader ViraRuntimeState
+-}
+module Vira.App.Event (
+  -- * Re-exports from Core (with constructors)
+  module Vira.App.Event.Core,
+  TimestampedUpdate (..),
+
+  -- * Re-exports from Entity
+  module Vira.App.Event.Entity,
+
+  -- * Effectful wrappers
   publishUpdate,
   subscribe,
   getRecentEvents,
-
-  -- * Pattern matching
-  matchUpdate,
-
-  -- * Entity filtering helpers (for SSE)
-  affectsRepo,
-  affectsJob,
-  affectsAnyJob,
 ) where
 
-import Control.Concurrent.STM (TChan, dupTChan, writeTChan)
-import Data.Acid (EventResult, UpdateEvent)
-import Data.Sequence ((|>))
-import Data.Sequence qualified as Seq
-import Data.Time (getCurrentTime)
-import Data.Typeable (cast)
+import Control.Concurrent.STM (TChan)
 import Effectful (Eff, IOE, (:>))
-import Effectful.Git (RepoName)
 import Effectful.Reader.Dynamic qualified as Reader
-import Unsafe.Coerce (unsafeCoerce)
-import Vira.App.Event.Type
+import Vira.App.Event.Core (TimestampedUpdate)
+import Vira.App.Event.Core qualified as Core
+import Vira.App.Event.Entity
 import Vira.App.Type (ViraRuntimeState (..))
-import Vira.Lib.STM (drainRemainingTChan)
-import Vira.State.Type (JobId)
 
--- * Event bus operations
+-- * Effectful wrappers
 
--- | Publish an update event to all subscribers
+-- | Publish an update event to all subscribers (Effectful wrapper)
 publishUpdate ::
   ( Reader.Reader ViraRuntimeState :> es
   , IOE :> es
   ) =>
-  SomeUpdate ->
+  ViraSomeUpdate ->
   Eff es ()
 publishUpdate someUpdate = do
   bus <- Reader.asks (.eventBus)
-  now <- liftIO getCurrentTime
-  let timestamped = TimestampedUpdate now someUpdate
+  liftIO $ Core.publishUpdate bus someUpdate
 
-  liftIO $ atomically $ do
-    -- Publish to subscribers
-    writeTChan bus.channel timestamped
-    -- Append to circular buffer log
-    modifyTVar' bus.eventLog $ \log ->
-      let newLog = log |> timestamped
-       in if Seq.length newLog > bus.maxLogSize
-            then Seq.drop 1 newLog
-            else newLog
-
--- | Subscribe to events (returns duplicate channel starting from now)
+-- | Subscribe to events (Effectful wrapper)
 subscribe ::
   ( Reader.Reader ViraRuntimeState :> es
   , IOE :> es
   ) =>
-  Eff es (TChan TimestampedUpdate)
+  Eff es (TChan (TimestampedUpdate ViraSomeUpdate))
 subscribe = do
   bus <- Reader.asks (.eventBus)
-  liftIO $ atomically $ do
-    dup <- dupTChan bus.channel
-    void $ drainRemainingTChan dup -- Start fresh
-    pure dup
+  liftIO $ Core.subscribe bus
 
--- | Get recent events from the log (for debug UI)
+-- | Get recent events from the log (Effectful wrapper)
 getRecentEvents ::
   ( Reader.Reader ViraRuntimeState :> es
   , IOE :> es
   ) =>
-  Eff es [TimestampedUpdate]
+  Eff es [TimestampedUpdate ViraSomeUpdate]
 getRecentEvents = do
   bus <- Reader.asks (.eventBus)
-  log <- liftIO $ readTVarIO bus.eventLog
-  pure $ toList log
-
--- * Pattern matching
-
-{- | Pattern match on specific update type
-
-Note: Returns unsafe-coerced result since EventResult is a type family.
-This is safe because if the update matches, the result type must match too.
--}
-matchUpdate ::
-  forall event.
-  (UpdateEvent event, Typeable event) =>
-  SomeUpdate ->
-  Maybe (event, EventResult event)
-matchUpdate (SomeUpdate update result) = do
-  typedUpdate <- cast update
-  -- Safe: if update type matches, result type must match (type family relation)
-  pure (typedUpdate, unsafeCoerce result)
-
--- * Entity filtering helpers
-
--- | Check if update affects a specific repo
-affectsRepo :: RepoName -> SomeUpdate -> Bool
-affectsRepo name (SomeUpdate update result) =
-  name `elem` affectedRepos update result
-
--- | Check if update affects a specific job
-affectsJob :: JobId -> SomeUpdate -> Bool
-affectsJob jobId (SomeUpdate update result) =
-  jobId `elem` affectedJobs update result
-
--- | Check if update affects any job
-affectsAnyJob :: SomeUpdate -> Bool
-affectsAnyJob (SomeUpdate update result) =
-  not $ null $ affectedJobs update result
+  liftIO $ Core.getRecentEvents bus

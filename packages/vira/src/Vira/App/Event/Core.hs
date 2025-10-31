@@ -1,0 +1,151 @@
+{-# LANGUAGE DuplicateRecordFields #-}
+
+{- | Generic event bus for acid-state applications
+
+This module provides a type-safe event bus that works with any acid-state application.
+It has no domain-specific knowledge and could be extracted as a standalone library.
+
+The event bus:
+- Publishes Update events to subscribers via TChan
+- Maintains a circular buffer of recent events for debugging
+- Supports type-safe pattern matching on events via Typeable
+-}
+module Vira.App.Event.Core (
+  -- * Core types
+  SomeUpdate (..),
+  TimestampedUpdate (..),
+  EventBus (..),
+
+  -- * Initialization
+  newEventBus,
+
+  -- * Event bus operations
+  publishUpdate,
+  subscribe,
+  getRecentEvents,
+
+  -- * Pattern matching
+  matchUpdate,
+) where
+
+import Control.Concurrent.STM (TChan, dupTChan, isEmptyTChan, newBroadcastTChanIO, readTChan, writeTChan)
+import Data.Acid (EventResult, EventState, UpdateEvent)
+import Data.Sequence ((|>))
+import Data.Sequence qualified as Seq
+import Data.Time (UTCTime, getCurrentTime)
+import Data.Typeable (cast)
+import Text.Show qualified
+import Unsafe.Coerce (unsafeCoerce)
+
+-- * Core types
+
+-- | Existential wrapper for any Update event
+data SomeUpdate state
+  = forall event.
+  ( UpdateEvent event
+  , EventState event ~ state
+  , Show event
+  , Typeable event
+  ) =>
+  SomeUpdate
+  { update :: event
+  , result :: EventResult event
+  }
+
+instance Text.Show.Show (SomeUpdate state) where
+  showsPrec d (SomeUpdate upd _result) = Text.Show.showsPrec d upd
+
+-- | Timestamped update event (parameterized by the existential wrapper type)
+data TimestampedUpdate someUpdate = TimestampedUpdate
+  { timestamp :: UTCTime
+  , update :: someUpdate
+  }
+
+deriving stock instance (Show someUpdate) => Show (TimestampedUpdate someUpdate)
+
+-- | Event bus with broadcast channel and circular buffer log (parameterized by the existential wrapper type)
+data EventBus someUpdate = EventBus
+  { channel :: TChan (TimestampedUpdate someUpdate)
+  , eventLog :: TVar (Seq (TimestampedUpdate someUpdate))
+  , maxLogSize :: Int
+  }
+  deriving stock (Generic)
+
+-- * Initialization
+
+-- | Create a new event bus with default settings (1000 event buffer)
+newEventBus :: IO (EventBus someUpdate)
+newEventBus = newEventBusWithSize 1000
+
+-- | Create a new event bus with custom buffer size
+newEventBusWithSize :: Int -> IO (EventBus someUpdate)
+newEventBusWithSize size = do
+  channel <- newBroadcastTChanIO
+  eventLog <- newTVarIO Seq.empty
+  pure
+    EventBus
+      { channel
+      , eventLog
+      , maxLogSize = size
+      }
+
+-- * Event bus operations
+
+-- | Publish an update event to all subscribers
+publishUpdate ::
+  EventBus someUpdate ->
+  someUpdate ->
+  IO ()
+publishUpdate bus someUpdate = do
+  now <- getCurrentTime
+  let timestamped = TimestampedUpdate now someUpdate
+
+  atomically $ do
+    -- Publish to subscribers
+    writeTChan (channel bus) timestamped
+    -- Append to circular buffer log
+    modifyTVar' (eventLog bus) $ \log ->
+      let newLog = log |> timestamped
+       in if Seq.length newLog > maxLogSize bus
+            then Seq.drop 1 newLog
+            else newLog
+
+-- | Subscribe to events (returns duplicate channel starting from now)
+subscribe ::
+  EventBus someUpdate ->
+  IO (TChan (TimestampedUpdate someUpdate))
+subscribe bus = atomically $ do
+  dup <- dupTChan (channel bus)
+  -- Drain any pending events so subscriber starts fresh
+  let drainLoop = do
+        isEmpty <- isEmptyTChan dup
+        unless isEmpty $ do
+          void $ readTChan dup
+          drainLoop
+  drainLoop
+  pure dup
+
+-- | Get recent events from the log (for debug UI)
+getRecentEvents ::
+  EventBus someUpdate ->
+  IO [TimestampedUpdate someUpdate]
+getRecentEvents bus = do
+  log <- readTVarIO (eventLog bus)
+  pure $ toList log
+
+-- * Pattern matching
+
+{- | Pattern match on specific update type
+
+Note: Returns unsafe-coerced result since EventResult is a type family.
+This is safe because if the update matches, the result type must match too.
+-}
+matchUpdate ::
+  forall event state.
+  (UpdateEvent event, Typeable event, EventState event ~ state) =>
+  SomeUpdate state ->
+  Maybe (event, EventResult event)
+matchUpdate (SomeUpdate update result) = do
+  typedUpdate <- cast update
+  -- Safe: if update type matches, result type must match (type family relation)
+  pure (typedUpdate, unsafeCoerce result)
