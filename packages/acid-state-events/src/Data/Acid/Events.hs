@@ -13,7 +13,6 @@ The event bus:
 module Data.Acid.Events (
   -- * Core types
   SomeUpdate (..),
-  TimestampedUpdate (..),
   EventBus (..),
 
   -- * Initialization
@@ -34,7 +33,7 @@ import Data.Acid (EventResult, EventState, UpdateEvent)
 import Data.Foldable (toList)
 import Data.Sequence (Seq, (|>))
 import Data.Sequence qualified as Seq
-import Data.Time (UTCTime, getCurrentTime)
+import Data.Time (UTCTime)
 import Data.Typeable (Typeable, cast)
 import GHC.Generics (Generic)
 import Text.Show qualified
@@ -54,23 +53,16 @@ data SomeUpdate state constraint
   SomeUpdate
   { update :: event
   , result :: EventResult event
+  , timestamp :: UTCTime
   }
 
 instance Text.Show.Show (SomeUpdate state constraint) where
-  showsPrec d (SomeUpdate upd _result) = Text.Show.showsPrec d upd
+  showsPrec d (SomeUpdate upd _result _time) = Text.Show.showsPrec d upd
 
--- | Timestamped update event (parameterized by the existential wrapper type)
-data TimestampedUpdate someUpdate = TimestampedUpdate
-  { timestamp :: UTCTime
-  , update :: someUpdate
-  }
-
-deriving stock instance (Show someUpdate) => Show (TimestampedUpdate someUpdate)
-
--- | Event bus with broadcast channel and circular buffer log (parameterized by the existential wrapper type)
+-- | Event bus with broadcast channel and circular buffer log
 data EventBus someUpdate = EventBus
-  { channel :: TChan (TimestampedUpdate someUpdate)
-  , eventLog :: TVar (Seq (TimestampedUpdate someUpdate))
+  { channel :: TChan someUpdate
+  , eventLog :: TVar (Seq someUpdate)
   , maxLogSize :: Int
   }
   deriving stock (Generic)
@@ -100,24 +92,20 @@ publishUpdate ::
   EventBus someUpdate ->
   someUpdate ->
   IO ()
-publishUpdate bus someUpdate = do
-  now <- getCurrentTime
-  let timestamped = TimestampedUpdate now someUpdate
-
-  atomically $ do
-    -- Publish to subscribers
-    writeTChan (channel bus) timestamped
-    -- Append to circular buffer log
-    modifyTVar' (eventLog bus) $ \eventLog' ->
-      let newLog = eventLog' |> timestamped
-       in if Seq.length newLog > maxLogSize bus
-            then Seq.drop 1 newLog
-            else newLog
+publishUpdate bus someUpdate = atomically $ do
+  -- Publish to subscribers
+  writeTChan (channel bus) someUpdate
+  -- Append to circular buffer log
+  modifyTVar' (eventLog bus) $ \eventLog' ->
+    let newLog = eventLog' |> someUpdate
+     in if Seq.length newLog > maxLogSize bus
+          then Seq.drop 1 newLog
+          else newLog
 
 -- | Subscribe to events (returns duplicate channel starting from now)
 subscribe ::
   EventBus someUpdate ->
-  IO (TChan (TimestampedUpdate someUpdate))
+  IO (TChan someUpdate)
 subscribe bus = atomically $ do
   dup <- dupTChan (channel bus)
   -- Drain any pending events so subscriber starts fresh
@@ -132,7 +120,7 @@ subscribe bus = atomically $ do
 -- | Get recent events from the log (for debug UI)
 getRecentEvents ::
   EventBus someUpdate ->
-  IO [TimestampedUpdate someUpdate]
+  IO [someUpdate]
 getRecentEvents bus = do
   eventLog' <- readTVarIO (eventLog bus)
   pure $ toList eventLog'
@@ -149,7 +137,7 @@ matchUpdate ::
   (UpdateEvent event, Typeable event, EventState event ~ state) =>
   SomeUpdate state constraint ->
   Maybe (event, EventResult event)
-matchUpdate (SomeUpdate update result) = do
+matchUpdate (SomeUpdate update result _timestamp) = do
   typedUpdate <- cast update
   -- Safe: if update type matches, result type must match (type family relation)
   pure (typedUpdate, unsafeCoerce result)

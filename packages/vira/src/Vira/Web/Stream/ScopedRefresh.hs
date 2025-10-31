@@ -22,7 +22,7 @@ module Vira.Web.Stream.ScopedRefresh (
 import Colog.Core (Severity (Debug, Error))
 import Control.Concurrent.STM (retry)
 import Control.Concurrent.STM qualified as STM
-import Data.Acid.Events (SomeUpdate, TimestampedUpdate (..))
+import Data.Acid.Events (SomeUpdate)
 import Data.Aeson (FromJSON, ToJSON, eitherDecode, encode)
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
@@ -94,7 +94,7 @@ viewStreamScoped filter = do
 data StreamConfig = StreamConfig
   { counter :: Int
   , filter :: EntityFilter
-  , channel :: STM.TChan (TimestampedUpdate (SomeUpdate ViraState AffectedEntities))
+  , channel :: STM.TChan (SomeUpdate ViraState AffectedEntities)
   }
 
 streamRouteHandler :: (HasCallStack) => Maybe Text -> SourceT (Eff AppStack) (KeepAlive ScopedRefresh)
@@ -124,9 +124,9 @@ streamRouteHandler mFilterParam = S.fromStepT $ S.Effect $ do
 
 -- | Wait for and collect relevant updates (with debouncing)
 waitForRelevantUpdate ::
-  STM.TChan (TimestampedUpdate (SomeUpdate ViraState AffectedEntities)) ->
+  STM.TChan (SomeUpdate ViraState AffectedEntities) ->
   EntityFilter ->
-  Eff AppStack (NonEmpty (TimestampedUpdate (SomeUpdate ViraState AffectedEntities)))
+  Eff AppStack (NonEmpty (SomeUpdate ViraState AffectedEntities))
 waitForRelevantUpdate chan entityFilter = do
   -- Block until first relevant event
   firstUpdate <- waitForMatch
@@ -137,22 +137,22 @@ waitForRelevantUpdate chan entityFilter = do
   pure $ firstUpdate :| moreUpdates
   where
     -- Wait for an update that matches our filter
-    waitForMatch :: Eff AppStack (TimestampedUpdate (SomeUpdate ViraState AffectedEntities))
+    waitForMatch :: Eff AppStack (SomeUpdate ViraState AffectedEntities)
     waitForMatch = liftIO $ STM.atomically $ do
-      timestamped@(TimestampedUpdate _ someUpdate) <- STM.readTChan chan
+      someUpdate <- STM.readTChan chan
       if matchesFilter entityFilter someUpdate
-        then pure timestamped
+        then pure someUpdate
         else retry -- Retry in STM - keep reading until match
 
     -- Drain additional matching updates (non-blocking)
-    drainMatching :: [TimestampedUpdate (SomeUpdate ViraState AffectedEntities)] -> Eff AppStack [TimestampedUpdate (SomeUpdate ViraState AffectedEntities)]
+    drainMatching :: [SomeUpdate ViraState AffectedEntities] -> Eff AppStack [SomeUpdate ViraState AffectedEntities]
     drainMatching acc = do
       mUpdate <- liftIO $ STM.atomically $ STM.tryReadTChan chan
       case mUpdate of
         Nothing -> pure $ reverse acc
-        Just timestamped@(TimestampedUpdate _ someUpdate) ->
+        Just someUpdate ->
           if matchesFilter entityFilter someUpdate
-            then drainMatching (timestamped : acc)
+            then drainMatching (someUpdate : acc)
             else drainMatching acc -- Skip non-matching
 
 -- | Check if update matches entity filter

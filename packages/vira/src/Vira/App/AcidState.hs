@@ -6,6 +6,7 @@ module Vira.App.AcidState where
 import Data.Acid (EventResult, EventState, QueryEvent, UpdateEvent)
 import Data.Acid qualified as Acid
 import Data.Acid.Events (SomeUpdate (..))
+import Data.Time (getCurrentTime)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Reader.Dynamic (Reader, asks)
 import Vira.App.Event (AffectedEntities)
@@ -47,9 +48,10 @@ update ::
 update event = do
   acid <- asks acid
   result <- liftIO (Acid.update acid event)
+  timestamp <- liftIO getCurrentTime
 
   -- Auto-publish event to bus
-  Event.publishUpdate (SomeUpdate event result)
+  Event.publishUpdate (SomeUpdate event result timestamp)
 
   pure result
 

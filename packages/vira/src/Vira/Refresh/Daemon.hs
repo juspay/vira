@@ -21,7 +21,6 @@ import Effectful.Git.Command.ForEachRef qualified as Git
 import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Reader.Dynamic (asks)
 import Vira.App.AcidState qualified as App
-import Vira.App.Event (TimestampedUpdate (..))
 import Vira.App.Event qualified as Event
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
@@ -72,7 +71,7 @@ cleanupWorker = do
   st <- asks (.refreshState)
 
   infinitely $ do
-    TimestampedUpdate _ someUpdate <- atomically $ readTChan chan
+    someUpdate <- atomically $ readTChan chan
     case Event.matchUpdate @DeleteRepoByNameA someUpdate of
       Just (DeleteRepoByNameA name, Right ()) -> do
         log Info $ "Repo deleted, cleaning up refresh state: " <> show name
