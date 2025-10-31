@@ -19,7 +19,7 @@ module Data.Acid.Events (
   newEventBus,
 
   -- * Event bus operations
-  publishUpdate,
+  update,
   subscribe,
   getRecentEvents,
 
@@ -29,11 +29,12 @@ module Data.Acid.Events (
 
 import Control.Concurrent.STM (TChan, TVar, atomically, dupTChan, isEmptyTChan, modifyTVar', newBroadcastTChanIO, newTVarIO, readTChan, readTVarIO, writeTChan)
 import Control.Monad (unless, void)
-import Data.Acid (EventResult, EventState, UpdateEvent)
+import Data.Acid (AcidState, EventResult, EventState, UpdateEvent)
+import Data.Acid qualified as Acid
 import Data.Foldable (toList)
 import Data.Sequence (Seq, (|>))
 import Data.Sequence qualified as Seq
-import Data.Time (UTCTime)
+import Data.Time (UTCTime, getCurrentTime)
 import Data.Typeable (Typeable, cast)
 import GHC.Generics (Generic)
 import Text.Show qualified
@@ -51,13 +52,13 @@ data SomeUpdate state constraint
   , constraint event
   ) =>
   SomeUpdate
-  { update :: event
+  { event :: event
   , result :: EventResult event
   , timestamp :: UTCTime
   }
 
 instance Text.Show.Show (SomeUpdate state constraint) where
-  showsPrec d (SomeUpdate upd _result _time) = Text.Show.showsPrec d upd
+  showsPrec d (SomeUpdate evt _result _time) = Text.Show.showsPrec d evt
 
 -- | Event bus with broadcast channel and circular buffer log
 data EventBus someUpdate = EventBus
@@ -87,7 +88,7 @@ newEventBusWithSize size = do
 
 -- * Event bus operations
 
--- | Publish an update event to all subscribers
+-- | Publish an update event to all subscribers (internal)
 publishUpdate ::
   EventBus someUpdate ->
   someUpdate ->
@@ -101,6 +102,28 @@ publishUpdate bus someUpdate = atomically $ do
      in if Seq.length newLog > maxLogSize bus
           then Seq.drop 1 newLog
           else newLog
+
+{- | Execute an acid-state update and automatically publish to event bus
+
+This is the main entry point for executing updates - it handles both
+the acid-state transaction and event publishing in one operation.
+-}
+update ::
+  ( UpdateEvent event
+  , EventState event ~ state
+  , constraint event
+  , Show event
+  , Typeable event
+  ) =>
+  AcidState state ->
+  EventBus (SomeUpdate state constraint) ->
+  event ->
+  IO (EventResult event)
+update acid bus event = do
+  result <- Acid.update acid event
+  timestamp <- getCurrentTime
+  publishUpdate bus (SomeUpdate event result timestamp)
+  pure result
 
 -- | Subscribe to events (returns duplicate channel starting from now)
 subscribe ::
@@ -137,7 +160,7 @@ matchUpdate ::
   (UpdateEvent event, Typeable event, EventState event ~ state) =>
   SomeUpdate state constraint ->
   Maybe (event, EventResult event)
-matchUpdate (SomeUpdate update result _timestamp) = do
-  typedUpdate <- cast update
+matchUpdate (SomeUpdate evt result _timestamp) = do
+  typedUpdate <- cast evt
   -- Safe: if update type matches, result type must match (type family relation)
   pure (typedUpdate, unsafeCoerce result)

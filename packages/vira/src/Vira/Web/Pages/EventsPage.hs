@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 -- | Events debug page - view recent events from event bus
 module Vira.Web.Pages.EventsPage (
   Routes (..),
@@ -5,14 +7,16 @@ module Vira.Web.Pages.EventsPage (
 ) where
 
 import Data.Acid.Events (SomeUpdate (..))
+import Data.Acid.Events qualified as Events
 import Data.Time.Format (defaultTimeLocale, formatTime)
+import Effectful.Reader.Dynamic qualified as Reader
 import Lucid
 import Servant
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
-import Vira.App.Event qualified as Event
+import Vira.App.Type (ViraRuntimeState (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, runAppHtml)
 import Vira.Web.Stack qualified as Web
@@ -35,7 +39,8 @@ viewHandler = W.layout [LinkTo.Events] viewEvents
 
 viewEvents :: AppHtml ()
 viewEvents = do
-  events <- lift Event.getRecentEvents
+  bus <- lift $ Reader.asks @ViraRuntimeState (.eventBus)
+  events <- liftIO $ Events.getRecentEvents bus
   W.viraSection_ [] $ do
     W.viraPageHeaderWithIcon_ (toHtmlRaw Icon.bell) "Recent Events" $ do
       p_ [class_ "text-gray-600 dark:text-gray-300"] $
@@ -56,9 +61,9 @@ viewEvents = do
               else forM_ events renderEvent
 
 renderEvent :: (Monad m) => SomeUpdate state constraint -> HtmlT m ()
-renderEvent (SomeUpdate update _result timestamp) = do
+renderEvent (SomeUpdate evt _result timestamp) = do
   tr_ [class_ "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"] $ do
     td_ [class_ "px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"] $ do
       code_ [class_ "text-xs"] $ toHtml $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" timestamp
     td_ [class_ "px-6 py-4 text-sm text-gray-900 dark:text-gray-100"] $ do
-      code_ [class_ "text-xs bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded"] $ toHtml (show update :: Text)
+      code_ [class_ "text-xs bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded"] $ toHtml (show evt :: Text)

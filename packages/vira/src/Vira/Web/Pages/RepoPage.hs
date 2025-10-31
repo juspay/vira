@@ -19,6 +19,9 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
+import Vira.App.Event.Instances ()
+
+-- Show and AffectedEntities instances
 import Vira.Refresh.Core qualified as Refresh
 import Vira.Refresh.Type (RefreshPriority (Now))
 import Vira.State.Acid qualified as St

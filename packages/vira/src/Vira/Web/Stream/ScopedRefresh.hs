@@ -33,8 +33,9 @@ import Servant.API (QueryParam, SourceIO, type (:>))
 import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
-import Vira.App.Event qualified as Event
+import Vira.App.AcidState qualified as App
 import Vira.App.Event.Entity (AffectedEntities)
+import Vira.App.Event.Entity qualified as Entity
 import Vira.App.Stack (AppStack)
 import Vira.State.Core (ViraState)
 import Vira.State.Type (JobId)
@@ -109,7 +110,7 @@ streamRouteHandler mFilterParam = S.fromStepT $ S.Effect $ do
       pure FilterAnyJob
     Right (Just f) -> pure f
   log Debug $ "Starting stream with filter: " <> show filter
-  chan <- Event.subscribe
+  chan <- App.subscribe
   pure $ step StreamConfig {counter = 0, filter, channel = chan}
   where
     step cfg =
@@ -157,6 +158,6 @@ waitForRelevantUpdate chan entityFilter = do
 
 -- | Check if update matches entity filter
 matchesFilter :: EntityFilter -> SomeUpdate ViraState AffectedEntities -> Bool
-matchesFilter (FilterRepo repo) update = Event.affectsRepo repo update
-matchesFilter (FilterJob jobId) update = Event.affectsJob jobId update
-matchesFilter FilterAnyJob update = Event.affectsAnyJob update
+matchesFilter (FilterRepo repo) update = Entity.affectsRepo repo update
+matchesFilter (FilterJob jobId) update = Entity.affectsJob jobId update
+matchesFilter FilterAnyJob update = Entity.affectsAnyJob update

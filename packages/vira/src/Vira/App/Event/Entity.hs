@@ -46,8 +46,8 @@ class (UpdateEvent event) => AffectedEntities event where
 
 -- | Check if update affects a specific entity
 affectsEntity :: EntityId -> SomeUpdate ViraState AffectedEntities -> Bool
-affectsEntity entityId (SomeUpdate update result _timestamp) =
-  entityId `Set.member` affectedEntities update result
+affectsEntity entityId (SomeUpdate evt result _timestamp) =
+  entityId `Set.member` affectedEntities evt result
 
 -- | Check if update affects a specific repo
 affectsRepo :: RepoName -> SomeUpdate ViraState AffectedEntities -> Bool
@@ -59,8 +59,8 @@ affectsJob jobId = affectsEntity (JobId jobId)
 
 -- | Check if update affects any job
 affectsAnyJob :: SomeUpdate ViraState AffectedEntities -> Bool
-affectsAnyJob (SomeUpdate update result _timestamp) =
-  any isJobEntity (affectedEntities update result)
+affectsAnyJob (SomeUpdate evt result _timestamp) =
+  any isJobEntity (affectedEntities evt result)
   where
     isJobEntity (JobId _) = True
     isJobEntity _ = False

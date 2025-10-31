@@ -48,6 +48,15 @@ hpack-watch:
     -f "**/cabal-repl" \
     -- just hpack
 
+hpack-watch-2:
+    # Watch ONLY for file list changes for .hs files
+    watchexec \
+    -f "**.hs" \
+    -e create \
+    -e remove \
+    -e rename \
+    -- hpack
+
 # Delete and recreate vira state during next `just run`
 [group('1. vira')]
 resetdb:
