@@ -10,7 +10,6 @@ import Data.Acid.Events (SomeUpdate)
 import Data.Acid.Events qualified as Events
 import Effectful (Eff, IOE, (:>))
 import Effectful.Reader.Dynamic (Reader, asks)
-import Vira.App.Event.Entity (AffectedEntities)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.State.Core (ViraState)
 import Prelude hiding (Reader, ask, asks, runReader)
@@ -30,13 +29,14 @@ query event = do
 
 {- | Like `Acid.update`, but runs in effectful monad, whilst looking up the acid-state in Reader
 
-AUTOMATICALLY publishes events to the event bus for Updates with AffectedEntities instance.
-This enables SSE updates, event subscriptions, and debug logging without manual broadcasting.
+AUTOMATICALLY publishes events to the event bus.
+The constraint is determined by ViraRuntimeState.eventBus type.
 -}
 update ::
+  forall constraint event es.
   ( UpdateEvent event
   , EventState event ~ ViraState
-  , AffectedEntities event
+  , constraint event
   , Show event
   , Typeable event
   , Reader ViraRuntimeState :> es
@@ -46,17 +46,18 @@ update ::
   Eff es (EventResult event)
 update event = do
   acid <- asks acid
-  bus <- asks eventBus
+  bus <- asks @ViraRuntimeState eventBus
   liftIO $ Events.update acid bus event
 
 -- | Subscribe to event bus for receiving updates
 subscribe ::
+  forall constraint es.
   ( Reader ViraRuntimeState :> es
   , IOE :> es
   ) =>
-  Eff es (TChan (SomeUpdate ViraState AffectedEntities))
+  Eff es (TChan (SomeUpdate ViraState constraint))
 subscribe = do
-  bus <- asks eventBus
+  bus <- asks @ViraRuntimeState eventBus
   liftIO $ Events.subscribe bus
 
 createCheckpoint :: (Reader ViraRuntimeState :> es, IOE :> es) => Eff es ()

@@ -22,9 +22,6 @@ import Effectful.Git.Command.ForEachRef qualified as Git
 import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Reader.Dynamic (asks)
 import Vira.App.AcidState qualified as App
-import Vira.App.Event.Instances ()
-
--- Show instances for acid-state updates
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.CI.Workspace qualified as Workspace

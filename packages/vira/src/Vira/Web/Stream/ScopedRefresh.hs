@@ -1,5 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 {- |
 Entity-scoped Server-Sent Events for automatic page refresh.
@@ -17,13 +19,19 @@ module Vira.Web.Stream.ScopedRefresh (
   -- * Views
   viewStreamScoped,
   pageEntityFilter,
+
+  -- * Typeclass (for App.update constraint)
+  AffectedEntities (..),
 ) where
 
 import Colog.Core (Severity (Debug, Error))
 import Control.Concurrent.STM (retry)
 import Control.Concurrent.STM qualified as STM
-import Data.Acid.Events (SomeUpdate)
+import Data.Acid (EventResult, UpdateEvent)
+import Data.Acid.Events (SomeUpdate (..))
 import Data.Aeson (FromJSON, ToJSON, eitherDecode, encode)
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
 import Effectful.Concurrent (threadDelay)
@@ -34,11 +42,10 @@ import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import Vira.App.AcidState qualified as App
-import Vira.App.Event.Entity (AffectedEntities)
-import Vira.App.Event.Entity qualified as Entity
 import Vira.App.Stack (AppStack)
+import Vira.State.Acid
 import Vira.State.Core (ViraState)
-import Vira.State.Type (JobId)
+import Vira.State.Type (Job (jobId), JobId, Repo (name))
 import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
@@ -46,6 +53,124 @@ import Vira.Web.Stack (tagStreamThread)
 import Vira.Web.Stream.KeepAlive (KeepAlive)
 import Vira.Web.Stream.KeepAlive qualified as KeepAlive
 import Prelude hiding (Reader, ask, asks, filter, runReader)
+
+-- * Entity filtering types
+
+-- | Identifiers for entities in Vira
+data EntityId
+  = RepoId RepoName
+  | JobId JobId
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
+
+-- | Typeclass for determining which entities an update affects (used for SSE filtering)
+class (UpdateEvent event) => AffectedEntities event where
+  affectedEntities :: event -> EventResult event -> Set EntityId
+  affectedEntities _ _ = Set.empty
+
+-- * AffectedEntities instances
+
+instance AffectedEntities SetAllReposA where
+  affectedEntities (SetAllReposA repos) _ =
+    Set.fromList $ fmap (\r -> RepoId r.name) repos
+
+instance AffectedEntities AddNewRepoA where
+  affectedEntities (AddNewRepoA repo) _ =
+    one (RepoId repo.name)
+
+instance AffectedEntities DeleteRepoByNameA where
+  affectedEntities (DeleteRepoByNameA name) (Right ()) =
+    one (RepoId name)
+  affectedEntities _ _ = Set.empty
+
+instance AffectedEntities SetRepoA where
+  affectedEntities (SetRepoA repo) _ =
+    one (RepoId repo.name)
+
+instance AffectedEntities SetRepoBranchesA where
+  affectedEntities (SetRepoBranchesA name _) _ =
+    one (RepoId name)
+
+instance AffectedEntities StoreCommitA where
+  -- Commits don't have direct entity scoping for SSE
+  affectedEntities _ _ = Set.empty
+
+instance AffectedEntities AddNewJobA where
+  affectedEntities (AddNewJobA repo _ _ _ _) job =
+    Set.fromList [RepoId repo, JobId job.jobId]
+
+instance AffectedEntities JobUpdateStatusA where
+  affectedEntities (JobUpdateStatusA jid _) _ =
+    one (JobId jid)
+
+instance AffectedEntities MarkUnfinishedJobsAsStaleA where
+  -- This is internal, no SSE needed
+  affectedEntities _ _ = Set.empty
+
+-- * Show instances (for debug logging)
+
+deriving stock instance Show SetAllReposA
+
+deriving stock instance Show AddNewRepoA
+
+deriving stock instance Show DeleteRepoByNameA
+
+deriving stock instance Show GetAllReposA
+
+deriving stock instance Show GetRepoByNameA
+
+deriving stock instance Show GetAllBranchesA
+
+deriving stock instance Show GetBranchByNameA
+
+deriving stock instance Show GetBranchDetailsA
+
+deriving stock instance Show SetRepoA
+
+deriving stock instance Show SetRepoBranchesA
+
+deriving stock instance Show GetCommitByIdA
+
+deriving stock instance Show StoreCommitA
+
+deriving stock instance Show GetJobsByBranchA
+
+deriving stock instance Show GetRecentJobsA
+
+deriving stock instance Show GetRunningJobs
+
+deriving stock instance Show GetJobA
+
+deriving stock instance Show AddNewJobA
+
+deriving stock instance Show JobUpdateStatusA
+
+deriving stock instance Show MarkUnfinishedJobsAsStaleA
+
+-- * Filtering helpers
+
+-- | Check if update affects a specific entity
+affectsEntity :: EntityId -> SomeUpdate ViraState AffectedEntities -> Bool
+affectsEntity entityId (SomeUpdate evt result _timestamp) =
+  entityId `Set.member` affectedEntities evt result
+
+-- | Check if update affects a specific repo
+affectsRepo :: RepoName -> SomeUpdate ViraState AffectedEntities -> Bool
+affectsRepo name = affectsEntity (RepoId name)
+
+-- | Check if update affects a specific job
+affectsJob :: JobId -> SomeUpdate ViraState AffectedEntities -> Bool
+affectsJob jobId = affectsEntity (JobId jobId)
+
+-- | Check if update affects any job
+affectsAnyJob :: SomeUpdate ViraState AffectedEntities -> Bool
+affectsAnyJob (SomeUpdate evt result _timestamp) =
+  any isJobEntity (affectedEntities evt result)
+  where
+    isJobEntity (JobId _) = True
+    isJobEntity _ = False
+
+-- * SSE Routes and handlers
 
 type StreamRoute = QueryParam "filter" Text :> ServerSentEvents (RecommendedEventSourceHeaders (SourceIO (KeepAlive ScopedRefresh)))
 
@@ -63,28 +188,17 @@ instance ToServerEvent ScopedRefresh where
       Nothing -- Event ID
       "Refresh"
 
--- | Entity filter for SSE - determines which updates are relevant
-data EntityFilter
-  = -- | Filter by specific repo
-    FilterRepo RepoName
-  | -- | Filter by specific job
-    FilterJob JobId
-  | -- | Match any job update (for home page)
-    FilterAnyJob
-  deriving stock (Show, Eq, Generic)
-  deriving anyclass (ToJSON, FromJSON)
-
 -- | Derive entity filter from breadcrumbs
-pageEntityFilter :: [LinkTo] -> Maybe EntityFilter
+pageEntityFilter :: [LinkTo] -> Maybe (Maybe EntityId)
 pageEntityFilter crumbs = case reverse crumbs of
-  (Job jobId : _) -> Just $ FilterJob jobId
-  (RepoBranch repoName _ : _) -> Just $ FilterRepo repoName
-  (Repo repoName : _) -> Just $ FilterRepo repoName
-  [] -> Just FilterAnyJob -- Index page: subscribe to all job events
+  (Job jobId : _) -> Just $ Just (JobId jobId)
+  (RepoBranch repoName _ : _) -> Just $ Just (RepoId repoName)
+  (Repo repoName : _) -> Just $ Just (RepoId repoName)
+  [] -> Just Nothing -- Index page: subscribe to all job events
   _ -> Nothing -- No refresh for other pages
 
 -- | SSE listener with event filtering
-viewStreamScoped :: EntityFilter -> AppHtml ()
+viewStreamScoped :: Maybe EntityId -> AppHtml ()
 viewStreamScoped filter = do
   let filterParam = decodeUtf8 (encode filter)
   link <- lift $ getLinkUrl $ LinkTo.Refresh (Just filterParam)
@@ -94,7 +208,7 @@ viewStreamScoped filter = do
 
 data StreamConfig = StreamConfig
   { counter :: Int
-  , filter :: EntityFilter
+  , filter :: Maybe EntityId
   , channel :: STM.TChan (SomeUpdate ViraState AffectedEntities)
   }
 
@@ -104,11 +218,8 @@ streamRouteHandler mFilterParam = S.fromStepT $ S.Effect $ do
   filter <- case eitherDecode . encodeUtf8 $ fromMaybe "null" mFilterParam of
     Left err -> do
       log Error $ "Invalid entity filter: " <> toText err
-      pure FilterAnyJob -- Fall back to all jobs when parse fails
-    Right Nothing -> do
-      log Error "Missing entity filter"
-      pure FilterAnyJob
-    Right (Just f) -> pure f
+      pure Nothing -- Fall back to all jobs when parse fails
+    Right f -> pure f
   log Debug $ "Starting stream with filter: " <> show filter
   chan <- App.subscribe
   pure $ step StreamConfig {counter = 0, filter, channel = chan}
@@ -126,7 +237,7 @@ streamRouteHandler mFilterParam = S.fromStepT $ S.Effect $ do
 -- | Wait for and collect relevant updates (with debouncing)
 waitForRelevantUpdate ::
   STM.TChan (SomeUpdate ViraState AffectedEntities) ->
-  EntityFilter ->
+  Maybe EntityId ->
   Eff AppStack (NonEmpty (SomeUpdate ViraState AffectedEntities))
 waitForRelevantUpdate chan entityFilter = do
   -- Block until first relevant event
@@ -157,7 +268,6 @@ waitForRelevantUpdate chan entityFilter = do
             else drainMatching acc -- Skip non-matching
 
 -- | Check if update matches entity filter
-matchesFilter :: EntityFilter -> SomeUpdate ViraState AffectedEntities -> Bool
-matchesFilter (FilterRepo repo) update = Entity.affectsRepo repo update
-matchesFilter (FilterJob jobId) update = Entity.affectsJob jobId update
-matchesFilter FilterAnyJob update = Entity.affectsAnyJob update
+matchesFilter :: Maybe EntityId -> SomeUpdate ViraState AffectedEntities -> Bool
+matchesFilter Nothing update = affectsAnyJob update
+matchesFilter (Just entityId) update = affectsEntity entityId update

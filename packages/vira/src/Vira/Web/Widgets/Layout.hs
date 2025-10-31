@@ -102,6 +102,8 @@ layout crumbs content = do
           ]
     body_ [class_ "bg-gray-50 dark:bg-gray-900 min-h-screen font-inter"] $ do
       -- Add SSE listener based on page entity (if any)
+      -- pageEntityFilter returns Maybe (Maybe EntityId):
+      --   Nothing = no SSE, Just Nothing = any job, Just (Just id) = specific entity
       whenJust (Stream.pageEntityFilter crumbs) Stream.viewStreamScoped
       -- Global modal container for all pages
       W.viraGlobalModalContainer_

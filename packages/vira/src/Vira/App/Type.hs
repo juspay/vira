@@ -10,13 +10,13 @@ import Data.Acid.Events (EventBus, SomeUpdate)
 import Data.Time (UTCTime)
 import Servant.Links (Link)
 import System.Nix.Cache.Keys (PublicKey)
-import Vira.App.Event.Entity (AffectedEntities)
 import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.Environment.Tool.Type.Tools (Tools)
 import Vira.Refresh.Type (RefreshState)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Vira.Web.LinkTo.Type (LinkTo)
+import Vira.Web.Stream.ScopedRefresh (AffectedEntities) -- Constraint for eventBus type
 
 -- | Application-wide state available in Effectful stack
 data ViraRuntimeState = ViraRuntimeState
