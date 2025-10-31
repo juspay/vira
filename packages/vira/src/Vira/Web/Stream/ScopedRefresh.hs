@@ -107,7 +107,7 @@ instance AffectedEntities MarkUnfinishedJobsAsStaleA where
   -- This is internal, no SSE needed
   affectedEntities _ _ = Set.empty
 
--- * Show instances (for debug logging)
+-- * Show instances (for Updates published to event bus)
 
 deriving stock instance Show SetAllReposA
 
@@ -115,60 +115,17 @@ deriving stock instance Show AddNewRepoA
 
 deriving stock instance Show DeleteRepoByNameA
 
-deriving stock instance Show GetAllReposA
-
-deriving stock instance Show GetRepoByNameA
-
-deriving stock instance Show GetAllBranchesA
-
-deriving stock instance Show GetBranchByNameA
-
-deriving stock instance Show GetBranchDetailsA
-
 deriving stock instance Show SetRepoA
 
 deriving stock instance Show SetRepoBranchesA
 
-deriving stock instance Show GetCommitByIdA
-
 deriving stock instance Show StoreCommitA
-
-deriving stock instance Show GetJobsByBranchA
-
-deriving stock instance Show GetRecentJobsA
-
-deriving stock instance Show GetRunningJobs
-
-deriving stock instance Show GetJobA
 
 deriving stock instance Show AddNewJobA
 
 deriving stock instance Show JobUpdateStatusA
 
 deriving stock instance Show MarkUnfinishedJobsAsStaleA
-
--- * Filtering helpers
-
--- | Check if update affects a specific entity
-affectsEntity :: EntityId -> SomeUpdate ViraState AffectedEntities -> Bool
-affectsEntity entityId (SomeUpdate evt result _timestamp) =
-  entityId `Set.member` affectedEntities evt result
-
--- | Check if update affects a specific repo
-affectsRepo :: RepoName -> SomeUpdate ViraState AffectedEntities -> Bool
-affectsRepo name = affectsEntity (RepoId name)
-
--- | Check if update affects a specific job
-affectsJob :: JobId -> SomeUpdate ViraState AffectedEntities -> Bool
-affectsJob jobId = affectsEntity (JobId jobId)
-
--- | Check if update affects any job
-affectsAnyJob :: SomeUpdate ViraState AffectedEntities -> Bool
-affectsAnyJob (SomeUpdate evt result _timestamp) =
-  any isJobEntity (affectedEntities evt result)
-  where
-    isJobEntity (JobId _) = True
-    isJobEntity _ = False
 
 -- * SSE Routes and handlers
 
@@ -269,5 +226,9 @@ waitForRelevantUpdate chan entityFilter = do
 
 -- | Check if update matches entity filter
 matchesFilter :: Maybe EntityId -> SomeUpdate ViraState AffectedEntities -> Bool
-matchesFilter Nothing update = affectsAnyJob update
-matchesFilter (Just entityId) update = affectsEntity entityId update
+matchesFilter Nothing (SomeUpdate evt result _timestamp) =
+  -- Match any job update
+  any (\case JobId _ -> True; _ -> False) (affectedEntities evt result)
+matchesFilter (Just entityId) (SomeUpdate evt result _timestamp) =
+  -- Match specific entity
+  entityId `Set.member` affectedEntities evt result
