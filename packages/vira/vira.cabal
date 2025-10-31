@@ -93,7 +93,6 @@ library
       Vira.Web.Stream.KeepAlive
       Vira.Web.Stream.Log
       Vira.Web.Stream.ScopedRefresh
-      Vira.Web.Stream.StateInstances
       Vira.Web.Widgets.Alert
       Vira.Web.Widgets.Button
       Vira.Web.Widgets.Card
