@@ -16,7 +16,6 @@ import Vira.Refresh.Type (RefreshState)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Vira.Web.LinkTo.Type (LinkTo)
-import Vira.Web.Stream.AffectedEntities (AffectedEntities) -- Constraint for eventBus type
 
 -- | Application-wide state available in Effectful stack
 data ViraRuntimeState = ViraRuntimeState
@@ -31,7 +30,7 @@ data ViraRuntimeState = ViraRuntimeState
     -- This is decoupled from servant types deliberately to avoid cyclic imports.
     linkTo :: LinkTo -> Link
   , -- Event bus for all Update events (SSE, subscriptions, debug log)
-    eventBus :: EventBus (SomeUpdate ViraState AffectedEntities)
+    eventBus :: EventBus (SomeUpdate ViraState)
   , -- Cached tools data (mutable for refreshing)
     tools :: TVar Tools
   , -- Git repository auto-refresh state

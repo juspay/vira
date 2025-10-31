@@ -42,14 +42,13 @@ import Unsafe.Coerce (unsafeCoerce)
 
 -- * Core types
 
--- | Existential wrapper for any Update event with optional extra constraint
-data SomeUpdate state constraint
+-- | Existential wrapper for any Update event
+data SomeUpdate state
   = forall event.
   ( UpdateEvent event
   , EventState event ~ state
   , Show event
   , Typeable event
-  , constraint event
   ) =>
   SomeUpdate
   { event :: event
@@ -57,7 +56,7 @@ data SomeUpdate state constraint
   , timestamp :: UTCTime
   }
 
-instance Text.Show.Show (SomeUpdate state constraint) where
+instance Text.Show.Show (SomeUpdate state) where
   showsPrec d (SomeUpdate evt _result _time) = Text.Show.showsPrec d evt
 
 -- | Event bus with broadcast channel and circular buffer log
@@ -111,12 +110,11 @@ the acid-state transaction and event publishing in one operation.
 update ::
   ( UpdateEvent event
   , EventState event ~ state
-  , constraint event
   , Show event
   , Typeable event
   ) =>
   AcidState state ->
-  EventBus (SomeUpdate state constraint) ->
+  EventBus (SomeUpdate state) ->
   event ->
   IO (EventResult event)
 update acid bus event = do
@@ -156,9 +154,9 @@ Note: Returns unsafe-coerced result since EventResult is a type family.
 This is safe because if the update matches, the result type must match too.
 -}
 matchUpdate ::
-  forall event state constraint.
+  forall event state.
   (UpdateEvent event, Typeable event, EventState event ~ state) =>
-  SomeUpdate state constraint ->
+  SomeUpdate state ->
   Maybe (event, EventResult event)
 matchUpdate (SomeUpdate evt result _timestamp) = do
   typedUpdate <- cast evt

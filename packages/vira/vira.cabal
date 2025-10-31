@@ -89,7 +89,6 @@ library
       Vira.Web.Servant
       Vira.Web.Server
       Vira.Web.Stack
-      Vira.Web.Stream.AffectedEntities
       Vira.Web.Stream.KeepAlive
       Vira.Web.Stream.Log
       Vira.Web.Stream.ScopedRefresh

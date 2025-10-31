@@ -60,7 +60,7 @@ viewEvents = do
               then tr_ $ td_ [colspan_ "2", class_ "px-6 py-4 text-center text-gray-500 dark:text-gray-400"] "No events yet"
               else forM_ events renderEvent
 
-renderEvent :: (Monad m) => SomeUpdate state constraint -> HtmlT m ()
+renderEvent :: (Monad m) => SomeUpdate state -> HtmlT m ()
 renderEvent (SomeUpdate evt _result timestamp) = do
   tr_ [class_ "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"] $ do
     td_ [class_ "px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400"] $ do

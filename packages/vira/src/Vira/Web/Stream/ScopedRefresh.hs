@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -18,20 +19,20 @@ module Vira.Web.Stream.ScopedRefresh (
   viewStreamScoped,
   pageEntityFilter,
 
-  -- * Typeclass (for App.update constraint)
-  AffectedEntities (..),
+  -- * Entity types
   EntityId (..),
 ) where
 
 import Colog.Core (Severity (Debug, Error))
 import Control.Concurrent.STM (retry)
 import Control.Concurrent.STM qualified as STM
-import Data.Acid.Events (SomeUpdate (..))
-import Data.Aeson (eitherDecode, encode)
+import Data.Acid.Events (SomeUpdate (..), matchUpdate)
+import Data.Aeson (FromJSON, ToJSON, eitherDecode, encode)
 import Data.Set qualified as Set
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
 import Effectful.Concurrent (threadDelay)
+import Effectful.Git (RepoName)
 import Lucid
 import Servant.API (QueryParam, SourceIO, type (:>))
 import Servant.API.EventStream
@@ -39,18 +40,26 @@ import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
 import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
+import Vira.State.Acid
 import Vira.State.AcidInstances ()
-
--- Orphan instances for AffectedEntities
 import Vira.State.Core (ViraState)
+import Vira.State.Type (Job (jobId), JobId, Repo (name))
 import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Stack (tagStreamThread)
-import Vira.Web.Stream.AffectedEntities (AffectedEntities (..), EntityId (..))
 import Vira.Web.Stream.KeepAlive (KeepAlive)
 import Vira.Web.Stream.KeepAlive qualified as KeepAlive
 import Prelude hiding (Reader, ask, asks, filter, runReader)
+
+-- * Entity types
+
+-- | Identifiers for entities in Vira
+data EntityId
+  = RepoId RepoName
+  | JobId JobId
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 -- * SSE Routes and handlers
 
@@ -91,7 +100,7 @@ viewStreamScoped filter = do
 data StreamConfig = StreamConfig
   { counter :: Int
   , filter :: Maybe EntityId
-  , channel :: STM.TChan (SomeUpdate ViraState AffectedEntities)
+  , channel :: STM.TChan (SomeUpdate ViraState)
   }
 
 streamRouteHandler :: (HasCallStack) => Maybe Text -> SourceT (Eff AppStack) (KeepAlive ScopedRefresh)
@@ -118,9 +127,9 @@ streamRouteHandler mFilterParam = S.fromStepT $ S.Effect $ do
 
 -- | Wait for and collect relevant updates (with debouncing)
 waitForRelevantUpdate ::
-  STM.TChan (SomeUpdate ViraState AffectedEntities) ->
+  STM.TChan (SomeUpdate ViraState) ->
   Maybe EntityId ->
-  Eff AppStack (NonEmpty (SomeUpdate ViraState AffectedEntities))
+  Eff AppStack (NonEmpty (SomeUpdate ViraState))
 waitForRelevantUpdate chan entityFilter = do
   -- Block until first relevant event
   firstUpdate <- waitForMatch
@@ -131,7 +140,7 @@ waitForRelevantUpdate chan entityFilter = do
   pure $ firstUpdate :| moreUpdates
   where
     -- Wait for an update that matches our filter
-    waitForMatch :: Eff AppStack (SomeUpdate ViraState AffectedEntities)
+    waitForMatch :: Eff AppStack (SomeUpdate ViraState)
     waitForMatch = liftIO $ STM.atomically $ do
       someUpdate <- STM.readTChan chan
       if matchesFilter entityFilter someUpdate
@@ -139,7 +148,7 @@ waitForRelevantUpdate chan entityFilter = do
         else retry -- Retry in STM - keep reading until match
 
     -- Drain additional matching updates (non-blocking)
-    drainMatching :: [SomeUpdate ViraState AffectedEntities] -> Eff AppStack [SomeUpdate ViraState AffectedEntities]
+    drainMatching :: [SomeUpdate ViraState] -> Eff AppStack [SomeUpdate ViraState]
     drainMatching acc = do
       mUpdate <- liftIO $ STM.atomically $ STM.tryReadTChan chan
       case mUpdate of
@@ -150,10 +159,35 @@ waitForRelevantUpdate chan entityFilter = do
             else drainMatching acc -- Skip non-matching
 
 -- | Check if update matches entity filter
-matchesFilter :: Maybe EntityId -> SomeUpdate ViraState AffectedEntities -> Bool
-matchesFilter Nothing (SomeUpdate evt result _timestamp) =
+matchesFilter :: Maybe EntityId -> SomeUpdate ViraState -> Bool
+matchesFilter Nothing someUpdate =
   -- Match any job update
-  any (\case JobId _ -> True; _ -> False) (affectedEntities evt result)
-matchesFilter (Just entityId) (SomeUpdate evt result _timestamp) =
+  any (\case JobId _ -> True; _ -> False) (extractEntityIds someUpdate)
+matchesFilter (Just entityId) someUpdate =
   -- Match specific entity
-  entityId `Set.member` affectedEntities evt result
+  entityId `Set.member` extractEntityIds someUpdate
+
+-- | Extract entity IDs from an update event (manual pattern matching)
+extractEntityIds :: SomeUpdate ViraState -> Set EntityId
+extractEntityIds someUpdate =
+  -- SetAllReposA
+  case matchUpdate @SetAllReposA someUpdate of
+    Just (SetAllReposA repos, _) -> Set.fromList $ fmap (\r -> RepoId r.name) repos
+    Nothing -> case matchUpdate @AddNewRepoA someUpdate of
+      Just (AddNewRepoA repo, _) -> one (RepoId repo.name)
+      Nothing -> case matchUpdate @DeleteRepoByNameA someUpdate of
+        Just (DeleteRepoByNameA repoName, Right ()) -> one (RepoId repoName)
+        Just (DeleteRepoByNameA _, Left _) -> Set.empty
+        Nothing -> case matchUpdate @SetRepoA someUpdate of
+          Just (SetRepoA repo, _) -> one (RepoId repo.name)
+          Nothing -> case matchUpdate @SetRepoBranchesA someUpdate of
+            Just (SetRepoBranchesA repoName _, _) -> one (RepoId repoName)
+            Nothing -> case matchUpdate @StoreCommitA someUpdate of
+              Just (StoreCommitA {}, _) -> Set.empty -- Commits don't have direct entity scoping
+              Nothing -> case matchUpdate @AddNewJobA someUpdate of
+                Just (AddNewJobA repoName _ _ _ _, job) -> Set.fromList [RepoId repoName, JobId job.jobId]
+                Nothing -> case matchUpdate @JobUpdateStatusA someUpdate of
+                  Just (JobUpdateStatusA jid _, _) -> one (JobId jid)
+                  Nothing -> case matchUpdate @MarkUnfinishedJobsAsStaleA someUpdate of
+                    Just (MarkUnfinishedJobsAsStaleA, _) -> Set.empty -- Internal, no SSE
+                    Nothing -> Set.empty -- Unknown event type

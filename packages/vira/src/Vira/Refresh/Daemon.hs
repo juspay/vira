@@ -32,7 +32,6 @@ import Vira.State.Acid (DeleteRepoByNameA (..), GetAllReposA (..), GetRepoByName
 import Vira.State.Acid qualified as St
 import Vira.State.AcidInstances ()
 
--- Orphan instances for AffectedEntities
 import Vira.State.Type (Repo (..))
 import Prelude hiding (asks, atomically)
 
