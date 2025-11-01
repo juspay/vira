@@ -29,7 +29,7 @@ import Vira.Refresh.Core (initializeRefreshState, scheduleRepoRefresh)
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (..), RefreshResult (..), RefreshState (..), RefreshStatus (..))
 import Vira.State.Acid (DeleteRepoByNameA (..), GetAllReposA (..), GetRepoByNameA (..))
 import Vira.State.Acid qualified as St
-import Vira.State.Type (Repo (..))
+import Vira.State.Type (Branch (..), Repo (..))
 import Prelude hiding (asks, atomically)
 
 -- | Start the refresh daemon
@@ -122,8 +122,13 @@ refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
   let mirrorPath = Workspace.mirrorPath supervisor repo.name
   result <- runErrorNoCallStack @Text $ do
     Mirror.syncMirror repo.cloneUrl mirrorPath
-    allBranches <- Git.remoteBranchesFromClone mirrorPath
-    App.update $ St.SetRepoBranchesA repo.name allBranches
+    newBranches <- Git.remoteBranchesFromClone mirrorPath
+
+    -- Only update if branches changed
+    currentBranches <- App.query $ St.GetRepoBranchesA repo.name
+    let currentBranchMap = Map.fromList [(b.branchName, b.headCommit) | b <- currentBranches, not b.deleted]
+    when (currentBranchMap /= newBranches) $ do
+      App.update $ St.SetRepoBranchesA repo.name newBranches
 
   -- Update status based on result
   endTime <- liftIO getCurrentTime

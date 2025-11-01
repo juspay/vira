@@ -108,6 +108,12 @@ getAllBranchesA mRepo mFilter limit = do
       sorted = sortWith (Down . branchActivityTime) enriched
   pure $ take (fromIntegral limit) sorted
 
+-- | Get all branches for a repo
+getRepoBranchesA :: RepoName -> Query ViraState [Branch]
+getRepoBranchesA repo = do
+  ViraState {branches} <- ask
+  pure $ Ix.toList $ branches @= repo
+
 -- | Get a repo's branch by name
 getBranchByNameA :: RepoName -> BranchName -> Query ViraState (Maybe Branch)
 getBranchByNameA repo branch = do
@@ -258,6 +264,7 @@ $( makeAcidic
      , 'getAllReposA
      , 'getRepoByNameA
      , 'getAllBranchesA
+     , 'getRepoBranchesA
      , 'getBranchByNameA
      , 'getBranchDetailsA
      , 'setRepoA
