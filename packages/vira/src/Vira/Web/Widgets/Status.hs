@@ -34,7 +34,7 @@ import Effectful.Git (RepoName (..))
 import Lucid
 import Vira.App.AcidState qualified as App
 import Vira.Lib.TimeExtra (formatDuration, formatRelativeTime, formatTimestamp)
-import Vira.Refresh.Core (getRepoRefreshStatus)
+import Vira.Refresh (getRepoRefreshStatus)
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshResult (..), RefreshStatus (..))
 import Vira.State.Acid qualified as Acid
 import Vira.State.Core qualified as St

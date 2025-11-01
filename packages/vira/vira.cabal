@@ -32,8 +32,6 @@ library
   exposed-modules:
       Vira.App
       Vira.App.AcidState
-      Vira.App.Broadcast.Core
-      Vira.App.Broadcast.Type
       Vira.App.CLI
       Vira.App.GitRev
       Vira.App.InstanceInfo
@@ -60,8 +58,9 @@ library
       Vira.Environment.Tool.Type.Tools
       Vira.Lib.STM
       Vira.Lib.TimeExtra
-      Vira.Refresh.Core
+      Vira.Refresh
       Vira.Refresh.Daemon
+      Vira.Refresh.State
       Vira.Refresh.Type
       Vira.State.Acid
       Vira.State.Core
@@ -80,6 +79,7 @@ library
       Vira.Web.Pages.EnvironmentPage
       Vira.Web.Pages.EnvironmentPage.Builders
       Vira.Web.Pages.EnvironmentPage.Tools
+      Vira.Web.Pages.EventsPage
       Vira.Web.Pages.IndexPage
       Vira.Web.Pages.JobLog
       Vira.Web.Pages.JobPage
@@ -139,6 +139,7 @@ library
   build-depends:
       QuickCheck
     , acid-state
+    , acid-state-events
     , aeson
     , aeson-pretty
     , ansi-terminal
@@ -263,6 +264,7 @@ executable vira
   build-depends:
       QuickCheck
     , acid-state
+    , acid-state-events
     , aeson
     , aeson-pretty
     , ansi-terminal
@@ -353,7 +355,6 @@ executable vira
 executable vira-tests
   main-is: Spec.hs
   other-modules:
-      Vira.App.Broadcast.TypeSpec
       Vira.CI.ConfigurationSpec
       Vira.State.ResetSpec
       Paths_vira
@@ -391,6 +392,7 @@ executable vira-tests
   build-depends:
       QuickCheck
     , acid-state
+    , acid-state-events
     , aeson
     , aeson-pretty
     , ansi-terminal

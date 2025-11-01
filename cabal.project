@@ -1,6 +1,7 @@
 packages:
   packages/vira
   packages/vira-ci-types
+  packages/acid-state-events
   packages/attic
   packages/cachix
   packages/tail

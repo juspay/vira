@@ -1,44 +1,125 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 {- |
 Entity-scoped Server-Sent Events for automatic page refresh.
 
-Bridges breadcrumbs to broadcast events: extracts entity scope from page hierarchy,
-subscribes to updates, triggers page reload when matching events occur.
+Uses the event bus to subscribe to relevant updates for the current page,
+triggers page reload when matching events occur.
 
-Flow: breadcrumbs → 'pageScopePatterns' → 'viewStreamScoped' → SSE → 'streamRouteHandler' → reload
+Flow: breadcrumbs → 'pageEntity' → 'viewStreamScoped' → SSE → 'streamRouteHandler' → reload
 -}
 module Vira.Web.Stream.ScopedRefresh (
-  -- * Routes and handlers
-  StreamRoute,
-  streamRouteHandler,
-
   -- * Views
   viewStreamScoped,
-  pageScopePatterns,
+
+  -- * Handlers
+  streamRouteHandler,
+  StreamRoute,
 ) where
 
 import Colog.Core (Severity (Debug, Error))
-import Data.Aeson (encode)
+import Control.Concurrent.STM qualified as STM
+import Data.Acid.Events (SomeUpdate (..), awaitBatched, matchUpdate)
+import Data.Aeson (FromJSON, ToJSON, eitherDecode, encode)
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
+import Effectful.Git (RepoName)
 import Lucid
 import Servant.API (QueryParam, SourceIO, type (:>))
 import Servant.API.EventStream
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
-import Vira.App.Broadcast.Core qualified as Broadcast
-import Vira.App.Broadcast.Type (BroadcastScope (..), UpdateBroadcast, matchesAnyScope, parseScopes)
+import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
-import Vira.Web.LinkTo.Type (LinkTo (..))
+import Vira.State.Acid
+import Vira.State.Core (ViraState)
+import Vira.State.Type (Job (jobId), JobId, Repo (name))
+import Vira.Web.LinkTo.Type (LinkTo)
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Stack (tagStreamThread)
 import Vira.Web.Stream.KeepAlive (KeepAlive)
 import Vira.Web.Stream.KeepAlive qualified as KeepAlive
-import Prelude hiding (Reader, ask, asks, runReader)
+import Prelude hiding (Reader, ask, asks, filter, runReader)
 
-type StreamRoute = QueryParam "events" Text :> ServerSentEvents (RecommendedEventSourceHeaders (SourceIO (KeepAlive ScopedRefresh)))
+-- * Views
+
+-- | Add SSE listener for auto-refresh based on page breadcrumbs
+viewStreamScoped :: [LinkTo] -> AppHtml ()
+viewStreamScoped crumbs =
+  whenJust (pageEntity crumbs) $ \entity -> do
+    let filterParam = decodeUtf8 (encode entity)
+    link <- lift $ getLinkUrl $ LinkTo.Refresh (Just filterParam)
+    -- Use native EventSource for reliable refresh-triggered reloads
+    script_ $
+      "new EventSource('" <> link <> "').addEventListener('refresh', () => location.reload());"
+
+-- | Derive entity filter from breadcrumbs (internal)
+pageEntity :: [LinkTo] -> Maybe Entity
+pageEntity crumbs = case reverse crumbs of
+  (LinkTo.Job jobId : _) -> Just (Job jobId)
+  (LinkTo.RepoBranch repoName _ : _) -> Just (Repo repoName)
+  (LinkTo.Repo repoName : _) -> Just (Repo repoName)
+  (LinkTo.Events : _) -> Just AnyEntity -- Events page = match all updates
+  [] -> Just AnyEntity -- Index page = match all updates
+  _ -> Nothing -- No refresh for other pages
+
+-- * Handlers
+
+streamRouteHandler :: (HasCallStack) => Maybe Text -> SourceT (Eff AppStack) (KeepAlive ScopedRefresh)
+streamRouteHandler mFilterParam = S.fromStepT $ S.Effect $ do
+  tagStreamThread
+  entity <- case eitherDecode . encodeUtf8 $ fromMaybe "null" mFilterParam of
+    Left err -> do
+      log Error $ "Invalid entity filter: " <> toText err
+      pure AnyEntity
+    Right e -> pure e
+  log Debug $ "Starting stream with filter: " <> show entity
+  chan <- App.subscribe
+  pure $ step StreamConfig {counter = 0, entity, channel = chan}
+  where
+    step cfg =
+      KeepAlive.withKeepAlive
+        (liftIO $ awaitBatched cfg.channel (buildPredicate cfg.entity) 2_500_000)
+        ( \matchingUpdates -> do
+            log Debug $ "Sending refresh for " <> show (length matchingUpdates) <> " matching events; n=" <> show cfg.counter
+            pure $ Just (ScopedRefresh, cfg {counter = cfg.counter + 1})
+        )
+        cfg
+        step
+
+-- | Build predicate from entity filter
+buildPredicate :: Entity -> (SomeUpdate ViraState -> Bool)
+buildPredicate AnyEntity = const True
+buildPredicate entity = (entity `elem`) . entitiesChanged
+
+-- | Extract entities affected by an update
+entitiesChanged :: SomeUpdate ViraState -> [Entity]
+entitiesChanged update
+  | Just (SetAllReposA repos, _) <- matchUpdate update =
+      Repo . (.name) <$> repos
+  | Just (AddNewRepoA repo, _) <- matchUpdate update =
+      [Repo repo.name]
+  | Just (DeleteRepoByNameA name, Right ()) <- matchUpdate update =
+      [Repo name]
+  | Just (SetRefreshStatusA name _, _) <- matchUpdate update =
+      [Repo name]
+  | Just (SetRepoBranchesA name _, _) <- matchUpdate update =
+      [Repo name]
+  | Just (AddNewJobA repo _ _ _ _, job) <- matchUpdate update =
+      [Repo repo, Job job.jobId]
+  | Just (JobUpdateStatusA jid _, _) <- matchUpdate update =
+      [Job jid]
+  | otherwise = []
+
+-- * Internal types
+
+data StreamConfig = StreamConfig
+  { counter :: Int
+  , entity :: Entity
+  , channel :: STM.TChan (SomeUpdate ViraState)
+  }
 
 {- | A scoped refresh signal sent from server to client
 
@@ -54,55 +135,14 @@ instance ToServerEvent ScopedRefresh where
       Nothing -- Event ID
       "Refresh"
 
--- | `BroadcastScope` patterns monitored by the current page, derived from breadcrumbs
-pageScopePatterns :: [LinkTo] -> Maybe (NonEmpty BroadcastScope)
-pageScopePatterns crumbs = case reverse crumbs of
-  (Job jobId : _) -> Just $ JobScope (Just jobId) :| []
-  (RepoBranch repoName _ : _) -> Just $ RepoScope repoName :| []
-  (Repo repoName : _) -> Just $ RepoScope repoName :| []
-  [] -> Just $ JobScope Nothing :| [] -- Index page: subscribe to all job events
-  _ -> Nothing -- No refresh for other pages
+type StreamRoute = QueryParam "filter" Text :> ServerSentEvents (RecommendedEventSourceHeaders (SourceIO (KeepAlive ScopedRefresh)))
 
--- | SSE listener with event pattern filtering
-viewStreamScoped :: NonEmpty BroadcastScope -> AppHtml ()
-viewStreamScoped patterns = do
-  let patternsParam = decodeUtf8 (encode $ toList patterns)
-  link <- lift $ getLinkUrl $ LinkTo.Refresh (Just patternsParam)
-  -- Use native EventSource for reliable refresh-triggered reloads
-  script_ $
-    "new EventSource('" <> link <> "').addEventListener('refresh', () => location.reload());"
+-- * Foundation types
 
-data StreamConfig = StreamConfig
-  { counter :: Int
-  , patterns :: [BroadcastScope]
-  , channel :: UpdateBroadcast
-  }
-
-streamRouteHandler :: (HasCallStack) => Maybe Text -> SourceT (Eff AppStack) (KeepAlive ScopedRefresh)
-streamRouteHandler mEventPatterns = S.fromStepT $ S.Effect $ do
-  tagStreamThread
-  patterns <- case parseScopes $ fromMaybe "[]" mEventPatterns of
-    Left err -> do
-      log Error $ "Invalid broadcast scope patterns: " <> err
-      pure [] -- Fall back to empty patterns (no refresh) when parse fails
-    Right pats -> pure pats
-  log Debug $ "Starting stream with patterns: " <> show patterns
-  chan <- Broadcast.subscribeToBroadcasts
-  pure $ step StreamConfig {counter = 0, patterns, channel = chan}
-  where
-    step cfg =
-      KeepAlive.withKeepAlive
-        (Broadcast.consumeBroadcasts cfg.channel)
-        ( \scopes -> do
-            -- Filter scopes by patterns (consumeBroadcasts already debounces)
-            let matching = filter (matchesAnyScope cfg.patterns) (toList scopes)
-            if null matching
-              then do
-                log Debug $ "No matching events, skipping refresh; n=" <> show cfg.counter
-                pure Nothing
-              else do
-                log Debug $ "Sending refresh for " <> show (length matching) <> " matching events; n=" <> show cfg.counter
-                pure $ Just (ScopedRefresh, cfg {counter = cfg.counter + 1})
-        )
-        cfg
-        step
+-- | Identifiers for entities in Vira
+data Entity
+  = Repo RepoName
+  | Job JobId
+  | AnyEntity -- Match all updates
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)

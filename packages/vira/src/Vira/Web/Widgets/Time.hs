@@ -53,7 +53,6 @@ viraUptime_ startTime = do
       startTimestamp = show @Text (floor (realToFrac (utcTimeToPOSIXSeconds startTime) :: Double) :: Integer)
   span_
     [ title_ "Server uptime"
-    , class_ "cursor-help"
     , id_ "uptime"
     ]
     $ toHtml

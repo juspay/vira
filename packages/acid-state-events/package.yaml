@@ -1,0 +1,25 @@
+defaults:
+  - local: ../../hpack-common.yaml
+
+name: acid-state-events
+version: 0.1.0.0
+synopsis: Generic event bus for acid-state applications
+description: |
+  A generic event bus implementation for acid-state applications.
+  Provides publish/subscribe with event logging and replay capabilities.
+category: Database
+homepage: https://github.com/juspay/vira/tree/main/packages/acid-state-events
+license: MIT
+copyright: 2025 Sridhar Ratnakumar
+author: Sridhar Ratnakumar
+maintainer: srid@srid.ca
+
+dependencies:
+  - acid-state
+  - stm
+  - containers
+  - time
+
+library:
+  source-dirs: src
+  dependencies: []

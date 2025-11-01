@@ -1,0 +1,4 @@
+When adding or removing a package here, please also update:
+
+- cabal-repl
+- cabal.project

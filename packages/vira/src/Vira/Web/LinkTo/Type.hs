@@ -24,6 +24,7 @@ data LinkTo
   | Kill JobId
   | Environment
   | Cache
+  | Events
   | Refresh (Maybe Text) -- Query parameter for event patterns
 
 linkShortTitle :: LinkTo -> Text
@@ -43,6 +44,7 @@ linkShortTitle = \case
   Kill _ -> "Kill" -- unused
   Environment -> "Environment"
   Cache -> "Binary Cache"
+  Events -> "Events"
   Refresh _ -> "Refresh"
 
 linkTitle :: LinkTo -> Text

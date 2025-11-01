@@ -15,8 +15,6 @@ import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
-import Vira.App.Broadcast.Core qualified as Broadcast
-import Vira.App.Broadcast.Type (BroadcastScope (..))
 import Vira.App.CLI (WebSettings)
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Pipeline.Program qualified as Program
@@ -185,12 +183,8 @@ triggerNewBuild minSeverity repoName branchName = do
               Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
               Left (Pipeline.PipelineTerminated Terminated) -> St.JobFinished St.JobKilled endTime
               Left _ -> St.JobFinished St.JobFailure endTime
+        -- Update status
         App.update $ St.JobUpdateStatusA job.jobId status
-        broadcastUpdate job.jobId
+    -- Set job as running
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
-    broadcastUpdate job.jobId
     log Info "Started task"
-  where
-    broadcastUpdate jobId = do
-      Broadcast.broadcastUpdate $ JobScope (Just jobId)
-      Broadcast.broadcastUpdate $ RepoScope repoName

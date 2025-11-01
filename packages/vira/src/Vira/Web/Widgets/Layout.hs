@@ -37,6 +37,7 @@ module Vira.Web.Widgets.Layout (
   viraDivider_,
 ) where
 
+import Data.Time (UTCTime)
 import Effectful.Reader.Dynamic (asks)
 import Lucid
 import Vira.App.CLI (WebSettings (..))
@@ -100,8 +101,8 @@ layout crumbs content = do
           , ".transition-smooth { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }"
           ]
     body_ [class_ "bg-gray-50 dark:bg-gray-900 min-h-screen font-inter"] $ do
-      -- Add SSE listener based on page entity (if any)
-      whenJust (Stream.pageScopePatterns crumbs) Stream.viewStreamScoped
+      -- Add SSE listener for auto-refresh (if page supports it)
+      Stream.viewStreamScoped crumbs
       -- Global modal container for all pages
       W.viraGlobalModalContainer_
       div_ [class_ "min-h-screen flex flex-col"] $ do
@@ -138,10 +139,17 @@ layout crumbs content = do
               span_ [class_ "text-gray-400 dark:text-gray-500"] "•"
               span_ [title_ "Platform", class_ "cursor-help"] $ toHtml (platform instanceInfo)
               span_ [class_ "text-gray-400 dark:text-gray-500"] "•"
-              Time.viraUptime_ startTime
+              uptimeLink startTime
             div_
               [class_ "text-xs text-gray-500 dark:text-gray-400"]
               viraVersionLink
+
+-- | Uptime display linked to events page
+uptimeLink :: UTCTime -> AppHtml ()
+uptimeLink startTime = do
+  url <- lift $ getLinkUrl Events
+  a_ [href_ url, class_ "hover:text-gray-700 dark:hover:text-gray-200 transition-colors"] $
+    Time.viraUptime_ startTime
 
 -- | Display Vira version with git commit hash
 viraVersionLink :: (Monad m) => HtmlT m ()
@@ -160,6 +168,7 @@ linkToIcon = \case
   RepoBranch _ _ -> toHtmlRaw Icon.git_branch
   Job _ -> toHtmlRaw Icon.player_play
   Environment -> toHtmlRaw Icon.cpu
+  Events -> toHtmlRaw Icon.bell
   _ -> toHtmlRaw Icon.circle -- fallback for other types
 
 -- | Show breadcrumbs at the top of the page for navigation to parent routes

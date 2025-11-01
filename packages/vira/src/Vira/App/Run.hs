@@ -6,9 +6,9 @@ module Vira.App.Run (
   runVira,
 ) where
 
-import Control.Concurrent.STM (newBroadcastTChan)
 import Control.Exception (bracket)
 import Data.Acid (AcidState)
+import Data.Acid.Events qualified as Event
 import Data.Aeson (encode)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Time (getCurrentTime)
@@ -72,8 +72,8 @@ runVira = do
         startTime <- getCurrentTime
         instanceInfo <- getInstanceInfo
         supervisor <- Supervisor.newSupervisor (stateDir globalSettings)
-        -- Initialize broadcast channel for state update tracking
-        updateBroadcast <- atomically newBroadcastTChan
+        -- Initialize event bus for update tracking (SSE, subscriptions, debug log)
+        eventBus <- Event.newEventBus
         -- Create TVar with all tools data for caching
         tools <- runEff $ runLogActionStdout (logLevel globalSettings) $ runProcess Tool.newToolsTVar
         -- Initialize refresh state
