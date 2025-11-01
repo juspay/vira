@@ -97,5 +97,9 @@ renderEventGroup events@(firstEvent :| _) = do
         -- Right: Events
         div_ [class_ "flex-1 min-w-0 space-y-2"] $
           forM_ events $ \(SomeUpdate evt _ _) ->
-            code_ [class_ "text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 px-3 py-2 rounded block overflow-x-auto"] $
-              toHtml (show evt :: Text)
+            let fullText = show evt :: Text
+             in code_
+                  [ class_ "text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 px-3 py-2 rounded block truncate cursor-help"
+                  , title_ fullText
+                  ]
+                  $ toHtml fullText
