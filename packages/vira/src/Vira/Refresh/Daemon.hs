@@ -10,16 +10,16 @@ import Control.Concurrent.STM.TChan (readTChan)
 import Data.Acid.Events qualified as Events
 import Data.Map.Strict qualified as Map
 import Data.Time (diffUTCTime, getCurrentTime)
-import Effectful (Eff)
+import Effectful (Eff, IOE, type (:>))
 import Effectful.Colog.Simple (Severity (..), log, tagCurrentThread, withLogContext)
 import Effectful.Concurrent (threadDelay)
 import Effectful.Concurrent.Async (async)
 import Effectful.Concurrent.STM (atomically)
 import Effectful.Error.Static (runErrorNoCallStack)
-import Effectful.Git (RepoName (..))
+import Effectful.Git (BranchName, Commit, RepoName (..))
 import Effectful.Git.Command.ForEachRef qualified as Git
 import Effectful.Git.Mirror qualified as Mirror
-import Effectful.Reader.Dynamic (asks)
+import Effectful.Reader.Dynamic (Reader, asks)
 import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
@@ -30,7 +30,7 @@ import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (..), RefreshResu
 import Vira.State.Acid (DeleteRepoByNameA (..), GetAllReposA (..), GetRepoByNameA (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Branch (..), Repo (..))
-import Prelude hiding (asks, atomically)
+import Prelude hiding (Reader, asks, atomically)
 
 -- | Start the refresh daemon
 startRefreshDaemon :: Eff AppStack ()
@@ -88,7 +88,7 @@ workerLoop = do
       Nothing -> do
         -- Should not happen - cleanup worker should remove deleted repos
         log Error $ "Repo not found in state (cleanup worker should have removed it): " <> show repoName
-      Just repo -> void $ refreshRepo repo
+      Just repo -> refreshRepo repo
 
 {- | Atomically pop the next pending repo and mark it as InProgress
 Blocks (via STM retry) when no pending repos available
@@ -110,30 +110,22 @@ popNextPendingRepo = do
         pure repo
 
 -- | Refresh a single repository (expects repo to already be marked InProgress)
-refreshRepo :: Repo -> Eff AppStack (Either Text ())
+refreshRepo :: Repo -> Eff AppStack ()
 refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
   log Info "Starting refresh"
 
-  st <- asks (.refreshState)
-  supervisor <- asks (.supervisor)
-  startTime <- liftIO getCurrentTime
-
   -- Run the actual refresh
-  let mirrorPath = Workspace.mirrorPath supervisor repo.name
+  startTime <- liftIO getCurrentTime
   result <- runErrorNoCallStack @Text $ do
+    supervisor <- asks (.supervisor)
+    let mirrorPath = Workspace.mirrorPath supervisor repo.name
     Mirror.syncMirror repo.cloneUrl mirrorPath
     newBranches <- Git.remoteBranchesFromClone mirrorPath
-
-    -- Only update if branches changed
-    currentBranches <- App.query $ St.GetRepoBranchesA repo.name
-    let currentBranchMap = Map.fromList [(b.branchName, b.headCommit) | b <- currentBranches, not b.deleted]
-    when (currentBranchMap /= newBranches) $ do
-      App.update $ St.SetRepoBranchesA repo.name newBranches
+    updateRepoBranches repo.name newBranches
+  endTime <- liftIO getCurrentTime
 
   -- Update status based on result
-  endTime <- liftIO getCurrentTime
   let duration = diffUTCTime endTime startTime
-      durationText = formatDuration duration
       refreshResult =
         RefreshResult
           { completedAt = endTime
@@ -144,15 +136,22 @@ refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
           }
 
   -- Update TVar status
+  st <- asks (.refreshState)
   atomically $
     modifyTVar' st.statusMap $
       Map.insert repo.name (Completed refreshResult)
 
-  App.update $ St.SetRepoA $ repo {lastRefresh = Just refreshResult}
+  App.update $ St.SetRefreshStatusA repo.name (Just refreshResult)
 
   -- Log completion
   case result of
-    Left err -> log Error $ "❌ Refresh failed (took " <> durationText <> "): " <> err
-    Right () -> log Info $ "✅ Refresh succeeded (took " <> durationText <> ")"
+    Left err -> log Error $ "❌ Refresh failed (took " <> formatDuration duration <> "): " <> err
+    Right () -> log Info $ "✅ Refresh succeeded (took " <> formatDuration duration <> ")"
 
-  pure result
+-- | Update the repo with given branches, but only if there are changes
+updateRepoBranches :: (Reader ViraRuntimeState :> es, IOE :> es) => RepoName -> Map BranchName Commit -> Eff es ()
+updateRepoBranches repo branches = do
+  current <- App.query $ St.GetRepoBranchesA repo
+  let currentMap = Map.fromList [(b.branchName, b.headCommit) | b <- current, not b.deleted]
+  when (currentMap /= branches) $ do
+    App.update $ St.SetRepoBranchesA repo branches

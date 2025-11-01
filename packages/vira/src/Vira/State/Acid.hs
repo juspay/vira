@@ -18,6 +18,7 @@ import Data.Text qualified as T
 import Data.Time (UTCTime)
 import Effectful.Git (BranchName, Commit (..), CommitID, RepoName)
 import System.FilePath ((</>))
+import Vira.Refresh.Type (RefreshResult)
 import Vira.State.Type
 
 -- | Set all repositories, replacing existing ones
@@ -128,13 +129,15 @@ getBranchDetailsA repo branchName = do
     Nothing -> pure Nothing
     Just branch -> pure $ Just $ enrichBranchWithJobs jobs branch
 
--- | Set a repository
-setRepoA :: Repo -> Update ViraState ()
-setRepoA repo = do
+-- | Set a repository's refresh status
+setRefreshStatusA :: RepoName -> Maybe RefreshResult -> Update ViraState ()
+setRefreshStatusA name mResult = do
   modify $ \s ->
-    s
-      { repos = Ix.updateIx repo.name repo s.repos
-      }
+    case Ix.getOne $ s.repos @= name of
+      Nothing -> s -- Repo doesn't exist, no-op
+      Just repo ->
+        let updatedRepo = repo {lastRefresh = mResult}
+         in s {repos = Ix.updateIx name updatedRepo s.repos}
 
 -- | Set a repository's branches, marking deleted branches (keeps jobs for history)
 setRepoBranchesA :: RepoName -> Map BranchName Commit -> Update ViraState ()
@@ -267,7 +270,7 @@ $( makeAcidic
      , 'getRepoBranchesA
      , 'getBranchByNameA
      , 'getBranchDetailsA
-     , 'setRepoA
+     , 'setRefreshStatusA
      , 'setRepoBranchesA
      , 'getCommitByIdA
      , 'storeCommitA
@@ -289,7 +292,7 @@ deriving stock instance Show AddNewRepoA
 
 deriving stock instance Show DeleteRepoByNameA
 
-deriving stock instance Show SetRepoA
+deriving stock instance Show SetRefreshStatusA
 
 deriving stock instance Show SetRepoBranchesA
 

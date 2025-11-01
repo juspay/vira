@@ -103,8 +103,8 @@ entitiesChanged update
       [Repo repo.name]
   | Just (DeleteRepoByNameA name, Right ()) <- matchUpdate update =
       [Repo name]
-  | Just (SetRepoA repo, _) <- matchUpdate update =
-      [Repo repo.name]
+  | Just (SetRefreshStatusA name _, _) <- matchUpdate update =
+      [Repo name]
   | Just (SetRepoBranchesA name _, _) <- matchUpdate update =
       [Repo name]
   | Just (AddNewJobA repo _ _ _ _, job) <- matchUpdate update =
