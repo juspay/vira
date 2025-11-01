@@ -7,7 +7,6 @@ module Vira.Refresh.Daemon (
 
 import Control.Concurrent.STM (retry)
 import Control.Concurrent.STM.TChan (readTChan)
-import Data.Acid qualified as Acid
 import Data.Acid.Events qualified as Events
 import Data.Map.Strict qualified as Map
 import Data.Time (diffUTCTime, getCurrentTime)
@@ -116,7 +115,6 @@ refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
   log Info "Starting refresh"
 
   st <- asks (.refreshState)
-  acid <- asks (.acid)
   supervisor <- asks (.supervisor)
   startTime <- liftIO getCurrentTime
 
@@ -125,7 +123,7 @@ refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
   result <- runErrorNoCallStack @Text $ do
     Mirror.syncMirror repo.cloneUrl mirrorPath
     allBranches <- Git.remoteBranchesFromClone mirrorPath
-    liftIO $ Acid.update acid $ St.SetRepoBranchesA repo.name allBranches
+    App.update $ St.SetRepoBranchesA repo.name allBranches
 
   -- Update status based on result
   endTime <- liftIO getCurrentTime

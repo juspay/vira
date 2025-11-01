@@ -284,6 +284,8 @@ deriving stock instance Show DeleteRepoByNameA
 
 deriving stock instance Show SetRepoA
 
+deriving stock instance Show SetRepoBranchesA
+
 deriving stock instance Show AddNewJobA
 
 deriving stock instance Show JobUpdateStatusA
