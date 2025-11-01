@@ -62,7 +62,6 @@ library
       Vira.Refresh.Daemon
       Vira.Refresh.Type
       Vira.State.Acid
-      Vira.State.AcidInstances
       Vira.State.Core
       Vira.State.JSON
       Vira.State.Reset

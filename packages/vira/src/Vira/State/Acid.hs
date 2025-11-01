@@ -275,3 +275,15 @@ $( makeAcidic
      , 'deleteRepoByNameA
      ]
  )
+
+-- * Show instances (for events published via App.update to event bus)
+
+deriving stock instance Show AddNewRepoA
+
+deriving stock instance Show DeleteRepoByNameA
+
+deriving stock instance Show SetRepoA
+
+deriving stock instance Show AddNewJobA
+
+deriving stock instance Show JobUpdateStatusA

@@ -33,7 +33,6 @@ import Servant.Types.SourceT qualified as S
 import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.State.Acid
-import Vira.State.AcidInstances ()
 import Vira.State.Core (ViraState)
 import Vira.State.Type (Job (jobId), JobId, Repo (name))
 import Vira.Web.LinkTo.Type (LinkTo)
