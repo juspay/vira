@@ -21,17 +21,20 @@ module Data.Acid.Events (
   -- * Event bus operations
   update,
   subscribe,
+  awaitBatched,
   getRecentEvents,
 
   -- * Pattern matching
   matchUpdate,
 ) where
 
-import Control.Concurrent.STM (TChan, TVar, atomically, dupTChan, isEmptyTChan, modifyTVar', newBroadcastTChanIO, newTVarIO, readTChan, readTVarIO, writeTChan)
+import Control.Concurrent (threadDelay)
+import Control.Concurrent.STM (TChan, TVar, atomically, dupTChan, isEmptyTChan, modifyTVar', newBroadcastTChanIO, newTVarIO, readTChan, readTVarIO, tryReadTChan, writeTChan)
 import Control.Monad (unless, void)
 import Data.Acid (AcidState, EventResult, EventState, UpdateEvent)
 import Data.Acid qualified as Acid
 import Data.Foldable (toList)
+import Data.List.NonEmpty (NonEmpty (..))
 import Data.Sequence (Seq, (|>))
 import Data.Sequence qualified as Seq
 import Data.Time (UTCTime, getCurrentTime)
@@ -137,6 +140,51 @@ subscribe bus = atomically $ do
           drainLoop
   drainLoop
   pure dup
+
+{- | Wait for and collect matching events with debouncing
+
+Useful for batching rapid event sequences (e.g., multiple file saves)
+into a single processing cycle. Blocks until first matching event,
+then collects additional matches during debounce window.
+
+Example: Wait for repo updates, batch them over 2.5s window
+@
+  batch <- awaitBatched chan isRepoUpdate 2_500_000
+  processBatch batch
+@
+-}
+awaitBatched ::
+  TChan someUpdate ->
+  -- | Predicate to filter events
+  (someUpdate -> Bool) ->
+  -- | Debounce window in microseconds
+  Int ->
+  IO (NonEmpty someUpdate)
+awaitBatched chan predicate debounceUs = do
+  -- Block until first matching event
+  firstUpdate <- atomically waitForMatch
+  -- Debounce: wait for more events to batch together
+  threadDelay debounceUs
+  -- Collect any additional matching events
+  moreUpdates <- drainMatching []
+  pure $ firstUpdate :| moreUpdates
+  where
+    -- Wait for an update that matches predicate
+    waitForMatch = do
+      evt <- readTChan chan
+      if predicate evt
+        then pure evt
+        else waitForMatch -- Retry in STM - keep reading until match
+
+    -- Drain additional matching updates (non-blocking)
+    drainMatching acc = do
+      mUpdate <- atomically $ tryReadTChan chan
+      case mUpdate of
+        Nothing -> pure $ reverse acc
+        Just evt ->
+          if predicate evt
+            then drainMatching (evt : acc)
+            else drainMatching acc -- Skip non-matching
 
 -- | Get recent events from the log (for debug UI)
 getRecentEvents ::

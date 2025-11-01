@@ -19,13 +19,11 @@ module Vira.Web.Stream.ScopedRefresh (
 ) where
 
 import Colog.Core (Severity (Debug, Error))
-import Control.Concurrent.STM (retry)
 import Control.Concurrent.STM qualified as STM
-import Data.Acid.Events (SomeUpdate (..), matchUpdate)
+import Data.Acid.Events (SomeUpdate (..), awaitBatched, matchUpdate)
 import Data.Aeson (FromJSON, ToJSON, eitherDecode, encode)
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
-import Effectful.Concurrent (threadDelay)
 import Effectful.Git (RepoName)
 import Lucid
 import Servant.API (QueryParam, SourceIO, type (:>))
@@ -83,48 +81,13 @@ streamRouteHandler mFilterParam = S.fromStepT $ S.Effect $ do
   where
     step cfg =
       KeepAlive.withKeepAlive
-        (waitForRelevantUpdate cfg.channel cfg.entity)
+        (liftIO $ awaitBatched cfg.channel (buildPredicate cfg.entity) 2_500_000)
         ( \matchingUpdates -> do
             log Debug $ "Sending refresh for " <> show (length matchingUpdates) <> " matching events; n=" <> show cfg.counter
             pure $ Just (ScopedRefresh, cfg {counter = cfg.counter + 1})
         )
         cfg
         step
-
--- | Wait for and collect relevant updates (with debouncing)
-waitForRelevantUpdate ::
-  STM.TChan (SomeUpdate ViraState) ->
-  Entity ->
-  Eff AppStack (NonEmpty (SomeUpdate ViraState))
-waitForRelevantUpdate chan entity = do
-  -- Block until first relevant event
-  firstUpdate <- waitForMatch
-  -- Debounce: wait for more events to batch together
-  threadDelay 2_500_000 -- 2.5 seconds
-  -- Collect any additional matching events
-  moreUpdates <- drainMatching []
-  pure $ firstUpdate :| moreUpdates
-  where
-    predicate = buildPredicate entity
-
-    -- Wait for an update that matches our filter
-    waitForMatch :: Eff AppStack (SomeUpdate ViraState)
-    waitForMatch = liftIO $ STM.atomically $ do
-      someUpdate <- STM.readTChan chan
-      if predicate someUpdate
-        then pure someUpdate
-        else retry -- Retry in STM - keep reading until match
-
-    -- Drain additional matching updates (non-blocking)
-    drainMatching :: [SomeUpdate ViraState] -> Eff AppStack [SomeUpdate ViraState]
-    drainMatching acc = do
-      mUpdate <- liftIO $ STM.atomically $ STM.tryReadTChan chan
-      case mUpdate of
-        Nothing -> pure $ reverse acc
-        Just someUpdate ->
-          if predicate someUpdate
-            then drainMatching (someUpdate : acc)
-            else drainMatching acc -- Skip non-matching
 
 -- | Build predicate from entity filter
 buildPredicate :: Entity -> (SomeUpdate ViraState -> Bool)
