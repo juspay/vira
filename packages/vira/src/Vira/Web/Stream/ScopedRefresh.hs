@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# OPTIONS_GHC -Wno-orphans #-}
 
 {- |
 Entity-scoped Server-Sent Events for automatic page refresh.
@@ -8,15 +7,15 @@ Entity-scoped Server-Sent Events for automatic page refresh.
 Uses the event bus to subscribe to relevant updates for the current page,
 triggers page reload when matching events occur.
 
-Flow: breadcrumbs → 'pageFilterEntities' → 'viewStreamScoped' → SSE → 'streamRouteHandler' → reload
+Flow: breadcrumbs → 'pageEntity' → 'viewStreamScoped' → SSE → 'streamRouteHandler' → reload
 -}
 module Vira.Web.Stream.ScopedRefresh (
-  -- * Routes and handlers
-  StreamRoute,
-  streamRouteHandler,
-
   -- * Views
   viewStreamScoped,
+
+  -- * Handlers
+  streamRouteHandler,
+  StreamRoute,
 ) where
 
 import Colog.Core (Severity (Debug, Error))
@@ -47,38 +46,12 @@ import Vira.Web.Stream.KeepAlive (KeepAlive)
 import Vira.Web.Stream.KeepAlive qualified as KeepAlive
 import Prelude hiding (Reader, ask, asks, filter, runReader)
 
--- * Entity types
-
--- | Identifiers for entities in Vira
-data Entity
-  = Repo RepoName
-  | Job JobId
-  | AnyEntity -- Match all updates
-  deriving stock (Eq, Ord, Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
-
--- * SSE Routes and handlers
-
-type StreamRoute = QueryParam "filter" Text :> ServerSentEvents (RecommendedEventSourceHeaders (SourceIO (KeepAlive ScopedRefresh)))
-
-{- | A scoped refresh signal sent from server to client
-
-Wrapped in @KeepAlive@ to add heartbeat support, preventing connection
-timeout during long-running operations (e.g., builds taking 5+ minutes).
--}
-data ScopedRefresh = ScopedRefresh
-
-instance ToServerEvent ScopedRefresh where
-  toServerEvent ScopedRefresh =
-    ServerEvent
-      (Just "refresh") -- Custom event type to distinguish from heartbeat "message" events
-      Nothing -- Event ID
-      "Refresh"
+-- * Views
 
 -- | Add SSE listener for auto-refresh based on page breadcrumbs
 viewStreamScoped :: [LinkTo] -> AppHtml ()
 viewStreamScoped crumbs =
-  whenJust (pageFilterEntities crumbs) $ \entity -> do
+  whenJust (pageEntity crumbs) $ \entity -> do
     let filterParam = decodeUtf8 (encode entity)
     link <- lift $ getLinkUrl $ LinkTo.Refresh (Just filterParam)
     -- Use native EventSource for reliable refresh-triggered reloads
@@ -86,19 +59,15 @@ viewStreamScoped crumbs =
       "new EventSource('" <> link <> "').addEventListener('refresh', () => location.reload());"
 
 -- | Derive entity filter from breadcrumbs (internal)
-pageFilterEntities :: [LinkTo] -> Maybe Entity
-pageFilterEntities crumbs = case reverse crumbs of
+pageEntity :: [LinkTo] -> Maybe Entity
+pageEntity crumbs = case reverse crumbs of
   (LinkTo.Job jobId : _) -> Just (Job jobId)
   (LinkTo.RepoBranch repoName _ : _) -> Just (Repo repoName)
   (LinkTo.Repo repoName : _) -> Just (Repo repoName)
   [] -> Just AnyEntity -- Index page = match all updates
   _ -> Nothing -- No refresh for other pages
 
-data StreamConfig = StreamConfig
-  { counter :: Int
-  , entity :: Entity
-  , channel :: STM.TChan (SomeUpdate ViraState)
-  }
+-- * Handlers
 
 streamRouteHandler :: (HasCallStack) => Maybe Text -> SourceT (Eff AppStack) (KeepAlive ScopedRefresh)
 streamRouteHandler mFilterParam = S.fromStepT $ S.Effect $ do
@@ -157,6 +126,11 @@ waitForRelevantUpdate chan entity = do
             then drainMatching (someUpdate : acc)
             else drainMatching acc -- Skip non-matching
 
+-- | Build predicate from entity filter
+buildPredicate :: Entity -> (SomeUpdate ViraState -> Bool)
+buildPredicate AnyEntity = const True
+buildPredicate entity = (entity `elem`) . entitiesChanged
+
 -- | Extract entities affected by an update
 entitiesChanged :: SomeUpdate ViraState -> [Entity]
 entitiesChanged update
@@ -176,7 +150,36 @@ entitiesChanged update
       [Job jid]
   | otherwise = []
 
--- | Build predicate from entity filter
-buildPredicate :: Entity -> (SomeUpdate ViraState -> Bool)
-buildPredicate AnyEntity = const True
-buildPredicate entity = (entity `elem`) . entitiesChanged
+-- * Internal types
+
+data StreamConfig = StreamConfig
+  { counter :: Int
+  , entity :: Entity
+  , channel :: STM.TChan (SomeUpdate ViraState)
+  }
+
+{- | A scoped refresh signal sent from server to client
+
+Wrapped in @KeepAlive@ to add heartbeat support, preventing connection
+timeout during long-running operations (e.g., builds taking 5+ minutes).
+-}
+data ScopedRefresh = ScopedRefresh
+
+instance ToServerEvent ScopedRefresh where
+  toServerEvent ScopedRefresh =
+    ServerEvent
+      (Just "refresh") -- Custom event type to distinguish from heartbeat "message" events
+      Nothing -- Event ID
+      "Refresh"
+
+type StreamRoute = QueryParam "filter" Text :> ServerSentEvents (RecommendedEventSourceHeaders (SourceIO (KeepAlive ScopedRefresh)))
+
+-- * Foundation types
+
+-- | Identifiers for entities in Vira
+data Entity
+  = Repo RepoName
+  | Job JobId
+  | AnyEntity -- Match all updates
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
