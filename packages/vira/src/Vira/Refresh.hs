@@ -19,7 +19,7 @@ import Effectful.Git (RepoName)
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful.Reader.Static qualified as ER
 import Vira.App.Type (ViraRuntimeState (..))
-import Vira.Refresh.StatusMap qualified as StatusMap
+import Vira.Refresh.State qualified as State
 import Vira.Refresh.Type (RefreshPriority (..), RefreshState (..), RefreshStatus (..))
 import Prelude hiding (Reader, ask, asks)
 
@@ -48,6 +48,6 @@ scheduleRepoRefresh ::
   Eff es ()
 scheduleRepoRefresh repo prio = do
   now <- liftIO getCurrentTime
-  statusMap <- asks (.refreshState.statusMap)
-  StatusMap.markRepoPending statusMap repo now prio
+  st <- asks (.refreshState)
+  State.markPending st repo now prio
   log Info $ "Queued refresh with prio: " <> show prio

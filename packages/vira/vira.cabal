@@ -60,7 +60,7 @@ library
       Vira.Lib.TimeExtra
       Vira.Refresh
       Vira.Refresh.Daemon
-      Vira.Refresh.StatusMap
+      Vira.Refresh.State
       Vira.Refresh.Type
       Vira.State.Acid
       Vira.State.Core

@@ -25,7 +25,7 @@ import Vira.App.Type (ViraRuntimeState (..))
 import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Refresh (scheduleRepoRefresh)
-import Vira.Refresh.StatusMap qualified as StatusMap
+import Vira.Refresh.State qualified as State
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (..), RefreshResult (..), RefreshState (..))
 import Vira.State.Acid (DeleteRepoByNameA (..), GetAllReposA (..), GetRepoByNameA (..))
 import Vira.State.Acid qualified as St
@@ -39,8 +39,8 @@ startRefreshDaemon = do
 
   -- Initialize refresh state from persisted data
   repos <- App.query GetAllReposA
-  statusMap <- asks (.refreshState.statusMap)
-  StatusMap.initializeRefreshState statusMap repos
+  refreshState <- asks (.refreshState)
+  State.initialize refreshState repos
   log Info "🔄 Loaded refresh status from acid-state"
 
   void $ async schedulerLoop
@@ -74,17 +74,17 @@ cleanupWorker = do
     someUpdate <- atomically $ readTChan chan
     whenJust (Events.matchUpdate someUpdate) $ \(DeleteRepoByNameA name, _) -> do
       log Info $ "Repo deleted, cleaning up refresh state: " <> show name
-      statusMap <- asks (.refreshState.statusMap)
-      StatusMap.removeRepoFromRefreshState statusMap name
+      refreshState <- asks (.refreshState)
+      State.remove refreshState name
 
 -- | Worker loop: continuously process pending repos
 workerLoop :: Eff AppStack Void
 workerLoop = do
   tagCurrentThread "🔄"
-  statusMap <- asks (.refreshState.statusMap)
+  st <- asks (.refreshState)
   infinitely $ do
     -- Pop next pending repo (blocks via STM retry until available)
-    repoName <- StatusMap.popNextPendingRepo statusMap
+    repoName <- State.popAndMarkInProgress st
 
     -- Fetch repo data and refresh
     App.query (GetRepoByNameA repoName) >>= \case
@@ -120,8 +120,8 @@ refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
           }
 
   -- Update TVar status
-  statusMap <- asks (.refreshState.statusMap)
-  StatusMap.markRepoCompleted statusMap repo.name refreshResult
+  st <- asks (.refreshState)
+  State.markCompleted st repo.name refreshResult
 
   -- Persist to acid-state
   App.update $ St.SetRefreshStatusA repo.name (Just refreshResult)
