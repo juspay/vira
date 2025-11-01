@@ -38,7 +38,8 @@ startRefreshDaemon = do
   log Info "🔄 Refresh daemon starting..."
 
   -- Initialize refresh state from persisted data
-  StatusMap.initializeRefreshState
+  repos <- App.query GetAllReposA
+  StatusMap.initializeRefreshState repos
   log Info "🔄 Loaded refresh status from acid-state"
 
   void $ async schedulerLoop
@@ -115,8 +116,11 @@ refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
               Right () -> Success
           }
 
-  -- Update TVar status and persist to acid-state
+  -- Update TVar status
   StatusMap.markRepoCompleted repo.name refreshResult
+
+  -- Persist to acid-state
+  App.update $ St.SetRefreshStatusA repo.name (Just refreshResult)
 
   -- Log completion
   case result of
