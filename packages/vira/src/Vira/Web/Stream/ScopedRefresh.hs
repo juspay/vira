@@ -61,6 +61,7 @@ pageEntity crumbs = case reverse crumbs of
   (LinkTo.Job jobId : _) -> Just (Job jobId)
   (LinkTo.RepoBranch repoName _ : _) -> Just (Repo repoName)
   (LinkTo.Repo repoName : _) -> Just (Repo repoName)
+  (LinkTo.Events : _) -> Just AnyEntity -- Events page = match all updates
   [] -> Just AnyEntity -- Index page = match all updates
   _ -> Nothing -- No refresh for other pages
 
