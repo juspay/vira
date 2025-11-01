@@ -58,8 +58,9 @@ library
       Vira.Environment.Tool.Type.Tools
       Vira.Lib.STM
       Vira.Lib.TimeExtra
-      Vira.Refresh.Core
+      Vira.Refresh
       Vira.Refresh.Daemon
+      Vira.Refresh.StatusMap
       Vira.Refresh.Type
       Vira.State.Acid
       Vira.State.Core
