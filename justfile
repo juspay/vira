@@ -39,23 +39,10 @@ ghcid COMPONENT='vira':
     @just hpack
     ghcid --outputfile=ghcid.log -c "./cabal-repl {{ COMPONENT }}"
 
-# Re-generate .cabal files whenever necessary (this will trigger ghcid to reload)
+# Watch and auto-regenerate .cabal files
+[group('2. haskell')]
 hpack-watch:
-    watchexec \
-    -f "**/package.yaml" \
-    -f "**/hpack-common.yaml" \
-    -f "**/hpack-relude.yaml" \
-    -f "**/cabal-repl" \
-    -- just hpack
-
-hpack-watch-2:
-    # Watch ONLY for file list changes for .hs files
-    watchexec \
-    -f "**.hs" \
-    -e create \
-    -e remove \
-    -e rename \
-    -- hpack
+    nix run .#hpack-watch -- --tui=false
 
 # Delete and recreate vira state during next `just run`
 [group('1. vira')]
