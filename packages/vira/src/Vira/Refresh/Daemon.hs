@@ -72,11 +72,9 @@ cleanupWorker = do
 
   infinitely $ do
     someUpdate <- atomically $ readTChan chan
-    case Events.matchUpdate @DeleteRepoByNameA someUpdate of
-      Just (DeleteRepoByNameA name, Right ()) -> do
-        log Info $ "Repo deleted, cleaning up refresh state: " <> show name
-        atomically $ modifyTVar' st.statusMap (Map.delete name)
-      _ -> pass
+    whenJust (Events.matchUpdate someUpdate) $ \(DeleteRepoByNameA name, _) -> do
+      log Info $ "Repo deleted, cleaning up refresh state: " <> show name
+      atomically $ modifyTVar' st.statusMap (Map.delete name)
 
 -- | Worker loop: continuously process pending repos
 workerLoop :: Eff AppStack Void
@@ -147,9 +145,7 @@ refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
     modifyTVar' st.statusMap $
       Map.insert repo.name (Completed refreshResult)
 
-  -- Update repo.lastRefresh in acid-state (broadcast happens automatically)
-  let updatedRepo = repo {lastRefresh = Just refreshResult}
-  App.update (St.SetRepoA updatedRepo)
+  App.update $ St.SetRepoA $ repo {lastRefresh = Just refreshResult}
 
   -- Log completion
   case result of

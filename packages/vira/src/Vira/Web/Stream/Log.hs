@@ -127,7 +127,6 @@ streamRouteHandler jobId = S.fromStepT $ S.Effect $ do
       -- Job is stale/finished - send Stop event to close SSE connection gracefully
       -- This triggers hx-sse-close and prevents reconnection attempts
       App.log Warning $ "SSE stream requested for inactive job " <> show jobId <> ", closing stream"
-      -- Note: No need to broadcast - job status was already updated (auto-broadcast via event system)
       pure $ KeepAlive.yieldEvent (Stop 0) S.Stop
     Just (Active job) -> do
       pure $ S.Skip $ step StreamConfig {counter = 0, job, streamState = Init}

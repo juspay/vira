@@ -183,8 +183,8 @@ triggerNewBuild minSeverity repoName branchName = do
               Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
               Left (Pipeline.PipelineTerminated Terminated) -> St.JobFinished St.JobKilled endTime
               Left _ -> St.JobFinished St.JobFailure endTime
-        -- Update status (broadcast happens automatically via event system)
+        -- Update status
         App.update $ St.JobUpdateStatusA job.jobId status
-    -- Set job as running (broadcast happens automatically)
+    -- Set job as running
     App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
     log Info "Started task"
