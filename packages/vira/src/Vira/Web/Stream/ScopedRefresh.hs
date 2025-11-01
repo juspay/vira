@@ -143,42 +143,43 @@ waitForRelevantUpdate chan predicate = do
 buildPredicate :: Text -> (SomeUpdate ViraState -> Bool)
 buildPredicate key
   | "job:" `T.isPrefixOf` key =
-      let jobIdText = T.drop 4 key
-       in matchesJobText jobIdText
+      let jobId = T.drop 4 key
+       in matchesJobText jobId
   | "repo:" `T.isPrefixOf` key =
-      let repoText = T.drop 5 key
-       in matchesRepoText repoText
+      let repoName = T.drop 5 key
+       in matchesRepoText repoName
   | key == "index" = matchesAnyJob
   | otherwise = const False
 
 -- | Check if update affects a specific job (by text representation)
 matchesJobText :: Text -> SomeUpdate ViraState -> Bool
-matchesJobText jobIdText update =
-  case matchUpdate @JobUpdateStatusA update of
-    Just (JobUpdateStatusA jid _, _) -> show jid == jobIdText
-    Nothing -> case matchUpdate @AddNewJobA update of
-      Just (AddNewJobA {}, job) -> show job.jobId == jobIdText
-      Nothing -> False
+matchesJobText jobId update
+  | Just (JobUpdateStatusA jid _, _) <- matchUpdate update =
+      show jid == jobId
+  | Just (AddNewJobA {}, job) <- matchUpdate update =
+      show job.jobId == jobId
+  | otherwise = False
 
 -- | Check if update affects a specific repo (by text name)
 matchesRepoText :: Text -> SomeUpdate ViraState -> Bool
-matchesRepoText repoText update =
-  case matchUpdate @SetAllReposA update of
-    Just (SetAllReposA repos, _) -> any (\r -> toText r.name == repoText) repos
-    Nothing -> case matchUpdate @AddNewRepoA update of
-      Just (AddNewRepoA r, _) -> toText r.name == repoText
-      Nothing -> case matchUpdate @DeleteRepoByNameA update of
-        Just (DeleteRepoByNameA name, Right ()) -> toText name == repoText
-        _ -> case matchUpdate @SetRepoA update of
-          Just (SetRepoA r, _) -> toText r.name == repoText
-          Nothing -> case matchUpdate @SetRepoBranchesA update of
-            Just (SetRepoBranchesA name _, _) -> toText name == repoText
-            Nothing -> case matchUpdate @AddNewJobA update of
-              Just (AddNewJobA repo _ _ _ _, _) -> toText repo == repoText
-              Nothing -> False
+matchesRepoText repoName update
+  | Just (SetAllReposA repos, _) <- matchUpdate update =
+      any (\r -> toText r.name == repoName) repos
+  | Just (AddNewRepoA repo, _) <- matchUpdate update =
+      toText repo.name == repoName
+  | Just (DeleteRepoByNameA name, Right ()) <- matchUpdate update =
+      toText name == repoName
+  | Just (SetRepoA repo, _) <- matchUpdate update =
+      toText repo.name == repoName
+  | Just (SetRepoBranchesA name _, _) <- matchUpdate update =
+      toText name == repoName
+  | Just (AddNewJobA repo _ _ _ _, _) <- matchUpdate update =
+      toText repo == repoName
+  | otherwise = False
 
 -- | Check if update is any job-related event
 matchesAnyJob :: SomeUpdate ViraState -> Bool
-matchesAnyJob update =
-  isJust (matchUpdate @JobUpdateStatusA update)
-    || isJust (matchUpdate @AddNewJobA update)
+matchesAnyJob update
+  | Just _ <- matchUpdate @JobUpdateStatusA update = True
+  | Just _ <- matchUpdate @AddNewJobA update = True
+  | otherwise = False
