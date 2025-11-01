@@ -101,10 +101,8 @@ layout crumbs content = do
           , ".transition-smooth { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }"
           ]
     body_ [class_ "bg-gray-50 dark:bg-gray-900 min-h-screen font-inter"] $ do
-      -- Add SSE listener based on page entity (if any)
-      -- pageEntityFilter returns Maybe (Maybe EntityId):
-      --   Nothing = no SSE, Just Nothing = any job, Just (Just id) = specific entity
-      whenJust (Stream.pageEntityFilter crumbs) Stream.viewStreamScoped
+      -- Add SSE listener for auto-refresh (if page supports it)
+      Stream.viewStreamScoped crumbs
       -- Global modal container for all pages
       W.viraGlobalModalContainer_
       div_ [class_ "min-h-screen flex flex-col"] $ do
