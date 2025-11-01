@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 
 {- | Event bus for acid-state applications
 
@@ -16,6 +17,7 @@ module Data.Acid.Events (
 
   -- * Initialization
   newEventBus,
+  newEventBusWithSize,
 
   -- * acid-state wrappers
   update,
@@ -73,11 +75,11 @@ data EventBus someUpdate = EventBus
 
 -- * Initialization
 
--- | Create a new event bus with default settings (1000 event buffer)
+-- | Create a new 'EventBus' with default settings (1000 event buffer)
 newEventBus :: IO (EventBus someUpdate)
 newEventBus = newEventBusWithSize 1000
 
--- | Create a new event bus with custom buffer size
+-- | Create a new 'EventBus' with custom buffer size
 newEventBusWithSize :: Int -> IO (EventBus someUpdate)
 newEventBusWithSize size = do
   channel <- newBroadcastTChanIO
@@ -89,7 +91,7 @@ newEventBusWithSize size = do
       , maxLogSize = size
       }
 
--- * Event bus operations
+-- * 'EventBus' operations
 
 -- | Publish an update event to all subscribers (internal)
 publishUpdate ::
@@ -98,13 +100,13 @@ publishUpdate ::
   IO ()
 publishUpdate bus someUpdate = atomically $ do
   -- Publish to subscribers
-  writeTChan (channel bus) someUpdate
+  writeTChan bus.channel someUpdate
   -- Append to circular buffer log
-  modifyTVar' (eventLog bus) $ \eventLog' ->
-    let newLog = eventLog' |> someUpdate
-     in if Seq.length newLog > maxLogSize bus
-          then Seq.drop 1 newLog
-          else newLog
+  modifyTVar' bus.eventLog $ \es ->
+    let es' = es |> someUpdate
+     in if Seq.length es' > maxLogSize bus
+          then Seq.drop 1 es'
+          else es'
 
 {- | Execute an acid-state update and automatically publish to event bus
 
@@ -132,7 +134,7 @@ subscribe ::
   EventBus someUpdate ->
   IO (TChan someUpdate)
 subscribe bus = atomically $ do
-  dup <- dupTChan (channel bus)
+  dup <- dupTChan bus.channel
   -- Drain any pending events so subscriber starts fresh
   let drainLoop = do
         isEmpty <- isEmptyTChan dup
@@ -192,8 +194,7 @@ getRecentEvents ::
   EventBus someUpdate ->
   IO [someUpdate]
 getRecentEvents bus = do
-  eventLog' <- readTVarIO (eventLog bus)
-  pure $ toList eventLog'
+  toList <$> readTVarIO bus.eventLog
 
 -- * Pattern matching
 
