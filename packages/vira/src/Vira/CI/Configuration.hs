@@ -10,14 +10,14 @@ import Language.Haskell.Interpreter qualified as Hint
 import Vira.CI.Context (ViraContext)
 import Vira.CI.Pipeline.Type (ViraPipeline)
 
--- | Apply a Haskell configuration file to modify a pipeline
+-- | Apply a Haskell configuration file to modify a 'ViraPipeline'
 applyConfig ::
   (MonadIO m) =>
   -- | Contents of Haskell config file
   Text ->
-  -- | Current context
+  -- | Current 'ViraContext'
   ViraContext ->
-  -- | Default pipeline configuration
+  -- | Default 'ViraPipeline' configuration
   ViraPipeline ->
   m (Either InterpreterError ViraPipeline)
 applyConfig configContent ctx pipeline = do

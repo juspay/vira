@@ -10,9 +10,9 @@ import System.Process (CreateProcess, proc)
 import System.Which (staticWhich)
 import Prelude hiding (force)
 
-{- | Path to the `gh-signoff` executable
+{- | Path to the @gh-signoff@ executable
 
-This should be available in the PATH, thanks to Nix and `which` library.
+This should be available in the PATH, thanks to Nix and @which@ library.
 -}
 ghSignoffBin :: FilePath
 ghSignoffBin = $(staticWhich "gh-signoff")
@@ -23,8 +23,8 @@ data Force = Force | NoForce deriving stock (Show, Eq)
 {- | Create a 'CreateProcess' to run @gh-signoff create@
 
 Parameters:
-  * force: Whether to use the --force flag
-  * name: The signoff name argument
+  * @force@: Whether to use the @--force@ flag
+  * @name@: The signoff name argument
 -}
 create :: Force -> String -> CreateProcess
 create force name =

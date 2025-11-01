@@ -1,10 +1,9 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-{- |
-Entity-scoped Server-Sent Events for automatic page refresh.
+{- | Entity-scoped Server-Sent Events for automatic page refresh.
 
-Uses the event bus to subscribe to relevant updates for the current page,
+Uses the 'Data.Acid.Events.EventBus' to subscribe to relevant updates for the current page,
 triggers page reload when matching events occur.
 
 Flow: breadcrumbs → 'pageEntity' → 'viewStreamScoped' → SSE → 'streamRouteHandler' → reload
@@ -45,7 +44,7 @@ import Prelude hiding (Reader, ask, asks, filter, runReader)
 
 -- * Views
 
--- | Add SSE listener for auto-refresh based on page breadcrumbs
+-- | Add SSE listener for auto-refresh based on page breadcrumbs ('LinkTo')
 viewStreamScoped :: [LinkTo] -> AppHtml ()
 viewStreamScoped crumbs =
   whenJust (pageEntity crumbs) $ \entity -> do
@@ -55,7 +54,7 @@ viewStreamScoped crumbs =
     script_ $
       "new EventSource('" <> link <> "').addEventListener('refresh', () => location.reload());"
 
--- | Derive entity filter from breadcrumbs (internal)
+-- | Derive 'Entity' filter from breadcrumbs (internal)
 pageEntity :: [LinkTo] -> Maybe Entity
 pageEntity crumbs = case reverse crumbs of
   (LinkTo.Job jobId : _) -> Just (Job jobId)

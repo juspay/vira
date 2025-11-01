@@ -18,11 +18,11 @@ data ParseError
     MultiplePath (NonEmpty Text)
   deriving stock (Show, Eq)
 
-{- | Parse cache URL like "https://cache.nixos.asia/oss"
+{- | Parse cache URL like @https:\/\/cache.nixos.asia\/oss@
 
-Returns (serverEndpoint, cacheName) where:
-- serverEndpoint is the base URL without path (e.g., "https://cache.nixos.asia")
-- cacheName is the last path segment (e.g., "oss")
+Returns @(serverEndpoint, cacheName)@ where:
+- @serverEndpoint@ is the base URL without path (e.g., @https:\/\/cache.nixos.asia@)
+- @cacheName@ is the last path segment (e.g., @oss@)
 -}
 parseCacheUrl :: Text -> Either ParseError (AtticServerEndpoint, AtticCache)
 parseCacheUrl urlText = do

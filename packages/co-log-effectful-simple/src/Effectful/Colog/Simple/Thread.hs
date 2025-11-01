@@ -18,7 +18,7 @@ tagCurrentThread tag = do
   tid <- liftIO myThreadId
   liftIO $ labelThread tid tag
 
-{- | A short descriptive identifier for ThreadId
+{- | A short descriptive identifier for 'ThreadId'
 
 Includes thread label (if any) as well as the ID.
 -}

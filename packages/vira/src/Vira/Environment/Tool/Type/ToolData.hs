@@ -14,6 +14,6 @@ data ToolData statusType = ToolData
   , binPaths :: NonEmpty Text
   -- ^ File paths to the tool's executables
   , status :: statusType
-  -- ^ Tool-specific runtime status information (auth status, config, etc.)
+  -- ^ Tool-specific runtime status information (e.g., 'GH.Auth.Status.AuthStatus', config, etc.)
   }
   deriving stock (Show)

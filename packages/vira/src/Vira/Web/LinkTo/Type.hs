@@ -6,7 +6,10 @@ import Vira.State.Type (JobId)
 
 {- | The part of the application the caller intends to link to
 
-This is *roughy* isomorphic to the app routes, but only to the point they are needed for HTML links.
+This is roughly isomorphic to the app routes, but only to the point they are needed for HTML links.
+Avoids cyclic imports by providing a type-level hint instead of direct route references.
+
+Used with 'Vira.Web.Lucid.getLink' to generate 'Servant.Links.Link' values.
 -}
 data LinkTo
   = Home

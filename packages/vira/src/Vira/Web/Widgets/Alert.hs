@@ -18,12 +18,11 @@ data AlertType
   | AlertInfo
   deriving stock (Eq, Show)
 
-{- |
-Alert component for displaying important messages with semantic colors.
+{- | Alert component for displaying important messages with semantic colors.
 
 Provides user feedback with appropriate visual styling and icons.
 Includes accessibility features with proper ARIA roles.
-Now type-safe with automatic color management based on alert type.
+Type-safe with automatic color management based on 'AlertType'.
 
 = Usage Examples
 
@@ -47,17 +46,17 @@ W.viraAlert_ W.AlertInfo $ do
 
 = Color Management
 
-Colors are automatically applied based on alert type:
-- Green: Success messages (bg-green-50 border-green-200)
-- Red: Error messages (bg-red-50 border-red-200)
-- Yellow: Warning messages (bg-yellow-50 border-yellow-200)
-- Blue: Info messages (bg-blue-50 border-blue-200)
+Colors are automatically applied based on 'AlertType':
+- Green: Success messages (@bg-green-50 border-green-200@)
+- Red: Error messages (@bg-red-50 border-red-200@)
+- Yellow: Warning messages (@bg-yellow-50 border-yellow-200@)
+- Blue: Info messages (@bg-blue-50 border-blue-200@)
 
 = Icons
 
 Automatically includes appropriate Tabler SVG icons:
-- check for success alerts
-- x for error alerts
+- @check@ for success alerts
+- @x@ for error alerts
 - alert_triangle for warning alerts
 - info_circle for info alerts
 

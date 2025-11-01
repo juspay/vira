@@ -24,10 +24,10 @@ import Data.SafeCopy
 import Data.Time (UTCTime)
 import Servant (FromHttpApiData, ToHttpApiData)
 
--- A git commit object.
+-- | A git commit object.
 data Commit = Commit
   { id :: CommitID
-  -- ^ The unique identifier of the commit
+  -- ^ The unique 'CommitID' of the commit
   , message :: Text
   -- ^ The commit message
   , date :: UTCTime

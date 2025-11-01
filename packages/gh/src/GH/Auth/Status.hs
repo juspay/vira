@@ -24,13 +24,16 @@ import System.Process (readProcess)
 data AuthStatus
   = Authenticated
       { host :: Text
+      -- ^ GitHub host (e.g., @github.com@)
       , login :: Text
+      -- ^ GitHub username
       , scopes :: [Text]
+      -- ^ OAuth scopes
       }
   | NotAuthenticated
   deriving stock (Show, Eq)
 
--- | Authentication entry state from gh CLI
+-- | Authentication entry state from @gh@ CLI
 data AuthEntryState
   = Success
   | Timeout
@@ -46,7 +49,7 @@ instance FromJSON AuthEntryState where
           , sumEncoding = UntaggedValue
           }
 
--- | JSON response structure from gh auth status
+-- | JSON response structure from @gh auth status@
 newtype AuthResponse = AuthResponse
   { hosts :: Map Text [HostAuth]
   }
@@ -55,9 +58,13 @@ newtype AuthResponse = AuthResponse
 
 data HostAuth = HostAuth
   { state :: AuthEntryState
+  -- ^ Current 'AuthEntryState'
   , error :: Maybe Text
+  -- ^ Error message if any
   , active :: Bool
+  -- ^ Whether this is the active account
   , host :: Text
+  -- ^ GitHub host
   , login :: Text
   , tokenSource :: Text
   , token :: Maybe Text

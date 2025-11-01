@@ -23,7 +23,7 @@ import Vira.Refresh.State qualified as State
 import Vira.Refresh.Type (RefreshPriority (..), RefreshState (..), RefreshStatus (..))
 import Prelude hiding (Reader, ask, asks)
 
--- | Get the current refresh status for a repository
+-- | Get the current 'RefreshStatus' for a repository
 getRepoRefreshStatus ::
   ( Reader ViraRuntimeState :> es
   , IOE :> es
@@ -35,7 +35,7 @@ getRepoRefreshStatus repo = do
   statusMap <- liftIO $ readTVarIO st.statusMap
   pure $ Map.findWithDefault NeverRefreshed repo statusMap
 
--- | Schedule a repository for refresh with given priority
+-- | Schedule a repository for refresh with given 'RefreshPriority'
 scheduleRepoRefresh ::
   ( Reader ViraRuntimeState :> es
   , Concurrent :> es

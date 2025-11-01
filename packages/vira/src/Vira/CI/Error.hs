@@ -15,12 +15,12 @@ data PipelineError
   = PipelineConfigurationError ConfigurationError
   | PipelineToolError ToolError
   | PipelineTerminated Terminated
-  | -- | A process in the pipeline failed with non-zero exit code
+  | -- | A process in the pipeline failed with non-zero 'ExitCode'
     PipelineProcessFailed ExitCode
-  | -- | devour-flake produced malformed JSON output
+  | -- | @devour-flake@ produced malformed JSON output
     DevourFlakeMalformedOutput FilePath String
 
--- | Configuration error types
+-- | Configuration error types (typically from @vira.hs@)
 data ConfigurationError
   = InterpreterError InterpreterError
   | MalformedConfig Text

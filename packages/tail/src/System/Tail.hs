@@ -6,7 +6,7 @@
 File tailing library with multi-subscriber support.
 
 This library provides a Haskell API for @tail -f@ style file streaming
-using 'STM', 'Control.Concurrent.Async', and system processes.
+using 'Control.Concurrent.STM', 'Control.Concurrent.Async', and system processes.
 
 Example usage:
 
@@ -15,10 +15,10 @@ import System.Tail
 
 main :: IO ()
 main = do
-  tail <- 'tailFile' 100 \"\/var\/log\/app.log\"
-  subscriber <- 'tailSubscribe' tail
+  tail <- tailFile 100 \"\/var\/log\/app.log\"
+  subscriber <- tailSubscribe tail
   -- Read from subscriber...
-  'tailStop' tail
+  tailStop tail
 @
 -}
 module System.Tail (
@@ -40,7 +40,7 @@ import System.IO (hGetLine)
 import System.Process (CreateProcess (..), ProcessHandle, StdStream (..), createProcess, proc, terminateProcess, waitForProcess)
 import System.Which (staticWhich)
 
--- | Represent `tail -f`'ing a file in Haskell
+-- | Represent running @tail -f@ on a file in Haskell
 data Tail = Tail
   { filePath :: FilePath
   -- ^ The file being tailed
@@ -57,11 +57,11 @@ data Tail = Tail
 
 {- | Create a new 'Tail' handle for the given file path with specified buffer size.
 
-The tail process starts immediately and begins reading from the file.
+The @tail@ process starts immediately and begins reading from the file.
 New subscribers will receive a ring buffer containing the last @bufferSize@ lines.
 -}
 
-{- | Path to the `tail` executable
+{- | Path to the @tail@ executable
 
 This should be available in the PATH, thanks to Nix and `which` library.
 -}
@@ -80,7 +80,7 @@ tailFile bufferSize filePath = do
   void $ async $ tailRun t
   pure t
 
-{- | Signal the tail process to stop reading the file.
+{- | Signal the 'Tail' process to stop reading the file.
 
 This will terminate the underlying @tail@ process and close all subscriber queues.
 -}
@@ -135,7 +135,7 @@ tailRun t = do
                 readLines
       readLines
 
-{- | Subscribe to tail output and receive a 'CircularBuffer' for reading lines.
+{- | Subscribe to 'Tail' output and receive a 'CircularBuffer' for reading lines.
 
 The returned buffer will contain any previously read lines from the ring buffer,
 plus all new lines as they are read from the file.

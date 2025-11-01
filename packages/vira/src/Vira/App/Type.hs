@@ -17,26 +17,27 @@ import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Vira.Web.LinkTo.Type (LinkTo)
 
--- | Application-wide state available in Effectful stack
+-- | Application-wide state available in 'Effectful' stack
 data ViraRuntimeState = ViraRuntimeState
-  { -- Instance information (hostname, platform)
-    instanceInfo :: InstanceInfo
-  , -- The state of the app
-    acid :: AcidState ViraState
-  , -- Process supervisor state
-    supervisor :: TaskSupervisor
-  , -- Create a link to a part of the app.
-    --
-    -- This is decoupled from servant types deliberately to avoid cyclic imports.
-    linkTo :: LinkTo -> Link
-  , -- Event bus for all Update events (SSE, subscriptions, debug log)
-    eventBus :: EventBus (SomeUpdate ViraState)
-  , -- Cached tools data (mutable for refreshing)
-    tools :: TVar Tools
-  , -- Git repository auto-refresh state
-    refreshState :: RefreshState
-  , -- Server start time for uptime tracking
-    startTime :: UTCTime
-  , -- Cache public key (for UI display)
-    cachePublicKey :: PublicKey
+  { instanceInfo :: InstanceInfo
+  -- ^ Instance information (hostname, platform)
+  , acid :: AcidState ViraState
+  -- ^ The 'ViraState' managed by acid-state
+  , supervisor :: TaskSupervisor
+  -- ^ Process supervisor state
+  , linkTo :: LinkTo -> Link
+  {- ^ Create a link to a part of the app.
+
+  This is decoupled from Servant types deliberately to avoid cyclic imports.
+  -}
+  , eventBus :: EventBus (SomeUpdate ViraState)
+  -- ^ 'EventBus' for all 'Data.Acid.Events.SomeUpdate' events (SSE, subscriptions, debug log)
+  , tools :: TVar Tools
+  -- ^ Cached 'Tools' data (mutable for refreshing)
+  , refreshState :: RefreshState
+  -- ^ Git repository auto-refresh state
+  , startTime :: UTCTime
+  -- ^ Server start time for uptime tracking
+  , cachePublicKey :: PublicKey
+  -- ^ Cache 'PublicKey' (for UI display)
   }

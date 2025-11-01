@@ -92,7 +92,7 @@ Encapsulates the entire keep-alive pattern including recursion:
 2. On timeout: logs heartbeat, continues with same state
 3. On data: processes data, yields event or skips, continues with updated state
 
-This completely hides KeepAlive implementation details from stream handlers.
+This completely hides 'KeepAlive' implementation details from stream handlers.
 
 Example usage:
 @

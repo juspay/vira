@@ -47,16 +47,18 @@ type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO (Ke
 
 -- | SSE message for log streaming
 data LogChunk
-  = -- A chunk of log data
+  = -- | A chunk of log data
     Chunk Int (NonEmpty Text)
-  | -- Last message, indicating streaming has ended
+  | -- | Last message, indicating streaming has ended
     Stop Int
 
+-- | Get event type for 'LogChunk'
 logChunkType :: LogChunk -> Text
 logChunkType = \case
   Chunk _ _ -> "logchunk"
   Stop _ -> "logstop"
 
+-- | Get event ID for 'LogChunk'
 logChunkId :: LogChunk -> LByteString
 logChunkId = \case
   Chunk ident _ -> show ident

@@ -12,24 +12,24 @@ import Vira.Web.LinkTo.Type (LinkTo)
 import Vira.Web.Stack (AppServantStack)
 import Prelude hiding (ask, asks)
 
-{- | Like `Html` but can do application effects
+{- | Like 'Lucid.Base.Html' but can do application effects
 
-Use `lift` to perform effects.
+Use @lift@ to perform effects in the 'AppServantStack'.
 -}
 type AppHtml = HtmlT (Eff AppServantStack)
 
--- | Convert AppHtml to Html in the Servant effect stack
+-- | Convert 'AppHtml' to 'Lucid.Base.Html' in the Servant effect stack
 runAppHtml :: AppHtml () -> Eff AppServantStack (Html ())
 runAppHtml htmlT = do
   toHtmlRaw <$> Lucid.renderBST htmlT
 
--- | Get a `Link` to a part of the application
+-- | Get a 'Servant.Links.Link' to a part of the application
 getLink :: (Reader.Reader ViraRuntimeState :> es) => LinkTo -> Eff es Link
 getLink linkToValue = do
   linkToFn <- asks @ViraRuntimeState linkTo
   pure $ linkToFn linkToValue
 
--- | Link `getLink` but as URL text.
+-- | Like 'getLink' but as URL text.
 getLinkUrl :: (Reader.Reader ViraRuntimeState :> es) => LinkTo -> Eff es Text
 getLinkUrl linkToValue = do
   uri <- linkURI <$> getLink linkToValue

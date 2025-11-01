@@ -13,8 +13,11 @@ import Lucid
 -- | Configuration for code display
 data ViraCodeConfig = ViraCodeConfig
   { display :: CodeDisplay
+  -- ^ How to display the code ('CodeDisplay')
   , copyable :: Maybe CopyConfig
+  -- ^ Optional copy-to-clipboard configuration
   , elementId :: Maybe Text
+  -- ^ Optional element ID
   }
 
 -- | How to display code
@@ -34,12 +37,12 @@ data CopyConfig = CopyConfig
   { textToCopy :: Maybe Text
   -- ^ Text to copy (defaults to display text)
   , feedback :: Text
-  -- ^ Feedback message (defaults to "Copied!")
+  -- ^ Feedback message (defaults to @Copied!@)
   , feedbackDuration :: Int
   -- ^ Duration in milliseconds
   }
 
--- | Default copy config
+-- | Default 'CopyConfig'
 defaultCopy :: CopyConfig
 defaultCopy =
   CopyConfig

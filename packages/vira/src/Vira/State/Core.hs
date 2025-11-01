@@ -35,7 +35,7 @@ import Vira.State.Acid qualified as Acid
 import Vira.State.Reset (checkSchemaVersion, viraDbVersion, writeSchemaVersion)
 import Vira.State.Type
 
--- | Open vira database
+-- | Open 'ViraState' database
 openViraState :: (HasCallStack) => FilePath -> Bool -> IO (AcidState ViraState)
 openViraState stateDir autoResetState = do
   let initialState = ViraState mempty mempty mempty mempty

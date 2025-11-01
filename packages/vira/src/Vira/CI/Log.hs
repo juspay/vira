@@ -4,9 +4,9 @@
 
 {- | Structured logging for Vira pipeline messages
 
-Vira logs are written as JSON with "viralog:" prefix to output.log,
+'ViraLog' messages are written as JSON with @viralog:@ prefix to @output.log@,
 distinguishing them from build tool output. Web UI renders them with
-severity-specific styling (emoji + colored background).
+'Colog.Severity'-specific styling (emoji + colored background).
 -}
 module Vira.CI.Log (
   ViraLog (..),

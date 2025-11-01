@@ -16,15 +16,15 @@ import Effectful.Git (RepoName)
 import Vira.State.Acid (AddNewRepoA (AddNewRepoA), GetAllReposA (GetAllReposA), GetRepoByNameA (GetRepoByNameA))
 import Vira.State.Type (Repo (..), ViraState)
 
--- | Subset of ViraState that can be exported/imported
+-- | Subset of 'ViraState' that can be exported/imported
 newtype ViraExportData = ViraExportData
   { repositories :: Map RepoName Text
-  -- ^ Map of repository names to clone URLs
+  -- ^ Map of 'RepoName' to clone URLs
   }
   deriving stock (Generic, Show)
   deriving anyclass (ToJSON, FromJSON)
 
--- | Get export data by querying acid state
+-- | Get 'ViraExportData' by querying acid-state
 getExportData :: AcidState ViraState -> IO ViraExportData
 getExportData acid = do
   repos <- query acid GetAllReposA
@@ -33,7 +33,7 @@ getExportData acid = do
       { repositories = Map.fromList [(r.name, r.cloneUrl) | r <- repos]
       }
 
--- | Import Vira state from JSON data
+-- | Import 'ViraState' from JSON data
 importViraState :: AcidState ViraState -> LBS.ByteString -> IO (Either String ())
 importViraState acid jsonData =
   case decode jsonData :: Maybe ViraExportData of

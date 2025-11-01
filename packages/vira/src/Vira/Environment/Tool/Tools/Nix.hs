@@ -22,14 +22,16 @@ import System.Nix.Core (nix)
 import System.Nix.Version (NixVersion (..), getVersion)
 import Vira.Environment.Tool.Type.ToolData (ToolData (..))
 
--- | Status type for Nix tool (version + configuration)
+-- | Status type for Nix tool ('NixVersion' + 'System.Nix.Config.NixConfig')
 data NixStatus = NixStatus
   { version :: NixVersion
+  -- ^ 'System.Nix.Version.NixVersion' information
   , config :: Nix.NixConfig
+  -- ^ 'System.Nix.Config.NixConfig' from @nix show-config@
   }
   deriving stock (Show)
 
--- | Get Nix tool data with metadata and runtime info
+-- | Get Nix 'ToolData' with metadata and runtime info
 getToolData ::
   ( Process :> es
   , IOE :> es

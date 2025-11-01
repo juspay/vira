@@ -45,10 +45,11 @@ data Routes mode = Routes
 crumbs :: [LinkTo.LinkTo]
 crumbs = [LinkTo.RepoListing]
 
--- | Maximum number of branches to display
+-- | Maximum number of 'Vira.State.Type.Branch'es to display
 maxBranchesDisplayed :: Int
 maxBranchesDisplayed = 20
 
+-- | Servant handlers for 'Routes'
 handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> RepoName -> Routes AsServer
 handlers globalSettings viraRuntimeState webSettings name = do
   Routes

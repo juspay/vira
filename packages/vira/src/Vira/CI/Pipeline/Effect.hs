@@ -26,20 +26,20 @@ newtype PipelineLogger = PipelineLogger
   { unPipelineLogger :: forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()
   }
 
--- | Environment for pipeline execution
+-- | Environment for 'Pipeline' execution
 data PipelineEnv = PipelineEnv
   { outputLog :: Maybe FilePath
   -- ^ Optional output log file
   , tools :: Tools
-  -- ^ Available CI tools
+  -- ^ Available CI 'Vira.Environment.Tool.Type.Tools.Tools'
   , viraContext :: ViraContext
-  -- ^ Vira context (branch, CLI flag)
+  -- ^ 'ViraContext' (branch, CLI flag)
   , logger :: PipelineLogger
-  -- ^ Logger function for pipeline messages
+  -- ^ 'PipelineLogger' function for pipeline messages
   }
   deriving stock (Generic)
 
--- | Helper: Log a pipeline message using logger from environment
+-- | Helper: Log a pipeline message using 'PipelineLogger' from 'PipelineEnv'
 logPipeline ::
   ( ER.Reader PipelineEnv :> es
   , Log (RichMessage IO) :> es
@@ -56,20 +56,23 @@ logPipeline severity msg = do
 -- | Result from building a single flake
 data BuildResult = BuildResult
   { flakePath :: FilePath
+  -- ^ Path to the flake that was built
   , resultPath :: FilePath
+  -- ^ Path to the build result
   , devourResult :: DevourFlakeResult
+  -- ^ 'DevourFlake.Result.DevourFlakeResult' from @devour-flake@
   }
   deriving stock (Generic, Show)
 
--- | CI Pipeline Effect - unified pipeline operations
+-- | CI 'Pipeline' Effect - unified pipeline operations
 data Pipeline :: Effect where
   -- | Clone repository and return cloned directory path
   Clone :: Repo -> Branch -> FilePath -> Pipeline m FilePath
-  -- | Load vira.hs configuration from repository directory
+  -- | Load @vira.hs@ configuration from repository directory
   LoadConfig :: FilePath -> Pipeline m ViraPipeline
-  -- | Build flakes and return list of build results
+  -- | Build flakes and return list of 'BuildResult's
   Build :: FilePath -> ViraPipeline -> Pipeline m (NonEmpty BuildResult)
-  -- | Push build results to cache
+  -- | Push 'BuildResult's to cache
   Cache :: FilePath -> ViraPipeline -> NonEmpty BuildResult -> Pipeline m ()
   -- | Create GitHub commit status
   Signoff :: FilePath -> ViraPipeline -> Pipeline m ()

@@ -30,7 +30,7 @@ import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
 import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
 
--- | Run the Vira server with the given settings
+-- | Run the Vira server with the given 'GlobalSettings' and 'WebSettings'
 runServer :: (HasCallStack) => GlobalSettings -> WebSettings -> Application -> Eff AppStack ()
 runServer globalSettings webSettings cacheApp = do
   log Info $ "Launching at " <> buildUrl webSettings
@@ -85,7 +85,7 @@ getDataDirMultiHome = do
           log Error $ "Data dir not found at " <> toText p
           die "Data directory not found"
 
--- | WAI middleware to handle 404 errors with custom page
+-- | WAI 'Middleware' to handle 404 errors with custom page
 notFoundMiddleware :: GlobalSettings -> ViraRuntimeState -> WebSettings -> Middleware
 notFoundMiddleware globalSettings viraRuntimeState webSettings app req respond = do
   app req $ \res -> do

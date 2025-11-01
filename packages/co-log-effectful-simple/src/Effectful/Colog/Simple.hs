@@ -1,7 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-{- | Simple context-aware logging for co-log with effectful.
+{- | Simple context-aware logging for @co-log@ with @effectful@.
 
 >>> import Effectful.Colog.Simple
 -}
@@ -42,7 +42,7 @@ import Effectful.Reader.Static qualified as ER
 import GHC.TypeLits (KnownSymbol, Symbol)
 import Type.Reflection (TypeRep, typeRep)
 
-{- | Log a message with the given severity.
+{- | Log a message with the given 'Severity'.
 
 Ref: https://github.com/eldritch-cookie/co-log-effectful/issues/1
 
@@ -57,7 +57,7 @@ log msgSeverity msgText = do
       msg = Msg {msgStack = callStack, msgSeverity = msgSeverity, msgText = msgText}
   withFrozenCallStack $ logMsg $ RichMsg {richMsgMsg = msg, richMsgMap = fieldMap}
 
--- | Build field map with context, timestamp and timezone
+-- | Build field map with 'LogContext', timestamp and timezone
 buildFieldMap :: LogContext -> DMap.DMap TypeRep (MessageField IO)
 buildFieldMap ctx =
   defaultFieldMap
@@ -66,7 +66,7 @@ buildFieldMap ctx =
       , typeRep @"timezone" :=> MessageField (liftIO getCurrentTimeZone)
       ]
 
--- | Get emoji for severity level
+-- | Get emoji for 'Severity' level
 severityEmoji :: Severity -> Text
 severityEmoji = \case
   Debug -> "🐛"
@@ -74,7 +74,7 @@ severityEmoji = \case
   Warning -> "⚠️"
   Error -> "❌"
 
--- | Like `runLogAction` but works with `RichMessage`, writes to `Stdout`, and filters by severity
+-- | Like 'Effectful.Colog.runLogAction' but works with 'RichMessage', writes to stdout, and filters by 'Severity'
 runLogActionStdout :: Severity -> Eff '[ER.Reader LogContext, Log (RichMessage IO), IOE] a -> Eff '[IOE] a
 runLogActionStdout minSeverity action =
   runLogAction logAction (ER.runReader mempty action)

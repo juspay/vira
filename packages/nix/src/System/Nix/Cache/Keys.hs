@@ -30,29 +30,29 @@ import System.FilePath ((</>))
 import System.Process (callProcess)
 import System.Which (staticWhich)
 
--- | Secret signing key for nix-serve-ng
+-- | Secret signing key for @nix-serve-ng@
 newtype SecretKey = SecretKey ByteString
 
--- | Public key for nix.conf
+-- | Public key for @nix.conf@
 newtype PublicKey = PublicKey Text
   deriving stock (Show)
   deriving newtype (IsString, ToString, ToText)
 
--- | Cache signing keys
+-- | Cache signing keys (secret and public)
 data CacheKeys = CacheKeys
   { secretKey :: SecretKey
-  -- ^ Private signing key for nix-serve-ng
+  -- ^ Private 'SecretKey' for @nix-serve-ng@
   , publicKey :: PublicKey
-  -- ^ Public key for users to add to nix.conf
+  -- ^ 'PublicKey' for users to add to @nix.conf@
   }
 
--- | Convert SecretKey to ByteString
+-- | Convert 'SecretKey' to 'ByteString'
 secretKeyByteString :: SecretKey -> ByteString
 secretKeyByteString (SecretKey bs) = bs
 
-{- | Path to the `nix-store` executable
+{- | Path to the @nix-store@ executable
 
-This should be available in the PATH, thanks to Nix and `which` library.
+This should be available in the PATH, thanks to Nix and @which@ library.
 -}
 nixStore :: FilePath
 nixStore = $(staticWhich "nix-store")

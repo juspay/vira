@@ -20,9 +20,9 @@ import Vira.Refresh.Type (RefreshPriority, RefreshResult, RefreshState (..), Ref
 import Vira.State.Type (Repo (..))
 import Prelude hiding (atomically)
 
-{- | Initialize refresh state from persisted repo data
+{- | Initialize 'RefreshState' from persisted 'Vira.State.Type.Repo' data
 
-Loads all repos' lastRefresh status into the TVar map. Called on daemon startup.
+Loads all repos' @lastRefresh@ status into the 'TVar' map. Called by 'Vira.Refresh.Daemon.startRefreshDaemon' on daemon startup.
 -}
 initialize :: (Concurrent :> es) => RefreshState -> [Repo] -> Eff es ()
 initialize st repos = do
@@ -34,23 +34,25 @@ initialize st repos = do
           ]
   atomically $ writeTVar st.statusMap initialStatus
 
--- | Mark a repository as Pending with given priority
+-- | Mark a repository as 'Vira.Refresh.Type.Pending' with given 'RefreshPriority'
 markPending :: (Concurrent :> es) => RefreshState -> RepoName -> UTCTime -> RefreshPriority -> Eff es ()
 markPending st repo now prio = do
   atomically $ modifyTVar' st.statusMap $ Map.insert repo (Pending now prio)
 
--- | Mark a repository as Completed
+-- | Mark a repository as 'Vira.Refresh.Type.Completed' with 'RefreshResult'
 markCompleted :: (Concurrent :> es) => RefreshState -> RepoName -> RefreshResult -> Eff es ()
 markCompleted st repo result = do
   atomically $ modifyTVar' st.statusMap $ Map.insert repo (Completed result)
 
--- | Remove a repository from refresh state (cleanup on deletion)
+-- | Remove a repository from 'RefreshState' (cleanup on deletion)
 remove :: (Concurrent :> es) => RefreshState -> RepoName -> Eff es ()
 remove st repo = do
   atomically $ modifyTVar' st.statusMap (Map.delete repo)
 
-{- | Atomically pop the next pending repo and mark it as InProgress
-Blocks (via STM retry) when no pending repos available
+{- | Atomically pop the next pending repo and mark it as 'Vira.Refresh.Type.InProgress'
+
+Blocks (via STM retry) when no 'Vira.Refresh.Type.Pending' repos available.
+Repos are processed in priority order ('Vira.Refresh.Type.Now' before 'Vira.Refresh.Type.Normal').
 -}
 popAndMarkInProgress :: (Concurrent :> es, IOE :> es) => RefreshState -> Eff es RepoName
 popAndMarkInProgress st = do
