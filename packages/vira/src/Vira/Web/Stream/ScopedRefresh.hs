@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -7,7 +8,7 @@ Entity-scoped Server-Sent Events for automatic page refresh.
 Uses the event bus to subscribe to relevant updates for the current page,
 triggers page reload when matching events occur.
 
-Flow: breadcrumbs → 'pageFilterKey' → 'viewStreamScoped' → SSE → 'streamRouteHandler' → reload
+Flow: breadcrumbs → 'pageFilterEntities' → 'viewStreamScoped' → SSE → 'streamRouteHandler' → reload
 -}
 module Vira.Web.Stream.ScopedRefresh (
   -- * Routes and handlers
@@ -18,14 +19,15 @@ module Vira.Web.Stream.ScopedRefresh (
   viewStreamScoped,
 ) where
 
-import Colog.Core (Severity (Debug))
+import Colog.Core (Severity (Debug, Error))
 import Control.Concurrent.STM (retry)
 import Control.Concurrent.STM qualified as STM
 import Data.Acid.Events (SomeUpdate (..), matchUpdate)
-import Data.Text qualified as T
+import Data.Aeson (FromJSON, ToJSON, eitherDecode, encode)
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
 import Effectful.Concurrent (threadDelay)
+import Effectful.Git (RepoName)
 import Lucid
 import Servant.API (QueryParam, SourceIO, type (:>))
 import Servant.API.EventStream
@@ -36,14 +38,24 @@ import Vira.App.Stack (AppStack)
 import Vira.State.Acid
 import Vira.State.AcidInstances ()
 import Vira.State.Core (ViraState)
-import Vira.State.Type (Job (jobId), Repo (name))
-import Vira.Web.LinkTo.Type (LinkTo (..))
+import Vira.State.Type (Job (jobId), JobId, Repo (name))
+import Vira.Web.LinkTo.Type (LinkTo)
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Stack (tagStreamThread)
 import Vira.Web.Stream.KeepAlive (KeepAlive)
 import Vira.Web.Stream.KeepAlive qualified as KeepAlive
 import Prelude hiding (Reader, ask, asks, filter, runReader)
+
+-- * Entity types
+
+-- | Identifiers for entities in Vira
+data Entity
+  = Repo RepoName
+  | Job JobId
+  | AnyEntity -- Match all updates
+  deriving stock (Eq, Ord, Show, Generic)
+  deriving anyclass (ToJSON, FromJSON)
 
 -- * SSE Routes and handlers
 
@@ -66,39 +78,43 @@ instance ToServerEvent ScopedRefresh where
 -- | Add SSE listener for auto-refresh based on page breadcrumbs
 viewStreamScoped :: [LinkTo] -> AppHtml ()
 viewStreamScoped crumbs =
-  whenJust (pageFilterKey crumbs) $ \filterKey -> do
-    link <- lift $ getLinkUrl $ LinkTo.Refresh (Just filterKey)
+  whenJust (pageFilterEntities crumbs) $ \entity -> do
+    let filterParam = decodeUtf8 (encode entity)
+    link <- lift $ getLinkUrl $ LinkTo.Refresh (Just filterParam)
     -- Use native EventSource for reliable refresh-triggered reloads
     script_ $
       "new EventSource('" <> link <> "').addEventListener('refresh', () => location.reload());"
 
--- | Derive filter key from breadcrumbs (internal)
-pageFilterKey :: [LinkTo] -> Maybe Text
-pageFilterKey crumbs = case reverse crumbs of
-  (Job jobId : _) -> Just $ "job:" <> show jobId
-  (RepoBranch repoName _ : _) -> Just $ "repo:" <> toText repoName
-  (Repo repoName : _) -> Just $ "repo:" <> toText repoName
-  [] -> Just "index" -- Index page: subscribe to all job events
+-- | Derive entity filter from breadcrumbs (internal)
+pageFilterEntities :: [LinkTo] -> Maybe Entity
+pageFilterEntities crumbs = case reverse crumbs of
+  (LinkTo.Job jobId : _) -> Just (Job jobId)
+  (LinkTo.RepoBranch repoName _ : _) -> Just (Repo repoName)
+  (LinkTo.Repo repoName : _) -> Just (Repo repoName)
+  [] -> Just AnyEntity -- Index page = match all updates
   _ -> Nothing -- No refresh for other pages
 
 data StreamConfig = StreamConfig
   { counter :: Int
-  , predicate :: SomeUpdate ViraState -> Bool
+  , entity :: Entity
   , channel :: STM.TChan (SomeUpdate ViraState)
   }
 
 streamRouteHandler :: (HasCallStack) => Maybe Text -> SourceT (Eff AppStack) (KeepAlive ScopedRefresh)
-streamRouteHandler mFilterKey = S.fromStepT $ S.Effect $ do
+streamRouteHandler mFilterParam = S.fromStepT $ S.Effect $ do
   tagStreamThread
-  let filterKey = fromMaybe "index" mFilterKey
-  let predicate = buildPredicate filterKey
-  log Debug $ "Starting stream with filter: " <> filterKey
+  entity <- case eitherDecode . encodeUtf8 $ fromMaybe "null" mFilterParam of
+    Left err -> do
+      log Error $ "Invalid entity filter: " <> toText err
+      pure AnyEntity
+    Right e -> pure e
+  log Debug $ "Starting stream with filter: " <> show entity
   chan <- App.subscribe
-  pure $ step StreamConfig {counter = 0, predicate, channel = chan}
+  pure $ step StreamConfig {counter = 0, entity, channel = chan}
   where
     step cfg =
       KeepAlive.withKeepAlive
-        (waitForRelevantUpdate cfg.channel cfg.predicate)
+        (waitForRelevantUpdate cfg.channel cfg.entity)
         ( \matchingUpdates -> do
             log Debug $ "Sending refresh for " <> show (length matchingUpdates) <> " matching events; n=" <> show cfg.counter
             pure $ Just (ScopedRefresh, cfg {counter = cfg.counter + 1})
@@ -109,9 +125,9 @@ streamRouteHandler mFilterKey = S.fromStepT $ S.Effect $ do
 -- | Wait for and collect relevant updates (with debouncing)
 waitForRelevantUpdate ::
   STM.TChan (SomeUpdate ViraState) ->
-  (SomeUpdate ViraState -> Bool) ->
+  Entity ->
   Eff AppStack (NonEmpty (SomeUpdate ViraState))
-waitForRelevantUpdate chan predicate = do
+waitForRelevantUpdate chan entity = do
   -- Block until first relevant event
   firstUpdate <- waitForMatch
   -- Debounce: wait for more events to batch together
@@ -120,6 +136,8 @@ waitForRelevantUpdate chan predicate = do
   moreUpdates <- drainMatching []
   pure $ firstUpdate :| moreUpdates
   where
+    predicate = buildPredicate entity
+
     -- Wait for an update that matches our filter
     waitForMatch :: Eff AppStack (SomeUpdate ViraState)
     waitForMatch = liftIO $ STM.atomically $ do
@@ -139,47 +157,26 @@ waitForRelevantUpdate chan predicate = do
             then drainMatching (someUpdate : acc)
             else drainMatching acc -- Skip non-matching
 
--- | Build a predicate function from a filter key
-buildPredicate :: Text -> (SomeUpdate ViraState -> Bool)
-buildPredicate key
-  | "job:" `T.isPrefixOf` key =
-      let jobId = T.drop 4 key
-       in matchesJobText jobId
-  | "repo:" `T.isPrefixOf` key =
-      let repoName = T.drop 5 key
-       in matchesRepoText repoName
-  | key == "index" = matchesAnyJob
-  | otherwise = const False
-
--- | Check if update affects a specific job (by text representation)
-matchesJobText :: Text -> SomeUpdate ViraState -> Bool
-matchesJobText jobId update
-  | Just (JobUpdateStatusA jid _, _) <- matchUpdate update =
-      show jid == jobId
-  | Just (AddNewJobA {}, job) <- matchUpdate update =
-      show job.jobId == jobId
-  | otherwise = False
-
--- | Check if update affects a specific repo (by text name)
-matchesRepoText :: Text -> SomeUpdate ViraState -> Bool
-matchesRepoText repoName update
+-- | Extract entities affected by an update
+entitiesChanged :: SomeUpdate ViraState -> [Entity]
+entitiesChanged update
   | Just (SetAllReposA repos, _) <- matchUpdate update =
-      any (\r -> toText r.name == repoName) repos
+      Repo . (.name) <$> repos
   | Just (AddNewRepoA repo, _) <- matchUpdate update =
-      toText repo.name == repoName
+      [Repo repo.name]
   | Just (DeleteRepoByNameA name, Right ()) <- matchUpdate update =
-      toText name == repoName
+      [Repo name]
   | Just (SetRepoA repo, _) <- matchUpdate update =
-      toText repo.name == repoName
+      [Repo repo.name]
   | Just (SetRepoBranchesA name _, _) <- matchUpdate update =
-      toText name == repoName
-  | Just (AddNewJobA repo _ _ _ _, _) <- matchUpdate update =
-      toText repo == repoName
-  | otherwise = False
+      [Repo name]
+  | Just (AddNewJobA repo _ _ _ _, job) <- matchUpdate update =
+      [Repo repo, Job job.jobId]
+  | Just (JobUpdateStatusA jid _, _) <- matchUpdate update =
+      [Job jid]
+  | otherwise = []
 
--- | Check if update is any job-related event
-matchesAnyJob :: SomeUpdate ViraState -> Bool
-matchesAnyJob update
-  | Just _ <- matchUpdate @JobUpdateStatusA update = True
-  | Just _ <- matchUpdate @AddNewJobA update = True
-  | otherwise = False
+-- | Build predicate from entity filter
+buildPredicate :: Entity -> (SomeUpdate ViraState -> Bool)
+buildPredicate AnyEntity = const True
+buildPredicate entity = (entity `elem`) . entitiesChanged
