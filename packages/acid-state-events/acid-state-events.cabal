@@ -10,6 +10,7 @@ synopsis:       Generic event bus for acid-state applications
 description:    A generic event bus implementation for acid-state applications.
                 Provides publish/subscribe with event logging and replay capabilities.
 category:       Database
+homepage:       https://github.com/juspay/vira/tree/main/packages/acid-state-events
 author:         Sridhar Ratnakumar
 maintainer:     srid@srid.ca
 copyright:      2025 Sridhar Ratnakumar
