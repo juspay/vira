@@ -10,7 +10,6 @@ module Vira.Refresh.Core (
 ) where
 
 import Colog.Message (RichMessage)
-import Data.Acid qualified as Acid
 import Data.Map.Strict qualified as Map
 import Data.Time (getCurrentTime)
 import Effectful (Eff, IOE, (:>))
@@ -19,6 +18,7 @@ import Effectful.Colog.Simple (LogContext, Severity (Info), log)
 import Effectful.Git (RepoName)
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful.Reader.Static qualified as ER
+import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.Refresh.Type (RefreshPriority (..), RefreshState (..), RefreshStatus (..))
@@ -60,9 +60,8 @@ Loads all repos' lastRefresh status into the TVar map. Called on daemon startup.
 -}
 initializeRefreshState :: Eff AppStack ()
 initializeRefreshState = do
-  acid <- asks (.acid)
   st <- asks (.refreshState)
-  repos <- liftIO $ Acid.query acid St.GetAllReposA
+  repos <- App.query St.GetAllReposA
   let initialStatus =
         Map.fromList
           [ (repo.name, Completed result)

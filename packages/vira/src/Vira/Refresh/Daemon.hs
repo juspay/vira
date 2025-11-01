@@ -13,7 +13,7 @@ import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff, IOE, type (:>))
 import Effectful.Colog.Simple (Severity (..), log, tagCurrentThread, withLogContext)
 import Effectful.Concurrent (threadDelay)
-import Effectful.Concurrent.Async (async)
+import Effectful.Concurrent.Async (Concurrent, async)
 import Effectful.Concurrent.STM (atomically)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.Git (BranchName, Commit, RepoName (..))
@@ -67,13 +67,12 @@ cleanupWorker :: Eff AppStack Void
 cleanupWorker = do
   tagCurrentThread "🔄"
   chan <- App.subscribe
-  st <- asks (.refreshState)
 
   infinitely $ do
     someUpdate <- atomically $ readTChan chan
     whenJust (Events.matchUpdate someUpdate) $ \(DeleteRepoByNameA name, _) -> do
       log Info $ "Repo deleted, cleaning up refresh state: " <> show name
-      atomically $ modifyTVar' st.statusMap (Map.delete name)
+      removeRepoFromRefreshState name
 
 -- | Worker loop: continuously process pending repos
 workerLoop :: Eff AppStack Void
@@ -135,13 +134,8 @@ refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
               Right () -> Success
           }
 
-  -- Update TVar status
-  st <- asks (.refreshState)
-  atomically $
-    modifyTVar' st.statusMap $
-      Map.insert repo.name (Completed refreshResult)
-
-  App.update $ St.SetRefreshStatusA repo.name (Just refreshResult)
+  -- Update TVar status and persist to acid-state
+  markRepoCompleted repo.name refreshResult
 
   -- Log completion
   case result of
@@ -155,3 +149,20 @@ updateRepoBranches repo branches = do
   let currentMap = Map.fromList [(b.branchName, b.headCommit) | b <- current, not b.deleted]
   when (currentMap /= branches) $ do
     App.update $ St.SetRepoBranchesA repo branches
+
+-- * Helper functions for statusMap updates
+
+-- | Mark a repository as Completed and persist to acid-state
+markRepoCompleted :: (Reader ViraRuntimeState :> es, Concurrent :> es, IOE :> es) => RepoName -> RefreshResult -> Eff es ()
+markRepoCompleted repo result = do
+  st <- asks (.refreshState)
+  -- Update TVar
+  atomically $ modifyTVar' st.statusMap $ Map.insert repo (Completed result)
+  -- Persist to acid-state
+  App.update $ St.SetRefreshStatusA repo (Just result)
+
+-- | Remove a repository from refresh state (cleanup on deletion)
+removeRepoFromRefreshState :: (Reader ViraRuntimeState :> es, Concurrent :> es) => RepoName -> Eff es ()
+removeRepoFromRefreshState repo = do
+  st <- asks (.refreshState)
+  atomically $ modifyTVar' st.statusMap (Map.delete repo)
