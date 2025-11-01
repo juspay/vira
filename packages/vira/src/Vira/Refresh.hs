@@ -48,5 +48,6 @@ scheduleRepoRefresh ::
   Eff es ()
 scheduleRepoRefresh repo prio = do
   now <- liftIO getCurrentTime
-  StatusMap.markRepoPending repo now prio
+  statusMap <- asks (.refreshState.statusMap)
+  StatusMap.markRepoPending statusMap repo now prio
   log Info $ "Queued refresh with prio: " <> show prio

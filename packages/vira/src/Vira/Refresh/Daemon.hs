@@ -39,7 +39,8 @@ startRefreshDaemon = do
 
   -- Initialize refresh state from persisted data
   repos <- App.query GetAllReposA
-  StatusMap.initializeRefreshState repos
+  statusMap <- asks (.refreshState.statusMap)
+  StatusMap.initializeRefreshState statusMap repos
   log Info "🔄 Loaded refresh status from acid-state"
 
   void $ async schedulerLoop
@@ -73,15 +74,17 @@ cleanupWorker = do
     someUpdate <- atomically $ readTChan chan
     whenJust (Events.matchUpdate someUpdate) $ \(DeleteRepoByNameA name, _) -> do
       log Info $ "Repo deleted, cleaning up refresh state: " <> show name
-      StatusMap.removeRepoFromRefreshState name
+      statusMap <- asks (.refreshState.statusMap)
+      StatusMap.removeRepoFromRefreshState statusMap name
 
 -- | Worker loop: continuously process pending repos
 workerLoop :: Eff AppStack Void
 workerLoop = do
   tagCurrentThread "🔄"
+  statusMap <- asks (.refreshState.statusMap)
   infinitely $ do
     -- Pop next pending repo (blocks via STM retry until available)
-    repoName <- StatusMap.popNextPendingRepo
+    repoName <- StatusMap.popNextPendingRepo statusMap
 
     -- Fetch repo data and refresh
     App.query (GetRepoByNameA repoName) >>= \case
@@ -117,7 +120,8 @@ refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
           }
 
   -- Update TVar status
-  StatusMap.markRepoCompleted repo.name refreshResult
+  statusMap <- asks (.refreshState.statusMap)
+  StatusMap.markRepoCompleted statusMap repo.name refreshResult
 
   -- Persist to acid-state
   App.update $ St.SetRefreshStatusA repo.name (Just refreshResult)
