@@ -28,6 +28,12 @@ See README.md for general project information.
   - ✓ Good: Return `Either ErrorType Result` and surface errors in UX
   - ✗ Bad: Catch exceptions and return empty results, use `Map.empty` on parse failures
   - All parse failures, file I/O errors, and external process errors must be surfaced
+- **Haddock documentation**:
+  - Use single quotes for type/function links: `'TypeName'`, `'functionName'`
+  - Use backticks for inline code: `` `True` ``, `` `Nothing` ``
+  - Use `@...@` for multi-line code examples
+  - Document exported items only; skip internal functions
+  - Link to types in prose (e.g., "Returns a `'TChan'` for subscribing")
 - Sync code changes with DESIGN.md
 
 ### Build instructions

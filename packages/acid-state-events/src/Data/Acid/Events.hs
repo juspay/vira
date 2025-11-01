@@ -1,14 +1,13 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 
-{- | Generic event bus for acid-state applications
+{- | Event bus for acid-state applications
 
 This module provides a type-safe event bus that works with any acid-state application.
-It has no domain-specific knowledge and could be extracted as a standalone library.
 
 The event bus:
-- Publishes Update events to subscribers via TChan
+- Publishes 'SomeUpdate' events to subscribers via 'TChan'
 - Maintains a circular buffer of recent events for debugging
-- Supports type-safe pattern matching on events via Typeable
+- Supports type-safe pattern matching on events via 'Typeable'
 -}
 module Data.Acid.Events (
   -- * Core types
@@ -18,8 +17,10 @@ module Data.Acid.Events (
   -- * Initialization
   newEventBus,
 
-  -- * Event bus operations
+  -- * acid-state wrappers
   update,
+
+  -- * Event bus operations
   subscribe,
   awaitBatched,
   getRecentEvents,
@@ -62,7 +63,7 @@ data SomeUpdate state
 instance Text.Show.Show (SomeUpdate state) where
   showsPrec d (SomeUpdate evt _result _time) = Text.Show.showsPrec d evt
 
--- | Event bus with broadcast channel and circular buffer log
+-- | Event bus with broadcast channel and circular buffer log of 'SomeUpdate' events
 data EventBus someUpdate = EventBus
   { channel :: TChan someUpdate
   , eventLog :: TVar (Seq someUpdate)
@@ -126,7 +127,7 @@ update acid bus event = do
   publishUpdate bus (SomeUpdate event result timestamp)
   pure result
 
--- | Subscribe to events (returns duplicate channel starting from now)
+-- | Subscribe to events (returns duplicate 'TChan' starting from now)
 subscribe ::
   EventBus someUpdate ->
   IO (TChan someUpdate)
@@ -198,7 +199,7 @@ getRecentEvents bus = do
 
 {- | Pattern match on specific update type
 
-Note: Returns unsafe-coerced result since EventResult is a type family.
+Note: Returns unsafe-coerced result since 'EventResult' is a type family.
 This is safe because if the update matches, the result type must match too.
 -}
 matchUpdate ::
