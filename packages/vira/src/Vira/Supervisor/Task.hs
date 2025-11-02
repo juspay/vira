@@ -30,7 +30,7 @@ import Prelude hiding (readMVar)
 {- | Start a 'Task' in the 'TaskSupervisor'
 
   The orchestrator is a function that runs the actual task logic, and is provided
-  with the necessary 'Effectful' capabilities. It uses the @Error err@ effect to report failures.
+  with the necessary 'Effectful.Eff' capabilities. It uses the @Error err@ effect to report failures.
 
   The @onFinish@ handler is called when the task completes, whether successfully or due to an exception.
   It receives an @Either err ExitCode@ result from the orchestrator (derived from the 'Effectful.Error.Static.Error' effect).

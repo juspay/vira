@@ -63,7 +63,7 @@ New subscribers will receive a ring buffer containing the last @bufferSize@ line
 
 {- | Path to the @tail@ executable
 
-This should be available in the PATH, thanks to Nix and `which` library.
+This should be available in the PATH, thanks to Nix and 'System.Which.staticWhich'.
 -}
 tailBin :: FilePath
 tailBin = $(staticWhich "tail")

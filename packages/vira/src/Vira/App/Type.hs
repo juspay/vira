@@ -17,7 +17,7 @@ import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Vira.Web.LinkTo.Type (LinkTo)
 
--- | Application-wide state available in 'Effectful' stack
+-- | Application-wide state available in 'Effectful.Eff' stack
 data ViraRuntimeState = ViraRuntimeState
   { instanceInfo :: InstanceInfo
   -- ^ Instance information (hostname, platform)

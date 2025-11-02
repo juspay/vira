@@ -10,9 +10,9 @@ module GH.Core (
 
 import System.Which (staticWhich)
 
-{- | Path to the `gh` executable
+{- | Path to the @gh@ executable
 
-This should be available in the PATH, thanks to Nix and `which` library.
+This should be available in the PATH, thanks to Nix and 'System.Which.staticWhich'.
 -}
 ghBin :: FilePath
 ghBin = $(staticWhich "gh")

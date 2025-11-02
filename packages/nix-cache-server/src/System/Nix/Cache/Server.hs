@@ -10,7 +10,7 @@ the <https://github.com/aristanetworks/nix-serve-ng nix-serve-ng> library.
 The typical flow is:
 
 1. Generate or load cache signing keys using "System.Nix.Cache.Keys"
-2. Call 'makeCacheApplication' with the keys to create a WAI Application
+2. Call 'makeCacheServer' with the keys to create a WAI Application
 3. Mount the application in your web server (e.g., at @\/cache@)
 
 The resulting cache server exposes standard Nix cache endpoints like:
