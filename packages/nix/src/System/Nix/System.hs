@@ -7,11 +7,11 @@ module System.Nix.System (
 import Data.Aeson (FromJSON, FromJSONKey)
 import System.Info qualified as SysInfo
 
--- | Nix system identifier (e.g., "x86_64-linux", "aarch64-darwin")
+-- | Nix system identifier (e.g., @x86_64-linux@, @aarch64-darwin@)
 newtype System = System {unSystem :: Text}
   deriving stock (Show, Eq, Ord)
   deriving newtype (ToString, IsString, FromJSON, FromJSONKey)
 
--- | Get the current Nix system
+-- | Get the current Nix 'System'
 nixSystem :: System
 nixSystem = System $ toText SysInfo.arch <> "-" <> toText SysInfo.os

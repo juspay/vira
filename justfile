@@ -7,6 +7,14 @@ docs:
     echo http://127.0.0.1:8888
     hoogle serve -p 8888 --local
 
+# Build Haddock documentation for all packages
+[group('2. haskell')]
+haddock:
+    cabal haddock all --haddock-html --haddock-quickjump --haddock-hyperlink-source
+    @echo ""
+    @echo "Haddock documentation generated!"
+    @echo "Open: file://$(pwd)/dist-newstyle/build/$(uname -m)-$(uname -s | tr '[:upper:]' '[:lower:]')/ghc-*/vira-*/doc/html/vira/index.html"
+
 # Run the web application (along with tailwind compilation).
 [group('1. vira')]
 run:

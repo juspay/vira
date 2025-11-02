@@ -12,7 +12,7 @@ import Lucid
 import Vira.Lib.TimeExtra (formatDuration, formatRelativeTime, formatTimestamp)
 import Vira.Web.Lucid (AppHtml)
 
--- | UTC timestamp with local timezone display and tooltip
+-- | 'UTCTime' timestamp with local timezone display and tooltip
 viraUTCTime_ :: UTCTime -> AppHtml ()
 viraUTCTime_ utcTime = do
   (formatted, fullTimestamp) <- formatTimestamp utcTime
@@ -22,14 +22,14 @@ viraUTCTime_ utcTime = do
     ]
     $ toHtml formatted
 
--- | Duration badge component
+-- | Duration badge component for 'NominalDiffTime'
 viraDuration_ :: NominalDiffTime -> AppHtml ()
 viraDuration_ duration = do
   span_ [class_ "text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded"] $
     toHtml $
       formatDuration duration
 
--- | Relative time display (e.g., "2min ago", "3hr ago") with full timestamp tooltip
+-- | Relative time display (e.g., @2min ago@, @3hr ago@) with full timestamp tooltip
 viraRelativeTime_ :: UTCTime -> AppHtml ()
 viraRelativeTime_ utcTime = do
   now <- liftIO getCurrentTime
@@ -43,7 +43,7 @@ viraRelativeTime_ utcTime = do
 
 {- | Real-time uptime display that updates every second
 
-Shows server uptime in a compact format (e.g., "Uptime: 2h 15m 30s").
+Shows server uptime in a compact format (e.g., @Uptime: 2h 15m 30s@).
 Self-contained with inline JavaScript.
 -}
 viraUptime_ :: UTCTime -> AppHtml ()

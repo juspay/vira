@@ -15,10 +15,12 @@ import System.Directory (XdgDirectory (..), doesFileExist, getXdgDirectory)
 import TOML (DecodeTOML, TOMLError, getField, getFields)
 import TOML qualified
 
--- | Attic server configuration from config.toml
+-- | Attic server configuration from @config.toml@
 data AtticServerConfig = AtticServerConfig
   { endpoint :: AtticServerEndpoint
+  -- ^ The 'AtticServerEndpoint' URL
   , token :: Maybe AtticToken
+  -- ^ Optional 'AtticToken' for authentication
   }
   deriving stock (Eq, Show, Generic)
 
@@ -28,10 +30,12 @@ instance DecodeTOML AtticServerConfig where
       <$> getField "endpoint"
       <*> (getFields ["token"] <|> pure Nothing)
 
--- | Attic configuration from ~/.config/attic/config.toml
+-- | Attic configuration from @~\/.config\/attic\/config.toml@
 data AtticConfig = AtticConfig
   { defaultServer :: Maybe Text
+  -- ^ Name of the default server
   , servers :: Map Text AtticServerConfig
+  -- ^ Map of server names to 'AtticServerConfig'
   }
   deriving stock (Eq, Show, Generic)
 
@@ -41,12 +45,12 @@ instance DecodeTOML AtticConfig where
       <$> (getFields ["default-server"] <|> pure Nothing)
       <*> getField "servers"
 
-{- | Read Attic configuration from ~/.config/attic/config.toml
+{- | Read 'AtticConfig' from @~\/.config\/attic\/config.toml@
 
 Returns:
-- Left TOMLError if config file exists but failed to parse
-- Right Nothing if config file doesn't exist (not configured)
-- Right (Just config) if successfully parsed
+- @Left TOMLError@ if config file exists but failed to parse
+- @Right Nothing@ if config file doesn't exist (not configured)
+- @Right (Just config)@ if successfully parsed
 -}
 readAtticConfig :: IO (Either TOMLError (Maybe AtticConfig))
 readAtticConfig = do

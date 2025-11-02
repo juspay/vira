@@ -23,22 +23,22 @@ newtype NixVersion = NixVersion Text
 
 {- | Get the installed Nix version
 
-Runs `nix --version` and parses the output.
-Example output: "nix (Nix) 2.18.1"
+Runs @nix --version@ and parses the output.
+Example output: @nix (Nix) 2.18.1@
 -}
 getVersion :: (Process :> es, IOE :> es) => Eff es (Either Text NixVersion)
 getVersion = do
   output <- readCreateProcess (proc nix ["--version"]) ""
   pure $ parseVersion $ toText output
 
--- | Parse Nix version from command output
+-- | Parse 'NixVersion' from command output
 parseVersion :: Text -> Either Text NixVersion
 parseVersion txt =
   first (toText . errorBundlePretty) $ parse versionParser "" txt
 
 type Parser = Parsec Void Text
 
--- | Parser for nix version output: "nix (Nix) 2.18.1"
+-- | Parser for nix version output: @nix (Nix) 2.18.1@
 versionParser :: Parser NixVersion
 versionParser = do
   -- Skip prefix (e.g., "nix (Nix) ") up to the version number
@@ -46,7 +46,7 @@ versionParser = do
   -- Parse version number (e.g., "2.18.1")
   NixVersion <$> versionNumber
 
--- | Parse a version number like "2.18.1"
+-- | Parse a version number like @2.18.1@
 versionNumber :: Parser Text
 versionNumber = do
   major <- MP.some digitChar

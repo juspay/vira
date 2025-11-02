@@ -35,7 +35,7 @@ import Prelude hiding (Reader)
 newtype ToolError = ToolError Text
   deriving stock (Show)
 
--- | Create a new TVar with all tools data
+-- | Create a new 'TVar' with all 'Tools' data
 newToolsTVar ::
   ( Process :> es
   , IOE :> es
@@ -47,13 +47,13 @@ newToolsTVar = do
   initialTools <- getAllTools
   liftIO $ STM.newTVarIO initialTools
 
--- | Get cached tools from ViraRuntimeState
+-- | Get cached 'Tools' from 'ViraRuntimeState'
 getTools :: (IOE :> es, Reader.Reader ViraRuntimeState :> es) => Eff es Tools
 getTools = do
   ViraRuntimeState {tools = toolsVar} <- Reader.ask
   liftIO $ STM.readTVarIO toolsVar
 
--- | Refresh tools data and update cache in ViraRuntimeState
+-- | Refresh 'Tools' data and update cache in 'ViraRuntimeState'
 refreshTools ::
   ( Process :> es
   , IOE :> es
@@ -68,7 +68,7 @@ refreshTools = do
   liftIO $ STM.atomically $ STM.writeTVar toolsVar freshTools
   pure freshTools
 
--- | Read all tools with metadata and runtime info
+-- | Read all 'Tools' with metadata and runtime info
 getAllTools ::
   ( Process :> es
   , IOE :> es

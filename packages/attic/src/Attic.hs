@@ -11,22 +11,22 @@ import Attic.Types (AtticCache, AtticServer (..), AtticToken)
 import System.Process (CreateProcess, proc)
 import System.Which (staticWhich)
 
-{- | Path to the `attic` executable
+{- | Path to the @attic@ executable
 
-This should be available in the PATH, thanks to Nix and `which` library.
+This should be available in the PATH, thanks to Nix and @which@ library.
 -}
 atticBin :: FilePath
 atticBin = $(staticWhich "attic")
 
-{- | Push the given paths to the attic server cache
+{- | Push the given paths to the 'AtticServer' cache
 
-NOTE: `atticLoginProcess` should be run before this to set the access token
+NOTE: 'atticLoginProcess' should be run before this to set the access token
 -}
 atticPushProcess :: AtticServer -> AtticCache -> NonEmpty FilePath -> CreateProcess
 atticPushProcess AtticServer {name} cacheName paths =
   proc atticBin $ ["push", toString name <> ":" <> toString cacheName] <> toList paths
 
-{- | Saves the access token for the attic server
+{- | Saves the 'AtticToken' for the 'AtticServer'
 
 Run this process before other attic processes.
 

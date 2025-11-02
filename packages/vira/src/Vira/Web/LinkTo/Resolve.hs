@@ -14,7 +14,7 @@ import Vira.Web.Pages.RegistryPage qualified as RegistryPage
 import Vira.Web.Pages.RepoPage qualified as RepoPage
 import Vira.Web.Servant ((//), (/:))
 
--- | Resolve a `LinkTo` into a servant `Link`
+-- | Resolve a 'LinkTo' into a servant 'Link'
 linkTo :: LinkTo -> Link
 linkTo = \case
   Home -> fieldLink _home

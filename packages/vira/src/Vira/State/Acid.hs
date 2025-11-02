@@ -29,7 +29,7 @@ setAllReposA repos = do
       { repos = Ix.fromList repos
       }
 
--- | Add a new repository
+-- | Add a new 'Repo'
 addNewRepoA :: Repo -> Update ViraState ()
 addNewRepoA repo = do
   modify $ \s ->
@@ -37,8 +37,9 @@ addNewRepoA repo = do
       { repos = Ix.insert repo s.repos
       }
 
-{- | Delete a repository by name and all associated data (branches and jobs)
-Returns Left with error message if there are running jobs
+{- | Delete a 'Repo' by name and all associated data ('Branch'es and 'Job's)
+
+Returns @Left@ with error message if there are running jobs
 -}
 deleteRepoByNameA :: RepoName -> Update ViraState (Either Text ())
 deleteRepoByNameA name = do
@@ -57,19 +58,19 @@ deleteRepoByNameA name = do
           }
       pure $ Right ()
 
--- | Get all repositories
+-- | Get all 'Repo's
 getAllReposA :: Query ViraState [Repo]
 getAllReposA = do
   ViraState {repos} <- ask
   pure $ Ix.toList repos
 
--- | Get a repository by name
+-- | Get a 'Repo' by 'RepoName'
 getRepoByNameA :: RepoName -> Query ViraState (Maybe Repo)
 getRepoByNameA name = do
   ViraState {repos} <- ask
   pure $ Ix.getOne $ repos @= name
 
--- | Enrich a branch with its job metadata
+-- | Enrich a 'Branch' with its 'Job' metadata to create 'BranchDetails'
 enrichBranchWithJobs :: IxJob -> Branch -> BranchDetails
 enrichBranchWithJobs jobsIx branch =
   let branchJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= branch.repoName @= branch.branchName

@@ -15,9 +15,9 @@ import Effectful.Environment qualified as Env
 import Effectful.Process (CreateProcess (..))
 import System.Which (staticWhich)
 
-{- | Path to the `git` executable
+{- | Path to the @git@ executable
 
-This should be available in the PATH, thanks to Nix and `which` library.
+This should be available in the PATH, thanks to Nix and 'System.Which.staticWhich'.
 -}
 git :: FilePath
 git = $(staticWhich "git")

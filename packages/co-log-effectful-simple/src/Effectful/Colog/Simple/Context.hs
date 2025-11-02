@@ -18,7 +18,7 @@ import Effectful.Colog (Log)
 import Effectful.Reader.Static qualified as ER
 import Text.Show qualified
 
--- | Type alias for logging context stored in Reader
+-- | Type alias for logging context stored in 'Effectful.Reader.Static.Reader'
 newtype LogContext = LogContext [(Text, Text)]
   deriving newtype (Semigroup, Monoid, Eq)
 
@@ -58,7 +58,7 @@ withLogContext pairs action = do
   -- Modify the context in the Reader effect (append to preserve order)
   ER.local (<> LogContext pairs) action
 
-{- | Remove specified keys from context for the given action.
+{- | Remove specified keys from 'LogContext' for the given action.
 
 Useful for filtering out redundant context when logging to scoped outputs.
 

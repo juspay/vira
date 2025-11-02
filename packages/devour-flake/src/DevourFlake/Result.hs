@@ -11,9 +11,10 @@ import Data.Aeson (FromJSON (..))
 import Data.Map.Strict qualified as Map
 import System.Nix.System (System)
 
--- | Represents the `result` JSON of devour-flake
+-- | Represents the @result@ JSON of @devour-flake@
 newtype DevourFlakeResult = DevourFlakeResult
   { systems :: Map System SystemOutputs
+  -- ^ Map from 'System.Nix.System.System' to 'SystemOutputs'
   }
   deriving stock (Eq, Show, Generic)
   deriving newtype (FromJSON)
@@ -24,7 +25,7 @@ instance Semigroup DevourFlakeResult where
     where
       unionAppend = Map.unionWith (<>)
 
--- | Outputs for a single system
+-- | Outputs for a single 'System.Nix.System.System'
 data SystemOutputs = SystemOutputs
   { byName :: Map Text FilePath
   , outPaths :: [FilePath]

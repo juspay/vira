@@ -39,8 +39,8 @@ data ConfigError
 
 Combines reading and validation into a single operation.
 Returns:
-- Left ConfigError if config is invalid or incomplete
-- Right AtticConfig if successfully parsed and validated (empty config if file doesn't exist)
+- @Left ConfigError@ if config is invalid or incomplete
+- @Right AtticConfig@ if successfully parsed and validated (empty config if file doesn't exist)
 -}
 getAtticConfig :: IO (Either ConfigError AtticConfig)
 getAtticConfig = validateConfig <$> Attic.Config.readAtticConfig

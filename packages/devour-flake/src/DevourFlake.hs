@@ -14,12 +14,12 @@ import DevourFlake.Result
 import IncludeEnv.TH (includeEnv)
 import System.Nix.System (System (..))
 
--- | Path to the locally cached github:srid/devour-flake flake
+-- | Path to the locally cached @github:srid/devour-flake@ flake
 $(includeEnv "DEVOUR_FLAKE_PATH" "devourFlakePath")
 
 devourFlakePath :: FilePath
 
--- | Generate arguments to `nix` for running the devour-flake build against given flake.
+-- | Generate arguments to @nix@ for running the @devour-flake@ build against given flake.
 devourFlake :: (HasCallStack) => DevourFlakeArgs -> [String]
 devourFlake args =
   [ "build"

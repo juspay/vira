@@ -28,11 +28,10 @@ data ButtonVariant
     ButtonSecondary
   deriving stock (Eq, Show)
 
-{- |
-Enhanced button component with type-safe styling variants.
+{- | Enhanced button component with type-safe 'ButtonVariant' styling.
 
 This is the primary button component for all user actions. It includes:
-- Type-safe variant system for consistent styling
+- Type-safe 'ButtonVariant' system for consistent styling
 - Smooth transitions and micro-interactions
 - Proper focus states for accessibility
 - Disabled state handling

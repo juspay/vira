@@ -10,9 +10,9 @@ module System.Nix.Core (
 
 import System.Which (staticWhich)
 
-{- | Path to the `nix` executable
+{- | Path to the @nix@ executable
 
-This should be available in the PATH, thanks to Nix and `which` library.
+This should be available in the PATH, thanks to Nix and 'System.Which.staticWhich'.
 -}
 nix :: FilePath
 nix = $(staticWhich "nix")

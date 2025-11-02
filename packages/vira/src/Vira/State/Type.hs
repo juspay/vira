@@ -18,11 +18,11 @@ import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
 -- | A project's git repository
 data Repo = Repo
   { name :: RepoName
-  -- ^ An unique name identifying this repository
+  -- ^ A unique name identifying this repository
   , cloneUrl :: Text
   -- ^ The git clone URL of the repository
   , lastRefresh :: Maybe RefreshResult
-  -- ^ Metadata about the last refresh operation (persisted across restarts)
+  -- ^ Metadata about the last 'Vira.Refresh.Daemon.refreshRepo' operation (persisted across restarts)
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
@@ -61,26 +61,26 @@ instance Indexable BranchIxs Branch where
       (ixFun $ \Branch {repoName} -> [repoName])
       (ixFun $ \Branch {branchName} -> [branchName])
 
--- | Badge state for branch status
+-- | Badge state for 'Branch' status
 data BadgeState = NeverBuilt | OutOfDate
   deriving stock (Generic, Show, Eq)
 
--- | Branch with enriched metadata for display
+-- | 'Branch' with enriched metadata for display
 data BranchDetails = BranchDetails
   { branch :: Branch
-  -- ^ The branch information from the database
+  -- ^ The 'Branch' information from the database
   , mLatestJob :: Maybe Job
-  -- ^ The most recent CI job for this branch, if any
+  -- ^ The most recent CI 'Job' for this branch, if any
   , jobsCount :: Natural
-  -- ^ Total number of jobs for this branch
+  -- ^ Total number of 'Job's for this branch
   , badgeState :: Maybe BadgeState
-  -- ^ Badge state computed from job/commit comparison
+  -- ^ 'BadgeState' computed from job/commit comparison
   }
   deriving stock (Generic, Show, Eq)
 
-{- | Get the most recent activity time for a branch.
+{- | Get the most recent activity time for a 'BranchDetails'.
 
-Activity is defined as max(head commit date, latest job created time).
+Activity is defined as @max(head commit date, latest job created time)@.
 This ensures branches with recent commits OR recent builds appear first.
 -}
 branchActivityTime :: BranchDetails -> UTCTime
@@ -88,7 +88,7 @@ branchActivityTime details = case details.mLatestJob of
   Nothing -> details.branch.headCommit.date
   Just job -> max details.branch.headCommit.date job.jobCreatedTime
 
--- | Sorts branches by most recent activity descending (most recent first).
+-- | Sorts 'BranchDetails' by most recent activity descending (most recent first).
 instance Ord BranchDetails where
   compare a b = compare (Down $ branchActivityTime a) (Down $ branchActivityTime b)
 
@@ -145,7 +145,7 @@ data JobStatus
 data JobResult = JobSuccess | JobFailure | JobKilled
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
--- | Check if a job is currently active (pending or running)
+-- | Check if a 'Job' is currently active (pending or running)
 jobIsActive :: Job -> Bool
 jobIsActive job = case job.jobStatus of
   JobPending -> True
@@ -153,7 +153,7 @@ jobIsActive job = case job.jobStatus of
   JobFinished _ _ -> False
   JobStale -> False
 
--- | Get the end time for finished jobs only
+-- | Get the end time for finished 'Job's only
 jobEndTime :: Job -> Maybe UTCTime
 jobEndTime job = case job.jobStatus of
   JobFinished _ endTime -> Just endTime
@@ -161,12 +161,12 @@ jobEndTime job = case job.jobStatus of
 
 {- | Application state persisted to disk through acid-state
 
-All operations (`query` or `update`) on this state are defined in Vira.State.Acid.
+All operations (@query@ or @update@) on this state are defined in 'Vira.State.Acid'.
 They can be invoked as follows:
 
 >>> Just repo <- Vira.App.query $ GetRepoByNameA "my-repo"
 
-Data in this state is indexed by `IxSet` to allow for efficient querying.
+Data in this state is indexed by 'Data.IxSet.Typed.IxSet' to allow for efficient querying.
 -}
 data ViraState = ViraState
   { repos :: IxRepo
@@ -185,9 +185,9 @@ $(deriveSafeCopy 0 'base ''BadgeState)
 $(deriveSafeCopy 0 'base ''BranchDetails)
 $(deriveSafeCopy 0 'base ''Repo)
 
-{- | IMPORTANT: Increment the version number when making breaking changes to ViraState or its indexed types.
-The version is automatically used by the --auto-reset-state feature to detect schema changes.
-When enabled, auto-reset will remove ViraState/ and workspace/*/jobs directories on mismatch.
-Run `vira info` to see the current schema version.
+{- | IMPORTANT: Increment the version number when making breaking changes to 'ViraState' or its indexed types.
+The version is automatically used by the @--auto-reset-state@ feature to detect schema changes.
+When enabled, auto-reset will remove @ViraState/@ and @workspace/*/jobs@ directories on mismatch.
+Run @vira info@ to see the current schema version.
 -}
 $(deriveSafeCopy 4 'base ''ViraState)

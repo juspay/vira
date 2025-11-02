@@ -10,7 +10,7 @@ repository metadata (refs, commits, trees) without file blobs.
 = Usage
 
 @
-result <- syncMirror "https://..." "/path/to/mirror"
+result <- syncMirror "https://..." "\/path\/to\/mirror"
 case result of
   Right () -> -- mirror is up-to-date and ready for use
   Left err -> -- handle error, may need to delete corrupt mirror
@@ -41,7 +41,7 @@ import System.FilePath (takeDirectory, takeFileName)
 
 {- | Ensure git mirror exists and is up-to-date.
 
-Creates mirror if needed, then fetches latest changes.
+Creates mirror with @git clone --mirror --filter=blob:none@ if needed, then fetches latest changes.
 Concurrent calls for the same directory block on file lock until the first completes.
 On error, caller may need to delete the mirror directory and retry.
 -}
@@ -185,7 +185,7 @@ withFileLock dirPath action = do
   -- Run action with cleanup via finally
   action `finally` liftIO (Lukko.fdUnlock fd >> Lukko.fdClose fd)
 
--- | Return the `CreateProcess` to clone a repo with all branches (blob:none for efficiency)
+-- | Return the 'CreateProcess' to clone a repo with all branches (blob:none for efficiency)
 cloneAllBranches :: (Environment :> es) => Text -> FilePath -> Eff es CreateProcess
 cloneAllBranches url path =
   withNonInteractiveSSH $
@@ -199,7 +199,7 @@ cloneAllBranches url path =
       , path
       ]
 
--- | Return the `CreateProcess` to fetch all branches with force and prune deleted branches
+-- | Return the 'CreateProcess' to fetch all branches with force and prune deleted branches
 fetchAllBranches :: (Environment :> es) => Eff es CreateProcess
 fetchAllBranches =
   withNonInteractiveSSH $

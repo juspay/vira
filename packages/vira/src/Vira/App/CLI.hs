@@ -25,11 +25,11 @@ import Prelude hiding (Reader, reader, runReader)
 -- | Global CLI Settings
 data GlobalSettings = GlobalSettings
   { logLevel :: Severity
-  -- ^ Minimum logging level
+  -- ^ Minimum 'Colog.Core.Severity' logging level
   , stateDir :: FilePath
   -- ^ Directory where Vira stores its state
   , autoResetState :: Bool
-  -- ^ Automatically reset state on schema mismatch (removes ViraState and job workspaces)
+  -- ^ Automatically reset state on schema mismatch (removes @ViraState@ and job workspaces)
   }
   deriving stock (Show)
 
@@ -40,15 +40,15 @@ data WebSettings = WebSettings
   , host :: Text
   -- ^ The host to bind the HTTP server to
   , basePath :: Text
-  -- ^ Base URL path for the http server
+  -- ^ Base URL path for the HTTP server
   , tlsConfig :: TLSConfig
-  -- ^ TLS configuration for HTTPS support
+  -- ^ 'TLSConfig' for HTTPS support
   , importFile :: Maybe FilePath
   -- ^ Optional JSON file to import on startup
   }
   deriving stock (Show)
 
--- | Available commands
+-- | Available 'Command's
 data Command
   = WebCommand WebSettings
   | ExportCommand

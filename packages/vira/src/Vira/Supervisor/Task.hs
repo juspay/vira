@@ -27,18 +27,18 @@ import Vira.CI.Log (ViraLog (..), encodeViraLog)
 import Vira.Supervisor.Type (Task (..), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..), Terminated (Terminated))
 import Prelude hiding (readMVar)
 
-{- | Start a task in the supervisor
+{- | Start a 'Task' in the 'TaskSupervisor'
 
-  The orchestrator is a function that runs the actual task logic (using `runProcesses`), and is provided
-  with the necessary Effectful capabilities. It uses the `Error err` effect to report failures.
+  The orchestrator is a function that runs the actual task logic, and is provided
+  with the necessary 'Effectful.Eff' capabilities. It uses the @Error err@ effect to report failures.
 
-  The `onFinish` handler is called when the task completes, whether successfully or due to an exception.
-  It receives an `Either err ExitCode` result from the orchestrator (derived from the Error effect).
+  The @onFinish@ handler is called when the task completes, whether successfully or due to an exception.
+  It receives an @Either err ExitCode@ result from the orchestrator (derived from the 'Effectful.Error.Static.Error' effect).
 
   The working directory for the task is created if it does not exist, and an empty log file is initialized.
-  The task's output is logged to this file, and a tail handle is created for potential log streaming.
+  The task's output is logged to this file, and a 'System.Tail.Tail' handle is created for potential log streaming.
 
-  Note: This function assumes that the caller has ensured that no other task with the same `TaskId` is running.
+  Note: This function assumes that the caller has ensured that no other task with the same 'TaskId' is running.
 -}
 startTask ::
   forall es err.

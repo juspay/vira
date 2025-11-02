@@ -14,9 +14,14 @@ import Vira.Environment.Tool.Type.ToolData (ToolData)
 -- | All tools with their metadata and runtime status
 data Tools = Tools
   { attic :: ToolData (Either ConfigError AtticConfig)
+  -- ^ Attic binary cache tool with 'Attic.Config.AtticConfig' status
   , github :: ToolData AuthStatus
+  -- ^ GitHub CLI tool with 'GH.Auth.Status.AuthStatus'
   , git :: ToolData ()
+  -- ^ Git version control tool
   , cachix :: ToolData ()
+  -- ^ Cachix binary cache tool
   , nix :: ToolData (Either Text NixStatus)
+  -- ^ Nix package manager with 'Vira.Environment.Tool.Tools.Nix.NixStatus'
   }
   deriving stock (Show)

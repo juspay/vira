@@ -25,7 +25,7 @@ import Prelude hiding (many)
 data Builders
   = -- | Inline builder specifications
     BuildersList [RemoteBuilder]
-  | -- | File path reference (@/path/to/machines)
+  | -- | File path reference (e.g., @\@/path/to/machines@)
     BuildersFile FilePath
   | -- | No builders configured
     BuildersEmpty
@@ -45,9 +45,9 @@ instance FromJSON Builders where
 -- | Remote builder specification from Nix machines file
 data RemoteBuilder = RemoteBuilder
   { uri :: Text
-  -- ^ SSH URI (e.g., "ssh-ng://user@host")
+  -- ^ SSH URI (e.g., @ssh-ng:\/\/user\@host@)
   , platforms :: [System]
-  -- ^ Supported platforms (e.g., ["aarch64-darwin"])
+  -- ^ Supported 'System.Nix.System.System's (e.g., @[aarch64-darwin]@)
   , sshKey :: Maybe FilePath
   -- ^ Path to SSH key
   , maxJobs :: Int
@@ -55,7 +55,7 @@ data RemoteBuilder = RemoteBuilder
   , speedFactor :: Int
   -- ^ Speed factor for prioritization
   , supportedFeatures :: [Text]
-  -- ^ Supported features (e.g., ["benchmark", "big-parallel"])
+  -- ^ Supported features (e.g., @[benchmark, big-parallel]@)
   , mandatoryFeatures :: [Text]
   -- ^ Mandatory features
   , publicHostKey :: Maybe Text

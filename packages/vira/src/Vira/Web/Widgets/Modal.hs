@@ -23,6 +23,7 @@ instance ToHtml (Maybe ErrorModal) where
   toHtml Nothing = mempty
   toHtml (Just modal) = toHtml modal
 
+-- | Render 'ErrorModal' with error styling
 renderErrorModal :: (Monad m) => Text -> HtmlT m ()
 renderErrorModal errorMsg =
   -- Fixed overlay backdrop

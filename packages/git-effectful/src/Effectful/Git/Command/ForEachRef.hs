@@ -34,8 +34,9 @@ import Text.Megaparsec (Parsec, anySingle, manyTill, parse, takeRest)
 import Text.Megaparsec.Char (tab)
 
 {- | Get remote branches from a git clone.
+
 This function expects the clone to already exist and be updated.
-It parses branches from the existing clone without modifying it.
+It parses 'BranchName's and 'Commit's from the existing clone without modifying it.
 -}
 remoteBranchesFromClone :: (Error Text :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es, Process :> es, IOE :> es) => FilePath -> Eff es (Map BranchName Commit)
 remoteBranchesFromClone clonePath = do
@@ -60,7 +61,7 @@ remoteBranchesFromClone clonePath = do
         Left $ "Parse error on line '" <> line <> "': " <> show err
       Right result -> Right result
 
--- | Return the `CreateProcess` to list remote branches with metadata
+-- | Return the 'CreateProcess' to list remote branches with metadata
 forEachRefRemoteBranches :: CreateProcess
 forEachRefRemoteBranches =
   proc
@@ -70,7 +71,7 @@ forEachRefRemoteBranches =
     , "refs/remotes"
     ]
 
--- | Parse a git ref line into a branch name and commit
+-- | Parse a git ref line into a 'BranchName' and 'Commit'
 gitRefParser :: Parsec Void Text (BranchName, Commit)
 gitRefParser = do
   branchName' <- toText <$> manyTill anySingle tab

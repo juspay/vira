@@ -15,13 +15,13 @@ data InstanceInfo = InstanceInfo
   { hostname :: Text
   -- ^ The hostname of the machine running Vira
   , os :: Text
-  -- ^ The operating system name
+  -- ^ The operating system name (from 'System.Info.os')
   , arch :: Text
-  -- ^ The architecture name
+  -- ^ The architecture name (from 'System.Info.arch')
   }
   deriving stock (Show, Eq)
 
--- | Get instance information from the system
+-- | Get 'InstanceInfo' from the system
 getInstanceInfo :: IO InstanceInfo
 getInstanceInfo = do
   hostName <- getHostName
@@ -32,6 +32,6 @@ getInstanceInfo = do
       , arch = toText SysInfo.arch
       }
 
--- | Compute the platform string from InstanceInfo
+-- | Compute the platform string from 'InstanceInfo'
 platform :: InstanceInfo -> Text
 platform instanceInfo = instanceInfo.os <> "/" <> instanceInfo.arch

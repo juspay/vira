@@ -27,7 +27,7 @@ import System.Nix.Config.Builders (Builders)
 import System.Nix.Core (nix)
 import System.Nix.System (System)
 
--- | A field in `nix.conf`.
+-- | A field in @nix.conf@.
 data NixConfigField a = NixConfigField
   { value :: a
   -- ^ Actual config value
@@ -37,22 +37,22 @@ data NixConfigField a = NixConfigField
   deriving stock (Show, Eq, Generic)
   deriving anyclass (FromJSON)
 
--- | Nix configuration from `nix.conf`
+-- | Nix configuration from @nix.conf@
 data NixConfig = NixConfig
   { builders :: NixConfigField Builders
-  -- ^ Remote builders configured in the system
+  -- ^ Remote 'System.Nix.Config.Builders.RemoteBuilder's configured in the system
   , maxJobs :: NixConfigField Natural
-  -- ^ Maximum parallel build jobs (0 means auto)
+  -- ^ Maximum parallel build jobs (@0@ means auto)
   , cores :: NixConfigField Natural
-  -- ^ CPU cores available per build job (0 means all cores)
+  -- ^ CPU cores available per build job (@0@ means all cores)
   , substituters :: NixConfigField [Text]
   -- ^ Binary cache URLs (Nix caches)
   , trustedPublicKeys :: NixConfigField [Text]
   -- ^ Public keys for cache verification
   , system :: NixConfigField System
-  -- ^ Current system architecture
+  -- ^ Current system architecture ('System.Nix.System.System')
   , extraPlatforms :: NixConfigField [System]
-  -- ^ Additional platforms this system can build for
+  -- ^ Additional 'System.Nix.System.System's this system can build for
   , experimentalFeatures :: NixConfigField [Text]
   -- ^ Enabled experimental Nix features
   }

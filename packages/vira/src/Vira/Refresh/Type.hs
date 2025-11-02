@@ -30,11 +30,13 @@ import Effectful.Git (RepoName)
 -- | Opaque state container for the refresh system
 data RefreshState = RefreshState
   { statusMap :: TVar (Map RepoName RefreshStatus)
+  -- ^ Map from 'RepoName' to current 'RefreshStatus'
   , daemonHandle :: TVar (Maybe (Async Void))
+  -- ^ Handle to the refresh daemon worker thread
   }
   deriving stock (Generic)
 
--- | Create a new refresh state (starts empty, populated by daemon on startup)
+-- | Create a new 'RefreshState' (starts empty, populated by 'Vira.Refresh.Daemon.startRefreshDaemon' on startup)
 newRefreshState :: IO RefreshState
 newRefreshState = do
   statusMap <- newTVarIO mempty
@@ -60,7 +62,7 @@ data RefreshStatus
     Completed RefreshResult
   deriving stock (Eq, Show, Generic)
 
--- | Result of a completed refresh operation (stored in acid-state)
+-- | Result of a completed refresh operation (stored in acid-state and 'RefreshState')
 data RefreshResult = RefreshResult
   { completedAt :: UTCTime
   , duration :: NominalDiffTime
@@ -68,7 +70,7 @@ data RefreshResult = RefreshResult
   }
   deriving stock (Eq, Ord, Show, Typeable, Data, Generic)
 
--- | Outcome of a refresh operation
+-- | Outcome of a refresh operation ('Success' or 'Failure')
 data RefreshOutcome
   = -- | Refresh succeeded
     Success

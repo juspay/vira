@@ -17,7 +17,7 @@ import Vira.State.Acid qualified
 import Vira.Web.Lucid (AppHtml)
 import Vira.Web.Widgets.Code qualified as Code
 
--- | Commit info: hash, message, author, date
+-- | Commit info display: hash, message, author, date
 viraCommitInfo_ :: Git.CommitID -> AppHtml ()
 viraCommitInfo_ commitId = do
   maybeCommit <- lift $ Vira.App.query $ Vira.State.Acid.GetCommitByIdA commitId
@@ -55,7 +55,7 @@ viraCommitInfoCompact_ mCommit = do
         viraCommitHash_ (Git.CommitID "unknown")
         span_ [class_ "text-xs text-red-600 dark:text-red-400"] "Commit not found"
 
--- | Clickable commit hash (8 chars) with copy-to-clipboard
+-- | Clickable 'Effectful.Git.Types.CommitID' hash (8 chars) with copy-to-clipboard
 viraCommitHash_ :: Git.CommitID -> AppHtml ()
 viraCommitHash_ commitId = do
   let shortHash = T.take 8 $ toText commitId

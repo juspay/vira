@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
--- | Effectful stack for our app.
+-- | 'Effectful.Eff' stack for our app.
 module Vira.App.AcidState where
 
 import Control.Concurrent.STM.TChan (TChan)
@@ -14,7 +14,7 @@ import Vira.App.Type (ViraRuntimeState (..))
 import Vira.State.Core (ViraState)
 import Prelude hiding (Reader, ask, asks, runReader)
 
--- | Like `Acid.query`, but runs in effectful monad, whilst looking up the acid-state in Reader
+-- | Like 'Data.Acid.query', but runs in 'Effectful.Eff' monad, whilst looking up the acid-state in 'Effectful.Reader.Dynamic.Reader'
 query ::
   ( QueryEvent event
   , EventState event ~ ViraState
@@ -27,9 +27,9 @@ query event = do
   acid <- asks acid
   liftIO $ Acid.query acid event
 
-{- | Like `Acid.update`, but runs in effectful monad, whilst looking up the acid-state in Reader
+{- | Like 'Data.Acid.update', but runs in 'Effectful.Eff' monad, whilst looking up the acid-state in 'Effectful.Reader.Dynamic.Reader'
 
-AUTOMATICALLY publishes events to the event bus.
+AUTOMATICALLY publishes events to the 'Data.Acid.Events.EventBus'.
 -}
 update ::
   forall event es.
@@ -47,7 +47,7 @@ update event = do
   bus <- asks @ViraRuntimeState eventBus
   liftIO $ Events.update acid bus event
 
--- | Subscribe to event bus for receiving updates
+-- | Subscribe to 'Data.Acid.Events.EventBus' for receiving 'Data.Acid.Events.SomeUpdate' events
 subscribe ::
   forall es.
   ( Reader ViraRuntimeState :> es

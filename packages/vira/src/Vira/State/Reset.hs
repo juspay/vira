@@ -16,7 +16,7 @@ import Vira.State.Type (ViraState)
 
 -- * Public API
 
--- | Get the current ViraState database schema version
+-- | Get the current 'ViraState' database schema version
 viraDbVersion :: Int
 viraDbVersion = versionToInt (version @ViraState)
 

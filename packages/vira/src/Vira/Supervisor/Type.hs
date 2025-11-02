@@ -13,39 +13,41 @@ data TaskState
   | Killed
   deriving stock (Eq, Generic, Show)
 
-{- | Supervisor for managing tasks
+{- | Supervisor for managing 'Task's
 
 TODO Use ixset-typed
 -}
 data TaskSupervisor = TaskSupervisor
   { tasks :: MVar (Map TaskId Task)
-  -- ^ Current tasks, running or not
+  -- ^ Current 'Task's, running or not
   , baseWorkDir :: FilePath
-  -- ^ Base working directory for all tasks. This assigns `${workDir}/${taskId}/` as $PWD for each task.
+  -- ^ Base working directory for all tasks. This assigns @${workDir}/${taskId}/@ as @$PWD@ for each task.
   }
   deriving stock (Generic)
 
--- | A task managed by the supervisor
+-- | A task managed by the 'TaskSupervisor'
 data Task = Task
   { info :: TaskInfo
-  -- ^ Task information
+  -- ^ 'TaskInfo' for this task
   , asyncHandle :: Async ()
-  -- ^ The `Async` handle for the task
+  -- ^ The 'Effectful.Concurrent.Async.Async' handle for the task
   }
   deriving stock (Generic)
 
+-- | Task metadata and handles
 data TaskInfo = TaskInfo
   { taskId :: TaskId
-  -- ^ Unique identifier for the task
+  -- ^ Unique 'TaskId' for the task
   , workDir :: FilePath
   -- ^ Working directory of this task
   , tailHandle :: Tail
-  -- ^ The tail handle for log streaming
+  -- ^ The 'System.Tail.Tail' handle for log streaming
   }
   deriving stock (Generic)
 
-{- | Task was explicitly terminated (by the user)
-Used by killTask
+{- | Exception thrown when a 'Task' is explicitly terminated (by the user)
+
+Used by 'Vira.Supervisor.Core.killTask'
 -}
 data Terminated = Terminated
   deriving stock (Show)
