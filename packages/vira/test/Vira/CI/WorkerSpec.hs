@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 module Vira.CI.WorkerSpec (spec) where
 
 import Data.Time (UTCTime (..), fromGregorian, secondsToDiffTime)
@@ -13,36 +15,36 @@ spec = describe "Vira.CI.Worker" $ do
   describe "selectJobsToStart" $ do
     it "respects max concurrent limit" $ do
       let running = [mkJob 1 JobRunning t1, mkJob 2 JobRunning t2]
-          pending = [mkJob 3 JobPending t3, mkJob 4 JobPending t4]
-          jobs = running <> pending
+          queued = [mkJob 3 JobPending t3, mkJob 4 JobPending t4]
+          jobs = running <> queued
       selectJobsToStart 2 jobs `shouldBe` []
 
     it "fills available slots with FIFO order" $ do
       let running = [mkJob 1 JobRunning t1]
-          pending = [mkJob 2 JobPending t3, mkJob 3 JobPending t2, mkJob 4 JobPending t4]
-          jobs = running <> pending
+          queued = [mkJob 2 JobPending t3, mkJob 3 JobPending t2, mkJob 4 JobPending t4]
+          jobs = running <> queued
           result = selectJobsToStart 3 jobs
       length result `shouldBe` 2
-      map (. jobId) result `shouldBe` [JobId 3, JobId 2] -- t2 < t3
+      fmap (.jobId) result `shouldBe` [JobId 3, JobId 2] -- t2 < t3
     it "returns empty list when no pending jobs" $ do
       let running = [mkJob 1 JobRunning t1]
       selectJobsToStart 3 running `shouldBe` []
 
     it "returns empty list when already at limit" $ do
       let running = [mkJob 1 JobRunning t1, mkJob 2 JobRunning t2, mkJob 3 JobRunning t3]
-          pending = [mkJob 4 JobPending t4]
-          jobs = running <> pending
+          queued = [mkJob 4 JobPending t4]
+          jobs = running <> queued
       selectJobsToStart 3 jobs `shouldBe` []
 
     it "starts all pending when under limit" $ do
-      let pending = [mkJob 1 JobPending t1, mkJob 2 JobPending t2]
-      let result = selectJobsToStart 5 pending
+      let queued = [mkJob 1 JobPending t1, mkJob 2 JobPending t2]
+      let result = selectJobsToStart 5 queued
       length result `shouldBe` 2
 
     it "sorts by creation time (FIFO)" $ do
-      let pending = [mkJob 1 JobPending t4, mkJob 2 JobPending t1, mkJob 3 JobPending t3]
-      let result = selectJobsToStart 3 pending
-      map (. jobId) result `shouldBe` [JobId 2, JobId 3, JobId 1] -- t1 < t3 < t4
+      let queued = [mkJob 1 JobPending t4, mkJob 2 JobPending t1, mkJob 3 JobPending t3]
+      let result = selectJobsToStart 3 queued
+      fmap (.jobId) result `shouldBe` [JobId 2, JobId 3, JobId 1] -- t1 < t3 < t4
 
 -- Test fixtures
 t1, t2, t3, t4 :: UTCTime
