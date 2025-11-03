@@ -10,48 +10,55 @@ import Vira.State.Type (Job (..), JobId (..), JobStatus (..))
 -- Import internal function for testing
 import Vira.CI.Worker (selectJobsToStart)
 
+-- Visual bindings for job statuses
+(🏃) :: JobStatus
+(🏃) = JobRunning
+
+(⏳) :: JobStatus
+(⏳) = JobPending
+
 spec :: Spec
 spec = describe "Vira.CI.Worker" $ do
   describe "selectJobsToStart" $ do
     it "respects max concurrent limit" $ do
       let jobs =
             mkJobs
-              [ mkJob JobRunning "test-repo" "main"
-              , mkJob JobRunning "test-repo" "dev"
-              , mkJob JobPending "test-repo" "feature"
-              , mkJob JobPending "test-repo" "hotfix"
+              [ mkJob (🏃) "test-repo" "main"
+              , mkJob (🏃) "test-repo" "dev"
+              , mkJob (⏳) "test-repo" "feature"
+              , mkJob (⏳) "test-repo" "hotfix"
               ]
       uncurry (selectJobsToStart 2) (partitionJobs jobs) `shouldBe` []
 
     it "fills available slots with FIFO order" $ do
       let jobs =
             mkJobs
-              [ mkJob JobRunning "test-repo" "main"
-              , mkJob JobPending "test-repo" "dev"
-              , mkJob JobPending "test-repo" "feature"
-              , mkJob JobPending "test-repo" "hotfix"
+              [ mkJob (🏃) "test-repo" "main"
+              , mkJob (⏳) "test-repo" "dev"
+              , mkJob (⏳) "test-repo" "feature"
+              , mkJob (⏳) "test-repo" "hotfix"
               ]
           result = uncurry (selectJobsToStart 3) (partitionJobs jobs)
       fmap (.branch) result `shouldBe` [BranchName "dev", BranchName "feature"]
     it "returns empty list when no pending jobs" $ do
-      let jobs = mkJobs [mkJob JobRunning "test-repo" "main"]
+      let jobs = mkJobs [mkJob (🏃) "test-repo" "main"]
       uncurry (selectJobsToStart 3) (partitionJobs jobs) `shouldBe` []
 
     it "returns empty list when already at limit" $ do
       let jobs =
             mkJobs
-              [ mkJob JobRunning "test-repo" "main"
-              , mkJob JobRunning "test-repo" "dev"
-              , mkJob JobRunning "test-repo" "feature"
-              , mkJob JobPending "test-repo" "hotfix"
+              [ mkJob (🏃) "test-repo" "main"
+              , mkJob (🏃) "test-repo" "dev"
+              , mkJob (🏃) "test-repo" "feature"
+              , mkJob (⏳) "test-repo" "hotfix"
               ]
       uncurry (selectJobsToStart 3) (partitionJobs jobs) `shouldBe` []
 
     it "starts all pending when under limit" $ do
       let jobs =
             mkJobs
-              [ mkJob JobPending "test-repo" "main"
-              , mkJob JobPending "test-repo" "dev"
+              [ mkJob (⏳) "test-repo" "main"
+              , mkJob (⏳) "test-repo" "dev"
               ]
           result = uncurry (selectJobsToStart 5) (partitionJobs jobs)
       fmap (.branch) result `shouldBe` [BranchName "main", BranchName "dev"]
@@ -59,18 +66,18 @@ spec = describe "Vira.CI.Worker" $ do
     it "sorts by creation time (FIFO)" $ do
       let jobs =
             mkJobs
-              [ mkJob JobPending "test-repo" "main"
-              , mkJob JobPending "test-repo" "dev"
-              , mkJob JobPending "test-repo" "feature"
+              [ mkJob (⏳) "test-repo" "main"
+              , mkJob (⏳) "test-repo" "dev"
+              , mkJob (⏳) "test-repo" "feature"
               ]
           result = uncurry (selectJobsToStart 3) (partitionJobs jobs)
       fmap (.branch) result `shouldBe` [BranchName "main", BranchName "dev", BranchName "feature"]
     it "allows max 1 running job per (repo, branch) pair" $ do
       let jobs =
             mkJobs
-              [ mkJob JobRunning "test-repo" "main"
-              , mkJob JobPending "test-repo" "main"
-              , mkJob JobPending "test-repo" "dev"
+              [ mkJob (🏃) "test-repo" "main"
+              , mkJob (⏳) "test-repo" "main"
+              , mkJob (⏳) "test-repo" "dev"
               ]
           result = uncurry (selectJobsToStart 3) (partitionJobs jobs)
       fmap (.branch) result `shouldBe` [BranchName "dev"] -- only dev starts, main blocked
