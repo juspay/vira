@@ -14,6 +14,7 @@ module Vira.CI.Worker (
 
 import Control.Concurrent.STM.TChan (readTChan)
 import Data.Acid.Events qualified as Events
+import Data.Set qualified as Set
 import Data.Time (getCurrentTime)
 import Effectful (Eff)
 import Effectful.Colog.Simple (Severity (..), log, tagCurrentThread)
@@ -73,37 +74,42 @@ then calls 'startJob' for each selected job.
 -}
 tryStartPendingJobs :: Eff AppStack ()
 tryStartPendingJobs = do
-  -- Get all active jobs
+  -- Get pending and running jobs
   pending <- App.query GetPendingJobsA
   running <- App.query GetRunningJobs
-  let activeJobs = pending <> running
 
-  -- Select jobs to start
+  -- Select which pending jobs to start
   st <- ask @ViraRuntimeState
-  let toStart = selectJobsToStart st.jobWorker.maxConcurrent activeJobs
+  let toStart = selectJobsToStart st.jobWorker.maxConcurrent running pending
 
   -- Start selected jobs
   forM_ toStart startJob
 
-{- | Pure job selection logic (FIFO queue with concurrency limit)
+{- | Pure job selection logic (FIFO queue with concurrency limit + branch dedup)
 
-Given max concurrent limit and active jobs, returns which pending jobs should start.
-Respects concurrency limit and starts oldest jobs first (FIFO).
+Selects which pending jobs to start based on:
+- Concurrency limit (max total running jobs)
+- Branch deduplication (max 1 running job per repo/branch pair)
+- FIFO ordering (oldest pending jobs first)
 
 This is a pure function to enable unit testing.
 -}
 selectJobsToStart ::
   -- | Maximum concurrent jobs
   Int ->
-  -- | All active jobs (pending + running)
+  -- | Currently running jobs
   [Job] ->
-  -- | Jobs to start now
+  -- | Pending jobs to choose from
+  [Job] ->
+  -- | Pending jobs selected to start
   [Job]
-selectJobsToStart maxConcurrent activeJobs =
-  let runningCount = length [j | j <- activeJobs, j.jobStatus == JobRunning]
+selectJobsToStart maxConcurrent runningJobs pendingJobs =
+  let runningCount = length runningJobs
       availableSlots = maxConcurrent - runningCount
-      pendingJobs = filter (\j -> j.jobStatus == JobPending) activeJobs
-      sorted = sortOn (.jobCreatedTime) pendingJobs -- FIFO
+      runningBranches = Set.fromList $ fmap (\j -> (j.repo, j.branch)) runningJobs
+      -- Filter out pending jobs whose branch is already running (max 1 job per branch)
+      eligible = filter (\j -> not (Set.member (j.repo, j.branch) runningBranches)) pendingJobs
+      sorted = sortOn (.jobCreatedTime) eligible -- FIFO
    in take availableSlots sorted
 
 {- | Start a single job (extracted from JobPage.hs triggerNewBuild)
