@@ -20,76 +20,71 @@ import Vira.CI.Worker (selectJobsToStart)
 spec :: Spec
 spec = describe "Vira.CI.Worker" $ do
   describe "selectJobsToStart" $ do
-    it "respects max concurrent limit" $ do
-      let specs =
-            [ ((🏃), "test-repo", "main", False)
-            , ((🏃), "test-repo", "dev", False)
-            , ((⏳), "test-repo", "feature", False)
-            , ((⏳), "test-repo", "hotfix", False)
-            ]
-          jobs = mkJobs specs
-          result = uncurry (selectJobsToStart 2) (partitionJobs jobs)
-      result `shouldBe` expectedToStart specs jobs
+    it "respects max concurrent limit" $
+      runBuildQueueTest
+        2
+        [ ((🏃), False, "test-repo", "main")
+        , ((🏃), False, "test-repo", "dev")
+        , ((⏳), False, "test-repo", "feature")
+        , ((⏳), False, "test-repo", "hotfix")
+        ]
 
-    it "fills available slots with FIFO order" $ do
-      let specs =
-            [ ((🏃), "test-repo", "main", False)
-            , ((⏳), "test-repo", "dev", True)
-            , ((⏳), "test-repo", "feature", True)
-            , ((⏳), "test-repo", "hotfix", False)
-            ]
-          jobs = mkJobs specs
-          result = uncurry (selectJobsToStart 3) (partitionJobs jobs)
-      result `shouldBe` expectedToStart specs jobs
-    it "returns empty list when no pending jobs" $ do
-      let specs = [((🏃), "test-repo", "main", False)]
-          jobs = mkJobs specs
-          result = uncurry (selectJobsToStart 3) (partitionJobs jobs)
-      result `shouldBe` expectedToStart specs jobs
+    it "fills available slots with FIFO order" $
+      runBuildQueueTest
+        3
+        [ ((🏃), False, "test-repo", "main")
+        , ((⏳), True, "test-repo", "dev")
+        , ((⏳), True, "test-repo", "feature")
+        , ((⏳), False, "test-repo", "hotfix")
+        ]
+    it "returns empty list when no pending jobs" $
+      runBuildQueueTest
+        3
+        [ ((🏃), False, "test-repo", "main")
+        ]
 
-    it "returns empty list when already at limit" $ do
-      let specs =
-            [ ((🏃), "test-repo", "main", False)
-            , ((🏃), "test-repo", "dev", False)
-            , ((🏃), "test-repo", "feature", False)
-            , ((⏳), "test-repo", "hotfix", False)
-            ]
-          jobs = mkJobs specs
-          result = uncurry (selectJobsToStart 3) (partitionJobs jobs)
-      result `shouldBe` expectedToStart specs jobs
+    it "returns empty list when already at limit" $
+      runBuildQueueTest
+        3
+        [ ((🏃), False, "test-repo", "main")
+        , ((🏃), False, "test-repo", "dev")
+        , ((🏃), False, "test-repo", "feature")
+        , ((⏳), False, "test-repo", "hotfix")
+        ]
 
-    it "starts all pending when under limit" $ do
-      let specs =
-            [ ((⏳), "test-repo", "main", True)
-            , ((⏳), "test-repo", "dev", True)
-            ]
-          jobs = mkJobs specs
-          result = uncurry (selectJobsToStart 5) (partitionJobs jobs)
-      result `shouldBe` expectedToStart specs jobs
+    it "starts all pending when under limit" $
+      runBuildQueueTest
+        5
+        [ ((⏳), True, "test-repo", "main")
+        , ((⏳), True, "test-repo", "dev")
+        ]
 
-    it "sorts by creation time (FIFO)" $ do
-      let specs =
-            [ ((⏳), "test-repo", "main", True)
-            , ((⏳), "test-repo", "dev", True)
-            , ((⏳), "test-repo", "feature", True)
-            ]
-          jobs = mkJobs specs
-          result = uncurry (selectJobsToStart 3) (partitionJobs jobs)
-      result `shouldBe` expectedToStart specs jobs
-    it "allows max 1 running job per (repo, branch) pair" $ do
-      let specs =
-            [ ((🏃), "test-repo", "main", False)
-            , ((⏳), "test-repo", "main", False) -- blocked by running main
-            , ((⏳), "test-repo", "dev", True)
-            ]
-          jobs = mkJobs specs
-          result = uncurry (selectJobsToStart 3) (partitionJobs jobs)
-      result `shouldBe` expectedToStart specs jobs
+    it "sorts by creation time (FIFO)" $
+      runBuildQueueTest
+        3
+        [ ((⏳), True, "test-repo", "main")
+        , ((⏳), True, "test-repo", "dev")
+        , ((⏳), True, "test-repo", "feature")
+        ]
+    it "allows max 1 running job per (repo, branch) pair" $
+      runBuildQueueTest
+        3
+        [ ((🏃), False, "test-repo", "main")
+        , ((⏳), False, "test-repo", "main") -- blocked by running main
+        , ((⏳), True, "test-repo", "dev")
+        ]
+
+-- Run a build queue test with given max concurrent limit and job specs
+runBuildQueueTest :: Int -> [(JobStatus, Bool, RepoName, BranchName)] -> IO ()
+runBuildQueueTest maxConcurrent specs = do
+  let jobs = mkJobs specs
+      result = uncurry (selectJobsToStart maxConcurrent) (partitionJobs jobs)
+  result `shouldBe` expectedToStart specs jobs
 
 -- Build jobs with auto-incrementing IDs and timestamps
 -- The Bool indicates whether the job is expected to be started
-mkJobs :: [(JobStatus, RepoName, BranchName, Bool)] -> [Job]
-mkJobs specs = flip evalState 1 $ forM specs $ \(status, repo, branch, _) -> do
+mkJobs :: [(JobStatus, Bool, RepoName, BranchName)] -> [Job]
+mkJobs specs = flip evalState 1 $ forM specs $ \(status, _, repo, branch) -> do
   n <- get
   put (n + 1)
   let time = UTCTime (fromGregorian 2025 1 1) (secondsToDiffTime ((n - 1) * 100))
@@ -105,8 +100,8 @@ mkJobs specs = flip evalState 1 $ forM specs $ \(status, repo, branch, _) -> do
       }
 
 -- Extract expected jobs to start based on the Bool flag
-expectedToStart :: [(JobStatus, RepoName, BranchName, Bool)] -> [Job] -> [Job]
-expectedToStart specs allJobs = [job | (job, (_, _, _, shouldStart)) <- zip allJobs specs, shouldStart]
+expectedToStart :: [(JobStatus, Bool, RepoName, BranchName)] -> [Job] -> [Job]
+expectedToStart specs allJobs = [job | (job, (_, shouldStart, _, _)) <- zip allJobs specs, shouldStart]
 
 -- Helper to partition jobs by status
 partitionJobs :: [Job] -> ([Job], [Job])
