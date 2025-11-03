@@ -4,12 +4,16 @@ module Vira.CI.Worker.Type (
   newJobWorkerState,
 ) where
 
+import Effectful.Colog.Simple (Severity)
+
 -- | Job worker state with concurrency configuration
-newtype JobWorkerState = JobWorkerState
+data JobWorkerState = JobWorkerState
   { maxConcurrent :: Int
   -- ^ Maximum number of concurrent jobs allowed
+  , minSeverity :: Severity
+  -- ^ Minimum log severity for job output
   }
 
--- | Create new job worker state with default max concurrent jobs (3)
-newJobWorkerState :: IO JobWorkerState
-newJobWorkerState = pure $ JobWorkerState {maxConcurrent = 2}
+-- | Create new job worker state with default max concurrent jobs (2) and severity (Info)
+newJobWorkerState :: Severity -> JobWorkerState
+newJobWorkerState minSev = JobWorkerState {maxConcurrent = 2, minSeverity = minSev}

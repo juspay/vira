@@ -56,9 +56,9 @@ handlers globalSettings viraRuntimeState webSettings = do
     }
 
 buildHandler :: App.GlobalSettings -> RepoName -> BranchName -> Eff Web.AppServantStack (Headers '[HXRefresh] Text)
-buildHandler globalSettings repoName branch =
+buildHandler _globalSettings repoName branch =
   withLogContext [("repo", show repoName), ("branch", show branch)] $ do
-    triggerNewBuild globalSettings.logLevel repoName branch
+    triggerNewBuild repoName branch
     pure $ addHeader True "Ok"
 
 viewHandler :: JobId -> AppHtml ()
@@ -151,8 +151,8 @@ viewJobStatus status = do
   W.viraStatusBadge_ status
 
 -- | Trigger a new build (queues the job for worker daemon to pick up)
-triggerNewBuild :: (HasCallStack) => Severity -> RepoName -> BranchName -> Eff Web.AppServantStack ()
-triggerNewBuild _minSeverity repoName branchName = do
+triggerNewBuild :: (HasCallStack) => RepoName -> BranchName -> Eff Web.AppServantStack ()
+triggerNewBuild repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
   supervisor <- asks App.supervisor

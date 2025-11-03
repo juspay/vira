@@ -81,7 +81,7 @@ runVira = do
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
         -- Initialize job worker state
-        jobWorker <- Worker.newJobWorkerState
+        let jobWorker = Worker.newJobWorkerState (logLevel globalSettings)
         -- Ensure cache keys exist and create cache application
         cacheKeys <- runEff . runLogActionStdout (logLevel globalSettings) $ do
           CacheKeys.ensureCacheKeys $ stateDir globalSettings <> "/cache-keys"

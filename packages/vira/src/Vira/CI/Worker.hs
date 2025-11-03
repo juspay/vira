@@ -135,7 +135,7 @@ startJob job = do
   Supervisor.startTask
     st.supervisor
     job.jobId
-    Info
+    st.jobWorker.minSeverity
     job.jobWorkingDir
     (\logger -> Pipeline.runPipeline (Pipeline.pipelineEnvFromRemote branch job.jobWorkingDir tools logger) (Program.pipelineProgramWithClone repo branch job.jobWorkingDir))
     $ \result -> do
