@@ -200,8 +200,13 @@ getRecentJobsA limit = do
 getRunningJobs :: Query ViraState [Job]
 getRunningJobs = do
   ViraState {jobs} <- ask
-  let allJobs = Ix.toList jobs
-  pure $ filter jobIsActive allJobs
+  pure $ Ix.toList $ jobs @= JobRunning
+
+-- | Get all pending jobs
+getPendingJobsA :: Query ViraState [Job]
+getPendingJobsA = do
+  ViraState {jobs} <- ask
+  pure $ Ix.toList $ jobs @= JobPending
 
 getJobA :: JobId -> Query ViraState (Maybe Job)
 getJobA jobId = do
@@ -278,6 +283,7 @@ $( makeAcidic
      , 'getJobsByBranchA
      , 'getRecentJobsA
      , 'getRunningJobs
+     , 'getPendingJobsA
      , 'getJobA
      , 'addNewJobA
      , 'jobUpdateStatusA

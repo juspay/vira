@@ -8,7 +8,6 @@ import Effectful.Colog.Simple (Severity (..), log, withLogContext)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName, Commit (..), RepoName)
 import Effectful.Reader.Dynamic (asks)
-import GHC.IO.Exception (ExitCode (..))
 import Htmx.Servant.Response
 import Lucid
 import Servant hiding (throwError)
@@ -16,16 +15,12 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
-import Vira.CI.Pipeline qualified as Pipeline
-import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Workspace qualified as Workspace
-import Vira.Environment.Tool.Core qualified as Tool
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type (JobId, jobWorkingDir)
+import Vira.State.Type (JobId)
 import Vira.Supervisor.Task qualified as Supervisor
-import Vira.Supervisor.Type (Terminated (Terminated))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
 import Vira.Web.Pages.JobLog qualified as JobLog
@@ -155,11 +150,9 @@ viewJobStatus :: (Monad m) => St.JobStatus -> HtmlT m ()
 viewJobStatus status = do
   W.viraStatusBadge_ status
 
--- TODO:
--- 1. Fail if a build is already happening (until we support queuing)
--- 2. Contact supervisor to spawn a new build, with it status going to DB.
+-- | Trigger a new build (queues the job for worker daemon to pick up)
 triggerNewBuild :: (HasCallStack) => Severity -> RepoName -> BranchName -> Eff Web.AppServantStack ()
-triggerNewBuild minSeverity repoName branchName = do
+triggerNewBuild _minSeverity repoName branchName = do
   repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
   supervisor <- asks App.supervisor
@@ -168,23 +161,4 @@ triggerNewBuild minSeverity repoName branchName = do
   job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit.id baseDir creationTime
   withLogContext [("job", show job.jobId)] $ do
     log Info $ "Building commit " <> show branch.headCommit
-    log Info "Added job"
-    tools <- Tool.refreshTools
-    Supervisor.startTask
-      supervisor
-      job.jobId
-      minSeverity
-      job.jobWorkingDir
-      (\logger -> Pipeline.runPipeline (Pipeline.pipelineEnvFromRemote branch job.jobWorkingDir tools logger) (Program.pipelineProgramWithClone repo branch job.jobWorkingDir))
-      $ \result -> do
-        endTime <- liftIO getCurrentTime
-        let status = case result of
-              Right ExitSuccess -> St.JobFinished St.JobSuccess endTime
-              Right (ExitFailure _code) -> St.JobFinished St.JobFailure endTime
-              Left (Pipeline.PipelineTerminated Terminated) -> St.JobFinished St.JobKilled endTime
-              Left _ -> St.JobFinished St.JobFailure endTime
-        -- Update status
-        App.update $ St.JobUpdateStatusA job.jobId status
-    -- Set job as running
-    App.update $ St.JobUpdateStatusA job.jobId St.JobRunning
-    log Info "Started task"
+    log Info "Queued job (worker daemon will start it)"

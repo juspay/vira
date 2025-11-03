@@ -34,6 +34,8 @@ import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Pipeline.Program qualified as Program
+import Vira.CI.Worker qualified as Worker
+import Vira.CI.Worker.Type qualified as Worker
 import Vira.Environment.Tool.Core qualified as Tool
 import Vira.Refresh.Daemon qualified as Daemon
 import Vira.Refresh.Type qualified as Refresh
@@ -78,6 +80,8 @@ runVira = do
         tools <- runEff $ runLogActionStdout (logLevel globalSettings) $ runProcess Tool.newToolsTVar
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
+        -- Initialize job worker state
+        jobWorker <- Worker.newJobWorkerState
         -- Ensure cache keys exist and create cache application
         cacheKeys <- runEff . runLogActionStdout (logLevel globalSettings) $ do
           CacheKeys.ensureCacheKeys $ stateDir globalSettings <> "/cache-keys"
@@ -86,6 +90,7 @@ runVira = do
             appServer = do
               startPeriodicArchival acid
               Daemon.startRefreshDaemon
+              Worker.startJobWorkerDaemon
               cacheApp <- liftIO $ Cache.makeCacheServer cacheKeys.secretKey
               Server.runServer globalSettings webSettings cacheApp
         App.runApp globalSettings viraRuntimeState appServer

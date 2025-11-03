@@ -46,6 +46,8 @@ library
       Vira.CI.Pipeline.Implementation
       Vira.CI.Pipeline.Process
       Vira.CI.Pipeline.Program
+      Vira.CI.Worker
+      Vira.CI.Worker.Type
       Vira.CI.Workspace
       Vira.Environment.Tool.Core
       Vira.Environment.Tool.Status
@@ -356,6 +358,7 @@ executable vira-tests
   main-is: Spec.hs
   other-modules:
       Vira.CI.ConfigurationSpec
+      Vira.CI.WorkerSpec
       Vira.State.ResetSpec
       Paths_vira
   autogen-modules:
