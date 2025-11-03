@@ -12,4 +12,4 @@ newtype JobWorkerState = JobWorkerState
 
 -- | Create new job worker state with default max concurrent jobs (3)
 newJobWorkerState :: IO JobWorkerState
-newJobWorkerState = pure $ JobWorkerState {maxConcurrent = 3}
+newJobWorkerState = pure $ JobWorkerState {maxConcurrent = 2}
