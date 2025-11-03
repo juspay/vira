@@ -32,7 +32,7 @@ spec = describe "Vira.CI.Worker" $ do
               , mkJob JobPending "test-repo" "hotfix"
               ]
           result = uncurry (selectJobsToStart 3) (partitionJobs jobs)
-      fmap (.jobId) result `shouldBe` [JobId 2, JobId 3] -- FIFO order
+      fmap (.branch) result `shouldBe` [BranchName "dev", BranchName "feature"]
     it "returns empty list when no pending jobs" $ do
       let jobs = mkJobs [mkJob JobRunning "test-repo" "main"]
       uncurry (selectJobsToStart 3) (partitionJobs jobs) `shouldBe` []
@@ -54,7 +54,7 @@ spec = describe "Vira.CI.Worker" $ do
               , mkJob JobPending "test-repo" "dev"
               ]
           result = uncurry (selectJobsToStart 5) (partitionJobs jobs)
-      fmap (.jobId) result `shouldBe` [JobId 1, JobId 2]
+      fmap (.branch) result `shouldBe` [BranchName "main", BranchName "dev"]
 
     it "sorts by creation time (FIFO)" $ do
       let jobs =
@@ -64,7 +64,7 @@ spec = describe "Vira.CI.Worker" $ do
               , mkJob JobPending "test-repo" "feature"
               ]
           result = uncurry (selectJobsToStart 3) (partitionJobs jobs)
-      fmap (.jobId) result `shouldBe` [JobId 1, JobId 2, JobId 3] -- FIFO order
+      fmap (.branch) result `shouldBe` [BranchName "main", BranchName "dev", BranchName "feature"]
     it "allows max 1 running job per (repo, branch) pair" $ do
       let jobs =
             mkJobs
@@ -73,7 +73,7 @@ spec = describe "Vira.CI.Worker" $ do
               , mkJob JobPending "test-repo" "dev"
               ]
           result = uncurry (selectJobsToStart 3) (partitionJobs jobs)
-      fmap (.jobId) result `shouldBe` [JobId 3] -- only dev starts, main blocked
+      fmap (.branch) result `shouldBe` [BranchName "dev"] -- only dev starts, main blocked
 
 -- State monad for building jobs with auto-incrementing IDs
 type JobBuilder = State Integer
