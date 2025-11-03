@@ -2,12 +2,11 @@
 
 module Vira.Web.Pages.JobPage where
 
-import Data.Time (diffUTCTime, getCurrentTime)
-import Effectful (Eff, IOE)
-import Effectful qualified as E
+import Data.Time (diffUTCTime)
+import Effectful (Eff)
 import Effectful.Colog.Simple (Severity (..), log, withLogContext)
 import Effectful.Error.Static (throwError)
-import Effectful.Git (BranchName, Commit (..), RepoName)
+import Effectful.Git (BranchName, RepoName)
 import Effectful.Reader.Dynamic qualified as ER
 import Htmx.Servant.Response
 import Lucid
@@ -16,8 +15,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
-import Vira.App.Type (ViraRuntimeState)
-import Vira.CI.Workspace qualified as Workspace
+import Vira.CI.Client qualified as Client
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
@@ -34,7 +32,7 @@ import Vira.Web.Widgets.Layout qualified as W
 import Vira.Web.Widgets.Status qualified as W
 import Vira.Web.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
-import Prelude hiding (Reader, ask, asks)
+import Prelude hiding (asks)
 
 data Routes mode = Routes
   { -- Trigger a new build
@@ -58,9 +56,13 @@ handlers globalSettings viraRuntimeState webSettings = do
     }
 
 buildHandler :: RepoName -> BranchName -> Eff Web.AppServantStack (Headers '[HXRefresh] Text)
-buildHandler repoName branch =
-  withLogContext [("repo", show repoName), ("branch", show branch)] $ do
-    triggerNewBuild repoName branch
+buildHandler repoName branchName =
+  withLogContext [("repo", show repoName), ("branch", show branchName)] $ do
+    branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
+    job <- Client.enqueueJob repoName branchName branch.headCommit
+    withLogContext [("job", show job.jobId)] $ do
+      log Info $ "Building commit " <> show branch.headCommit
+      log Info "Queued job (worker daemon will start it)"
     pure $ addHeader True "Ok"
 
 viewHandler :: JobId -> AppHtml ()
@@ -151,25 +153,3 @@ viewJobHeader job = do
 viewJobStatus :: (Monad m) => St.JobStatus -> HtmlT m ()
 viewJobStatus status = do
   W.viraStatusBadge_ status
-
--- | Trigger a new build (queues the job for worker daemon to pick up)
-triggerNewBuild :: (HasCallStack) => RepoName -> BranchName -> Eff Web.AppServantStack ()
-triggerNewBuild repoName branchName = do
-  branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
-  job <- enqueueJob repoName branchName branch.headCommit
-  withLogContext [("job", show job.jobId)] $ do
-    log Info $ "Building commit " <> show branch.headCommit
-    log Info "Queued job (worker daemon will start it)"
-
--- | Create a job, but let the CI worker run it.
-enqueueJob ::
-  (ER.Reader ViraRuntimeState E.:> es, IOE E.:> es) =>
-  RepoName ->
-  BranchName ->
-  Commit ->
-  Eff es St.Job
-enqueueJob repoName branchName commit = do
-  supervisor <- ER.asks App.supervisor
-  creationTime <- liftIO getCurrentTime
-  let baseDir = Workspace.repoJobsDir supervisor repoName
-  App.update $ St.AddNewJobA repoName branchName commit.id baseDir creationTime

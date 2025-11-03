@@ -38,6 +38,7 @@ library
       Vira.App.Run
       Vira.App.Stack
       Vira.App.Type
+      Vira.CI.Client
       Vira.CI.Configuration
       Vira.CI.Error
       Vira.CI.Log
