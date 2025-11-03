@@ -83,7 +83,7 @@ tryStartPendingJobs = do
   let toStart = selectJobsToStart st.jobWorker.maxConcurrent running pending
 
   -- Start selected jobs
-  forM_ toStart startJob
+  startJob `mapM_` toStart
 
 {- | Pure job selection logic (FIFO queue with concurrency limit + branch dedup)
 
@@ -104,13 +104,13 @@ selectJobsToStart ::
   -- | Pending jobs selected to start
   [Job]
 selectJobsToStart maxConcurrent runningJobs pendingJobs =
-  let runningCount = length runningJobs
-      availableSlots = maxConcurrent - runningCount
-      runningBranches = Set.fromList $ fmap (\j -> (j.repo, j.branch)) runningJobs
-      -- Filter out pending jobs whose branch is already running (max 1 job per branch)
-      eligible = filter (\j -> not (Set.member (j.repo, j.branch) runningBranches)) pendingJobs
-      sorted = sortOn (.jobCreatedTime) eligible -- FIFO
-   in take availableSlots sorted
+  pendingJobs
+    & filter (\j -> not $ (j.repo, j.branch) `Set.member` runningBranches) -- Max 1 job per branch
+    & sortOn (.jobCreatedTime) -- FIFO
+    & take availableSlots -- Fill available slots
+  where
+    availableSlots = maxConcurrent - length runningJobs
+    runningBranches = Set.fromList $ runningJobs <&> (\j -> (j.repo, j.branch))
 
 {- | Start a single job (extracted from JobPage.hs triggerNewBuild)
 
