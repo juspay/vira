@@ -29,7 +29,7 @@ import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Worker.Type (JobWorkerState (..))
 import Vira.Environment.Tool.Core qualified as Tool
-import Vira.State.Acid (AddNewJobA (..), GetBranchByNameA (..), GetPendingJobsA (..), GetRepoByNameA (..), GetRunningJobs (..), JobUpdateStatusA (..))
+import Vira.State.Acid
 import Vira.State.Type (Job (..), JobStatus (..))
 import Vira.State.Type qualified as St
 import Vira.Supervisor.Task qualified as Supervisor
@@ -58,13 +58,12 @@ workerLoop = do
 
   infinitely $ do
     someUpdate <- atomically $ readTChan chan
-    -- Check if it's AddNewJobA event
-    case Events.matchUpdate @AddNewJobA someUpdate of
-      Just _ -> tryStartPendingJobs
-      Nothing -> pass
-    -- Check if it's JobUpdateStatusA with JobFinished
-    case Events.matchUpdate @JobUpdateStatusA someUpdate of
-      Just (JobUpdateStatusA _ (JobFinished _ _), _) -> tryStartPendingJobs
+    -- When a new job is added, try to start pending jobs
+    whenJust (Events.matchUpdate @AddNewJobA someUpdate) $
+      const tryStartPendingJobs
+    -- When any job finishes, try to start pending jobs
+    whenJust (Events.matchUpdate @JobUpdateStatusA someUpdate) $ \case
+      (JobUpdateStatusA _ (JobFinished _ _), _) -> tryStartPendingJobs
       _ -> pass
 
 {- | Try to start pending jobs if slots available
@@ -76,7 +75,7 @@ tryStartPendingJobs :: Eff AppStack ()
 tryStartPendingJobs = do
   -- Get pending and running jobs
   pending <- App.query GetPendingJobsA
-  running <- App.query GetRunningJobs
+  running <- App.query GetRunningJobsA
 
   -- Select which pending jobs to start
   st <- ask @ViraRuntimeState

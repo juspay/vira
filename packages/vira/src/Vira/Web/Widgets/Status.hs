@@ -107,7 +107,7 @@ viraStatusBadge_ jobStatus = do
 viewAllJobStatus :: AppHtml ()
 viewAllJobStatus = do
   -- Compute running and queued jobs count
-  runningJobs <- lift $ App.query Acid.GetRunningJobs
+  runningJobs <- lift $ App.query Acid.GetRunningJobsA
   queuedJobs <- lift $ App.query Acid.GetPendingJobsA
   let runningCount = length runningJobs
       queuedCount = length queuedJobs

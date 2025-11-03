@@ -197,8 +197,8 @@ getRecentJobsA limit = do
   pure $ take (fromIntegral limit) latestPerBranch
 
 -- | Get all running jobs
-getRunningJobs :: Query ViraState [Job]
-getRunningJobs = do
+getRunningJobsA :: Query ViraState [Job]
+getRunningJobsA = do
   ViraState {jobs} <- ask
   pure $ Ix.toList $ jobs @= JobRunning
 
@@ -282,7 +282,7 @@ $( makeAcidic
      , 'storeCommitA
      , 'getJobsByBranchA
      , 'getRecentJobsA
-     , 'getRunningJobs
+     , 'getRunningJobsA
      , 'getPendingJobsA
      , 'getJobA
      , 'addNewJobA
