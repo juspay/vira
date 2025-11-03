@@ -3,11 +3,12 @@
 module Vira.Web.Pages.JobPage where
 
 import Data.Time (diffUTCTime, getCurrentTime)
-import Effectful (Eff)
+import Effectful (Eff, IOE)
+import Effectful qualified as E
 import Effectful.Colog.Simple (Severity (..), log, withLogContext)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName, Commit (..), RepoName)
-import Effectful.Reader.Dynamic (asks)
+import Effectful.Reader.Dynamic qualified as ER
 import Htmx.Servant.Response
 import Lucid
 import Servant hiding (throwError)
@@ -15,6 +16,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
+import Vira.App.Type (ViraRuntimeState)
 import Vira.CI.Workspace qualified as Workspace
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.State.Acid qualified as St
@@ -32,7 +34,7 @@ import Vira.Web.Widgets.Layout qualified as W
 import Vira.Web.Widgets.Status qualified as W
 import Vira.Web.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
-import Prelude hiding (ask, asks)
+import Prelude hiding (Reader, ask, asks)
 
 data Routes mode = Routes
   { -- Trigger a new build
@@ -49,14 +51,14 @@ data Routes mode = Routes
 handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> Routes AsServer
 handlers globalSettings viraRuntimeState webSettings = do
   Routes
-    { _build = \x y -> Web.runAppInServant globalSettings viraRuntimeState webSettings (buildHandler globalSettings x y)
+    { _build = \x y -> Web.runAppInServant globalSettings viraRuntimeState webSettings (buildHandler x y)
     , _view = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml . viewHandler
     , _log = JobLog.handlers globalSettings viraRuntimeState webSettings
     , _kill = Web.runAppInServant globalSettings viraRuntimeState webSettings . killHandler
     }
 
-buildHandler :: App.GlobalSettings -> RepoName -> BranchName -> Eff Web.AppServantStack (Headers '[HXRefresh] Text)
-buildHandler _globalSettings repoName branch =
+buildHandler :: RepoName -> BranchName -> Eff Web.AppServantStack (Headers '[HXRefresh] Text)
+buildHandler repoName branch =
   withLogContext [("repo", show repoName), ("branch", show branch)] $ do
     triggerNewBuild repoName branch
     pure $ addHeader True "Ok"
@@ -74,7 +76,7 @@ viewHandler jobId = do
 
 killHandler :: JobId -> Eff Web.AppServantStack (Headers '[HXRefresh] Text)
 killHandler jobId = do
-  supervisor <- asks App.supervisor
+  supervisor <- ER.asks App.supervisor
   Supervisor.killTask supervisor jobId
   pure $ addHeader True "Killed"
 
@@ -160,9 +162,14 @@ triggerNewBuild repoName branchName = do
     log Info "Queued job (worker daemon will start it)"
 
 -- | Create a job, but let the CI worker run it.
-enqueueJob :: RepoName -> BranchName -> Commit -> Eff Web.AppServantStack St.Job
+enqueueJob ::
+  (ER.Reader ViraRuntimeState E.:> es, IOE E.:> es) =>
+  RepoName ->
+  BranchName ->
+  Commit ->
+  Eff es St.Job
 enqueueJob repoName branchName commit = do
-  supervisor <- asks App.supervisor
+  supervisor <- ER.asks App.supervisor
   creationTime <- liftIO getCurrentTime
   let baseDir = Workspace.repoJobsDir supervisor repoName
   App.update $ St.AddNewJobA repoName branchName commit.id baseDir creationTime
