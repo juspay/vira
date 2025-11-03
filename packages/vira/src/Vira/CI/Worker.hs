@@ -119,9 +119,6 @@ startJob job = do
     App.query (GetRepoByNameA job.repo) >>= \case
       Nothing -> do
         log Error $ "Repo not found for job #" <> show job.jobId
-        -- Mark job as failed since repo is gone
-        endTime <- liftIO getCurrentTime
-        App.update $ JobUpdateStatusA job.jobId (JobFinished St.JobFailure endTime)
         error "Repo not found"
       Just r -> pure r
 
@@ -129,8 +126,6 @@ startJob job = do
     App.query (GetBranchByNameA job.repo job.branch) >>= \case
       Nothing -> do
         log Error $ "Branch not found for job #" <> show job.jobId
-        endTime <- liftIO getCurrentTime
-        App.update $ JobUpdateStatusA job.jobId (JobFinished St.JobFailure endTime)
         error "Branch not found"
       Just b -> pure b
 
