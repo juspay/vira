@@ -14,6 +14,7 @@ import Data.IxSet.Typed
 import Data.IxSet.Typed qualified as Ix
 import Data.List (maximum)
 import Data.Map.Strict qualified as Map
+import Data.SafeCopy
 import Data.Text qualified as T
 import Data.Time (UTCTime)
 import Effectful.Git (BranchName, Commit (..), CommitID, RepoName)
@@ -196,17 +197,23 @@ getRecentJobsA limit = do
       latestPerBranch = ordNubOn (\job -> (job.repo, job.branch)) allJobs
   pure $ take (fromIntegral limit) latestPerBranch
 
--- | Get all running jobs
-getRunningJobsA :: Query ViraState [Job]
-getRunningJobsA = do
-  ViraState {jobs} <- ask
-  pure $ Ix.toList $ jobs @= JobRunning
+-- | Active jobs grouped by status
+data ActiveJobs = ActiveJobs
+  { running :: [Job]
+  , pending :: [Job]
+  }
+  deriving stock (Show, Generic)
+  deriving anyclass (SafeCopy)
 
--- | Get all pending jobs
-getPendingJobsA :: Query ViraState [Job]
-getPendingJobsA = do
+-- | Get all active jobs (running + pending) in single query
+getActiveJobsA :: Query ViraState ActiveJobs
+getActiveJobsA = do
   ViraState {jobs} <- ask
-  pure $ Ix.toList $ jobs @= JobPending
+  pure $
+    ActiveJobs
+      { running = Ix.toList $ jobs @= JobRunning
+      , pending = Ix.toList $ jobs @= JobPending
+      }
 
 getJobA :: JobId -> Query ViraState (Maybe Job)
 getJobA jobId = do
@@ -282,8 +289,7 @@ $( makeAcidic
      , 'storeCommitA
      , 'getJobsByBranchA
      , 'getRecentJobsA
-     , 'getRunningJobsA
-     , 'getPendingJobsA
+     , 'getActiveJobsA
      , 'getJobA
      , 'addNewJobA
      , 'jobUpdateStatusA

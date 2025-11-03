@@ -30,6 +30,7 @@ import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Worker.Type (JobWorkerState (..))
 import Vira.Environment.Tool.Core qualified as Tool
 import Vira.State.Acid
+import Vira.State.Acid qualified as Acid
 import Vira.State.Type (Job (..), JobStatus (..))
 import Vira.State.Type qualified as St
 import Vira.Supervisor.Task qualified as Supervisor
@@ -73,13 +74,12 @@ then calls 'startJob' for each selected job.
 -}
 tryStartPendingJobs :: Eff AppStack ()
 tryStartPendingJobs = do
-  -- Get pending and running jobs
-  pending <- App.query GetPendingJobsA
-  running <- App.query GetRunningJobsA
+  -- Get active jobs in single query
+  activeJobs <- App.query GetActiveJobsA
 
   -- Select which pending jobs to start
   st <- ask @ViraRuntimeState
-  let toStart = selectJobsToStart st.jobWorker.maxConcurrent running pending
+  let toStart = selectJobsToStart st.jobWorker.maxConcurrent activeJobs
 
   -- Start selected jobs
   startJob `mapM_` toStart
@@ -96,20 +96,18 @@ This is a pure function to enable unit testing.
 selectJobsToStart ::
   -- | Maximum concurrent jobs
   Int ->
-  -- | Currently running jobs
-  [Job] ->
-  -- | Pending jobs to choose from
-  [Job] ->
+  -- | Active jobs (running + pending)
+  Acid.ActiveJobs ->
   -- | Pending jobs selected to start
   [Job]
-selectJobsToStart maxConcurrent runningJobs pendingJobs =
-  pendingJobs
+selectJobsToStart maxConcurrent activeJobs =
+  activeJobs.pending
     & filter (\j -> not $ (j.repo, j.branch) `Set.member` runningBranches) -- Max 1 job per branch
     & sortOn (.jobCreatedTime) -- FIFO
     & take availableSlots -- Fill available slots
   where
-    availableSlots = maxConcurrent - length runningJobs
-    runningBranches = Set.fromList $ runningJobs <&> (\j -> (j.repo, j.branch))
+    availableSlots = maxConcurrent - length activeJobs.running
+    runningBranches = Set.fromList $ activeJobs.running <&> (\j -> (j.repo, j.branch))
 
 {- | Start a single job (extracted from JobPage.hs triggerNewBuild)
 

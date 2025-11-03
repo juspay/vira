@@ -4,7 +4,8 @@ module Vira.CI.WorkerSpec (spec) where
 
 import Data.Time (UTCTime (..), fromGregorian, secondsToDiffTime)
 import Effectful.Git (BranchName (..), CommitID (..), RepoName (..))
-import Test.Hspec
+import Test.Hspec hiding (pending)
+import Vira.State.Acid (ActiveJobs (..))
 import Vira.State.Type (Job (..), JobId (..), JobStatus (..))
 
 -- Import internal function for testing
@@ -60,7 +61,8 @@ spec = describe "Vira.CI.Worker" $ do
 runBuildQueueTest :: Int -> [(JobStatus, Bool, RepoName, BranchName)] -> IO ()
 runBuildQueueTest maxConcurrent specs = do
   let jobs = mkJobs specs
-      result = uncurry (selectJobsToStart maxConcurrent) (partitionJobs jobs)
+      activeJobs = mkActiveJobs (partitionJobs jobs)
+      result = selectJobsToStart maxConcurrent activeJobs
   result `shouldBe` expectedToStart specs jobs
 
 -- Build jobs with auto-incrementing IDs and timestamps
@@ -91,3 +93,7 @@ partitionJobs jobs = (running, queued)
   where
     running = filter (\j -> case j.jobStatus of JobRunning -> True; _ -> False) jobs
     queued = filter (\j -> case j.jobStatus of JobPending -> True; _ -> False) jobs
+
+-- Convert partition to ActiveJobs
+mkActiveJobs :: ([Job], [Job]) -> ActiveJobs
+mkActiveJobs (running, pending) = ActiveJobs {running, pending}
