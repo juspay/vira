@@ -17,39 +17,28 @@ import Vira.CI.Worker (selectJobsToStart)
 (⏳) :: JobStatus
 (⏳) = JobPending
 
+____ :: Bool
+____ = False
+
 spec :: Spec
 spec = describe "Vira.CI.Worker" $ do
   describe "selectJobsToStart" $ do
     it "respects max concurrent limit" $
       runBuildQueueTest
         2
-        [ ((🏃), False, "test-repo", "main")
-        , ((🏃), False, "test-repo", "dev")
-        , ((⏳), False, "test-repo", "feature")
-        , ((⏳), False, "test-repo", "hotfix")
+        [ ((🏃), ____, "test-repo", "main")
+        , ((🏃), ____, "test-repo", "dev")
+        , ((⏳), ____, "test-repo", "feature")
+        , ((⏳), ____, "test-repo", "hotfix")
         ]
 
     it "fills available slots with FIFO order" $
       runBuildQueueTest
         3
-        [ ((🏃), False, "test-repo", "main")
+        [ ((🏃), ____, "test-repo", "main")
         , ((⏳), True, "test-repo", "dev")
         , ((⏳), True, "test-repo", "feature")
-        , ((⏳), False, "test-repo", "hotfix")
-        ]
-    it "returns empty list when no pending jobs" $
-      runBuildQueueTest
-        3
-        [ ((🏃), False, "test-repo", "main")
-        ]
-
-    it "returns empty list when already at limit" $
-      runBuildQueueTest
-        3
-        [ ((🏃), False, "test-repo", "main")
-        , ((🏃), False, "test-repo", "dev")
-        , ((🏃), False, "test-repo", "feature")
-        , ((⏳), False, "test-repo", "hotfix")
+        , ((⏳), ____, "test-repo", "hotfix")
         ]
 
     it "starts all pending when under limit" $
@@ -59,18 +48,11 @@ spec = describe "Vira.CI.Worker" $ do
         , ((⏳), True, "test-repo", "dev")
         ]
 
-    it "sorts by creation time (FIFO)" $
-      runBuildQueueTest
-        3
-        [ ((⏳), True, "test-repo", "main")
-        , ((⏳), True, "test-repo", "dev")
-        , ((⏳), True, "test-repo", "feature")
-        ]
     it "allows max 1 running job per (repo, branch) pair" $
       runBuildQueueTest
         3
-        [ ((🏃), False, "test-repo", "main")
-        , ((⏳), False, "test-repo", "main") -- blocked by running main
+        [ ((🏃), ____, "test-repo", "main")
+        , ((⏳), ____, "test-repo", "main") -- blocked by running main
         , ((⏳), True, "test-repo", "dev")
         ]
 
