@@ -153,12 +153,16 @@ viewJobStatus status = do
 -- | Trigger a new build (queues the job for worker daemon to pick up)
 triggerNewBuild :: (HasCallStack) => RepoName -> BranchName -> Eff Web.AppServantStack ()
 triggerNewBuild repoName branchName = do
-  repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError $ err404 {errBody = "No such repo"}) pure
   branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
-  supervisor <- asks App.supervisor
-  creationTime <- liftIO getCurrentTime
-  let baseDir = Workspace.repoJobsDir supervisor repo.name
-  job <- App.update $ St.AddNewJobA repoName branchName branch.headCommit.id baseDir creationTime
+  job <- enqueueJob repoName branchName branch.headCommit
   withLogContext [("job", show job.jobId)] $ do
     log Info $ "Building commit " <> show branch.headCommit
     log Info "Queued job (worker daemon will start it)"
+
+-- | Create a job, but let the CI worker run it.
+enqueueJob :: RepoName -> BranchName -> Commit -> Eff Web.AppServantStack St.Job
+enqueueJob repoName branchName commit = do
+  supervisor <- asks App.supervisor
+  creationTime <- liftIO getCurrentTime
+  let baseDir = Workspace.repoJobsDir supervisor repoName
+  App.update $ St.AddNewJobA repoName branchName commit.id baseDir creationTime

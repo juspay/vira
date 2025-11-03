@@ -120,16 +120,12 @@ startJob job = do
   -- Get repo and branch
   repo <-
     App.query (GetRepoByNameA job.repo) >>= \case
-      Nothing -> do
-        log Error $ "Repo not found for job #" <> show job.jobId
-        error "Repo not found"
+      Nothing -> error "Repo not found; impossible!"
       Just r -> pure r
 
   branch <-
     App.query (GetBranchByNameA job.repo job.branch) >>= \case
-      Nothing -> do
-        log Error $ "Branch not found for job #" <> show job.jobId
-        error "Branch not found"
+      Nothing -> error "Branch not found; impossible!"
       Just b -> pure b
 
   -- Start task
@@ -140,7 +136,11 @@ startJob job = do
     job.jobId
     st.jobWorker.minSeverity
     job.jobWorkingDir
-    (\logger -> Pipeline.runPipeline (Pipeline.pipelineEnvFromRemote branch job.jobWorkingDir tools logger) (Program.pipelineProgramWithClone repo branch job.jobWorkingDir))
+    ( \logger ->
+        Pipeline.runPipeline
+          (Pipeline.pipelineEnvFromRemote job.branch job.jobWorkingDir tools logger)
+          (Program.pipelineProgramWithClone repo branch job.jobWorkingDir)
+    )
     $ \result -> do
       endTime <- liftIO getCurrentTime
       let status = case result of
