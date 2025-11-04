@@ -11,6 +11,7 @@ import Data.Time (UTCTime)
 import Servant.Links (Link)
 import System.Nix.Cache.Keys (PublicKey)
 import Vira.App.InstanceInfo (InstanceInfo)
+import Vira.CI.Worker.Type (JobWorkerState)
 import Vira.Environment.Tool.Type.Tools (Tools)
 import Vira.Refresh.Type (RefreshState)
 import Vira.State.Core (ViraState)
@@ -36,6 +37,8 @@ data ViraRuntimeState = ViraRuntimeState
   -- ^ Cached 'Tools' data (mutable for refreshing)
   , refreshState :: RefreshState
   -- ^ Git repository auto-refresh state
+  , jobWorker :: JobWorkerState
+  -- ^ CI job worker state (queue processing)
   , startTime :: UTCTime
   -- ^ Server start time for uptime tracking
   , cachePublicKey :: PublicKey

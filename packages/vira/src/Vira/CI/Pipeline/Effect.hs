@@ -12,6 +12,7 @@ import DevourFlake (DevourFlakeResult)
 import Effectful
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext)
+import Effectful.Git.Types (BranchName)
 import Effectful.Reader.Static qualified as ER
 import Effectful.TH
 import System.FilePath ((</>))
@@ -81,12 +82,12 @@ data Pipeline :: Effect where
 makeEffect ''Pipeline
 
 -- | Construct PipelineEnv for web/CI execution (with output log)
-pipelineEnvFromRemote :: Branch -> FilePath -> Tools -> (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) -> PipelineEnv
-pipelineEnvFromRemote branch workspacePath tools logger =
+pipelineEnvFromRemote :: BranchName -> FilePath -> Tools -> (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) -> PipelineEnv
+pipelineEnvFromRemote branchName workspacePath tools logger =
   PipelineEnv
     { outputLog = Just $ workspacePath </> "output.log"
     , tools = tools
-    , viraContext = ViraContext {branch = branch.branchName, cli = False}
+    , viraContext = ViraContext {branch = branchName, cli = False}
     , logger = PipelineLogger logger
     }
 

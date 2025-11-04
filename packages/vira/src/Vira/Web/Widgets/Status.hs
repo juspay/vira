@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 {- |
 Vira Design System - Status Components
 
@@ -84,7 +86,7 @@ Provides consistent status text across the application.
 statusLabel :: St.JobStatus -> Text
 statusLabel = \case
   St.JobRunning -> "Running"
-  St.JobPending -> "Pending"
+  St.JobPending -> "Queued"
   St.JobFinished St.JobSuccess _ -> "Success"
   St.JobFinished St.JobFailure _ -> "Failed"
   St.JobFinished St.JobKilled _ -> "Killed"
@@ -106,16 +108,14 @@ viraStatusBadge_ jobStatus = do
 
 viewAllJobStatus :: AppHtml ()
 viewAllJobStatus = do
-  -- Compute running jobs count
-  jobsData <- lift $ App.query Acid.GetRunningJobs
-  let jobCount = length jobsData
-      active = jobCount > 0
+  activeJobs <- lift $ App.query Acid.GetActiveJobsA
+  let active = not (null activeJobs.running) || not (null activeJobs.pending)
   indexUrl <- lift $ getLinkUrl LinkTo.Home
   a_ [href_ indexUrl, class_ "flex items-center space-x-2 text-white hover:bg-white/20 px-3 py-1 rounded-lg transition-colors", title_ "View all jobs"] $ do
     indicator active
     span_ [class_ "text-sm font-medium"] $
       if active
-        then toHtml $ show @Text jobCount <> " build" <> (if jobCount == 1 then "" else "s") <> " running"
+        then toHtml $ show @Text (length activeJobs.running) <> " running, " <> show @Text (length activeJobs.pending) <> " queued"
         else "No builds running"
 
 indicator :: (Monad m) => Bool -> HtmlT m ()

@@ -190,4 +190,4 @@ The version is automatically used by the @--auto-reset-state@ feature to detect 
 When enabled, auto-reset will remove @ViraState/@ and @workspace/*/jobs@ directories on mismatch.
 Run @vira info@ to see the current schema version.
 -}
-$(deriveSafeCopy 4 'base ''ViraState)
+$(deriveSafeCopy 5 'base ''ViraState)

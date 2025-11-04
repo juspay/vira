@@ -83,7 +83,6 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
 
   logSupervisorState supervisor
   let msg = "Starting Vira pipeline in " <> toText workDir
-  log Info msg
   modifyMVar_ (tasks supervisor) $ \tasks -> do
     if Map.member taskId tasks
       then do

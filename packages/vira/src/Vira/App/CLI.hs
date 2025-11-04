@@ -45,6 +45,8 @@ data WebSettings = WebSettings
   -- ^ 'TLSConfig' for HTTPS support
   , importFile :: Maybe FilePath
   -- ^ Optional JSON file to import on startup
+  , maxConcurrentBuilds :: Maybe Natural
+  -- ^ Maximum concurrent CI builds (defaults to nix max-jobs config)
   }
   deriving stock (Show)
 
@@ -135,6 +137,14 @@ webSettingsParser = do
         ( long "import"
             <> metavar "FILE"
             <> help "Import JSON file on startup"
+        )
+  maxConcurrentBuilds <-
+    optional $
+      option
+        auto
+        ( long "max-concurrent-builds"
+            <> metavar "COUNT"
+            <> help "Maximum concurrent CI builds (defaults to nix max-jobs config)"
         )
   pure WebSettings {..}
 

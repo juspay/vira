@@ -14,6 +14,7 @@ import Data.IxSet.Typed
 import Data.IxSet.Typed qualified as Ix
 import Data.List (maximum)
 import Data.Map.Strict qualified as Map
+import Data.SafeCopy
 import Data.Text qualified as T
 import Data.Time (UTCTime)
 import Effectful.Git (BranchName, Commit (..), CommitID, RepoName)
@@ -196,12 +197,23 @@ getRecentJobsA limit = do
       latestPerBranch = ordNubOn (\job -> (job.repo, job.branch)) allJobs
   pure $ take (fromIntegral limit) latestPerBranch
 
--- | Get all running jobs
-getRunningJobs :: Query ViraState [Job]
-getRunningJobs = do
+-- | Active jobs grouped by status
+data ActiveJobs = ActiveJobs
+  { running :: [Job]
+  , pending :: [Job]
+  }
+  deriving stock (Show, Generic)
+  deriving anyclass (SafeCopy)
+
+-- | Get all active jobs (running + pending) in single query
+getActiveJobsA :: Query ViraState ActiveJobs
+getActiveJobsA = do
   ViraState {jobs} <- ask
-  let allJobs = Ix.toList jobs
-  pure $ filter jobIsActive allJobs
+  pure $
+    ActiveJobs
+      { running = Ix.toList $ jobs @= JobRunning
+      , pending = Ix.toList $ jobs @= JobPending
+      }
 
 getJobA :: JobId -> Query ViraState (Maybe Job)
 getJobA jobId = do
@@ -225,20 +237,18 @@ addNewJobA repo branch commit baseDir jobCreatedTime = do
       }
   pure job
 
-jobUpdateStatusA :: JobId -> JobStatus -> Update ViraState ()
-jobUpdateStatusA jobId status = do
-  modify $ \s -> do
-    let job = fromMaybe (error $ "No such job: " <> show jobId) $ Ix.getOne $ s.jobs @= jobId
-    s
-      { jobs = Ix.updateIx jobId (job {jobStatus = status}) s.jobs
-      }
+jobUpdateStatusA :: JobId -> JobStatus -> Update ViraState Job
+jobUpdateStatusA jobId status = state $ \s ->
+  let job = fromMaybe (error $ "No such job: " <> show jobId) $ Ix.getOne $ s.jobs @= jobId
+      updatedJob = job {jobStatus = status}
+   in (updatedJob, s {jobs = Ix.updateIx jobId updatedJob s.jobs})
 
 markUnfinishedJobsAsStaleA :: Update ViraState ()
 markUnfinishedJobsAsStaleA = do
   jobs <- Ix.toList <$> gets jobs
   forM_ jobs $ \job -> do
     when (jobIsActive job) $ do
-      jobUpdateStatusA job.jobId JobStale
+      void $ jobUpdateStatusA job.jobId JobStale
 
 -- | Like `Ix.updateIx`, but works for multiple items.
 updateIxMulti ::
@@ -277,7 +287,7 @@ $( makeAcidic
      , 'storeCommitA
      , 'getJobsByBranchA
      , 'getRecentJobsA
-     , 'getRunningJobs
+     , 'getActiveJobsA
      , 'getJobA
      , 'addNewJobA
      , 'jobUpdateStatusA
