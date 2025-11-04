@@ -60,6 +60,12 @@ in
       description = "Automatically reset state on schema mismatch (removes ViraState and job workspaces)";
     };
 
+    maxConcurrentBuilds = mkOption {
+      type = types.nullOr types.ints.positive;
+      default = null;
+      description = "Maximum concurrent CI builds (defaults to nix max-jobs config)";
+    };
+
     initialState = mkOption {
       description = "Initial state configuration for Vira";
       default = { };
@@ -134,7 +140,8 @@ in
                   "--base-path"
                   cfg.basePath
                 ] ++ optionals (!cfg.https) [ "--no-https" ]
-                ++ optionals hasInitialState [ "--import" initialStateJson ];
+                ++ optionals hasInitialState [ "--import" initialStateJson ]
+                ++ optionals (cfg.maxConcurrentBuilds != null) [ "--max-concurrent-builds" (toString cfg.maxConcurrentBuilds) ];
               in
               "${cfg.package}/bin/vira ${concatStringsSep " " globalArgs} web ${concatStringsSep " " webArgs}";
           };

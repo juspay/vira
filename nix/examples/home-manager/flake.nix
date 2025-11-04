@@ -85,6 +85,7 @@
                   https = false;
                   stateDir = "/home/testuser/.local/share/vira/test-state";
                   package = vira.packages.${system}.default;
+                  maxConcurrentBuilds = 1; # `nix config show` fails in VM.
 
                   # Test initial state
                   initialState = {

@@ -28,6 +28,7 @@ import System.Directory (getCurrentDirectory, makeAbsolute)
 import System.Exit (ExitCode (..))
 import System.Nix.Cache.Keys qualified as CacheKeys
 import System.Nix.Cache.Server qualified as Cache
+import System.Nix.Config.Core (NixConfig (..), NixConfigField (..))
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
@@ -82,12 +83,9 @@ runVira = do
         tools <- runEff $ runLogActionStdout (logLevel globalSettings) $ runProcess Tool.newToolsTVar
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
-        -- Initialize job worker state from nix config
-        toolsData <- readTVarIO tools
-        nixConfig <- case toolsData.nix.status of
-          Right (NixStatus {config}) -> pure config
-          Left err -> error err
-        let jobWorker = Worker.newJobWorkerState nixConfig (logLevel globalSettings)
+        -- Initialize job worker state
+        maxConcurrent <- computeMaxConcurrent webSettings tools
+        let jobWorker = Worker.newJobWorkerState maxConcurrent (logLevel globalSettings)
         -- Ensure cache keys exist and create cache application
         cacheKeys <- runEff . runLogActionStdout (logLevel globalSettings) $ do
           CacheKeys.ensureCacheKeys $ stateDir globalSettings <> "/cache-keys"
@@ -163,3 +161,16 @@ runVira = do
     withViraState gs =
       openViraState gs.stateDir gs.autoResetState
         `bracket` closeViraState
+
+    computeMaxConcurrent :: WebSettings -> TVar Tool.Tools -> IO Int
+    computeMaxConcurrent ws toolsTVar = case ws.maxConcurrentBuilds of
+      Just cliValue -> pure $ fromIntegral cliValue
+      Nothing -> do
+        toolsData <- readTVarIO toolsTVar
+        NixStatus {config} <- case toolsData.nix.status of
+          Right cfg -> pure cfg
+          Left err -> error err
+        pure $
+          if config.maxJobs.value == 0
+            then error "nix max-jobs = 0 (auto) and --max-concurrent-builds not set - provide explicit value"
+            else fromIntegral config.maxJobs.value
