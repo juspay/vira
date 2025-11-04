@@ -359,7 +359,6 @@ executable vira
 executable vira-tests
   main-is: Spec.hs
   other-modules:
-      Vira.CI.AutoBuildSpec
       Vira.CI.ConfigurationSpec
       Vira.CI.WorkerSpec
       Vira.State.ResetSpec

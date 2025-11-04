@@ -272,20 +272,15 @@ markUnfinishedJobsAsStaleA = do
     when (jobIsActive job) $ do
       void $ jobUpdateStatusA job.jobId JobStale
 
-{- | Cancel a pending job by marking it as killed
-Returns True if job was cancelled, False if job doesn't exist or isn't pending
+{- | Cancel all pending jobs for a (repo, branch) pair
+Returns the number of jobs cancelled
 -}
-cancelPendingJobA :: JobId -> UTCTime -> Update ViraState Bool
-cancelPendingJobA jobId endTime = do
-  s <- get
-  case Ix.getOne $ s.jobs @= jobId of
-    Nothing -> pure False
-    Just job -> case job.jobStatus of
-      JobPending -> do
-        let cancelled = job {jobStatus = JobFinished JobKilled endTime}
-        put $ s {jobs = Ix.updateIx jobId cancelled s.jobs}
-        pure True
-      _ -> pure False -- Only pending jobs can be cancelled
+cancelPendingJobsInBranchA :: RepoName -> BranchName -> UTCTime -> Update ViraState Natural
+cancelPendingJobsInBranchA repo branch endTime = state $ \s ->
+  let jobs = Ix.toList $ s.jobs @= repo @= branch
+      pendingJobs = filter (\j -> j.jobStatus == JobPending) jobs
+      updatedState = flipfoldl' (\job st -> st {jobs = Ix.updateIx job.jobId (job {jobStatus = JobFinished JobKilled endTime}) st.jobs}) s pendingJobs
+   in (fromIntegral $ length pendingJobs, updatedState)
 
 -- | Like `Ix.updateIx`, but works for multiple items.
 updateIxMulti ::
@@ -329,7 +324,7 @@ $( makeAcidic
      , 'addNewJobA
      , 'jobUpdateStatusA
      , 'markUnfinishedJobsAsStaleA
-     , 'cancelPendingJobA
+     , 'cancelPendingJobsInBranchA
      , 'addNewRepoA
      , 'deleteRepoByNameA
      ]
@@ -349,4 +344,4 @@ deriving stock instance Show AddNewJobA
 
 deriving stock instance Show JobUpdateStatusA
 
-deriving stock instance Show CancelPendingJobA
+deriving stock instance Show CancelPendingJobsInBranchA
