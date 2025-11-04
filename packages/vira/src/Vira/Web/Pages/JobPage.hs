@@ -4,7 +4,7 @@ module Vira.Web.Pages.JobPage where
 
 import Data.Time (diffUTCTime)
 import Effectful (Eff)
-import Effectful.Colog.Simple (Severity (..), log, withLogContext)
+import Effectful.Colog.Simple (withLogContext)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName, RepoName)
 import Effectful.Reader.Dynamic qualified as ER
@@ -59,10 +59,7 @@ buildHandler :: RepoName -> BranchName -> Eff Web.AppServantStack (Headers '[HXR
 buildHandler repoName branchName =
   withLogContext [("repo", show repoName), ("branch", show branchName)] $ do
     branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
-    job <- Client.enqueueJob repoName branchName branch.headCommit
-    withLogContext [("job", show job.jobId)] $ do
-      log Info $ "Building commit " <> show branch.headCommit
-      log Info "Queued job (worker daemon will start it)"
+    Client.enqueueJob repoName branchName branch.headCommit
     pure $ addHeader True "Ok"
 
 viewHandler :: JobId -> AppHtml ()
