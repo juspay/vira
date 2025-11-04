@@ -149,8 +149,8 @@ startJob job = do
             Left (Pipeline.PipelineTerminated Terminated) -> JobFinished St.JobKilled endTime
             Left _ -> JobFinished St.JobFailure endTime
       -- Update status
-      App.update $ JobUpdateStatusA job.jobId status
+      void $ App.update $ JobUpdateStatusA job.jobId status
 
   -- Mark as running
-  App.update $ JobUpdateStatusA job.jobId JobRunning
+  void $ App.update $ JobUpdateStatusA job.jobId JobRunning
   log Info $ "Started job #" <> show job.jobId

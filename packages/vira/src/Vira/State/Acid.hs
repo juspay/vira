@@ -237,20 +237,19 @@ addNewJobA repo branch commit baseDir jobCreatedTime = do
       }
   pure job
 
-jobUpdateStatusA :: JobId -> JobStatus -> Update ViraState ()
+jobUpdateStatusA :: JobId -> JobStatus -> Update ViraState Job
 jobUpdateStatusA jobId status = do
-  modify $ \s -> do
-    let job = fromMaybe (error $ "No such job: " <> show jobId) $ Ix.getOne $ s.jobs @= jobId
-    s
-      { jobs = Ix.updateIx jobId (job {jobStatus = status}) s.jobs
-      }
+  job <- gets $ \s -> fromMaybe (error $ "No such job: " <> show jobId) $ Ix.getOne $ s.jobs @= jobId
+  let updatedJob = job {jobStatus = status}
+  modify $ \s -> s {jobs = Ix.updateIx jobId updatedJob s.jobs}
+  pure updatedJob
 
 markUnfinishedJobsAsStaleA :: Update ViraState ()
 markUnfinishedJobsAsStaleA = do
   jobs <- Ix.toList <$> gets jobs
   forM_ jobs $ \job -> do
     when (jobIsActive job) $ do
-      jobUpdateStatusA job.jobId JobStale
+      void $ jobUpdateStatusA job.jobId JobStale
 
 -- | Like `Ix.updateIx`, but works for multiple items.
 updateIxMulti ::

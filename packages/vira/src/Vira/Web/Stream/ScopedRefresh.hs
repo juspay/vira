@@ -33,7 +33,7 @@ import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.State.Acid
 import Vira.State.Core (ViraState)
-import Vira.State.Type (Job (jobId), JobId, Repo (name))
+import Vira.State.Type (Job (jobId, repo), JobId, Repo (name))
 import Vira.Web.LinkTo.Type (LinkTo)
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
@@ -108,8 +108,8 @@ entitiesChanged update
       [Repo name]
   | Just (AddNewJobA repo _ _ _ _, job) <- matchUpdate update =
       [Repo repo, Job job.jobId]
-  | Just (JobUpdateStatusA jid _, _) <- matchUpdate update =
-      [Job jid]
+  | Just (JobUpdateStatusA _ _, job) <- matchUpdate update =
+      [Repo job.repo, Job job.jobId]
   | otherwise = []
 
 -- * Internal types
