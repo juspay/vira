@@ -106,7 +106,7 @@ selectJobsToStart maxConcurrent activeJobs =
     & sortOn (.jobCreatedTime) -- FIFO
     & take availableSlots -- Fill available slots
   where
-    availableSlots = maxConcurrent - length activeJobs.running
+    availableSlots = max 0 (maxConcurrent - length activeJobs.running)
     runningBranches = Set.fromList $ activeJobs.running <&> (\j -> (j.repo, j.branch))
 
 {- | Start a single job (extracted from JobPage.hs triggerNewBuild)

@@ -6,6 +6,7 @@ module Vira.App.Run (
   runVira,
 ) where
 
+import Control.Concurrent.STM (readTVarIO)
 import Control.Exception (bracket)
 import Data.Acid (AcidState)
 import Data.Acid.Events qualified as Event
@@ -37,6 +38,7 @@ import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Worker qualified as Worker
 import Vira.CI.Worker.Type qualified as Worker
 import Vira.Environment.Tool.Core qualified as Tool
+import Vira.Environment.Tool.Tools.Nix (NixStatus (..))
 import Vira.Refresh.Daemon qualified as Daemon
 import Vira.Refresh.Type qualified as Refresh
 import Vira.State.Core (closeViraState, openViraState, startPeriodicArchival, viraDbVersion)
@@ -45,7 +47,7 @@ import Vira.State.Type (ViraState)
 import Vira.Supervisor.Core qualified as Supervisor
 import Vira.Web.LinkTo.Resolve (linkTo)
 import Vira.Web.Server qualified as Server
-import Prelude hiding (Reader, ask, runReader)
+import Prelude hiding (Reader, ask, readTVarIO, runReader)
 
 -- | Run the Vira application
 runVira :: IO ()
@@ -80,8 +82,12 @@ runVira = do
         tools <- runEff $ runLogActionStdout (logLevel globalSettings) $ runProcess Tool.newToolsTVar
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
-        -- Initialize job worker state
-        let jobWorker = Worker.newJobWorkerState (logLevel globalSettings)
+        -- Initialize job worker state from nix config
+        toolsData <- readTVarIO tools
+        nixConfig <- case toolsData.nix.status of
+          Right (NixStatus {config}) -> pure config
+          Left err -> error err
+        let jobWorker = Worker.newJobWorkerState nixConfig (logLevel globalSettings)
         -- Ensure cache keys exist and create cache application
         cacheKeys <- runEff . runLogActionStdout (logLevel globalSettings) $ do
           CacheKeys.ensureCacheKeys $ stateDir globalSettings <> "/cache-keys"
