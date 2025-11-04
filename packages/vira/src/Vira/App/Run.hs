@@ -85,7 +85,7 @@ runVira = do
         refreshState <- Refresh.newRefreshState
         -- Initialize job worker state
         maxConcurrent <- computeMaxConcurrent webSettings tools
-        let jobWorker = Worker.newJobWorkerState maxConcurrent (logLevel globalSettings)
+        jobWorker <- liftIO $ Worker.newJobWorkerState maxConcurrent (logLevel globalSettings)
         -- Ensure cache keys exist and create cache application
         cacheKeys <- runEff . runLogActionStdout (logLevel globalSettings) $ do
           CacheKeys.ensureCacheKeys $ stateDir globalSettings <> "/cache-keys"

@@ -7,20 +7,28 @@ It subscribes to job events (new jobs, status changes) and starts pending jobs w
 -}
 module Vira.CI.Worker (
   startJobWorkerDaemon,
+  tryStartPendingJobs,
 
   -- * Exported for testing
   selectJobsToStart,
 ) where
 
+import Colog.Message (RichMessage)
 import Control.Concurrent.STM.TChan (readTChan)
 import Data.Acid.Events qualified as Events
 import Data.Set qualified as Set
 import Data.Time (getCurrentTime)
-import Effectful (Eff)
-import Effectful.Colog.Simple (Severity (..), log, tagCurrentThread)
-import Effectful.Concurrent.Async (async)
+import Effectful (Eff, IOE, type (:>))
+import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext, Severity (..), log, tagCurrentThread)
+import Effectful.Concurrent.Async (Concurrent, async)
+import Effectful.Concurrent.MVar (withMVar)
 import Effectful.Concurrent.STM (atomically)
-import Effectful.Reader.Dynamic (ask)
+import Effectful.Environment (Environment)
+import Effectful.FileSystem (FileSystem)
+import Effectful.Process (Process)
+import Effectful.Reader.Dynamic (Reader, ask)
+import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (..))
 import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
@@ -35,7 +43,7 @@ import Vira.State.Type (Job (..), JobStatus (..))
 import Vira.State.Type qualified as St
 import Vira.Supervisor.Task qualified as Supervisor
 import Vira.Supervisor.Type (Terminated (..))
-import Prelude hiding (ask, atomically)
+import Prelude hiding (Reader, ask, atomically)
 
 {- | Start the job worker daemon
 
@@ -49,8 +57,10 @@ startJobWorkerDaemon = do
 
 {- | Worker loop: subscribe to job events and start pending jobs
 
-Subscribes to 'AddNewJobA' (new job created) and 'JobUpdateStatusA' (job status changed) events.
-When relevant event occurs, calls 'tryStartPendingJobs' to fill available slots.
+Subscribes to 'JobUpdateStatusA' (job status changed) events.
+When a job finishes, calls 'tryStartPendingJobs' to fill available slots.
+
+Note: New jobs are scheduled synchronously in 'enqueueJob', so no listener needed.
 -}
 workerLoop :: Eff AppStack Void
 workerLoop = do
@@ -59,9 +69,6 @@ workerLoop = do
 
   infinitely $ do
     someUpdate <- atomically $ readTChan chan
-    -- When a new job is added, try to start pending jobs
-    whenJust (Events.matchUpdate @AddNewJobA someUpdate) $
-      const tryStartPendingJobs
     -- When any job finishes, try to start pending jobs
     whenJust (Events.matchUpdate @JobUpdateStatusA someUpdate) $ \case
       (JobUpdateStatusA _ (JobFinished _ _), _) -> tryStartPendingJobs
@@ -71,18 +78,27 @@ workerLoop = do
 
 Queries active jobs (pending + running), uses 'selectJobsToStart' to pick which to start,
 then calls 'startJob' for each selected job.
+
+Protected by scheduler lock to prevent race conditions.
 -}
-tryStartPendingJobs :: Eff AppStack ()
+tryStartPendingJobs ::
+  ( Reader ViraRuntimeState :> es
+  , Concurrent :> es
+  , Process :> es
+  , FileSystem :> es
+  , Environment :> es
+  , ER.Reader LogContext :> es
+  , Log (RichMessage IO) :> es
+  , IOE :> es
+  ) =>
+  Eff es ()
 tryStartPendingJobs = do
-  -- Get active jobs in single query
-  activeJobs <- App.query GetActiveJobsA
+  jobWorker <- asks (.jobWorker)
 
-  -- Select which pending jobs to start
-  st <- ask @ViraRuntimeState
-  let toStart = selectJobsToStart st.jobWorker.maxConcurrent activeJobs
-
-  -- Start selected jobs
-  startJob `mapM_` toStart
+  withMVar jobWorker.schedulerLock $ \_ -> do
+    activeJobs <- App.query GetActiveJobsA
+    let toStart = selectJobsToStart jobWorker.maxConcurrent activeJobs
+    startJob `mapM_` toStart
 
 {- | Pure job selection logic (FIFO queue with concurrency limit + branch dedup)
 
@@ -113,7 +129,18 @@ selectJobsToStart maxConcurrent activeJobs =
 
 Calls supervisor to run the job, sets up completion callback, marks as running.
 -}
-startJob :: Job -> Eff AppStack ()
+startJob ::
+  ( Reader ViraRuntimeState :> es
+  , Concurrent :> es
+  , Process :> es
+  , FileSystem :> es
+  , Environment :> es
+  , ER.Reader LogContext :> es
+  , Log (RichMessage IO) :> es
+  , IOE :> es
+  ) =>
+  Job ->
+  Eff es ()
 startJob job = do
   log Info $ "Starting job #" <> show job.jobId
 

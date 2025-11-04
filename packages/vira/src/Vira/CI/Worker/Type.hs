@@ -12,8 +12,12 @@ data JobWorkerState = JobWorkerState
   -- ^ Maximum number of concurrent jobs allowed
   , minSeverity :: Severity
   -- ^ Minimum log severity for job output
+  , schedulerLock :: MVar ()
+  -- ^ Mutex for scheduling decisions (prevents race conditions)
   }
 
 -- | Create job worker state with explicit max concurrent value
-newJobWorkerState :: Int -> Severity -> JobWorkerState
-newJobWorkerState maxConcurrent minSev = JobWorkerState {maxConcurrent, minSeverity = minSev}
+newJobWorkerState :: Int -> Severity -> IO JobWorkerState
+newJobWorkerState maxConcurrent minSev = do
+  lock <- newMVar () -- Create mutex in unlocked state
+  pure $ JobWorkerState {maxConcurrent, minSeverity = minSev, schedulerLock = lock}
