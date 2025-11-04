@@ -6,7 +6,7 @@ import Data.Time (diffUTCTime)
 import Effectful (Eff)
 import Effectful.Colog.Simple (withLogContext)
 import Effectful.Error.Static (throwError)
-import Effectful.Git (BranchName, RepoName)
+import Effectful.Git (BranchName, Commit (..), RepoName)
 import Effectful.Reader.Dynamic qualified as ER
 import Htmx.Servant.Response
 import Lucid
@@ -59,7 +59,7 @@ buildHandler :: RepoName -> BranchName -> Eff Web.AppServantStack (Headers '[HXR
 buildHandler repoName branchName =
   withLogContext [("repo", show repoName), ("branch", show branchName)] $ do
     branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
-    Client.enqueueJob repoName branchName branch.headCommit
+    Client.enqueueJob repoName branchName branch.headCommit.id
     pure $ addHeader True "Ok"
 
 viewHandler :: JobId -> AppHtml ()

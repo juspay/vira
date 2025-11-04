@@ -16,7 +16,7 @@ import Effectful.Colog.Simple (LogContext, Severity (Info), log)
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Environment (Environment)
 import Effectful.FileSystem (FileSystem)
-import Effectful.Git (BranchName, Commit (..), RepoName)
+import Effectful.Git (BranchName, CommitID, RepoName)
 import Effectful.Process (Process)
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful.Reader.Static qualified as ER
@@ -45,15 +45,15 @@ enqueueJob ::
   ) =>
   RepoName ->
   BranchName ->
-  Commit ->
+  CommitID ->
   Eff es ()
-enqueueJob repoName branchName commit = do
+enqueueJob repoName branchName commitId = do
   sup <- asks supervisor
   creationTime <- liftIO getCurrentTime
   let baseDir = Workspace.repoJobsDir sup repoName
 
   -- Create job as Pending
-  job <- App.update $ AddNewJobA repoName branchName commit.id baseDir creationTime
+  job <- App.update $ AddNewJobA repoName branchName commitId baseDir creationTime
   log Info $ "Queued job #" <> show job.jobId
 
   -- Immediately try to schedule it (with lock)
