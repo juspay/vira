@@ -238,11 +238,10 @@ addNewJobA repo branch commit baseDir jobCreatedTime = do
   pure job
 
 jobUpdateStatusA :: JobId -> JobStatus -> Update ViraState Job
-jobUpdateStatusA jobId status = do
-  job <- gets $ \s -> fromMaybe (error $ "No such job: " <> show jobId) $ Ix.getOne $ s.jobs @= jobId
-  let updatedJob = job {jobStatus = status}
-  modify $ \s -> s {jobs = Ix.updateIx jobId updatedJob s.jobs}
-  pure updatedJob
+jobUpdateStatusA jobId status = state $ \s ->
+  let job = fromMaybe (error $ "No such job: " <> show jobId) $ Ix.getOne $ s.jobs @= jobId
+      updatedJob = job {jobStatus = status}
+   in (updatedJob, s {jobs = Ix.updateIx jobId updatedJob s.jobs})
 
 markUnfinishedJobsAsStaleA :: Update ViraState ()
 markUnfinishedJobsAsStaleA = do
