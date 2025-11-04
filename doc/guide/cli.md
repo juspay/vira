@@ -60,3 +60,15 @@ All commands support these global options:
 
 - `--state-dir DIR` - Directory for storing Vira state (default: `./state`)
 - `--log-level LEVEL` - Minimum log severity: Debug, Info, Warning, Error (default: Info)
+- `--auto-reset-state` - Automatically reset state on schema mismatch
+
+## Web Server Options {#web-opts}
+
+When running `vira web`, these additional options are available:
+
+- `--host HOST` - Host to bind the HTTP server to (default: `0.0.0.0`)
+- `--port PORT` - Port to bind the HTTP server to (default: `5005`)
+- `--base-path PATH` - Base URL path for the HTTP server (default: `/`)
+- `--no-https` - Disable HTTPS (use HTTP only)
+- `--import FILE` - Import JSON file on startup
+- `--max-concurrent-builds COUNT` - Maximum concurrent CI builds (defaults to nix max-jobs config)
