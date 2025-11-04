@@ -22,6 +22,16 @@ import System.FilePath ((</>))
 import Vira.Refresh.Type (RefreshResult)
 import Vira.State.Type
 
+-- | Represents a branch update with old and new commit
+data BranchUpdate = BranchUpdate
+  { branch :: BranchName
+  , oldCommit :: Maybe CommitID
+  -- ^ Nothing if new branch
+  , newCommit :: CommitID
+  }
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (SafeCopy)
+
 -- | Set all repositories, replacing existing ones
 setAllReposA :: [Repo] -> Update ViraState ()
 setAllReposA repos = do
@@ -141,12 +151,22 @@ setRefreshStatusA name mResult = do
         let updatedRepo = repo {lastRefresh = mResult}
          in s {repos = Ix.updateIx name updatedRepo s.repos}
 
--- | Set a repository's branches, marking deleted branches (keeps jobs for history)
-setRepoBranchesA :: RepoName -> Map BranchName Commit -> Update ViraState ()
+{- | Set a repository's branches, marking deleted branches (keeps jobs for history)
+Returns list of branch updates (new/changed commits only)
+-}
+setRepoBranchesA :: RepoName -> Map BranchName Commit -> Update ViraState [BranchUpdate]
 setRepoBranchesA repo branches = do
   s <- get
   let oldBranches = Ix.toList $ s.branches @= repo
+      oldMap = Map.fromList [(b.branchName, b.headCommit.id) | b <- oldBranches]
       newBranchNames = Map.keys branches
+
+      -- Compute updates (new or changed commits)
+      updates = flip mapMaybe (Map.toList branches) $ \(name, commit) ->
+        let old = Map.lookup name oldMap
+         in if old /= Just commit.id
+              then Just $ BranchUpdate name old commit.id
+              else Nothing
 
       -- Old branches that are no longer on remote - mark as deleted
       deletedBranches =
@@ -167,6 +187,8 @@ setRepoBranchesA repo branches = do
       { branches = updateIxMulti repo (Ix.fromList allBranches) s.branches
       , commits = s.commits ||| Ix.fromList commits
       }
+
+  pure updates
 
 -- | Get a commit by its ID
 getCommitByIdA :: CommitID -> Query ViraState (Maybe Commit)
@@ -250,6 +272,21 @@ markUnfinishedJobsAsStaleA = do
     when (jobIsActive job) $ do
       void $ jobUpdateStatusA job.jobId JobStale
 
+{- | Cancel a pending job by marking it as killed
+Returns True if job was cancelled, False if job doesn't exist or isn't pending
+-}
+cancelPendingJobA :: JobId -> UTCTime -> Update ViraState Bool
+cancelPendingJobA jobId endTime = do
+  s <- get
+  case Ix.getOne $ s.jobs @= jobId of
+    Nothing -> pure False
+    Just job -> case job.jobStatus of
+      JobPending -> do
+        let cancelled = job {jobStatus = JobFinished JobKilled endTime}
+        put $ s {jobs = Ix.updateIx jobId cancelled s.jobs}
+        pure True
+      _ -> pure False -- Only pending jobs can be cancelled
+
 -- | Like `Ix.updateIx`, but works for multiple items.
 updateIxMulti ::
   (Ix.IsIndexOf ix ixs, Ix.Indexable ixs a) =>
@@ -292,6 +329,7 @@ $( makeAcidic
      , 'addNewJobA
      , 'jobUpdateStatusA
      , 'markUnfinishedJobsAsStaleA
+     , 'cancelPendingJobA
      , 'addNewRepoA
      , 'deleteRepoByNameA
      ]
@@ -310,3 +348,5 @@ deriving stock instance Show SetRepoBranchesA
 deriving stock instance Show AddNewJobA
 
 deriving stock instance Show JobUpdateStatusA
+
+deriving stock instance Show CancelPendingJobA

@@ -33,6 +33,7 @@ import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
+import Vira.CI.AutoBuild qualified as AutoBuild
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Pipeline.Program qualified as Program
@@ -95,6 +96,7 @@ runVira = do
               startPeriodicArchival acid
               Daemon.startRefreshDaemon
               Worker.startJobWorkerDaemon
+              AutoBuild.startAutoBuildDaemon
               cacheApp <- liftIO $ Cache.makeCacheServer cacheKeys.secretKey
               Server.runServer globalSettings webSettings cacheApp
         App.runApp globalSettings viraRuntimeState appServer

@@ -169,4 +169,4 @@ updateRepoBranches repo branches = do
   current <- App.query $ St.GetRepoBranchesA repo
   let currentMap = Map.fromList [(b.branchName, b.headCommit) | b <- current, not b.deleted]
   when (currentMap /= branches) $ do
-    App.update $ St.SetRepoBranchesA repo branches
+    void $ App.update $ St.SetRepoBranchesA repo branches

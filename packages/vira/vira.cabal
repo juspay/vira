@@ -38,6 +38,7 @@ library
       Vira.App.Run
       Vira.App.Stack
       Vira.App.Type
+      Vira.CI.AutoBuild
       Vira.CI.Client
       Vira.CI.Configuration
       Vira.CI.Error
@@ -358,6 +359,7 @@ executable vira
 executable vira-tests
   main-is: Spec.hs
   other-modules:
+      Vira.CI.AutoBuildSpec
       Vira.CI.ConfigurationSpec
       Vira.CI.WorkerSpec
       Vira.State.ResetSpec
