@@ -66,6 +66,33 @@ handleBranchUpdates autoBuildNewBranches repo updates = do
             not $ coerce autoBuildNewBranches || not (newBranch upd)
           ]
   forM_ updates $ \upd -> do
-    unless (shouldSkipBranch upd) $ do
-      void $ App.update $ CancelPendingJobsInBranchA repo upd.branch now
-      Client.enqueueJob repo upd.branch upd.newCommit.id
+    let isOld = upd.newCommit.date < oneHourAgo
+        isNew = newBranch upd
+        reason
+          | isOld && isNew = "old commit + new branch"
+          | isOld = "old commit"
+          | isNew = "new branch (autoBuildNewBranches=False)"
+          | otherwise = "unknown"
+    if shouldSkipBranch upd
+      then
+        log Info $
+          "⏭️  Skipping auto-build for "
+            <> toText repo
+            <> "/"
+            <> toText upd.branch
+            <> " at "
+            <> toText upd.newCommit.id
+            <> " ("
+            <> reason
+            <> ")"
+      else do
+        log Info $
+          "🔨 Enqueueing auto-build for "
+            <> toText repo
+            <> "/"
+            <> toText upd.branch
+            <> " at "
+            <> toText upd.newCommit.id
+            <> if isNew then " (new branch)" else ""
+        void $ App.update $ CancelPendingJobsInBranchA repo upd.branch now
+        Client.enqueueJob repo upd.branch upd.newCommit.id
