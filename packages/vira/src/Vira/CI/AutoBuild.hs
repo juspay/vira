@@ -56,10 +56,16 @@ handleBranchUpdates :: AutoBuildNewBranches -> RepoName -> [BranchUpdate] -> Eff
 handleBranchUpdates autoBuildNewBranches repo updates = do
   now <- liftIO getCurrentTime
   let oneHourAgo = addUTCTime (-3600) now
+      newBranch upd = not upd.wasPreviouslyBuilt
+      shouldSkipBranch upd =
+        {- HLINT ignore "Use &&" -}
+        and
+          [ -- Ignore old branches
+            upd.newCommit.date < oneHourAgo
+          , -- Build only already-built branches, unless autoBuildNewBranches is enabled
+            not $ coerce autoBuildNewBranches || not (newBranch upd)
+          ]
   forM_ updates $ \upd -> do
-    -- Ignore old branches
-    unless (upd.newCommit.date < oneHourAgo) $ do
-      -- Skip if autoBuildNewBranches is False AND branch was never built
-      unless (not (coerce autoBuildNewBranches) && not upd.wasPreviouslyBuilt) $ do
-        void $ App.update $ CancelPendingJobsInBranchA repo upd.branch now
-        Client.enqueueJob repo upd.branch upd.newCommit.id
+    unless (shouldSkipBranch upd) $ do
+      void $ App.update $ CancelPendingJobsInBranchA repo upd.branch now
+      Client.enqueueJob repo upd.branch upd.newCommit.id
