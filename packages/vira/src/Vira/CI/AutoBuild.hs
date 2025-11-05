@@ -11,12 +11,12 @@ module Vira.CI.AutoBuild (
 
 import Control.Concurrent.STM.TChan (readTChan)
 import Data.Acid.Events qualified as Events
-import Data.Time (getCurrentTime)
+import Data.Time (addUTCTime, getCurrentTime)
 import Effectful (Eff)
 import Effectful.Colog.Simple (Severity (..), log, tagCurrentThread)
 import Effectful.Concurrent.Async (async)
 import Effectful.Concurrent.STM (atomically)
-import Effectful.Git (RepoName)
+import Effectful.Git (Commit (..), RepoName)
 import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.CI.Client qualified as Client
@@ -54,6 +54,8 @@ autoBuildLoop = do
 handleBranchUpdates :: RepoName -> [BranchUpdate] -> Eff AppStack ()
 handleBranchUpdates repo updates = do
   now <- liftIO getCurrentTime
-  forM_ updates $ \upd -> do
+  let oneHourAgo = addUTCTime (-3600) now
+      recentUpdates = filter (\upd -> upd.newCommit.date >= oneHourAgo) updates
+  forM_ recentUpdates $ \upd -> do
     void $ App.update $ CancelPendingJobsInBranchA repo upd.branch now
-    Client.enqueueJob repo upd.branch upd.newCommit
+    Client.enqueueJob repo upd.branch upd.newCommit.id
