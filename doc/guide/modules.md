@@ -81,7 +81,7 @@ The Home Manager module supports the following configuration options:
 - `stateDir` - Directory to store Vira state data
 - `basePath` - Base URL path for the HTTP server (default: `"/"`)
 - `autoResetState` - Automatically reset state on schema mismatch, removing ViraState and job workspaces (default: `true`)
-- `maxConcurrentBuilds` - Maximum concurrent CI builds (default: `null`, uses nix max-jobs config)
+- `maxConcurrentBuilds` - Maximum concurrent CI builds (default: `null`, defaults to 2)
 - `extraPackages` - Extra packages to add to the Vira service PATH
 - `initialState.repositories` - Map of repository names to clone URLs for initial state
 - `systemd.environment` - Additional environment variables for the service (Linux only)

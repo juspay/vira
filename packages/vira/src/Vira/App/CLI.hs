@@ -46,7 +46,7 @@ data WebSettings = WebSettings
   , importFile :: Maybe FilePath
   -- ^ Optional JSON file to import on startup
   , maxConcurrentBuilds :: Maybe Natural
-  -- ^ Maximum concurrent CI builds (defaults to nix max-jobs config)
+  -- ^ Maximum concurrent CI builds (defaults to 2)
   }
   deriving stock (Show)
 
@@ -144,7 +144,7 @@ webSettingsParser = do
         auto
         ( long "max-concurrent-builds"
             <> metavar "COUNT"
-            <> help "Maximum concurrent CI builds (defaults to nix max-jobs config)"
+            <> help "Maximum concurrent CI builds (defaults to 2)"
         )
   pure WebSettings {..}
 

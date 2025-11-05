@@ -6,7 +6,6 @@ module Vira.App.Run (
   runVira,
 ) where
 
-import Control.Concurrent.STM (readTVarIO)
 import Control.Exception (bracket)
 import Data.Acid (AcidState)
 import Data.Acid.Events qualified as Event
@@ -28,7 +27,6 @@ import System.Directory (getCurrentDirectory, makeAbsolute)
 import System.Exit (ExitCode (..))
 import System.Nix.Cache.Keys qualified as CacheKeys
 import System.Nix.Cache.Server qualified as Cache
-import System.Nix.Config.Core (NixConfig (..), NixConfigField (..))
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
@@ -40,7 +38,6 @@ import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Worker qualified as Worker
 import Vira.CI.Worker.Type qualified as Worker
 import Vira.Environment.Tool.Core qualified as Tool
-import Vira.Environment.Tool.Tools.Nix (NixStatus (..))
 import Vira.Refresh.Daemon qualified as Daemon
 import Vira.Refresh.Type qualified as Refresh
 import Vira.State.Core (closeViraState, openViraState, startPeriodicArchival, viraDbVersion)
@@ -49,7 +46,7 @@ import Vira.State.Type (ViraState)
 import Vira.Supervisor.Core qualified as Supervisor
 import Vira.Web.LinkTo.Resolve (linkTo)
 import Vira.Web.Server qualified as Server
-import Prelude hiding (Reader, ask, readTVarIO, runReader)
+import Prelude hiding (Reader, ask, runReader)
 
 -- | Run the Vira application
 runVira :: IO ()
@@ -85,7 +82,8 @@ runVira = do
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
         -- Initialize job worker state
-        maxConcurrent <- computeMaxConcurrent webSettings tools
+        -- Default to 2: conservative value until we have intelligent scaling based on system resources
+        let maxConcurrent = maybe 2 fromIntegral webSettings.maxConcurrentBuilds
         jobWorker <- liftIO $ Worker.newJobWorkerState maxConcurrent (logLevel globalSettings)
         -- Ensure cache keys exist and create cache application
         cacheKeys <- runEff . runLogActionStdout (logLevel globalSettings) $ do
@@ -163,16 +161,3 @@ runVira = do
     withViraState gs =
       openViraState gs.stateDir gs.autoResetState
         `bracket` closeViraState
-
-    computeMaxConcurrent :: WebSettings -> TVar Tool.Tools -> IO Int
-    computeMaxConcurrent ws toolsTVar = case ws.maxConcurrentBuilds of
-      Just cliValue -> pure $ fromIntegral cliValue
-      Nothing -> do
-        toolsData <- readTVarIO toolsTVar
-        NixStatus {config} <- case toolsData.nix.status of
-          Right cfg -> pure cfg
-          Left err -> error err
-        pure $
-          if config.maxJobs.value == 0
-            then error "nix max-jobs = 0 (auto) and --max-concurrent-builds not set - provide explicit value"
-            else fromIntegral config.maxJobs.value

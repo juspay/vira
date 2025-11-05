@@ -152,7 +152,7 @@ layout crumbs content = do
 buildConcurrencyLink :: Int -> AppHtml ()
 buildConcurrencyLink maxConcurrent = do
   url <- lift $ getLinkUrl Environment
-  a_ [href_ url, class_ "hover:text-gray-700 dark:hover:text-gray-200 transition-colors", title_ "Max concurrent CI jobs (from nix config max-jobs)"] $
+  a_ [href_ url, class_ "hover:text-gray-700 dark:hover:text-gray-200 transition-colors", title_ "Max concurrent CI jobs (--max-concurrent-builds, default: 2)"] $
     toHtml $
       "Build concurrency = " <> show @Text maxConcurrent
 

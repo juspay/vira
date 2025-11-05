@@ -63,7 +63,7 @@ in
     maxConcurrentBuilds = mkOption {
       type = types.nullOr types.ints.positive;
       default = null;
-      description = "Maximum concurrent CI builds (defaults to nix max-jobs config)";
+      description = "Maximum concurrent CI builds (defaults to 2)";
     };
 
     initialState = mkOption {
