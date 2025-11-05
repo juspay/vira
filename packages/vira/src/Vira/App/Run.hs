@@ -82,8 +82,7 @@ runVira = do
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
         -- Initialize job worker state
-        -- Default to 2: conservative value until we have intelligent scaling based on system resources
-        let maxConcurrent = maybe 2 fromIntegral webSettings.maxConcurrentBuilds
+        let maxConcurrent = webSettings.ciSettings.maxConcurrentBuilds
         jobWorker <- liftIO $ Worker.newJobWorkerState maxConcurrent (logLevel globalSettings)
         -- Ensure cache keys exist and create cache application
         cacheKeys <- runEff . runLogActionStdout (logLevel globalSettings) $ do
@@ -94,7 +93,7 @@ runVira = do
               startPeriodicArchival acid
               Daemon.startRefreshDaemon
               Worker.startJobWorkerDaemon
-              AutoBuild.startAutoBuildDaemon
+              AutoBuild.startAutoBuildDaemon webSettings.ciSettings.autoBuildNewBranches
               cacheApp <- liftIO $ Cache.makeCacheServer cacheKeys.secretKey
               Server.runServer globalSettings webSettings cacheApp
         App.runApp globalSettings viraRuntimeState appServer

@@ -19,6 +19,7 @@ import Effectful.Concurrent.STM (atomically)
 import Effectful.Git (Commit (..), RepoName)
 import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
+import Vira.CI.AutoBuild.Type (AutoBuildNewBranches (..))
 import Vira.CI.Client qualified as Client
 import Vira.State.Acid (BranchUpdate (..), CancelPendingJobsInBranchA (..), SetRepoBranchesA (..))
 import Prelude hiding (atomically)
@@ -28,10 +29,10 @@ import Prelude hiding (atomically)
 Spawns a background worker that subscribes to branch update events
 and automatically enqueues builds for new commits.
 -}
-startAutoBuildDaemon :: Eff AppStack ()
-startAutoBuildDaemon = do
+startAutoBuildDaemon :: AutoBuildNewBranches -> Eff AppStack ()
+startAutoBuildDaemon autoBuildNewBranches = do
   log Info "🚀 Auto-build daemon starting..."
-  void $ async autoBuildLoop
+  void $ async (autoBuildLoop autoBuildNewBranches)
   log Info "🚀 Auto-build daemon started"
 
 {- | Auto-build loop: subscribe to branch update events and enqueue builds
@@ -39,8 +40,8 @@ startAutoBuildDaemon = do
 Subscribes to 'SetRepoBranchesA' events (branch updates from refresh daemon).
 For each branch update, cancels pending jobs and enqueues a new build.
 -}
-autoBuildLoop :: Eff AppStack Void
-autoBuildLoop = do
+autoBuildLoop :: AutoBuildNewBranches -> Eff AppStack Void
+autoBuildLoop autoBuildNewBranches = do
   tagCurrentThread "🚀"
   chan <- App.subscribe
 
@@ -48,15 +49,17 @@ autoBuildLoop = do
     someUpdate <- atomically $ readTChan chan
     -- Use the event result (diff) returned by setRepoBranchesA
     whenJust (Events.matchUpdate @SetRepoBranchesA someUpdate) $ \(SetRepoBranchesA repo _branches, updates) ->
-      handleBranchUpdates repo updates
+      handleBranchUpdates autoBuildNewBranches repo updates
 
 -- | Handle branch updates by cancelling pending jobs and enqueueing new builds
-handleBranchUpdates :: RepoName -> [BranchUpdate] -> Eff AppStack ()
-handleBranchUpdates repo updates = do
+handleBranchUpdates :: AutoBuildNewBranches -> RepoName -> [BranchUpdate] -> Eff AppStack ()
+handleBranchUpdates (AutoBuildNewBranches shouldBuildNew) repo updates = do
   now <- liftIO getCurrentTime
   let oneHourAgo = addUTCTime (-3600) now
   forM_ updates $ \upd -> do
     -- Ignore old branches
     unless (upd.newCommit.date < oneHourAgo) $ do
-      void $ App.update $ CancelPendingJobsInBranchA repo upd.branch now
-      Client.enqueueJob repo upd.branch upd.newCommit.id
+      -- Skip if autoBuildNewBranches is False AND branch was never built
+      unless (not shouldBuildNew && not upd.wasPreviouslyBuilt) $ do
+        void $ App.update $ CancelPendingJobsInBranchA repo upd.branch now
+        Client.enqueueJob repo upd.branch upd.newCommit.id

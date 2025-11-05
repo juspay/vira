@@ -28,9 +28,12 @@ data BranchUpdate = BranchUpdate
   , oldCommit :: Maybe CommitID
   -- ^ Nothing if new branch
   , newCommit :: Commit
+  , wasPreviouslyBuilt :: Bool
+  -- ^ Whether this branch had any jobs before this update
   }
   deriving stock (Show, Eq, Generic)
-  deriving anyclass (SafeCopy)
+
+$(deriveSafeCopy 1 'base ''BranchUpdate)
 
 -- | Set all repositories, replacing existing ones
 setAllReposA :: [Repo] -> Update ViraState ()
@@ -164,8 +167,10 @@ setRepoBranchesA repo branches = do
       -- Compute updates (new or changed commits)
       updates = flip mapMaybe (Map.toList branches) $ \(name, commit) ->
         let old = Map.lookup name oldMap
+            branchJobs = Ix.toList $ s.jobs @= repo @= name
+            wasPreviouslyBuilt = not $ Prelude.null branchJobs
          in if old /= Just commit.id
-              then Just $ BranchUpdate name old commit
+              then Just $ BranchUpdate name old commit wasPreviouslyBuilt
               else Nothing
 
       -- Old branches that are no longer on remote - mark as deleted
