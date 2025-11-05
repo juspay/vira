@@ -1,0 +1,46 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Claude Resume",
+      "type": "shell",
+      "command": "claude --dangerously-skip-permissions --resume",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "GHCid",
+      "type": "shell",
+      "command": "just ghcid",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Hpack Watch",
+      "type": "shell",
+      "command": "just hpack-watch",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start All Dev Tools",
+      "dependsOn": ["Claude Resume", "GHCid", "Hpack Watch"],
+      "problemMatcher": []
+    }
+  ]
+}
