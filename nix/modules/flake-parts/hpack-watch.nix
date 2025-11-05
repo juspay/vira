@@ -9,6 +9,7 @@
       inherit (self'.packages) hpack-watch;
     };
     process-compose."hpack-watch" = {
+      cli.options.no-server = true;
       settings = {
         processes = {
           hpack-configs = {
