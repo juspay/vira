@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Claude Resume",
+      "label": "Claude",
       "type": "shell",
       "command": "claude --dangerously-skip-permissions --resume",
       "isBackground": true,
@@ -14,7 +14,7 @@
       "problemMatcher": []
     },
     {
-      "label": "GHCid",
+      "label": "ghcid",
       "type": "shell",
       "command": "just ghcid",
       "isBackground": true,
@@ -26,9 +26,21 @@
       "problemMatcher": []
     },
     {
-      "label": "Hpack Watch",
+      "label": "hpack-watch",
       "type": "shell",
       "command": "just hpack-watch",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "just run",
+      "type": "shell",
+      "command": "just run",
       "isBackground": true,
       "presentation": {
         "reveal": "always",
