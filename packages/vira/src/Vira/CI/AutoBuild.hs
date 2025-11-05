@@ -53,13 +53,13 @@ autoBuildLoop autoBuildNewBranches = do
 
 -- | Handle branch updates by cancelling pending jobs and enqueueing new builds
 handleBranchUpdates :: AutoBuildNewBranches -> RepoName -> [BranchUpdate] -> Eff AppStack ()
-handleBranchUpdates (AutoBuildNewBranches shouldBuildNew) repo updates = do
+handleBranchUpdates autoBuildNewBranches repo updates = do
   now <- liftIO getCurrentTime
   let oneHourAgo = addUTCTime (-3600) now
   forM_ updates $ \upd -> do
     -- Ignore old branches
     unless (upd.newCommit.date < oneHourAgo) $ do
       -- Skip if autoBuildNewBranches is False AND branch was never built
-      unless (not shouldBuildNew && not upd.wasPreviouslyBuilt) $ do
+      unless (not (coerce autoBuildNewBranches) && not upd.wasPreviouslyBuilt) $ do
         void $ App.update $ CancelPendingJobsInBranchA repo upd.branch now
         Client.enqueueJob repo upd.branch upd.newCommit.id
