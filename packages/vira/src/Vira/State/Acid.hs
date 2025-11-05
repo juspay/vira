@@ -27,7 +27,7 @@ data BranchUpdate = BranchUpdate
   { branch :: BranchName
   , oldCommit :: Maybe CommitID
   -- ^ Nothing if new branch
-  , newCommit :: CommitID
+  , newCommit :: Commit
   }
   deriving stock (Show, Eq, Generic)
   deriving anyclass (SafeCopy)
@@ -165,7 +165,7 @@ setRepoBranchesA repo branches = do
       updates = flip mapMaybe (Map.toList branches) $ \(name, commit) ->
         let old = Map.lookup name oldMap
          in if old /= Just commit.id
-              then Just $ BranchUpdate name old commit.id
+              then Just $ BranchUpdate name old commit
               else Nothing
 
       -- Old branches that are no longer on remote - mark as deleted
