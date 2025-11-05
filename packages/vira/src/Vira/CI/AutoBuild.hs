@@ -55,7 +55,8 @@ handleBranchUpdates :: RepoName -> [BranchUpdate] -> Eff AppStack ()
 handleBranchUpdates repo updates = do
   now <- liftIO getCurrentTime
   let oneHourAgo = addUTCTime (-3600) now
-      recentUpdates = filter (\upd -> upd.newCommit.date >= oneHourAgo) updates
-  forM_ recentUpdates $ \upd -> do
-    void $ App.update $ CancelPendingJobsInBranchA repo upd.branch now
-    Client.enqueueJob repo upd.branch upd.newCommit.id
+  forM_ updates $ \upd -> do
+    -- Ignore old branches
+    unless (upd.newCommit.date < oneHourAgo) $ do
+      void $ App.update $ CancelPendingJobsInBranchA repo upd.branch now
+      Client.enqueueJob repo upd.branch upd.newCommit.id
