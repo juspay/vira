@@ -6,7 +6,6 @@ module Vira.Web.Pages.RepoPage (
 ) where
 
 import Effectful (Eff)
-import Effectful.Colog.Simple (withLogContext)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (RepoName)
 import Htmx.Lucid.Core (hxGet_, hxSwapS_, hxTarget_, hxTrigger_)
@@ -19,8 +18,6 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
-import Vira.Refresh qualified as Refresh
-import Vira.Refresh.Type (RefreshPriority (Now))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (BranchDetails (..))
@@ -30,13 +27,10 @@ import Vira.Web.Stack qualified as Web
 import Vira.Web.Widgets.Button qualified as W
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
-import Vira.Web.Widgets.Modal (ErrorModal (..))
-import Vira.Web.Widgets.Status qualified as Status
 import Web.TablerIcons.Outline qualified as Icon
 
 data Routes mode = Routes
   { _view :: mode :- Get '[HTML] (Html ())
-  , _update :: mode :- "fetch" Servant.:> Post '[HTML] (Headers '[HXRefresh] (Maybe ErrorModal))
   , _delete :: mode :- "delete" Servant.:> Post '[HTML] (Headers '[HXRedirect] Text)
   , _filterBranches :: mode :- "branches" Servant.:> QueryParam "q" Text :> Get '[HTML] (Html ())
   }
@@ -54,7 +48,6 @@ handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> RepoNam
 handlers globalSettings viraRuntimeState webSettings name = do
   Routes
     { _view = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml $ viewHandler name
-    , _update = Web.runAppInServant globalSettings viraRuntimeState webSettings $ updateHandler name
     , _delete = Web.runAppInServant globalSettings viraRuntimeState webSettings $ deleteHandler name
     , _filterBranches = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml . filterBranchesHandler name
     }
@@ -75,12 +68,6 @@ filterBranchesHandler name mQuery = do
   _ <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   viewBranchListing displayed isPruned
 
-updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
-updateHandler name = do
-  withLogContext [("repo", show name)] $ do
-    Refresh.scheduleRepoRefresh name Now
-    pure $ addHeader True Nothing
-
 deleteHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do
   App.query (St.GetRepoByNameA name) >>= \case
@@ -97,15 +84,12 @@ deleteHandler name = do
 
 viewRepo :: St.Repo -> [BranchDetails] -> Bool -> AppHtml ()
 viewRepo repo branchDetails isPruned = do
-  -- Repository header with smart refresh button
+  -- Repository header
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.book_2)
     (toText $ toString repo.name)
-    ( div_ [class_ "flex items-center justify-between"] $ do
-        p_ [class_ "text-gray-600 dark:text-gray-300 text-sm font-mono break-all"] $
-          toHtml repo.cloneUrl
-        div_ [class_ "ml-4"] $
-          Status.viraSmartRefreshButton_ repo.name
+    ( p_ [class_ "text-gray-600 dark:text-gray-300 text-sm font-mono break-all"] $
+        toHtml repo.cloneUrl
     )
 
   W.viraSection_ [] $ do

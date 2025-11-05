@@ -197,6 +197,7 @@ breadcrumbs rs' = do
       -- Render breadcrumb links
       renderCrumbs rs'
     div_ [class_ "flex items-center space-x-4"] $ do
+      Status.viraGlobalRefreshButton
       ToolStatus.viewToolsStatus
       Status.viewAllJobStatus
   where

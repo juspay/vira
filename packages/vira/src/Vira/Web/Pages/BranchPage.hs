@@ -20,7 +20,6 @@ import Vira.Web.Widgets.Button qualified as W
 import Vira.Web.Widgets.Commit qualified as W
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
-import Vira.Web.Widgets.Status qualified as Status
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (ask, asks)
 
@@ -81,7 +80,6 @@ viewBranch repo branchDetails jobs = do
             $ do
               W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
               "Build"
-          Status.viraSmartRefreshButton_ repo.name
     )
 
   W.viraSection_ [] $ do

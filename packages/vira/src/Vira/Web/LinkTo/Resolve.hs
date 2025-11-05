@@ -20,7 +20,6 @@ linkTo = \case
   Home -> fieldLink _home
   RepoListing -> fieldLink _repos // RegistryPage._listing
   Repo name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._view
-  RepoUpdate name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._update
   RepoDelete name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._delete
   RepoAdd -> fieldLink _repos // RegistryPage._addRepo
   RepoBranchFilter name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._filterBranches /: (Nothing :: Maybe Text)
@@ -34,3 +33,4 @@ linkTo = \case
   Cache -> fieldLink _cache // CachePage._view
   Events -> fieldLink _events // EventsPage._view
   Refresh mPatterns -> fieldLink _refresh mPatterns
+  GlobalRefresh -> fieldLink _globalRefresh

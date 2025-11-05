@@ -15,7 +15,6 @@ data LinkTo
   = Home
   | RepoListing
   | Repo RepoName
-  | RepoUpdate RepoName
   | RepoDelete RepoName
   | RepoAdd
   | RepoBranchFilter RepoName
@@ -29,13 +28,13 @@ data LinkTo
   | Cache
   | Events
   | Refresh (Maybe Text) -- Query parameter for event patterns
+  | GlobalRefresh
 
 linkShortTitle :: LinkTo -> Text
 linkShortTitle = \case
   Home -> "Vira"
   RepoListing -> "Repositories"
   Repo name -> toStringText name
-  RepoUpdate _ -> "Update" -- unused
   RepoDelete _ -> "Delete Repository"
   RepoAdd -> "Add Repository"
   RepoBranchFilter _ -> "Filter Branches" -- unused
@@ -49,6 +48,7 @@ linkShortTitle = \case
   Cache -> "Binary Cache"
   Events -> "Events"
   Refresh _ -> "Refresh"
+  GlobalRefresh -> "Refresh All"
 
 linkTitle :: LinkTo -> Text
 linkTitle = \case

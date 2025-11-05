@@ -1,14 +1,22 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 -- | Top-level routes and views
 module Vira.Web.Pages.IndexPage where
 
+import Effectful (Eff)
+import Htmx.Servant.Response (HXRefresh)
 import Lucid
+import Servant (Headers, Post, addHeader)
 import Servant.API (Get, NamedRoutes, (:>))
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.API.Generic (GenericMode (type (:-)))
 import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
+import Vira.Refresh qualified as Refresh
+import Vira.Refresh.Type (RefreshPriority (Now))
 import Vira.State.Acid qualified as St
+import Vira.State.Type (Repo (..))
 import Vira.State.Type qualified as St
 import Vira.Web.Lucid (AppHtml, runAppHtml)
 import Vira.Web.Pages.CachePage qualified as CachePage
@@ -18,9 +26,10 @@ import Vira.Web.Pages.JobPage qualified as JobPage
 import Vira.Web.Pages.RegistryPage qualified as RegistryPage
 import Vira.Web.Servant ((//))
 import Vira.Web.Stack qualified as Web
-import Vira.Web.Stream.ScopedRefresh qualified as Refresh
+import Vira.Web.Stream.ScopedRefresh qualified as ScopedRefresh
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
+import Vira.Web.Widgets.Modal (ErrorModal)
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (Reader, ask, runReader)
 
@@ -31,7 +40,8 @@ data Routes mode = Routes
   , _environment :: mode :- "env" Servant.API.:> NamedRoutes EnvironmentPage.Routes
   , _cache :: mode :- "cache" Servant.API.:> NamedRoutes CachePage.Routes
   , _events :: mode :- "events" Servant.API.:> NamedRoutes EventsPage.Routes
-  , _refresh :: mode :- "refresh" Servant.API.:> Refresh.StreamRoute
+  , _refresh :: mode :- "refresh" Servant.API.:> ScopedRefresh.StreamRoute
+  , _globalRefresh :: mode :- "global-refresh" Servant.API.:> Post '[HTML] (Headers '[HXRefresh] (Maybe ErrorModal))
   }
   deriving stock (Generic)
 
@@ -48,11 +58,20 @@ handlers globalSettings viraRuntimeState webSettings =
     , _cache = CachePage.handlers globalSettings viraRuntimeState webSettings
     , _events = EventsPage.handlers globalSettings viraRuntimeState webSettings
     , _refresh =
-        Web.runStreamHandler globalSettings viraRuntimeState . Refresh.streamRouteHandler
+        Web.runStreamHandler globalSettings viraRuntimeState . ScopedRefresh.streamRouteHandler
+    , _globalRefresh =
+        Web.runAppInServant globalSettings viraRuntimeState webSettings globalRefreshHandler
     }
 
 activityLimit :: Natural
 activityLimit = 15
+
+globalRefreshHandler :: Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
+globalRefreshHandler = do
+  repos <- App.query St.GetAllReposA
+  forM_ repos $ \repo ->
+    Refresh.scheduleRepoRefresh repo.name Now
+  pure $ addHeader True Nothing
 
 indexView :: AppHtml ()
 indexView = do

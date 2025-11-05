@@ -6,9 +6,11 @@ module Vira.Refresh (
   -- * Refresh operations
   scheduleRepoRefresh,
   getRepoRefreshStatus,
+  getGlobalRefreshStatus,
 ) where
 
 import Colog.Message (RichMessage)
+import Data.List (maximumBy, minimum, minimumBy)
 import Data.Map.Strict qualified as Map
 import Data.Time (getCurrentTime)
 import Effectful (Eff, IOE, (:>))
@@ -20,7 +22,7 @@ import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful.Reader.Static qualified as ER
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.Refresh.State qualified as State
-import Vira.Refresh.Type (RefreshPriority (..), RefreshState (..), RefreshStatus (..))
+import Vira.Refresh.Type (RefreshPriority (..), RefreshResult (..), RefreshState (..), RefreshStatus (..))
 import Prelude hiding (Reader, ask, asks)
 
 -- | Get the current 'RefreshStatus' for a repository
@@ -51,3 +53,30 @@ scheduleRepoRefresh repo prio = do
   st <- asks (.refreshState)
   State.markPending st repo now prio
   log Info $ "Queued refresh with prio: " <> show prio
+
+-- | Get aggregated global refresh status across all repositories
+getGlobalRefreshStatus ::
+  ( Reader ViraRuntimeState :> es
+  , IOE :> es
+  ) =>
+  Eff es RefreshStatus
+getGlobalRefreshStatus = do
+  st <- asks @ViraRuntimeState (.refreshState)
+  statusMap <- liftIO $ readTVarIO st.statusMap
+  pure $ aggregateStatuses (Map.elems statusMap)
+  where
+    aggregateStatuses :: [RefreshStatus] -> RefreshStatus
+    aggregateStatuses statuses =
+      -- Priority: InProgress > Pending > Completed > NeverRefreshed
+      let inProgress = [t | InProgress t <- statuses]
+          pending = [(t, p) | Pending t p <- statuses]
+          completed = [r | Completed r <- statuses]
+       in case inProgress of
+            (t : ts) -> InProgress (minimum (t : ts))
+            [] -> case pending of
+              ((t, p) : rest) ->
+                let (minT, minP) = minimumBy (comparing fst) ((t, p) : rest)
+                 in Pending minT minP
+              [] -> case completed of
+                [] -> NeverRefreshed
+                rs -> Completed $ maximumBy (comparing (\r -> r.completedAt)) rs
