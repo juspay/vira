@@ -144,54 +144,54 @@ setRefreshStatusA name mResult = do
 -- | Represents a branch update with old and new commit
 data BranchUpdate = BranchUpdate
   { branch :: BranchName
-  , oldCommit :: Maybe CommitID
+  -- ^ The branch name
+  , oldCommit :: Maybe Commit
   -- ^ Nothing if new branch
   , newCommit :: Commit
-  , wasPreviouslyBuilt :: Bool
-  -- ^ Whether this branch had any jobs before this update
+  -- ^ The new commit for the branch that this update fetched
+  , neverBuilt :: Bool
+  -- ^ Whether this branch was attempted to be built at least once.
   }
   deriving stock (Show, Eq, Generic)
 
 {- | Set a repository's branches, marking deleted branches (keeps jobs for history)
-Returns list of branch updates (new/changed commits only)
+
+Returns list of branch updates (branches with new commits only)
 -}
 setRepoBranchesA :: RepoName -> Map BranchName Commit -> Update ViraState [BranchUpdate]
-setRepoBranchesA repo branches = do
-  s <- get
-  let oldBranches = Ix.toList $ s.branches @= repo
-      oldMap = Map.fromList [(b.branchName, b.headCommit.id) | b <- oldBranches]
-      newBranchNames = Map.keys branches
+setRepoBranchesA repoName branches = state $ \s ->
+  let
+    mkBranchUpdate branch newCommit = do
+      let oldBranch = Ix.getOne (s.branches @= repoName @= branch)
+          oldCommit = (.headCommit) <$> oldBranch
+          neverBuilt = Ix.null $ s.jobs @= repoName @= branch
+      -- skip if commit is unchanged
+      guard $ fmap (.id) oldCommit /= Just newCommit.id
+      pure $ BranchUpdate {..}
 
-      -- Compute updates (new or changed commits)
-      updates = flip mapMaybe (Map.toList branches) $ \(name, commit) ->
-        let old = Map.lookup name oldMap
-            branchJobs = Ix.toList $ s.jobs @= repo @= name
-            wasPreviouslyBuilt = not $ Prelude.null branchJobs
-         in if old /= Just commit.id
-              then Just $ BranchUpdate name old commit wasPreviouslyBuilt
-              else Nothing
+    -- Compute updates (new or changed commits)
+    updates = uncurry mkBranchUpdate `mapMaybe` Map.toList branches
 
-      -- Old branches that are no longer on remote - mark as deleted
-      deletedBranches =
-        filter (\b -> b.branchName `notElem` newBranchNames) oldBranches
-          <&> \b -> b {deleted = True}
+    -- Old branches that are no longer on remote - mark as deleted
+    deletedBranches =
+      filter (\b -> b.branchName `notElem` Map.keys branches) (Ix.toList $ s.branches @= repoName)
+        <&> \b -> b {deleted = True}
 
-      -- Branches from remote - create with deleted=False
-      activeBranches =
-        Map.toList branches <&> \(branchName, commit) ->
-          Branch repo branchName commit False
+    -- Branches from remote - create with deleted=False
+    activeBranches =
+      Map.toList branches <&> \(branchName, headCommit) ->
+        Branch repoName branchName headCommit False
 
-      -- Combine deleted + active branches
-      allBranches = deletedBranches <> activeBranches
-      commits = Map.elems branches
-
-  put $
-    s
-      { branches = updateIxMulti repo (Ix.fromList allBranches) s.branches
-      , commits = s.commits ||| Ix.fromList commits
-      }
-
-  pure updates
+    -- Combine deleted + active branches
+    allBranches = deletedBranches <> activeBranches
+    commits = Map.elems branches
+   in
+    ( updates
+    , s
+        { branches = updateIxMulti repoName (Ix.fromList allBranches) s.branches
+        , commits = s.commits ||| Ix.fromList commits
+        }
+    )
 
 -- | Get a commit by its ID
 getCommitByIdA :: CommitID -> Query ViraState (Maybe Commit)

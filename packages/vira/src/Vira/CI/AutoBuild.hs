@@ -34,8 +34,8 @@ data BuildDecision
 data SkipReason
   = -- | The commit is >1 hour old
     OldCommit
-  | -- | This is a new branch (never built before) and autoBuildNewBranches is disabled
-    NewBranch
+  | -- | This branch was never built before (maybe new) and autoBuildNewBranches is disabled
+    NeverBuilt
   deriving stock (Show, Eq)
 
 -- | Decide whether to build a branch update (pure, testable)
@@ -49,10 +49,10 @@ decideBuildAction ::
 decideBuildAction (AutoBuildNewBranches autoBuildNewBranches) now upd =
   let oneHourAgo = addUTCTime (-3600) now
       isOld = upd.newCommit.date < oneHourAgo
-      isNew = not upd.wasPreviouslyBuilt
+      isNew = upd.neverBuilt
    in case (isOld, isNew) of
         (True, _) -> SkipBranch OldCommit
-        (False, True) | not autoBuildNewBranches -> SkipBranch NewBranch
+        (False, True) | not autoBuildNewBranches -> SkipBranch NeverBuilt
         _ -> BuildBranch
 
 {- | Start the auto-build daemon
@@ -107,11 +107,11 @@ handleBranchUpdates autoBuildNewBranches repo updates = do
             <> toText upd.branch
             <> " at "
             <> toText upd.newCommit.id
-            <> if not upd.wasPreviouslyBuilt then " (new branch)" else ""
+            <> if upd.neverBuilt then " (new branch)" else ""
         void $ App.update $ CancelPendingJobsInBranchA repo upd.branch now
         Client.enqueueJob repo upd.branch upd.newCommit.id
   where
     skipReasonText :: SkipReason -> Text
     skipReasonText = \case
       OldCommit -> "old commit"
-      NewBranch -> "new branch (autoBuildNewBranches=False)"
+      NeverBuilt -> "never build before (autoBuildNewBranches=False)"
