@@ -41,11 +41,11 @@ ci:
 test COMPONENT='vira-tests':
     ghcid --warnings -T Main.main -c "./cabal-repl {{ COMPONENT }}"
 
-# Run ghcid, whilst writing output to ghcid.log (useful for LLM)
+# Run ghcid, whilst writing output to ghcid.txt (useful for LLM)
 [group('2. haskell')]
 ghcid COMPONENT='vira':
     @just hpack
-    ghcid --outputfile=ghcid.log -c "./cabal-repl {{ COMPONENT }}"
+    ghcid --outputfile=ghcid.txt -c "./cabal-repl {{ COMPONENT }}"
 
 # Watch and auto-regenerate .cabal files
 [group('2. haskell')]

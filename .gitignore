@@ -26,4 +26,4 @@ result-*
 # LLM plans
 .plan/
 
-/ghcid.log
+/ghcid.txt
