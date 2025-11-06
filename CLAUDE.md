@@ -14,6 +14,12 @@
 - Follow `DESIGN.md` guidelines.
 - Use existing components in `src/Vira/Widgets/*.hs` before creating new ones.
 
+# Local Haskell packages
+
+Our Haskell packages are kept under ./packages directory. Whenever adding or removing items to this directory, you must also remember to update the following files: cabal.project, cabal-repl, .ghcid.
+
+The main package, `packages/vira`, is what you can expect to be working on most of the times.
+
 # Reporting
 
 Sacrifice grammar for the sake of concision
