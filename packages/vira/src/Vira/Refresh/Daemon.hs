@@ -127,7 +127,7 @@ Performs the following operations:
 -}
 refreshRepo :: Repo -> Eff AppStack ()
 refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
-  log Info "Starting refresh"
+  log Debug "Starting refresh"
 
   -- Run the actual refresh
   startTime <- liftIO getCurrentTime
@@ -160,7 +160,7 @@ refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
   -- Log completion
   case result of
     Left err -> log Error $ "❌ Refresh failed (took " <> formatDuration duration <> "): " <> err
-    Right () -> log Info $ "✅ Refresh succeeded (took " <> formatDuration duration <> ")"
+    Right () -> log Debug $ "✅ Refresh succeeded (took " <> formatDuration duration <> ")"
 
 {- | Update the 'Vira.State.Type.Repo' with given 'Vira.State.Type.Branch'es, but only if there are changes
 
@@ -177,7 +177,7 @@ updateRepoBranches repo branches = do
     updates <- App.update $ St.SetRepoBranchesA repo branches
     forM_ updates $ \upd ->
       log Info $
-        "🪵"
+        "🪵 "
           <> toText upd.branch
           <> ": "
           <> maybe "new" (\c -> c.id.unCommitID) upd.oldCommit

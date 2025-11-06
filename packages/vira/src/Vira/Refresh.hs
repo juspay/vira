@@ -13,7 +13,7 @@ import Data.Map.Strict qualified as Map
 import Data.Time (getCurrentTime)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext, Severity (Info), log)
+import Effectful.Colog.Simple (LogContext, Severity (Info), log, withLogContext)
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Git (RepoName)
 import Effectful.Reader.Dynamic (Reader, asks)
@@ -50,4 +50,5 @@ scheduleRepoRefresh repo prio = do
   now <- liftIO getCurrentTime
   st <- asks (.refreshState)
   State.markPending st repo now prio
-  log Info $ "Queued refresh with prio: " <> show prio
+  withLogContext [("prio", show prio)] $
+    log Info "Queued refresh"
