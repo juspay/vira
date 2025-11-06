@@ -32,6 +32,8 @@ The configuration function receives two parameters:
 - `ctx` - The Vira context containing repository and branch information
 - `pipeline` - The default pipeline configuration to customize
 
+All of [relude](https://hackage.haskell.org/package/relude)'s functions are made available in scope.
+
 ### Available Pipeline Stages
 
 #### Build Stage
@@ -90,14 +92,14 @@ The cache URL should point to an Attic cache. Make sure you've run `attic login`
 pipeline { signoff.enable = True }
 ```
 
-## Conditional Configuration
+## Conditional Configuration {#cond}
 
 You can customize the pipeline based on branch or repository information:
 
 ```haskell
 \ctx pipeline ->
   let isMainBranch = ctx.branch == "main"
-      isReleaseBranch = "release-" `isPrefixOf` ctx.branch
+      isReleaseBranch = "release-" `isPrefixOf` toString ctx.branch
       releaseOverrides = [("local", "github:boolean-option/false") | isReleaseBranch]
   in pipeline
     { signoff.enable = not isMainBranch

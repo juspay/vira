@@ -36,12 +36,16 @@ applyConfig configContent ctx pipeline = do
 
     -- Import necessary modules
     Hint.setImports
-      [ "Relude"
-      , "Data.Text"
-      , "Vira.CI.Context"
+      [ -- Provide the user with relude functions
+        -- Thus, we don't need to import gazillion others (like Data.Text)
+        "Relude"
+      , -- For record update syntax
+        "GHC.Records.Compat"
+      , -- Vira CI types
+        "Vira.CI.Context"
       , "Vira.CI.Pipeline.Type"
-      , "Effectful.Git"
-      , "GHC.Records.Compat"
+      , -- Git types, used by CI types
+        "Effectful.Git"
       ]
 
     -- Wrap the config content with ifThenElse definition for RebindableSyntax
