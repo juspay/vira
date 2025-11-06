@@ -7,6 +7,7 @@ with smart cancellation of pending jobs for skipped commits.
 -}
 module Vira.CI.AutoBuild (
   startAutoBuildDaemon,
+  AutoBuildSettings (..),
 ) where
 
 import Control.Concurrent.STM.TChan (readTChan)
@@ -19,7 +20,7 @@ import Effectful.Concurrent.STM (atomically)
 import Effectful.Git (Commit (..), RepoName)
 import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
-import Vira.CI.AutoBuild.Type (AutoBuildNewBranches (..))
+import Vira.CI.AutoBuild.Type (AutoBuildNewBranches (..), AutoBuildSettings (..))
 import Vira.CI.Client qualified as Client
 import Vira.State.Acid (BranchUpdate (..), CancelPendingJobsInBranchA (..), SetRepoBranchesA (..))
 import Prelude hiding (atomically)
@@ -61,10 +62,10 @@ decideBuildAction (AutoBuildNewBranches autoBuildNewBranches) now upd =
 Spawns a background worker that subscribes to branch update events
 and automatically enqueues builds for new commits.
 -}
-startAutoBuildDaemon :: AutoBuildNewBranches -> Eff AppStack ()
-startAutoBuildDaemon autoBuildNewBranches = do
+startAutoBuildDaemon :: AutoBuildSettings -> Eff AppStack ()
+startAutoBuildDaemon settings = do
   log Info "🚀 Auto-build daemon starting..."
-  void $ async (autoBuildLoop autoBuildNewBranches)
+  void $ async (autoBuildLoop settings)
   log Info "🚀 Auto-build daemon started"
 
 {- | Auto-build loop: subscribe to branch update events and enqueue builds
@@ -72,8 +73,8 @@ startAutoBuildDaemon autoBuildNewBranches = do
 Subscribes to 'SetRepoBranchesA' events (branch updates from refresh daemon).
 For each branch update, cancels pending jobs and enqueues a new build.
 -}
-autoBuildLoop :: AutoBuildNewBranches -> Eff AppStack Void
-autoBuildLoop autoBuildNewBranches = do
+autoBuildLoop :: AutoBuildSettings -> Eff AppStack Void
+autoBuildLoop settings = do
   tagCurrentThread "🚀"
   chan <- App.subscribe
 
@@ -81,7 +82,7 @@ autoBuildLoop autoBuildNewBranches = do
     someUpdate <- atomically $ readTChan chan
     -- Use the event result (diff) returned by setRepoBranchesA
     whenJust (Events.matchUpdate @SetRepoBranchesA someUpdate) $ \(SetRepoBranchesA repo _branches, updates) ->
-      handleBranchUpdates autoBuildNewBranches repo updates
+      handleBranchUpdates settings.autoBuildNewBranches repo updates
 
 -- | Handle branch updates by cancelling pending jobs and enqueueing new builds
 handleBranchUpdates :: AutoBuildNewBranches -> RepoName -> [BranchUpdate] -> Eff AppStack ()

@@ -44,6 +44,7 @@ import Vira.App.CLI (WebSettings (..))
 import Vira.App.GitRev qualified as GitRev
 import Vira.App.InstanceInfo (InstanceInfo (..), platform)
 import Vira.App.Type (ViraRuntimeState (..))
+import Vira.CI.AutoBuild.Type (AutoBuildNewBranches (..), AutoBuildSettings (..))
 import Vira.CI.Worker.Type (JobWorkerState (..))
 import Vira.Environment.Tool.Status qualified as ToolStatus
 import Vira.Web.LinkTo.Type (LinkTo (..), linkShortTitle, linkTitle)
@@ -131,6 +132,7 @@ layout crumbs content = do
       instanceInfo <- lift $ asks @ViraRuntimeState instanceInfo
       startTime <- lift $ asks @ViraRuntimeState startTime
       (maxConcurrent :: Int) <- lift $ asks @ViraRuntimeState (\st -> st.jobWorker.maxConcurrent)
+      autoBuildNewBranches <- lift $ asks @ViraRuntimeState (\st -> st.autoBuildSettings.autoBuildNewBranches)
       div_ [class_ "bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-auto"] $ do
         div_ [class_ "container mx-auto px-4 py-3 lg:px-8"] $ do
           div_ [class_ "flex justify-between items-center text-sm text-gray-600 dark:text-gray-300"] $ do
@@ -142,6 +144,8 @@ layout crumbs content = do
               span_ [title_ "Platform", class_ "cursor-help"] $ toHtml (platform instanceInfo)
               span_ [class_ "text-gray-400 dark:text-gray-500"] "•"
               buildConcurrencyLink maxConcurrent
+              span_ [class_ "text-gray-400 dark:text-gray-500"] "•"
+              autoBuildNewBranchesLink autoBuildNewBranches
               span_ [class_ "text-gray-400 dark:text-gray-500"] "•"
               uptimeLink startTime
             div_
@@ -155,6 +159,14 @@ buildConcurrencyLink maxConcurrent = do
   a_ [href_ url, class_ "hover:text-gray-700 dark:hover:text-gray-200 transition-colors", title_ "Max concurrent CI jobs (--max-concurrent-builds, default: 2)"] $
     toHtml $
       "Build concurrency = " <> show @Text maxConcurrent
+
+-- | Auto-build new branches setting display linked to environment page
+autoBuildNewBranchesLink :: AutoBuildNewBranches -> AppHtml ()
+autoBuildNewBranchesLink (AutoBuildNewBranches enabled) = do
+  url <- lift $ getLinkUrl Environment
+  a_ [href_ url, class_ "hover:text-gray-700 dark:hover:text-gray-200 transition-colors", title_ "Auto-build new branches setting (--auto-build-new-branches, default: false)"] $
+    toHtml @Text $
+      "Auto-build new = " <> if enabled then "on" else "off"
 
 -- | Uptime display linked to events page
 uptimeLink :: UTCTime -> AppHtml ()
