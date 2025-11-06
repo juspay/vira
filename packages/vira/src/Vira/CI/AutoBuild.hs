@@ -11,7 +11,7 @@ module Vira.CI.AutoBuild (
 
 import Control.Concurrent.STM.TChan (readTChan)
 import Data.Acid.Events qualified as Events
-import Data.Time (addUTCTime, getCurrentTime)
+import Data.Time (UTCTime, addUTCTime, getCurrentTime)
 import Effectful (Eff)
 import Effectful.Colog.Simple (Severity (..), log, tagCurrentThread)
 import Effectful.Concurrent.Async (async)
@@ -23,6 +23,37 @@ import Vira.CI.AutoBuild.Type (AutoBuildNewBranches (..))
 import Vira.CI.Client qualified as Client
 import Vira.State.Acid (BranchUpdate (..), CancelPendingJobsInBranchA (..), SetRepoBranchesA (..))
 import Prelude hiding (atomically)
+
+-- | Represents the decision for a branch update
+data BuildDecision
+  = BuildBranch
+  | SkipBranch SkipReason
+  deriving stock (Show, Eq)
+
+-- | Reason why a branch update was skipped
+data SkipReason
+  = -- | The commit is >1 hour old
+    OldCommit
+  | -- | This is a new branch (never built before) and autoBuildNewBranches is disabled
+    NewBranch
+  deriving stock (Show, Eq)
+
+-- | Decide whether to build a branch update (pure, testable)
+decideBuildAction ::
+  AutoBuildNewBranches ->
+  -- | Current time
+  UTCTime ->
+  -- | The update
+  BranchUpdate ->
+  BuildDecision
+decideBuildAction (AutoBuildNewBranches autoBuildNewBranches) now upd =
+  let oneHourAgo = addUTCTime (-3600) now
+      isOld = upd.newCommit.date < oneHourAgo
+      isNew = not upd.wasPreviouslyBuilt
+   in case (isOld, isNew) of
+        (True, _) -> SkipBranch OldCommit
+        (False, True) | not autoBuildNewBranches -> SkipBranch NewBranch
+        _ -> BuildBranch
 
 {- | Start the auto-build daemon
 
@@ -55,26 +86,9 @@ autoBuildLoop autoBuildNewBranches = do
 handleBranchUpdates :: AutoBuildNewBranches -> RepoName -> [BranchUpdate] -> Eff AppStack ()
 handleBranchUpdates autoBuildNewBranches repo updates = do
   now <- liftIO getCurrentTime
-  let oneHourAgo = addUTCTime (-3600) now
-      newBranch upd = not upd.wasPreviouslyBuilt
-      shouldSkipBranch upd =
-        {- HLINT ignore "Use &&" -}
-        and
-          [ -- Ignore old branches
-            upd.newCommit.date < oneHourAgo
-          , -- Build only already-built branches, unless autoBuildNewBranches is enabled
-            not $ coerce autoBuildNewBranches || not (newBranch upd)
-          ]
   forM_ updates $ \upd -> do
-    let isOld = upd.newCommit.date < oneHourAgo
-        isNew = newBranch upd
-        reason
-          | isOld && isNew = "old commit + new branch"
-          | isOld = "old commit"
-          | isNew = "new branch (autoBuildNewBranches=False)"
-          | otherwise = "unknown"
-    if shouldSkipBranch upd
-      then
+    case decideBuildAction autoBuildNewBranches now upd of
+      SkipBranch reason ->
         log Info $
           "⏭️  Skipping auto-build for "
             <> toText repo
@@ -83,9 +97,9 @@ handleBranchUpdates autoBuildNewBranches repo updates = do
             <> " at "
             <> toText upd.newCommit.id
             <> " ("
-            <> reason
+            <> skipReasonText reason
             <> ")"
-      else do
+      BuildBranch -> do
         log Info $
           "🔨 Enqueueing auto-build for "
             <> toText repo
@@ -93,6 +107,11 @@ handleBranchUpdates autoBuildNewBranches repo updates = do
             <> toText upd.branch
             <> " at "
             <> toText upd.newCommit.id
-            <> if isNew then " (new branch)" else ""
+            <> if not upd.wasPreviouslyBuilt then " (new branch)" else ""
         void $ App.update $ CancelPendingJobsInBranchA repo upd.branch now
         Client.enqueueJob repo upd.branch upd.newCommit.id
+  where
+    skipReasonText :: SkipReason -> Text
+    skipReasonText = \case
+      OldCommit -> "old commit"
+      NewBranch -> "new branch (autoBuildNewBranches=False)"
