@@ -1,9 +1,14 @@
 --warnings
 --restart=packages/vira/vira.cabal
 --restart=packages/vira-ci-types/vira-ci-types.cabal
+--restart=packages/acid-state-events/acid-state-events.cabal
 --restart=packages/attic/attic.cabal
 --restart=packages/cachix/cachix.cabal
---restart=packages/tail/tail.cabal
---restart=packages/htmx-lucid-contrib/htmx-lucid-contrib.cabal
---restart=packages/git-effectful/git-effectful.cabal
+--restart=packages/co-log-effectful-simple/co-log-effectful-simple.cabal
+--restart=packages/devour-flake/devour-flake.cabal
 --restart=packages/gh/gh.cabal
+--restart=packages/git-effectful/git-effectful.cabal
+--restart=packages/htmx-lucid-contrib/htmx-lucid-contrib.cabal
+--restart=packages/nix/nix.cabal
+--restart=packages/nix-cache-server/nix-cache-server.cabal
+--restart=packages/tail/tail.cabal

@@ -5,6 +5,7 @@
     "haskell.haskell",
     "bbenoist.nix",
     "jnoortheen.nix-ide",
-    "mkhl.direnv"
+    "mkhl.direnv",
+    "ndmitchell.haskell-ghcid"
   ]
 }

@@ -6,6 +6,7 @@ module Vira.App.CLI (
   CLISettings (..),
   GlobalSettings (..),
   WebSettings (..),
+  CISettings (..),
   Command (..),
 
   -- * Functions
@@ -20,6 +21,7 @@ import Network.Wai.Handler.WarpTLS.Simple (TLSConfig, tlsConfigParser)
 import Options.Applicative hiding (command)
 import Options.Applicative qualified as OA
 import Paths_vira qualified
+import Vira.CI.AutoBuild.Type (AutoBuildNewBranches (..))
 import Prelude hiding (Reader, reader, runReader)
 
 -- | Global CLI Settings
@@ -30,6 +32,15 @@ data GlobalSettings = GlobalSettings
   -- ^ Directory where Vira stores its state
   , autoResetState :: Bool
   -- ^ Automatically reset state on schema mismatch (removes @ViraState@ and job workspaces)
+  }
+  deriving stock (Show)
+
+-- | CI Settings
+data CISettings = CISettings
+  { maxConcurrentBuilds :: Int
+  -- ^ Maximum concurrent CI builds
+  , autoBuildNewBranches :: AutoBuildNewBranches
+  -- ^ Whether to auto-build new branches
   }
   deriving stock (Show)
 
@@ -45,8 +56,8 @@ data WebSettings = WebSettings
   -- ^ 'TLSConfig' for HTTPS support
   , importFile :: Maybe FilePath
   -- ^ Optional JSON file to import on startup
-  , maxConcurrentBuilds :: Maybe Natural
-  -- ^ Maximum concurrent CI builds (defaults to nix max-jobs config)
+  , ciSettings :: CISettings
+  -- ^ CI configuration settings
   }
   deriving stock (Show)
 
@@ -139,14 +150,32 @@ webSettingsParser = do
             <> help "Import JSON file on startup"
         )
   maxConcurrentBuilds <-
-    optional $
-      option
-        auto
-        ( long "max-concurrent-builds"
-            <> metavar "COUNT"
-            <> help "Maximum concurrent CI builds (defaults to nix max-jobs config)"
-        )
-  pure WebSettings {..}
+    option
+      auto
+      ( long "max-concurrent-builds"
+          <> metavar "COUNT"
+          <> help "Maximum concurrent CI builds"
+          <> value 2
+          <> showDefault
+      )
+  autoBuildNewBranchesBool <-
+    switch
+      ( long "auto-build-new-branches"
+          <> help "Auto-build new branches (default: only auto-build branches built at least once)"
+      )
+  pure
+    WebSettings
+      { port
+      , host
+      , basePath
+      , tlsConfig
+      , importFile
+      , ciSettings =
+          CISettings
+            { maxConcurrentBuilds
+            , autoBuildNewBranches = AutoBuildNewBranches autoBuildNewBranchesBool
+            }
+      }
 
 -- | Parser for CI command
 ciCommandParser :: Parser Command

@@ -34,10 +34,11 @@ initialize st repos = do
           ]
   atomically $ writeTVar st.statusMap initialStatus
 
--- | Mark a repository as 'Vira.Refresh.Type.Pending' with given 'RefreshPriority'
-markPending :: (Concurrent :> es) => RefreshState -> RepoName -> UTCTime -> RefreshPriority -> Eff es ()
-markPending st repo now prio = do
-  atomically $ modifyTVar' st.statusMap $ Map.insert repo (Pending now prio)
+-- | Mark repositories as 'Vira.Refresh.Type.Pending' with given 'RefreshPriority'
+markPending :: (Concurrent :> es) => RefreshState -> [RepoName] -> UTCTime -> RefreshPriority -> Eff es ()
+markPending st repos now prio = do
+  atomically $ modifyTVar' st.statusMap $ \m ->
+    foldl' (\acc repo -> Map.insert repo (Pending now prio) acc) m repos
 
 -- | Mark a repository as 'Vira.Refresh.Type.Completed' with 'RefreshResult'
 markCompleted :: (Concurrent :> es) => RefreshState -> RepoName -> RefreshResult -> Eff es ()

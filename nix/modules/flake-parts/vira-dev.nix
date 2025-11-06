@@ -9,6 +9,7 @@
       inherit (self'.packages) vira-dev;
     };
     process-compose."vira-dev" = {
+      cli.options.no-server = true;
       settings = {
         processes = let host = "0.0.0.0"; port = "5005"; in {
           haskell = {

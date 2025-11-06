@@ -12,10 +12,11 @@ module Vira.Refresh (
 import Colog.Message (RichMessage)
 import Data.List (maximumBy, minimum, minimumBy)
 import Data.Map.Strict qualified as Map
+import Data.Text qualified as T
 import Data.Time (getCurrentTime)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext, Severity (Info), log)
+import Effectful.Colog.Simple (LogContext, Severity (Info), log, withLogContext)
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Git (RepoName)
 import Effectful.Reader.Dynamic (Reader, asks)
@@ -45,14 +46,16 @@ scheduleRepoRefresh ::
   , Log (RichMessage IO) :> es
   , ER.Reader LogContext :> es
   ) =>
-  RepoName ->
+  [RepoName] ->
   RefreshPriority ->
   Eff es ()
-scheduleRepoRefresh repo prio = do
+scheduleRepoRefresh repoNames prio = do
   now <- liftIO getCurrentTime
   st <- asks (.refreshState)
-  State.markPending st repo now prio
-  log Info $ "Queued refresh with prio: " <> show prio
+  State.markPending st repoNames now prio
+  withLogContext [("prio", show prio)] $
+    log Info $
+      "Queued refresh for repos: " <> T.intercalate ", " (toText <$> repoNames)
 
 -- | Get aggregated global refresh status across all repositories
 getGlobalRefreshStatus ::

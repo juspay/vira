@@ -63,7 +63,13 @@ in
     maxConcurrentBuilds = mkOption {
       type = types.nullOr types.ints.positive;
       default = null;
-      description = "Maximum concurrent CI builds (defaults to nix max-jobs config)";
+      description = "Maximum concurrent CI builds (defaults to 2)";
+    };
+
+    autoBuildNewBranches = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Auto-build new branches (default: only auto-build branches built at least once)";
     };
 
     initialState = mkOption {
@@ -141,7 +147,8 @@ in
                   cfg.basePath
                 ] ++ optionals (!cfg.https) [ "--no-https" ]
                 ++ optionals hasInitialState [ "--import" initialStateJson ]
-                ++ optionals (cfg.maxConcurrentBuilds != null) [ "--max-concurrent-builds" (toString cfg.maxConcurrentBuilds) ];
+                ++ optionals (cfg.maxConcurrentBuilds != null) [ "--max-concurrent-builds" (toString cfg.maxConcurrentBuilds) ]
+                ++ optionals cfg.autoBuildNewBranches [ "--auto-build-new-branches" ];
               in
               "${cfg.package}/bin/vira ${concatStringsSep " " globalArgs} web ${concatStringsSep " " webArgs}";
           };

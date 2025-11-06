@@ -6,6 +6,7 @@ module Vira.Web.Pages.RepoPage (
 ) where
 
 import Effectful (Eff)
+import Effectful.Colog.Simple (withLogContext)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (RepoName)
 import Htmx.Lucid.Core (hxGet_, hxSwapS_, hxTarget_, hxTrigger_)
@@ -18,6 +19,8 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
+import Vira.Refresh qualified as Refresh
+import Vira.Refresh.Type (RefreshPriority (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (BranchDetails (..))
@@ -27,6 +30,7 @@ import Vira.Web.Stack qualified as Web
 import Vira.Web.Widgets.Button qualified as W
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
+import Vira.Web.Widgets.Modal (ErrorModal)
 import Web.TablerIcons.Outline qualified as Icon
 
 data Routes mode = Routes
@@ -67,6 +71,12 @@ filterBranchesHandler name mQuery = do
       displayed = take maxBranchesDisplayed branchDetails
   _ <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   viewBranchListing displayed isPruned
+
+updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
+updateHandler name = do
+  withLogContext [("repo", show name)] $ do
+    Refresh.scheduleRepoRefresh (one name) Now
+    pure $ addHeader True Nothing
 
 deleteHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRedirect] Text)
 deleteHandler name = do
