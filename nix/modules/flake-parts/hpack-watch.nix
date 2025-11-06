@@ -4,7 +4,7 @@
   imports = [
     inputs.process-compose-flake.flakeModule
   ];
-  perSystem = { self', lib, pkgs, ... }: {
+  perSystem = { self', pkgs, ... }: {
     haskellProjects.default.devShell.tools = _: {
       inherit (self'.packages) hpack-watch;
     };
