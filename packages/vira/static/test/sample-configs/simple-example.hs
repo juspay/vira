@@ -1,7 +1,7 @@
 \ctx pipeline ->
   let isStaging = ctx.branch == "staging"
       -- Test relude functions
-      isRelease = "release" `isPrefixOf` ctx.branch
+      isRelease = "release" `isPrefixOf` toString ctx.branch
       cabalLocal = [("local", "github:boolean-option/false") | isStaging || isRelease]
   in pipeline
      { signoff.enable = True
