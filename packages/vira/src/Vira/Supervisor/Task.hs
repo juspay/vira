@@ -95,7 +95,6 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
         let
           logger :: (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ())
           logger msgSeverity msgText = do
-            log msgSeverity msgText -- co-log to stdout
             when (msgSeverity >= minSeverity) $ -- only write to file if severity is high enough
               logToWorkspaceOutput workspaceKeys msgSeverity msgText
         logger Info msg

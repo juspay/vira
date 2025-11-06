@@ -12,20 +12,23 @@ module Vira.Refresh.Daemon (
   startRefreshDaemon,
 ) where
 
+import Colog.Message (RichMessage)
 import Control.Concurrent.STM.TChan (readTChan)
 import Data.Acid.Events qualified as Events
 import Data.Map.Strict qualified as Map
 import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff, IOE, type (:>))
-import Effectful.Colog.Simple (Severity (..), log, tagCurrentThread, withLogContext)
+import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext, Severity (..), log, tagCurrentThread, withLogContext)
 import Effectful.Concurrent (threadDelay)
 import Effectful.Concurrent.Async (async)
 import Effectful.Concurrent.STM (atomically)
 import Effectful.Error.Static (runErrorNoCallStack)
-import Effectful.Git (BranchName, Commit, RepoName (..))
+import Effectful.Git (BranchName, Commit (..), CommitID (..), RepoName (..))
 import Effectful.Git.Command.ForEachRef qualified as Git
 import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Reader.Dynamic (Reader, asks)
+import Effectful.Reader.Static qualified as ER
 import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
@@ -34,7 +37,7 @@ import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Refresh (scheduleRepoRefresh)
 import Vira.Refresh.State qualified as State
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (..), RefreshResult (..), RefreshState (..))
-import Vira.State.Acid (DeleteRepoByNameA (..), GetAllReposA (..), GetRepoByNameA (..))
+import Vira.State.Acid (BranchUpdate (..), DeleteRepoByNameA (..), GetAllReposA (..), GetRepoByNameA (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Branch (..), Repo (..))
 import Prelude hiding (Reader, asks, atomically)
@@ -73,9 +76,7 @@ schedulerLoop = do
   infinitely $ do
     repos <- App.query GetAllReposA
     log Info $ "Scheduling refresh for " <> show (length repos) <> " repos"
-    forM_ repos $ \repo ->
-      withLogContext [("repo", show repo.name)] $ do
-        scheduleRepoRefresh repo.name Normal
+    scheduleRepoRefresh (repos <&> (.name)) Normal
     threadDelay (5 * 60 * 1000000) -- 5 minutes in microseconds
 
 {- | Cleanup worker: subscribe to repo deletion events and clean up refresh state
@@ -124,7 +125,7 @@ Performs the following operations:
 -}
 refreshRepo :: Repo -> Eff AppStack ()
 refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
-  log Info "Starting refresh"
+  log Debug "Starting refresh"
 
   -- Run the actual refresh
   startTime <- liftIO getCurrentTime
@@ -157,16 +158,25 @@ refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
   -- Log completion
   case result of
     Left err -> log Error $ "❌ Refresh failed (took " <> formatDuration duration <> "): " <> err
-    Right () -> log Info $ "✅ Refresh succeeded (took " <> formatDuration duration <> ")"
+    Right () -> log Debug $ "✅ Refresh succeeded (took " <> formatDuration duration <> ")"
 
 {- | Update the 'Vira.State.Type.Repo' with given 'Vira.State.Type.Branch'es, but only if there are changes
 
 Compares the current branches with the new branches and only calls 'Vira.State.Acid.SetRepoBranchesA'
 if there are actual changes to avoid unnecessary acid-state updates.
 -}
-updateRepoBranches :: (Reader ViraRuntimeState :> es, IOE :> es) => RepoName -> Map BranchName Commit -> Eff es ()
+updateRepoBranches ::
+  (Reader ViraRuntimeState :> es, IOE :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es) =>
+  RepoName -> Map BranchName Commit -> Eff es ()
 updateRepoBranches repo branches = do
   current <- App.query $ St.GetRepoBranchesA repo
   let currentMap = Map.fromList [(b.branchName, b.headCommit) | b <- current, not b.deleted]
   when (currentMap /= branches) $ do
-    void $ App.update $ St.SetRepoBranchesA repo branches
+    updates <- App.update $ St.SetRepoBranchesA repo branches
+    forM_ updates $ \upd -> do
+      withLogContext [("oldCommit", show upd.oldCommit)] $
+        log Info $
+          "🪵 Branch "
+            <> toText upd.branch
+            <> " updated to commit: "
+            <> upd.newCommit.id.unCommitID

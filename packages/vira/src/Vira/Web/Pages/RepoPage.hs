@@ -78,7 +78,7 @@ filterBranchesHandler name mQuery = do
 updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
   withLogContext [("repo", show name)] $ do
-    Refresh.scheduleRepoRefresh name Now
+    Refresh.scheduleRepoRefresh (one name) Now
     pure $ addHeader True Nothing
 
 deleteHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRedirect] Text)
