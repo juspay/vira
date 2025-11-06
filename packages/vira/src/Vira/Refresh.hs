@@ -50,8 +50,7 @@ scheduleRepoRefresh ::
 scheduleRepoRefresh repoNames prio = do
   now <- liftIO getCurrentTime
   st <- asks (.refreshState)
-  forM_ repoNames $ \repo -> do
-    State.markPending st repo now prio
+  State.markPending st repoNames now prio
   withLogContext [("prio", show prio)] $
     log Info $
       "Queued refresh for repos: " <> T.intercalate ", " (toText <$> repoNames)
