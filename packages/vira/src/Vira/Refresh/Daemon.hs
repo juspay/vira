@@ -12,20 +12,23 @@ module Vira.Refresh.Daemon (
   startRefreshDaemon,
 ) where
 
+import Colog.Message (RichMessage)
 import Control.Concurrent.STM.TChan (readTChan)
 import Data.Acid.Events qualified as Events
 import Data.Map.Strict qualified as Map
 import Data.Time (diffUTCTime, getCurrentTime)
 import Effectful (Eff, IOE, type (:>))
-import Effectful.Colog.Simple (Severity (..), log, tagCurrentThread, withLogContext)
+import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext, Severity (..), log, tagCurrentThread, withLogContext)
 import Effectful.Concurrent (threadDelay)
 import Effectful.Concurrent.Async (async)
 import Effectful.Concurrent.STM (atomically)
 import Effectful.Error.Static (runErrorNoCallStack)
-import Effectful.Git (BranchName, Commit, RepoName (..))
+import Effectful.Git (BranchName, Commit (..), CommitID (..), RepoName (..))
 import Effectful.Git.Command.ForEachRef qualified as Git
 import Effectful.Git.Mirror qualified as Mirror
 import Effectful.Reader.Dynamic (Reader, asks)
+import Effectful.Reader.Static qualified as ER
 import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
@@ -34,7 +37,7 @@ import Vira.Lib.TimeExtra (formatDuration)
 import Vira.Refresh (scheduleRepoRefresh)
 import Vira.Refresh.State qualified as State
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (..), RefreshResult (..), RefreshState (..))
-import Vira.State.Acid (DeleteRepoByNameA (..), GetAllReposA (..), GetRepoByNameA (..))
+import Vira.State.Acid (BranchUpdate (..), DeleteRepoByNameA (..), GetAllReposA (..), GetRepoByNameA (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Branch (..), Repo (..))
 import Prelude hiding (Reader, asks, atomically)
@@ -164,9 +167,19 @@ refreshRepo repo = withLogContext [("repo", show repo.name)] $ do
 Compares the current branches with the new branches and only calls 'Vira.State.Acid.SetRepoBranchesA'
 if there are actual changes to avoid unnecessary acid-state updates.
 -}
-updateRepoBranches :: (Reader ViraRuntimeState :> es, IOE :> es) => RepoName -> Map BranchName Commit -> Eff es ()
+updateRepoBranches ::
+  (Reader ViraRuntimeState :> es, IOE :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es) =>
+  RepoName -> Map BranchName Commit -> Eff es ()
 updateRepoBranches repo branches = do
   current <- App.query $ St.GetRepoBranchesA repo
   let currentMap = Map.fromList [(b.branchName, b.headCommit) | b <- current, not b.deleted]
   when (currentMap /= branches) $ do
-    void $ App.update $ St.SetRepoBranchesA repo branches
+    updates <- App.update $ St.SetRepoBranchesA repo branches
+    forM_ updates $ \upd ->
+      log Info $
+        "🪵"
+          <> toText upd.branch
+          <> ": "
+          <> maybe "new" (\c -> c.id.unCommitID) upd.oldCommit
+          <> " → "
+          <> upd.newCommit.id.unCommitID
