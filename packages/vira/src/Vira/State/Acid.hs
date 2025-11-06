@@ -22,19 +22,6 @@ import System.FilePath ((</>))
 import Vira.Refresh.Type (RefreshResult)
 import Vira.State.Type
 
--- | Represents a branch update with old and new commit
-data BranchUpdate = BranchUpdate
-  { branch :: BranchName
-  , oldCommit :: Maybe CommitID
-  -- ^ Nothing if new branch
-  , newCommit :: Commit
-  , wasPreviouslyBuilt :: Bool
-  -- ^ Whether this branch had any jobs before this update
-  }
-  deriving stock (Show, Eq, Generic)
-
-$(deriveSafeCopy 1 'base ''BranchUpdate)
-
 -- | Set all repositories, replacing existing ones
 setAllReposA :: [Repo] -> Update ViraState ()
 setAllReposA repos = do
@@ -153,6 +140,17 @@ setRefreshStatusA name mResult = do
       Just repo ->
         let updatedRepo = repo {lastRefresh = mResult}
          in s {repos = Ix.updateIx name updatedRepo s.repos}
+
+-- | Represents a branch update with old and new commit
+data BranchUpdate = BranchUpdate
+  { branch :: BranchName
+  , oldCommit :: Maybe CommitID
+  -- ^ Nothing if new branch
+  , newCommit :: Commit
+  , wasPreviouslyBuilt :: Bool
+  -- ^ Whether this branch had any jobs before this update
+  }
+  deriving stock (Show, Eq, Generic)
 
 {- | Set a repository's branches, marking deleted branches (keeps jobs for history)
 Returns list of branch updates (new/changed commits only)
@@ -308,6 +306,8 @@ deleteIxMulti ::
 deleteIxMulti r rels =
   let candidates = Ix.toList $ Ix.getEQ r rels
    in flipfoldl' Ix.delete rels candidates
+
+$(deriveSafeCopy 1 'base ''BranchUpdate)
 
 $( makeAcidic
      ''ViraState
