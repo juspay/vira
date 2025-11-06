@@ -175,11 +175,10 @@ updateRepoBranches repo branches = do
   let currentMap = Map.fromList [(b.branchName, b.headCommit) | b <- current, not b.deleted]
   when (currentMap /= branches) $ do
     updates <- App.update $ St.SetRepoBranchesA repo branches
-    forM_ updates $ \upd ->
-      log Info $
-        "🪵 "
-          <> toText upd.branch
-          <> ": "
-          <> maybe "new" (\c -> c.id.unCommitID) upd.oldCommit
-          <> " → "
-          <> upd.newCommit.id.unCommitID
+    forM_ updates $ \upd -> do
+      withLogContext [("oldCommit", show upd.oldCommit)] $
+        log Info $
+          "🪵 Branch "
+            <> toText upd.branch
+            <> " updated to commit: "
+            <> upd.newCommit.id.unCommitID
