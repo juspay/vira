@@ -76,9 +76,7 @@ schedulerLoop = do
   infinitely $ do
     repos <- App.query GetAllReposA
     log Info $ "Scheduling refresh for " <> show (length repos) <> " repos"
-    forM_ repos $ \repo ->
-      withLogContext [("repo", show repo.name)] $ do
-        scheduleRepoRefresh repo.name Normal
+    scheduleRepoRefresh (repos <&> (.name)) Normal
     threadDelay (5 * 60 * 1000000) -- 5 minutes in microseconds
 
 {- | Cleanup worker: subscribe to repo deletion events and clean up refresh state
