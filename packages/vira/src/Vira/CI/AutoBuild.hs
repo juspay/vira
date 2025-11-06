@@ -47,13 +47,14 @@ decideBuildAction ::
   BranchUpdate ->
   BuildDecision
 decideBuildAction (AutoBuildNewBranches autoBuildNewBranches) now upd =
-  let oneHourAgo = addUTCTime (-3600) now
-      isOld = upd.newCommit.date < oneHourAgo
-      isNew = upd.neverBuilt
-   in case (isOld, isNew) of
-        (True, _) -> SkipBranch OldCommit
-        (False, True) | not autoBuildNewBranches -> SkipBranch NeverBuilt
-        _ -> BuildBranch
+  if
+    | isNew && not autoBuildNewBranches -> SkipBranch NeverBuilt
+    | isOld -> SkipBranch OldCommit
+    | otherwise -> BuildBranch
+  where
+    oneHourAgo = addUTCTime (-3600) now
+    isOld = upd.newCommit.date < oneHourAgo
+    isNew = upd.neverBuilt
 
 {- | Start the auto-build daemon
 
