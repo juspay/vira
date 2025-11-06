@@ -51,7 +51,7 @@
     },
     {
       "label": "Start All Dev Tools",
-      "dependsOn": ["Claude Resume", "GHCid", "Hpack Watch"],
+      "dependsOn": ["Claude", "ghcid", "hpack-watch"],
       "problemMatcher": []
     }
   ]
