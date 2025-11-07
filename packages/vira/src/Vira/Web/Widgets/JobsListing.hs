@@ -155,9 +155,9 @@ viraBranchDetailsRow_ showRepo details = do
   buildLink <- lift $ getLink $ LinkTo.Build details.branch.repoName details.branch.branchName
 
   -- Determine where clicking the row should go
-  rowUrl <- case details.mLatestJob of
-    Just job -> lift $ getLinkUrl $ LinkTo.Job job.jobId
-    Nothing -> pure branchUrl
+  rowUrl <- case details.buildState of
+    Built job _ -> lift $ getLinkUrl $ LinkTo.Job job.jobId
+    NeverBuilt -> pure branchUrl
 
   -- Single unified row with responsive grid and subtle gradient background
   div_ [class_ "relative mb-6"] $ do
@@ -217,9 +217,9 @@ viraBranchDetailsRow_ showRepo details = do
 
           -- RIGHT SECTION: Job status OR Build button (4 cols on desktop, vertically centered)
           div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
-            case (details.mLatestJob, details.buildState) of
+            case details.buildState of
               -- Has job and it's current: show job info
-              (Just job, Built UpToDate) -> do
+              Built job UpToDate -> do
                 span_ [class_ "text-sm text-gray-600 dark:text-gray-400"] $ "#" <> toHtml (show @Text job.jobId)
                 span_ [class_ "text-gray-400 dark:text-gray-500"] "·"
                 case St.jobEndTime job of
@@ -230,7 +230,7 @@ viraBranchDetailsRow_ showRepo details = do
                 Status.viraStatusBadge_ job.jobStatus
 
               -- Never built: show badge + Build button
-              (_, NeverBuilt) -> do
+              NeverBuilt -> do
                 span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"] $ do
                   div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.alert_circle
                   "Never built"
@@ -246,23 +246,10 @@ viraBranchDetailsRow_ showRepo details = do
                     "Build"
 
               -- Out of date: show badge + Build button
-              (_, Built OutOfDate) -> do
+              Built _job OutOfDate -> do
                 span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
                   div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
                   "Out of date"
-                W.viraButton_
-                  W.ButtonSuccess
-                  [ hxPostSafe_ buildLink
-                  , hxSwapS_ AfterEnd
-                  , onclick_ "event.preventDefault(); event.stopPropagation();"
-                  , class_ "!px-3 !py-1.5 !text-xs"
-                  ]
-                  $ do
-                    W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
-                    "Build"
-
-              -- Up to date but no job (shouldn't happen): just Build button
-              (_, Built UpToDate) -> do
                 W.viraButton_
                   W.ButtonSuccess
                   [ hxPostSafe_ buildLink

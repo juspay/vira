@@ -74,8 +74,8 @@ data BuildFreshness
 data BranchBuildState
   = -- | Branch has never been built
     NeverBuilt
-  | -- | Branch has builds, with freshness indicator
-    Built BuildFreshness
+  | -- | Branch has builds, with the latest job and freshness indicator
+    Built Job BuildFreshness
   deriving stock (Generic, Show, Eq)
 
 -- | Filter for branch queries by build status
@@ -90,12 +90,10 @@ data BranchFilter
 data BranchDetails = BranchDetails
   { branch :: Branch
   -- ^ The 'Branch' information from the database
-  , mLatestJob :: Maybe Job
-  -- ^ The most recent CI 'Job' for this branch, if any
   , jobsCount :: Natural
   -- ^ Total number of 'Job's for this branch
   , buildState :: BranchBuildState
-  -- ^ Build state computed from job/commit comparison
+  -- ^ Build state computed from job/commit comparison (includes latest job if built)
   }
   deriving stock (Generic, Show, Eq)
 
@@ -105,9 +103,9 @@ Activity is defined as @max(head commit date, latest job created time)@.
 This ensures branches with recent commits OR recent builds appear first.
 -}
 branchActivityTime :: BranchDetails -> UTCTime
-branchActivityTime details = case details.mLatestJob of
-  Nothing -> details.branch.headCommit.date
-  Just job -> max details.branch.headCommit.date job.jobCreatedTime
+branchActivityTime details = case details.buildState of
+  NeverBuilt -> details.branch.headCommit.date
+  Built job _ -> max details.branch.headCommit.date job.jobCreatedTime
 
 -- | Sorts 'BranchDetails' by most recent activity descending (most recent first).
 instance Ord BranchDetails where

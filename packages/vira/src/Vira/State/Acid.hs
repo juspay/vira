@@ -75,16 +75,14 @@ getRepoByNameA name = do
 enrichBranchWithJobs :: IxJob -> Branch -> BranchDetails
 enrichBranchWithJobs jobsIx branch =
   let branchJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= branch.repoName @= branch.branchName
-      mLatestJob = viaNonEmpty head branchJobs
       -- Compute build state based on job and commit comparison
-      buildState = case mLatestJob of
+      buildState = case viaNonEmpty head branchJobs of
         Nothing -> NeverBuilt
         Just job
-          | job.commit /= branch.headCommit.id -> Built OutOfDate
-          | otherwise -> Built UpToDate
+          | job.commit /= branch.headCommit.id -> Built job OutOfDate
+          | otherwise -> Built job UpToDate
    in BranchDetails
         { branch
-        , mLatestJob
         , jobsCount = fromIntegral $ length branchJobs
         , buildState
         }

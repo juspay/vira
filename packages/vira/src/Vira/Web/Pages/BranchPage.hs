@@ -67,7 +67,7 @@ viewBranch repo branchDetails jobs = do
               "Branch deleted from remote"
           -- Out of date badge
           case branchDetails.buildState of
-            Built OutOfDate ->
+            Built _ OutOfDate ->
               span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
                 div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
                 "Out of date"
