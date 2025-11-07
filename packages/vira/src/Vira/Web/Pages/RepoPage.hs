@@ -5,6 +5,7 @@ module Vira.Web.Pages.RepoPage (
   handlers,
 ) where
 
+import Data.Default (def)
 import Effectful (Eff)
 import Effectful.Colog.Simple (withLogContext)
 import Effectful.Error.Static (throwError)
@@ -62,7 +63,7 @@ handlers globalSettings viraRuntimeState webSettings name = do
 viewHandler :: RepoName -> AppHtml ()
 viewHandler name = do
   repo <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  let query = BranchQuery {repoName = Just name, branchNamePattern = Nothing, neverBuilt = False}
+  let query = def {repoName = Just name}
   branchDetails <- lift $ App.query (St.QueryBranchDetailsA query (fromIntegral maxBranchesDisplayed + 1))
   let isPruned = length branchDetails > maxBranchesDisplayed
       displayed = take maxBranchesDisplayed branchDetails
@@ -70,7 +71,7 @@ viewHandler name = do
 
 filterBranchesHandler :: RepoName -> Maybe Text -> AppHtml ()
 filterBranchesHandler name mQuery = do
-  let query = BranchQuery {repoName = Just name, branchNamePattern = mQuery, neverBuilt = False}
+  let query = def {repoName = Just name, branchNamePattern = mQuery}
   branchDetails <- lift $ App.query (St.QueryBranchDetailsA query (fromIntegral maxBranchesDisplayed + 1))
   let isPruned = length branchDetails > maxBranchesDisplayed
       displayed = take maxBranchesDisplayed branchDetails

@@ -94,7 +94,7 @@ This is the canonical query for getting branches - used by both RepoPage and Ind
 - Nothing repo: all repos (IndexPage)
 - Just repo: single repo (RepoPage)
 - Filter by branch name if provided
-- Filter by neverBuilt boolean (True = only unbuilt, False = only built)
+- Filter by build status (Nothing = all, Just True = unbuilt only, Just False = built only)
 - Sorted by activity time (most recent first)
 -}
 queryBranchDetailsA :: BranchQuery -> Natural -> Query ViraState [BranchDetails]
@@ -113,10 +113,10 @@ queryBranchDetailsA query limit = do
     matchesBranch branch = case query.branchNamePattern of
       Nothing -> True
       Just q -> T.toLower q `T.isInfixOf` T.toLower (toText branch.branchName)
-    filterByBuildStatus =
-      if query.neverBuilt
-        then filter (\d -> d.buildState == NeverBuilt)
-        else filter (\d -> d.buildState /= NeverBuilt)
+    filterByBuildStatus = case query.neverBuilt of
+      Nothing -> Prelude.id -- all branches
+      Just True -> filter (\d -> d.buildState == NeverBuilt)
+      Just False -> filter (\d -> d.buildState /= NeverBuilt)
 
 -- | Get single branch with enriched metadata
 getBranchDetailsA :: RepoName -> BranchName -> Query ViraState (Maybe BranchDetails)

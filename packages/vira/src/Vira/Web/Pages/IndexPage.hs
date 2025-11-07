@@ -1,6 +1,7 @@
 -- | Top-level routes and views
 module Vira.Web.Pages.IndexPage where
 
+import Data.Default (def)
 import Lucid
 import Servant.API (Get, NamedRoutes, QueryParam, (:>))
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -72,10 +73,10 @@ indexView mUnbuilt = do
 viewRecentActivity :: Bool -> AppHtml ()
 viewRecentActivity neverBuilt = do
   -- Get filtered activities based on neverBuilt flag
-  let query = BranchQuery {repoName = Nothing, branchNamePattern = Nothing, neverBuilt}
+  let query = def {neverBuilt = Just neverBuilt}
   activities <- lift $ App.query (St.QueryBranchDetailsA query activityLimit)
   -- Calculate unbuilt count for badge
-  let unbuiltQuery = BranchQuery {repoName = Nothing, branchNamePattern = Nothing, neverBuilt = True}
+  let unbuiltQuery = def {neverBuilt = Just True}
   unbuiltCount <- length <$> lift (App.query (St.QueryBranchDetailsA unbuiltQuery activityLimit))
 
   W.viraSection_ [] $ do

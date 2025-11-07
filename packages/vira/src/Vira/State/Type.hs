@@ -7,6 +7,7 @@ module Vira.State.Type where
 
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Data)
+import Data.Default (Default (..))
 import Data.IxSet.Typed
 import Data.SafeCopy
 import Data.Time (UTCTime)
@@ -83,10 +84,13 @@ data BranchQuery = BranchQuery
   -- ^ Filter by specific repository (Nothing = all repos)
   , branchNamePattern :: Maybe Text
   -- ^ Filter by branch name substring (Nothing = no name filter)
-  , neverBuilt :: Bool
-  -- ^ True = show only unbuilt branches, False = show only built branches
+  , neverBuilt :: Maybe Bool
+  -- ^ Nothing = all branches, Just True = unbuilt only, Just False = built only
   }
   deriving stock (Generic, Show, Eq)
+
+instance Default BranchQuery where
+  def = BranchQuery {repoName = Nothing, branchNamePattern = Nothing, neverBuilt = Nothing}
 
 -- | 'Branch' with enriched metadata for display
 data BranchDetails = BranchDetails
