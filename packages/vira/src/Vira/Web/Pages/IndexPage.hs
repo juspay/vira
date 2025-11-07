@@ -10,7 +10,8 @@ import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
 import Vira.State.Type (BranchFilter (..))
-import Vira.Web.Lucid (AppHtml, runAppHtml)
+import Vira.Web.LinkTo.Type (LinkTo (..))
+import Vira.Web.Lucid (AppHtml, getLinkUrl, runAppHtml)
 import Vira.Web.Pages.CachePage qualified as CachePage
 import Vira.Web.Pages.EnvironmentPage qualified as EnvironmentPage
 import Vira.Web.Pages.EventsPage qualified as EventsPage
@@ -80,10 +81,12 @@ viewRecentActivity filterMode = do
     h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100"] "Recent Activity"
 
     -- Tab bar
+    buildsUrl <- lift $ getLinkUrl (Home WithBuilds)
+    unbuiltUrl <- lift $ getLinkUrl (Home WithoutBuilds)
     viraTabs_
       []
-      [ TabItem "Builds" "/" (filterMode == WithBuilds) Nothing
-      , TabItem "Unbuilt" "/?filter=unbuilt" (filterMode == WithoutBuilds) (Just unbuiltCount)
+      [ TabItem "Builds" buildsUrl (filterMode == WithBuilds) Nothing
+      , TabItem "Unbuilt" unbuiltUrl (filterMode == WithoutBuilds) (Just unbuiltCount)
       ]
 
     -- Activity list
