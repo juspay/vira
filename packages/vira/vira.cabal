@@ -107,6 +107,7 @@ library
       Vira.Web.Widgets.Layout
       Vira.Web.Widgets.Modal
       Vira.Web.Widgets.Status
+      Vira.Web.Widgets.Tabs
       Vira.Web.Widgets.Time
   other-modules:
       Paths_vira

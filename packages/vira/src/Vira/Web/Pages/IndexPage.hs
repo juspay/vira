@@ -10,7 +10,6 @@ import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
 import Vira.State.Type (BranchFilter (..))
-import Vira.State.Type qualified as St
 import Vira.Web.Lucid (AppHtml, runAppHtml)
 import Vira.Web.Pages.CachePage qualified as CachePage
 import Vira.Web.Pages.EnvironmentPage qualified as EnvironmentPage
@@ -22,6 +21,7 @@ import Vira.Web.Stack qualified as Web
 import Vira.Web.Stream.ScopedRefresh qualified as Refresh
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
+import Vira.Web.Widgets.Tabs (TabItem (..), viraTabs_)
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (Reader, ask, runReader)
 
@@ -60,58 +60,32 @@ indexView :: Maybe BranchFilter -> AppHtml ()
 indexView mFilter = do
   logoUrl <- W.appLogoUrl
   let filterMode = fromMaybe WithBuilds mFilter
-  -- Get filtered activities based on filter mode
-  activities <- lift $ App.query (St.QueryBranchDetailsA Nothing Nothing (Just filterMode) activityLimit)
-  -- Calculate excluded count (branches without builds)
-  unbuiltActivities <- lift $ App.query (St.QueryBranchDetailsA Nothing Nothing (Just WithoutBuilds) activityLimit)
-  let excludedCount = length unbuiltActivities
-  let linkText = show . linkURI
+      linkText = show . linkURI
       reposLink = linkText $ fieldLink _repos // RegistryPage._listing
       envLink = linkText $ fieldLink _environment // EnvironmentPage._view
       cacheLink = linkText $ fieldLink _cache // CachePage._view
   W.layout mempty $ do
     heroWelcome logoUrl reposLink envLink cacheLink
-    viewRecentActivity filterMode excludedCount activities
+    viewRecentActivity filterMode
 
-viewRecentActivity :: BranchFilter -> Int -> [St.BranchDetails] -> AppHtml ()
-viewRecentActivity filterMode excludedCount activities = do
+viewRecentActivity :: BranchFilter -> AppHtml ()
+viewRecentActivity filterMode = do
+  -- Get filtered activities based on filter mode
+  activities <- lift $ App.query (St.QueryBranchDetailsA Nothing Nothing (Just filterMode) activityLimit)
+  -- Calculate unbuilt count for badge
+  unbuiltCount <- length <$> lift (App.query (St.QueryBranchDetailsA Nothing Nothing (Just WithoutBuilds) activityLimit))
+
   W.viraSection_ [] $ do
     -- Header with title
     h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100"] "Recent Activity"
+
     -- Tab bar
-    div_ [class_ "border-b-2 border-gray-200 dark:border-gray-700"] $ do
-      div_ [class_ "flex space-x-1 -mb-0.5"] $ do
-        -- Builds tab (default)
-        a_
-          [ href_ "/"
-          , class_ $
-              "px-4 py-3 font-semibold text-sm transition-colors border-b-2 "
-                <> case filterMode of
-                  WithBuilds -> "border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20"
-                  WithoutBuilds -> "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
-          ]
-          "Builds"
-        -- Unbuilt tab
-        a_
-          [ href_ "/?filter=unbuilt"
-          , class_ $
-              "px-4 py-3 font-semibold text-sm transition-colors border-b-2 flex items-center gap-2 "
-                <> case filterMode of
-                  WithoutBuilds -> "border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20"
-                  WithBuilds -> "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
-          ]
-          $ do
-            "Unbuilt"
-            -- Badge with count (only show if non-zero)
-            when (excludedCount > 0)
-              $ span_
-                [ class_ $
-                    "inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full "
-                      <> case filterMode of
-                        WithoutBuilds -> "bg-indigo-600 dark:bg-indigo-500 text-white"
-                        WithBuilds -> "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
-                ]
-              $ toHtml (show excludedCount :: String)
+    viraTabs_
+      []
+      [ TabItem "Builds" "/" (filterMode == WithBuilds) Nothing
+      , TabItem "Unbuilt" "/?filter=unbuilt" (filterMode == WithoutBuilds) (Just unbuiltCount)
+      ]
+
     -- Activity list
     div_ $ do
       forM_ activities $ \details ->
