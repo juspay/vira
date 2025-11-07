@@ -380,6 +380,9 @@
   .mr-4 {
     margin-right: calc(var(--spacing) * 4);
   }
+  .-mb-0\.5 {
+    margin-bottom: calc(var(--spacing) * -0.5);
+  }
   .mb-1 {
     margin-bottom: calc(var(--spacing) * 1);
   }
@@ -676,6 +679,13 @@
       margin-inline-end: calc(calc(var(--spacing) * 6) * calc(1 - var(--tw-space-x-reverse)));
     }
   }
+  .space-x-8 {
+    :where(& > :not(:last-child)) {
+      --tw-space-x-reverse: 0;
+      margin-inline-start: calc(calc(var(--spacing) * 8) * var(--tw-space-x-reverse));
+      margin-inline-end: calc(calc(var(--spacing) * 8) * calc(1 - var(--tw-space-x-reverse)));
+    }
+  }
   .divide-y {
     :where(& > :not(:last-child)) {
       --tw-divide-y-reverse: 0;
@@ -774,6 +784,18 @@
     border-bottom-style: var(--tw-border-style);
     border-bottom-width: 0px;
   }
+  .border-b-2 {
+    border-bottom-style: var(--tw-border-style);
+    border-bottom-width: 2px;
+  }
+  .border-b-4 {
+    border-bottom-style: var(--tw-border-style);
+    border-bottom-width: 4px;
+  }
+  .border-b-8 {
+    border-bottom-style: var(--tw-border-style);
+    border-bottom-width: 8px;
+  }
   .border-l-0 {
     border-left-style: var(--tw-border-style);
     border-left-width: 0px;
@@ -799,6 +821,9 @@
   .border-indigo-200 {
     border-color: var(--color-indigo-200);
   }
+  .border-indigo-600 {
+    border-color: var(--color-indigo-600);
+  }
   .border-purple-300 {
     border-color: var(--color-purple-300);
   }
@@ -807,6 +832,9 @@
   }
   .border-red-300 {
     border-color: var(--color-red-300);
+  }
+  .border-transparent {
+    border-color: transparent;
   }
   .border-yellow-200 {
     border-color: var(--color-yellow-200);
@@ -934,6 +962,9 @@
   .py-2 {
     padding-block: calc(var(--spacing) * 2);
   }
+  .py-2\.5 {
+    padding-block: calc(var(--spacing) * 2.5);
+  }
   .py-3 {
     padding-block: calc(var(--spacing) * 3);
   }
@@ -960,6 +991,9 @@
   }
   .pr-10 {
     padding-right: calc(var(--spacing) * 10);
+  }
+  .pb-3 {
+    padding-bottom: calc(var(--spacing) * 3);
   }
   .pb-4 {
     padding-bottom: calc(var(--spacing) * 4);
@@ -1379,10 +1413,24 @@
       }
     }
   }
+  .hover\:text-gray-900 {
+    &:hover {
+      @media (hover: hover) {
+        color: var(--color-gray-900);
+      }
+    }
+  }
   .hover\:text-indigo-600 {
     &:hover {
       @media (hover: hover) {
         color: var(--color-indigo-600);
+      }
+    }
+  }
+  .hover\:text-indigo-800 {
+    &:hover {
+      @media (hover: hover) {
+        color: var(--color-indigo-800);
       }
     }
   }
@@ -1572,6 +1620,11 @@
       border-color: var(--color-green-800);
     }
   }
+  .dark\:border-indigo-400 {
+    @media (prefers-color-scheme: dark) {
+      border-color: var(--color-indigo-400);
+    }
+  }
   .dark\:border-indigo-800 {
     @media (prefers-color-scheme: dark) {
       border-color: var(--color-indigo-800);
@@ -1657,6 +1710,16 @@
       }
     }
   }
+  .dark\:bg-indigo-500 {
+    @media (prefers-color-scheme: dark) {
+      background-color: var(--color-indigo-500);
+    }
+  }
+  .dark\:bg-indigo-600 {
+    @media (prefers-color-scheme: dark) {
+      background-color: var(--color-indigo-600);
+    }
+  }
   .dark\:bg-indigo-700 {
     @media (prefers-color-scheme: dark) {
       background-color: var(--color-indigo-700);
@@ -1667,6 +1730,14 @@
       background-color: color-mix(in srgb, oklch(35.9% 0.144 278.697) 20%, transparent);
       @supports (color: color-mix(in lab, red, red)) {
         background-color: color-mix(in oklab, var(--color-indigo-900) 20%, transparent);
+      }
+    }
+  }
+  .dark\:bg-indigo-900\/30 {
+    @media (prefers-color-scheme: dark) {
+      background-color: color-mix(in srgb, oklch(35.9% 0.144 278.697) 30%, transparent);
+      @supports (color: color-mix(in lab, red, red)) {
+        background-color: color-mix(in oklab, var(--color-indigo-900) 30%, transparent);
       }
     }
   }
@@ -1966,6 +2037,18 @@
       }
     }
   }
+  .dark\:hover\:bg-gray-800\/50 {
+    @media (prefers-color-scheme: dark) {
+      &:hover {
+        @media (hover: hover) {
+          background-color: color-mix(in srgb, oklch(27.8% 0.033 256.848) 50%, transparent);
+          @supports (color: color-mix(in lab, red, red)) {
+            background-color: color-mix(in oklab, var(--color-gray-800) 50%, transparent);
+          }
+        }
+      }
+    }
+  }
   .dark\:hover\:bg-indigo-600 {
     @media (prefers-color-scheme: dark) {
       &:hover {
@@ -1989,6 +2072,15 @@
       &:hover {
         @media (hover: hover) {
           color: var(--color-gray-300);
+        }
+      }
+    }
+  }
+  .dark\:hover\:text-indigo-300 {
+    @media (prefers-color-scheme: dark) {
+      &:hover {
+        @media (hover: hover) {
+          color: var(--color-indigo-300);
         }
       }
     }

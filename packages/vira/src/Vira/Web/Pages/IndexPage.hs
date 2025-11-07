@@ -2,7 +2,7 @@
 module Vira.Web.Pages.IndexPage where
 
 import Lucid
-import Servant.API (Get, NamedRoutes, (:>))
+import Servant.API (Get, NamedRoutes, QueryParam, (:>))
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.API.Generic (GenericMode (type (:-)))
 import Servant.Links (fieldLink, linkURI)
@@ -21,11 +21,12 @@ import Vira.Web.Stack qualified as Web
 import Vira.Web.Stream.ScopedRefresh qualified as Refresh
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
+import Web.HttpApiData (FromHttpApiData (..), ToHttpApiData (..))
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (Reader, ask, runReader)
 
 data Routes mode = Routes
-  { _home :: mode :- Get '[HTML] (Html ())
+  { _home :: mode :- QueryParam "filter" ActivityFilter :> Get '[HTML] (Html ())
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _environment :: mode :- "env" Servant.API.:> NamedRoutes EnvironmentPage.Routes
@@ -40,8 +41,9 @@ handlers :: App.GlobalSettings -> App.ViraRuntimeState -> App.WebSettings -> Rou
 handlers globalSettings viraRuntimeState webSettings =
   Routes
     { _home =
-        Web.runAppInServant globalSettings viraRuntimeState webSettings $
-          runAppHtml indexView
+        Web.runAppInServant globalSettings viraRuntimeState webSettings
+          . runAppHtml
+          . indexView
     , _repos = RegistryPage.handlers globalSettings viraRuntimeState webSettings
     , _jobs = JobPage.handlers globalSettings viraRuntimeState webSettings
     , _environment = EnvironmentPage.handlers globalSettings viraRuntimeState webSettings
@@ -54,24 +56,80 @@ handlers globalSettings viraRuntimeState webSettings =
 activityLimit :: Natural
 activityLimit = 15
 
-indexView :: AppHtml ()
-indexView = do
+data ActivityFilter = CIOnly | AllActivity
+  deriving stock (Eq, Show)
+
+instance FromHttpApiData ActivityFilter where
+  parseQueryParam = \case
+    "all" -> Right AllActivity
+    _ -> Right CIOnly
+
+instance ToHttpApiData ActivityFilter where
+  toQueryParam = \case
+    AllActivity -> "all"
+    CIOnly -> "ci"
+
+indexView :: Maybe ActivityFilter -> AppHtml ()
+indexView mFilter = do
   logoUrl <- W.appLogoUrl
-  activities <- lift $ App.query (St.GetAllBranchesA Nothing Nothing activityLimit)
-  let linkText = show . linkURI
+  allActivities <- lift $ App.query (St.GetAllBranchesA Nothing Nothing activityLimit)
+  let filterMode = fromMaybe CIOnly mFilter
+      -- By default, show only CI activity (branches with builds)
+      ciActivities = filter (\d -> St.jobsCount d > 0) allActivities
+      excludedCount = length allActivities - length ciActivities
+      activities = case filterMode of
+        CIOnly -> ciActivities
+        AllActivity -> allActivities
+      linkText = show . linkURI
       reposLink = linkText $ fieldLink _repos // RegistryPage._listing
       envLink = linkText $ fieldLink _environment // EnvironmentPage._view
       cacheLink = linkText $ fieldLink _cache // CachePage._view
   W.layout mempty $ do
     heroWelcome logoUrl reposLink envLink cacheLink
     unless (null activities) $
-      viewRecentActivity activities
+      viewRecentActivity filterMode excludedCount activities
 
-viewRecentActivity :: [St.BranchDetails] -> AppHtml ()
-viewRecentActivity activities = do
+viewRecentActivity :: ActivityFilter -> Int -> [St.BranchDetails] -> AppHtml ()
+viewRecentActivity filterMode excludedCount activities = do
   W.viraSection_ [] $ do
-    h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6"] "Recent Activity"
-    div_ [] $ do
+    -- Header with title
+    h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100"] "Recent Activity"
+    -- Tab bar
+    div_ [class_ "border-b-2 border-gray-200 dark:border-gray-700"] $ do
+      div_ [class_ "flex space-x-1 -mb-0.5"] $ do
+        -- CI Activity tab (default)
+        a_
+          [ href_ "/"
+          , class_ $
+              "px-4 py-3 font-semibold text-sm transition-colors border-b-2 "
+                <> case filterMode of
+                  CIOnly -> "border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20"
+                  AllActivity -> "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+          ]
+          "CI Activity"
+        -- All Activity tab
+        when (excludedCount > 0) $ do
+          a_
+            [ href_ "/?filter=all"
+            , class_ $
+                "px-4 py-3 font-semibold text-sm transition-colors border-b-2 flex items-center gap-2 "
+                  <> case filterMode of
+                    AllActivity -> "border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20"
+                    CIOnly -> "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+            ]
+            $ do
+              "All Activity"
+              -- Badge with count
+              span_
+                [ class_ $
+                    "inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full "
+                      <> case filterMode of
+                        AllActivity -> "bg-indigo-600 dark:bg-indigo-500 text-white"
+                        CIOnly -> "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                ]
+                $ toHtml (show excludedCount :: String)
+    -- Activity list
+    div_ $ do
       forM_ activities $ \details ->
         W.viraBranchDetailsRow_ True details
 
