@@ -110,7 +110,7 @@ viewAllJobStatus :: AppHtml ()
 viewAllJobStatus = do
   activeJobs <- lift $ App.query Acid.GetActiveJobsA
   let active = not (null activeJobs.running) || not (null activeJobs.pending)
-  indexUrl <- lift $ getLinkUrl (Home False) -- False = built branches
+  indexUrl <- lift $ getLinkUrl (Home Nothing) -- Nothing = all branches
   a_ [href_ indexUrl, class_ "flex items-center space-x-2 text-white hover:bg-white/20 px-3 py-1 rounded-lg transition-colors", title_ "View all jobs"] $ do
     indicator active
     span_ [class_ "text-sm font-medium"] $

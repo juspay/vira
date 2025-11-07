@@ -28,7 +28,7 @@ import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (Reader, ask, runReader)
 
 data Routes mode = Routes
-  { _home :: mode :- QueryParam "unbuilt" Bool :> Get '[HTML] (Html ())
+  { _home :: mode :- QueryParam "neverBuilt" Bool :> Get '[HTML] (Html ())
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _environment :: mode :- "env" Servant.API.:> NamedRoutes EnvironmentPage.Routes
@@ -61,19 +61,18 @@ activityLimit = 15
 indexView :: Maybe Bool -> AppHtml ()
 indexView mUnbuilt = do
   logoUrl <- W.appLogoUrl
-  let neverBuilt = fromMaybe False mUnbuilt
-      linkText = show . linkURI
+  let linkText = show . linkURI
       reposLink = linkText $ fieldLink _repos // RegistryPage._listing
       envLink = linkText $ fieldLink _environment // EnvironmentPage._view
       cacheLink = linkText $ fieldLink _cache // CachePage._view
   W.layout mempty $ do
     heroWelcome logoUrl reposLink envLink cacheLink
-    viewRecentActivity neverBuilt
+    viewRecentActivity mUnbuilt
 
-viewRecentActivity :: Bool -> AppHtml ()
-viewRecentActivity neverBuilt = do
+viewRecentActivity :: Maybe Bool -> AppHtml ()
+viewRecentActivity mNeverBuilt = do
   -- Get filtered activities based on neverBuilt flag
-  let query = def {neverBuilt = Just neverBuilt}
+  let query = def {neverBuilt = mNeverBuilt}
   activities <- lift $ App.query (St.QueryBranchDetailsA query activityLimit)
   -- Calculate unbuilt count for badge
   let unbuiltQuery = def {neverBuilt = Just True}
@@ -84,12 +83,14 @@ viewRecentActivity neverBuilt = do
     h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100"] "Recent Activity"
 
     -- Tab bar
-    buildsUrl <- lift $ getLinkUrl (Home False)
-    unbuiltUrl <- lift $ getLinkUrl (Home True)
+    allUrl <- lift $ getLinkUrl (Home Nothing)
+    buildsUrl <- lift $ getLinkUrl (Home (Just False))
+    unbuiltUrl <- lift $ getLinkUrl (Home (Just True))
     viraTabs_
       []
-      [ TabItem "Builds" buildsUrl (not neverBuilt) Nothing
-      , TabItem "Unbuilt" unbuiltUrl neverBuilt (Just unbuiltCount)
+      [ TabItem "All" allUrl (isNothing mNeverBuilt) Nothing
+      , TabItem "Builds" buildsUrl (mNeverBuilt == Just False) Nothing
+      , TabItem "Unbuilt" unbuiltUrl (mNeverBuilt == Just True) (Just unbuiltCount)
       ]
 
     -- Activity list
