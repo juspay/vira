@@ -71,8 +71,7 @@ indexView mFilter = do
       cacheLink = linkText $ fieldLink _cache // CachePage._view
   W.layout mempty $ do
     heroWelcome logoUrl reposLink envLink cacheLink
-    unless (null activities) $
-      viewRecentActivity filterMode excludedCount activities
+    viewRecentActivity filterMode excludedCount activities
 
 viewRecentActivity :: BranchFilter -> Int -> [St.BranchDetails] -> AppHtml ()
 viewRecentActivity filterMode excludedCount activities = do
