@@ -116,4 +116,4 @@ handleBranchUpdates autoBuildNewBranches repo updates = do
     skipReasonText :: SkipReason -> Text
     skipReasonText = \case
       OldCommit -> "old commit"
-      NeverBuilt -> "never build before (autoBuildNewBranches=False)"
+      NeverBuilt -> "never built before (autoBuildNewBranches=False)"

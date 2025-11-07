@@ -76,17 +76,17 @@ enrichBranchWithJobs :: IxJob -> Branch -> BranchDetails
 enrichBranchWithJobs jobsIx branch =
   let branchJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= branch.repoName @= branch.branchName
       mLatestJob = viaNonEmpty head branchJobs
-      -- Compute badge state based on job and commit comparison
-      badgeState = case mLatestJob of
-        Nothing -> Just NeverBuilt
+      -- Compute build state based on job and commit comparison
+      buildState = case mLatestJob of
+        Nothing -> NeverBuilt
         Just job
-          | job.commit /= branch.headCommit.id -> Just OutOfDate
-          | otherwise -> Nothing
+          | job.commit /= branch.headCommit.id -> Built OutOfDate
+          | otherwise -> Built UpToDate
    in BranchDetails
         { branch
         , mLatestJob
         , jobsCount = fromIntegral $ length branchJobs
-        , badgeState
+        , buildState
         }
 
 {- | Query branches with enriched metadata, optionally filtered by repo and/or name.

@@ -12,7 +12,7 @@ import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type (BadgeState (..), BranchDetails (..))
+import Vira.State.Type (BranchBuildState (..), BranchDetails (..), BuildFreshness (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, runAppHtml)
 import Vira.Web.Stack qualified as Web
@@ -66,12 +66,12 @@ viewBranch repo branchDetails jobs = do
               div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.alert_triangle
               "Branch deleted from remote"
           -- Out of date badge
-          whenJust branchDetails.badgeState $ \case
-            OutOfDate ->
+          case branchDetails.buildState of
+            Built OutOfDate ->
               span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
                 div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
                 "Out of date"
-            NeverBuilt -> mempty -- Don't show in header
+            _ -> mempty -- Don't show badge for NeverBuilt or UpToDate
         div_ [class_ "flex items-center gap-2"] $ do
           buildLink <- lift $ getLink $ LinkTo.Build repo.name branchDetails.branch.branchName
           W.viraRequestButton_

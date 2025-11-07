@@ -62,8 +62,20 @@ instance Indexable BranchIxs Branch where
       (ixFun $ \Branch {repoName} -> [repoName])
       (ixFun $ \Branch {branchName} -> [branchName])
 
--- | Badge state for 'Branch' status
-data BadgeState = NeverBuilt | OutOfDate
+-- | Build freshness indicator for branches that have been built
+data BuildFreshness
+  = -- | Latest job commit matches head commit
+    UpToDate
+  | -- | Latest job commit differs from head commit
+    OutOfDate
+  deriving stock (Generic, Show, Eq)
+
+-- | Build state for a 'Branch'
+data BranchBuildState
+  = -- | Branch has never been built
+    NeverBuilt
+  | -- | Branch has builds, with freshness indicator
+    Built BuildFreshness
   deriving stock (Generic, Show, Eq)
 
 -- | Filter for branch queries by build status
@@ -82,8 +94,8 @@ data BranchDetails = BranchDetails
   -- ^ The most recent CI 'Job' for this branch, if any
   , jobsCount :: Natural
   -- ^ Total number of 'Job's for this branch
-  , badgeState :: Maybe BadgeState
-  -- ^ 'BadgeState' computed from job/commit comparison
+  , buildState :: BranchBuildState
+  -- ^ Build state computed from job/commit comparison
   }
   deriving stock (Generic, Show, Eq)
 
@@ -190,7 +202,8 @@ $(deriveSafeCopy 0 'base ''JobStatus)
 $(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
 $(deriveSafeCopy 1 'base ''Branch)
-$(deriveSafeCopy 0 'base ''BadgeState)
+$(deriveSafeCopy 0 'base ''BuildFreshness)
+$(deriveSafeCopy 0 'base ''BranchBuildState)
 $(deriveSafeCopy 0 'base ''BranchFilter)
 $(deriveSafeCopy 0 'base ''BranchDetails)
 $(deriveSafeCopy 0 'base ''Repo)
@@ -211,4 +224,4 @@ The version is automatically used by the @--auto-reset-state@ feature to detect 
 When enabled, auto-reset will remove @ViraState/@ and @workspace/*/jobs@ directories on mismatch.
 Run @vira info@ to see the current schema version.
 -}
-$(deriveSafeCopy 6 'base ''ViraState)
+$(deriveSafeCopy 7 'base ''ViraState)

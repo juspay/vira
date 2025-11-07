@@ -20,7 +20,7 @@ import Lucid
 import Lucid.Htmx.Contrib (hxPostSafe_)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
-import Vira.State.Type (BadgeState (..))
+import Vira.State.Type (BranchBuildState (..), BuildFreshness (..))
 import Vira.State.Type qualified as St
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl)
@@ -217,9 +217,9 @@ viraBranchDetailsRow_ showRepo details = do
 
           -- RIGHT SECTION: Job status OR Build button (4 cols on desktop, vertically centered)
           div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
-            case details.mLatestJob of
+            case (details.mLatestJob, details.buildState) of
               -- Has job and it's current: show job info
-              Just job | isNothing details.badgeState -> do
+              (Just job, Built UpToDate) -> do
                 span_ [class_ "text-sm text-gray-600 dark:text-gray-400"] $ "#" <> toHtml (show @Text job.jobId)
                 span_ [class_ "text-gray-400 dark:text-gray-500"] "·"
                 case St.jobEndTime job of
@@ -229,19 +229,40 @@ viraBranchDetailsRow_ showRepo details = do
                   Nothing -> mempty
                 Status.viraStatusBadge_ job.jobStatus
 
-              -- Has badge (never built or out of date): show badge + Build button
-              _ -> do
-                whenJust details.badgeState $ \case
-                  NeverBuilt ->
-                    span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"] $ do
-                      div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.alert_circle
-                      "Never built"
-                  OutOfDate ->
-                    span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
-                      div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
-                      "Out of date"
+              -- Never built: show badge + Build button
+              (_, NeverBuilt) -> do
+                span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"] $ do
+                  div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.alert_circle
+                  "Never built"
+                W.viraButton_
+                  W.ButtonSuccess
+                  [ hxPostSafe_ buildLink
+                  , hxSwapS_ AfterEnd
+                  , onclick_ "event.preventDefault(); event.stopPropagation();"
+                  , class_ "!px-3 !py-1.5 !text-xs"
+                  ]
+                  $ do
+                    W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
+                    "Build"
 
-                -- Build button (prevent link propagation) - smaller size for inline row
+              -- Out of date: show badge + Build button
+              (_, Built OutOfDate) -> do
+                span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
+                  div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
+                  "Out of date"
+                W.viraButton_
+                  W.ButtonSuccess
+                  [ hxPostSafe_ buildLink
+                  , hxSwapS_ AfterEnd
+                  , onclick_ "event.preventDefault(); event.stopPropagation();"
+                  , class_ "!px-3 !py-1.5 !text-xs"
+                  ]
+                  $ do
+                    W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
+                    "Build"
+
+              -- Up to date but no job (shouldn't happen): just Build button
+              (_, Built UpToDate) -> do
                 W.viraButton_
                   W.ButtonSuccess
                   [ hxPostSafe_ buildLink
