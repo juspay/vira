@@ -62,14 +62,14 @@ handlers globalSettings viraRuntimeState webSettings name = do
 viewHandler :: RepoName -> AppHtml ()
 viewHandler name = do
   repo <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  branchDetails <- lift $ App.query (St.GetAllBranchesA (Just name) Nothing AllBranches (fromIntegral maxBranchesDisplayed + 1))
+  branchDetails <- lift $ App.query (St.QueryBranchDetailsA (Just name) Nothing AllBranches (fromIntegral maxBranchesDisplayed + 1))
   let isPruned = length branchDetails > maxBranchesDisplayed
       displayed = take maxBranchesDisplayed branchDetails
   W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo displayed isPruned
 
 filterBranchesHandler :: RepoName -> Maybe Text -> AppHtml ()
 filterBranchesHandler name mQuery = do
-  branchDetails <- lift $ App.query (St.GetAllBranchesA (Just name) mQuery AllBranches (fromIntegral maxBranchesDisplayed + 1))
+  branchDetails <- lift $ App.query (St.QueryBranchDetailsA (Just name) mQuery AllBranches (fromIntegral maxBranchesDisplayed + 1))
   let isPruned = length branchDetails > maxBranchesDisplayed
       displayed = take maxBranchesDisplayed branchDetails
   _ <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure

@@ -89,7 +89,7 @@ enrichBranchWithJobs jobsIx branch =
         , badgeState
         }
 
-{- | Get branches with enriched metadata, optionally filtered by repo and/or name.
+{- | Query branches with enriched metadata, optionally filtered by repo and/or name.
 
 This is the canonical query for getting branches - used by both RepoPage and IndexPage.
 
@@ -99,22 +99,33 @@ This is the canonical query for getting branches - used by both RepoPage and Ind
 - Filter by build status based on BranchFilter
 - Sorted by activity time (most recent first)
 -}
-getAllBranchesA :: Maybe RepoName -> Maybe Text -> BranchFilter -> Natural -> Query ViraState [BranchDetails]
-getAllBranchesA mRepo mFilter branchFilter limit = do
+queryBranchDetailsA :: Maybe RepoName -> Maybe Text -> BranchFilter -> Natural -> Query ViraState [BranchDetails]
+queryBranchDetailsA mRepo mNameFilter buildFilter limit = do
   ViraState {branches, jobs} <- ask
-  let candidateBranches = case mRepo of
-        Nothing -> Ix.toList branches
-        Just repo -> Ix.toList $ branches @= repo
-      matchesFilter branch = case mFilter of
-        Nothing -> True
-        Just s -> T.toLower s `T.isInfixOf` T.toLower (toText branch.branchName)
-      enriched = enrichBranchWithJobs jobs <$> filter matchesFilter candidateBranches
-      -- Filter by build status
-      withBuildsFilter = case branchFilter of
-        WithBuilds -> filter (\d -> d.jobsCount > 0)
-        AllBranches -> Prelude.id
-      sorted = sortWith (Down . branchActivityTime) $ withBuildsFilter enriched
-  pure $ take (fromIntegral limit) sorted
+  pure $
+    branches
+      & maybe Prelude.id getEQ mRepo
+      & Ix.toList
+      & filter matchesName
+      & fmap (enrichBranchWithJobs jobs)
+      & filterByBuildStatus
+      & sortWith (Down . branchActivityTime)
+      & take (fromIntegral limit)
+  where
+    matchesName branch = case mNameFilter of
+      Nothing -> True
+      Just q -> T.toLower q `T.isInfixOf` T.toLower (toText branch.branchName)
+    filterByBuildStatus = case buildFilter of
+      WithBuilds -> filter (\d -> d.jobsCount > 0)
+      AllBranches -> Prelude.id
+
+-- | Get single branch with enriched metadata
+getBranchDetailsA :: RepoName -> BranchName -> Query ViraState (Maybe BranchDetails)
+getBranchDetailsA repo branchName = do
+  ViraState {branches, jobs} <- ask
+  case Ix.getOne $ branches @= repo @= branchName of
+    Nothing -> pure Nothing
+    Just branch -> pure $ Just $ enrichBranchWithJobs jobs branch
 
 -- | Get all branches for a repo
 getRepoBranchesA :: RepoName -> Query ViraState [Branch]
@@ -127,14 +138,6 @@ getBranchByNameA :: RepoName -> BranchName -> Query ViraState (Maybe Branch)
 getBranchByNameA repo branch = do
   ViraState {branches} <- ask
   pure $ Ix.getOne $ branches @= repo @= branch
-
--- | Get branch with enriched metadata
-getBranchDetailsA :: RepoName -> BranchName -> Query ViraState (Maybe BranchDetails)
-getBranchDetailsA repo branchName = do
-  ViraState {branches, jobs} <- ask
-  case Ix.getOne $ branches @= repo @= branchName of
-    Nothing -> pure Nothing
-    Just branch -> pure $ Just $ enrichBranchWithJobs jobs branch
 
 -- | Set a repository's refresh status
 setRefreshStatusA :: RepoName -> Maybe RefreshResult -> Update ViraState ()
@@ -319,7 +322,7 @@ $( makeAcidic
      [ 'setAllReposA
      , 'getAllReposA
      , 'getRepoByNameA
-     , 'getAllBranchesA
+     , 'queryBranchDetailsA
      , 'getRepoBranchesA
      , 'getBranchByNameA
      , 'getBranchDetailsA

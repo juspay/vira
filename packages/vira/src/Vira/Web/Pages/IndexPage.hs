@@ -61,11 +61,11 @@ indexView mFilter = do
   logoUrl <- W.appLogoUrl
   let filterMode = fromMaybe WithBuilds mFilter
   -- Get filtered activities based on filter mode
-  activities <- lift $ App.query (St.GetAllBranchesA Nothing Nothing filterMode activityLimit)
+  activities <- lift $ App.query (St.QueryBranchDetailsA Nothing Nothing filterMode activityLimit)
   -- Get total count to calculate excluded count (only if filtering)
   excludedCount <- case filterMode of
     WithBuilds -> do
-      allCount <- length <$> lift (App.query (St.GetAllBranchesA Nothing Nothing AllBranches activityLimit))
+      allCount <- length <$> lift (App.query (St.QueryBranchDetailsA Nothing Nothing AllBranches activityLimit))
       pure $ allCount - length activities
     AllBranches -> pure 0
   let linkText = show . linkURI
