@@ -96,11 +96,11 @@ This is the canonical query for getting branches - used by both RepoPage and Ind
 - Nothing repo: all repos (IndexPage)
 - Just repo: single repo (RepoPage)
 - Filter by branch name if provided
-- Filter by build status based on BranchFilter
+- Filter by build status based on BranchFilter (Nothing = no filter, show all)
 - Sorted by activity time (most recent first)
 -}
-queryBranchDetailsA :: Maybe RepoName -> Maybe Text -> BranchFilter -> Natural -> Query ViraState [BranchDetails]
-queryBranchDetailsA mRepo mNameFilter buildFilter limit = do
+queryBranchDetailsA :: Maybe RepoName -> Maybe Text -> Maybe BranchFilter -> Natural -> Query ViraState [BranchDetails]
+queryBranchDetailsA mRepo mNameFilter mBuildFilter limit = do
   ViraState {branches, jobs} <- ask
   pure $
     branches
@@ -115,17 +115,18 @@ queryBranchDetailsA mRepo mNameFilter buildFilter limit = do
     matchesName branch = case mNameFilter of
       Nothing -> True
       Just q -> T.toLower q `T.isInfixOf` T.toLower (toText branch.branchName)
-    filterByBuildStatus = case buildFilter of
-      WithBuilds -> filter (\d -> d.jobsCount > 0)
-      AllBranches -> Prelude.id
+    filterByBuildStatus = case mBuildFilter of
+      Nothing -> Prelude.id
+      Just WithBuilds -> filter (\d -> d.jobsCount > 0)
+      Just WithoutBuilds -> filter (\d -> d.jobsCount == 0)
 
 -- | Get single branch with enriched metadata
 getBranchDetailsA :: RepoName -> BranchName -> Query ViraState (Maybe BranchDetails)
 getBranchDetailsA repo branchName = do
   ViraState {branches, jobs} <- ask
-  case Ix.getOne $ branches @= repo @= branchName of
-    Nothing -> pure Nothing
-    Just branch -> pure $ Just $ enrichBranchWithJobs jobs branch
+  pure $ do
+    branch <- Ix.getOne $ branches @= repo @= branchName
+    pure $ enrichBranchWithJobs jobs branch
 
 -- | Get all branches for a repo
 getRepoBranchesA :: RepoName -> Query ViraState [Branch]

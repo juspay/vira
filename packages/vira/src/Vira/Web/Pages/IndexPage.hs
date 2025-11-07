@@ -61,11 +61,10 @@ indexView mFilter = do
   logoUrl <- W.appLogoUrl
   let filterMode = fromMaybe WithBuilds mFilter
   -- Get filtered activities based on filter mode
-  activities <- lift $ App.query (St.QueryBranchDetailsA Nothing Nothing filterMode activityLimit)
+  activities <- lift $ App.query (St.QueryBranchDetailsA Nothing Nothing (Just filterMode) activityLimit)
   -- Calculate excluded count (branches without builds)
-  allActivities <- lift $ App.query (St.QueryBranchDetailsA Nothing Nothing AllBranches activityLimit)
-  ciActivities <- lift $ App.query (St.QueryBranchDetailsA Nothing Nothing WithBuilds activityLimit)
-  let excludedCount = length allActivities - length ciActivities
+  unbuiltActivities <- lift $ App.query (St.QueryBranchDetailsA Nothing Nothing (Just WithoutBuilds) activityLimit)
+  let excludedCount = length unbuiltActivities
   let linkText = show . linkURI
       reposLink = linkText $ fieldLink _repos // RegistryPage._listing
       envLink = linkText $ fieldLink _environment // EnvironmentPage._view
@@ -83,34 +82,34 @@ viewRecentActivity filterMode excludedCount activities = do
     -- Tab bar
     div_ [class_ "border-b-2 border-gray-200 dark:border-gray-700"] $ do
       div_ [class_ "flex space-x-1 -mb-0.5"] $ do
-        -- CI Activity tab (default)
+        -- Builds tab (default)
         a_
           [ href_ "/"
           , class_ $
               "px-4 py-3 font-semibold text-sm transition-colors border-b-2 "
                 <> case filterMode of
                   WithBuilds -> "border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20"
-                  AllBranches -> "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                  WithoutBuilds -> "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
           ]
-          "CI Activity"
-        -- All Activity tab
+          "Builds"
+        -- Unbuilt tab
         a_
-          [ href_ "/?filter=all"
+          [ href_ "/?filter=unbuilt"
           , class_ $
               "px-4 py-3 font-semibold text-sm transition-colors border-b-2 flex items-center gap-2 "
                 <> case filterMode of
-                  AllBranches -> "border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20"
+                  WithoutBuilds -> "border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20"
                   WithBuilds -> "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
           ]
           $ do
-            "All Activity"
+            "Unbuilt"
             -- Badge with count (only show if non-zero)
             when (excludedCount > 0)
               $ span_
                 [ class_ $
                     "inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full "
                       <> case filterMode of
-                        AllBranches -> "bg-indigo-600 dark:bg-indigo-500 text-white"
+                        WithoutBuilds -> "bg-indigo-600 dark:bg-indigo-500 text-white"
                         WithBuilds -> "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 ]
               $ toHtml (show excludedCount :: String)

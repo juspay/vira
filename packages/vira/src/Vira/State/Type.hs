@@ -70,8 +70,8 @@ data BadgeState = NeverBuilt | OutOfDate
 data BranchFilter
   = -- | Only branches that have at least one build/job
     WithBuilds
-  | -- | All branches, including those never built
-    AllBranches
+  | -- | Only branches that have never been built
+    WithoutBuilds
   deriving stock (Generic, Show, Eq)
 
 -- | 'Branch' with enriched metadata for display
@@ -198,13 +198,13 @@ $(deriveSafeCopy 0 'base ''Repo)
 -- | HttpApiData instances for BranchFilter (for URL query params)
 instance FromHttpApiData BranchFilter where
   parseQueryParam = \case
-    "all" -> Right AllBranches
+    "unbuilt" -> Right WithoutBuilds
     _ -> Right WithBuilds
 
 instance ToHttpApiData BranchFilter where
   toQueryParam = \case
-    AllBranches -> "all"
-    WithBuilds -> "ci"
+    WithoutBuilds -> "unbuilt"
+    WithBuilds -> "builds"
 
 {- | IMPORTANT: Increment the version number when making breaking changes to 'ViraState' or its indexed types.
 The version is automatically used by the @--auto-reset-state@ feature to detect schema changes.
