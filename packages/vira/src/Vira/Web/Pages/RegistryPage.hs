@@ -17,6 +17,8 @@ import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
+import Vira.Refresh qualified as Refresh
+import Vira.Refresh.Type (RefreshPriority (Now))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Repo (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
@@ -74,6 +76,8 @@ handleAddRepo repo = do
     Nothing -> do
       App.update $ St.AddNewRepoA repo
       log Info $ "Added repository " <> toText repo.name
+      -- Schedule immediate refresh for new repo
+      Refresh.scheduleRepoRefresh (one repo.name) Now
       -- Redirect to the newly created repository page
       newRepoUrl <- getLinkUrl $ LinkTo.Repo repo.name
       pure $ addHeader newRepoUrl "Ok"
