@@ -23,7 +23,7 @@ import Vira.Refresh qualified as Refresh
 import Vira.Refresh.Type (RefreshPriority (Now))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type (BranchDetails (..))
+import Vira.State.Type (BranchDetails (..), BranchQuery (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
 import Vira.Web.Stack qualified as Web
@@ -62,14 +62,16 @@ handlers globalSettings viraRuntimeState webSettings name = do
 viewHandler :: RepoName -> AppHtml ()
 viewHandler name = do
   repo <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  branchDetails <- lift $ App.query (St.QueryBranchDetailsA (Just name) Nothing Nothing (fromIntegral maxBranchesDisplayed + 1))
+  let query = BranchQuery {repoName = Just name, branchNamePattern = Nothing, neverBuilt = False}
+  branchDetails <- lift $ App.query (St.QueryBranchDetailsA query (fromIntegral maxBranchesDisplayed + 1))
   let isPruned = length branchDetails > maxBranchesDisplayed
       displayed = take maxBranchesDisplayed branchDetails
   W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo displayed isPruned
 
 filterBranchesHandler :: RepoName -> Maybe Text -> AppHtml ()
 filterBranchesHandler name mQuery = do
-  branchDetails <- lift $ App.query (St.QueryBranchDetailsA (Just name) mQuery Nothing (fromIntegral maxBranchesDisplayed + 1))
+  let query = BranchQuery {repoName = Just name, branchNamePattern = mQuery, neverBuilt = False}
+  branchDetails <- lift $ App.query (St.QueryBranchDetailsA query (fromIntegral maxBranchesDisplayed + 1))
   let isPruned = length branchDetails > maxBranchesDisplayed
       displayed = take maxBranchesDisplayed branchDetails
   _ <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure

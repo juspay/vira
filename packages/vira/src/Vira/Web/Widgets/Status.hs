@@ -40,7 +40,6 @@ import Vira.Refresh (getRepoRefreshStatus)
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshResult (..), RefreshStatus (..))
 import Vira.State.Acid qualified as Acid
 import Vira.State.Core qualified as St
-import Vira.State.Type (BranchFilter (..))
 import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl)
 import Vira.Web.Widgets.Button qualified as W
@@ -111,7 +110,7 @@ viewAllJobStatus :: AppHtml ()
 viewAllJobStatus = do
   activeJobs <- lift $ App.query Acid.GetActiveJobsA
   let active = not (null activeJobs.running) || not (null activeJobs.pending)
-  indexUrl <- lift $ getLinkUrl (Home WithBuilds)
+  indexUrl <- lift $ getLinkUrl (Home False) -- False = built branches
   a_ [href_ indexUrl, class_ "flex items-center space-x-2 text-white hover:bg-white/20 px-3 py-1 rounded-lg transition-colors", title_ "View all jobs"] $ do
     indicator active
     span_ [class_ "text-sm font-medium"] $

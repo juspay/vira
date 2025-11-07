@@ -17,7 +17,7 @@ import Vira.Web.Servant ((//), (/:))
 -- | Resolve a 'LinkTo' into a servant 'Link'
 linkTo :: LinkTo -> Link
 linkTo = \case
-  Home branchFilter -> fieldLink _home (Just branchFilter)
+  Home neverBuilt -> fieldLink _home (Just neverBuilt)
   RepoListing -> fieldLink _repos // RegistryPage._listing
   Repo name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._view
   RepoUpdate name -> fieldLink _repos // RegistryPage._repo /: name // RepoPage._update

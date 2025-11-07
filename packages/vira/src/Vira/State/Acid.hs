@@ -87,22 +87,22 @@ enrichBranchWithJobs jobsIx branch =
         , buildState
         }
 
-{- | Query branches with enriched metadata, optionally filtered by repo and/or name.
+{- | Query branches with enriched metadata, filtered by BranchQuery criteria.
 
 This is the canonical query for getting branches - used by both RepoPage and IndexPage.
 
 - Nothing repo: all repos (IndexPage)
 - Just repo: single repo (RepoPage)
 - Filter by branch name if provided
-- Filter by build status based on BranchFilter (Nothing = no filter, show all)
+- Filter by neverBuilt boolean (True = only unbuilt, False = only built)
 - Sorted by activity time (most recent first)
 -}
-queryBranchDetailsA :: Maybe RepoName -> Maybe Text -> Maybe BranchFilter -> Natural -> Query ViraState [BranchDetails]
-queryBranchDetailsA mRepo mNameFilter mBuildFilter limit = do
+queryBranchDetailsA :: BranchQuery -> Natural -> Query ViraState [BranchDetails]
+queryBranchDetailsA query limit = do
   ViraState {branches, jobs} <- ask
   pure $
     branches
-      & maybe Prelude.id getEQ mRepo
+      & maybe Prelude.id getEQ query.repoName
       & Ix.toList
       & filter matchesName
       & fmap (enrichBranchWithJobs jobs)
@@ -110,13 +110,13 @@ queryBranchDetailsA mRepo mNameFilter mBuildFilter limit = do
       & sortWith (Down . branchActivityTime)
       & take (fromIntegral limit)
   where
-    matchesName branch = case mNameFilter of
+    matchesName branch = case query.branchNamePattern of
       Nothing -> True
       Just q -> T.toLower q `T.isInfixOf` T.toLower (toText branch.branchName)
-    filterByBuildStatus = case mBuildFilter of
-      Nothing -> Prelude.id
-      Just WithBuilds -> filter (\d -> d.jobsCount > 0)
-      Just WithoutBuilds -> filter (\d -> d.jobsCount == 0)
+    filterByBuildStatus =
+      if query.neverBuilt
+        then filter (\d -> d.jobsCount == 0)
+        else filter (\d -> d.jobsCount > 0)
 
 -- | Get single branch with enriched metadata
 getBranchDetailsA :: RepoName -> BranchName -> Query ViraState (Maybe BranchDetails)

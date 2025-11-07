@@ -2,7 +2,7 @@
 module Vira.Web.LinkTo.Type where
 
 import Effectful.Git (BranchName, RepoName)
-import Vira.State.Type (BranchFilter, JobId)
+import Vira.State.Type (JobId)
 
 {- | The part of the application the caller intends to link to
 
@@ -12,7 +12,7 @@ Avoids cyclic imports by providing a type-level hint instead of direct route ref
 Used with 'Vira.Web.Lucid.getLink' to generate 'Servant.Links.Link' values.
 -}
 data LinkTo
-  = Home BranchFilter
+  = Home Bool -- True = unbuilt branches, False = built branches
   | RepoListing
   | Repo RepoName
   | RepoUpdate RepoName

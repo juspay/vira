@@ -14,7 +14,6 @@ import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit, RepoName (..)
 import Servant.API (FromHttpApiData, ToHttpApiData)
 import Vira.Refresh.Type (RefreshResult)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
-import Web.HttpApiData (FromHttpApiData (..), ToHttpApiData (..))
 
 -- | A project's git repository
 data Repo = Repo
@@ -78,12 +77,15 @@ data BranchBuildState
     Built Job BuildFreshness
   deriving stock (Generic, Show, Eq)
 
--- | Filter for branch queries by build status
-data BranchFilter
-  = -- | Only branches that have at least one build/job
-    WithBuilds
-  | -- | Only branches that have never been built
-    WithoutBuilds
+-- | Query parameters for filtering branches
+data BranchQuery = BranchQuery
+  { repoName :: Maybe RepoName
+  -- ^ Filter by specific repository (Nothing = all repos)
+  , branchNamePattern :: Maybe Text
+  -- ^ Filter by branch name substring (Nothing = no name filter)
+  , neverBuilt :: Bool
+  -- ^ True = show only unbuilt branches, False = show only built branches
+  }
   deriving stock (Generic, Show, Eq)
 
 -- | 'Branch' with enriched metadata for display
@@ -202,20 +204,9 @@ $(deriveSafeCopy 0 'base ''Job)
 $(deriveSafeCopy 1 'base ''Branch)
 $(deriveSafeCopy 0 'base ''BuildFreshness)
 $(deriveSafeCopy 0 'base ''BranchBuildState)
-$(deriveSafeCopy 0 'base ''BranchFilter)
+$(deriveSafeCopy 0 'base ''BranchQuery)
 $(deriveSafeCopy 0 'base ''BranchDetails)
 $(deriveSafeCopy 0 'base ''Repo)
-
--- | HttpApiData instances for BranchFilter (for URL query params)
-instance FromHttpApiData BranchFilter where
-  parseQueryParam = \case
-    "unbuilt" -> Right WithoutBuilds
-    _ -> Right WithBuilds
-
-instance ToHttpApiData BranchFilter where
-  toQueryParam = \case
-    WithoutBuilds -> "unbuilt"
-    WithBuilds -> "builds"
 
 {- | IMPORTANT: Increment the version number when making breaking changes to 'ViraState' or its indexed types.
 The version is automatically used by the @--auto-reset-state@ feature to detect schema changes.

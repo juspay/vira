@@ -9,7 +9,7 @@ import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
-import Vira.State.Type (BranchFilter (..))
+import Vira.State.Type (BranchQuery (..))
 import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.Lucid (AppHtml, getLinkUrl, runAppHtml)
 import Vira.Web.Pages.CachePage qualified as CachePage
@@ -27,7 +27,7 @@ import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (Reader, ask, runReader)
 
 data Routes mode = Routes
-  { _home :: mode :- QueryParam "filter" BranchFilter :> Get '[HTML] (Html ())
+  { _home :: mode :- QueryParam "unbuilt" Bool :> Get '[HTML] (Html ())
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _environment :: mode :- "env" Servant.API.:> NamedRoutes EnvironmentPage.Routes
@@ -57,36 +57,38 @@ handlers globalSettings viraRuntimeState webSettings =
 activityLimit :: Natural
 activityLimit = 15
 
-indexView :: Maybe BranchFilter -> AppHtml ()
-indexView mFilter = do
+indexView :: Maybe Bool -> AppHtml ()
+indexView mUnbuilt = do
   logoUrl <- W.appLogoUrl
-  let filterMode = fromMaybe WithBuilds mFilter
+  let neverBuilt = fromMaybe False mUnbuilt
       linkText = show . linkURI
       reposLink = linkText $ fieldLink _repos // RegistryPage._listing
       envLink = linkText $ fieldLink _environment // EnvironmentPage._view
       cacheLink = linkText $ fieldLink _cache // CachePage._view
   W.layout mempty $ do
     heroWelcome logoUrl reposLink envLink cacheLink
-    viewRecentActivity filterMode
+    viewRecentActivity neverBuilt
 
-viewRecentActivity :: BranchFilter -> AppHtml ()
-viewRecentActivity filterMode = do
-  -- Get filtered activities based on filter mode
-  activities <- lift $ App.query (St.QueryBranchDetailsA Nothing Nothing (Just filterMode) activityLimit)
+viewRecentActivity :: Bool -> AppHtml ()
+viewRecentActivity neverBuilt = do
+  -- Get filtered activities based on neverBuilt flag
+  let query = BranchQuery {repoName = Nothing, branchNamePattern = Nothing, neverBuilt}
+  activities <- lift $ App.query (St.QueryBranchDetailsA query activityLimit)
   -- Calculate unbuilt count for badge
-  unbuiltCount <- length <$> lift (App.query (St.QueryBranchDetailsA Nothing Nothing (Just WithoutBuilds) activityLimit))
+  let unbuiltQuery = BranchQuery {repoName = Nothing, branchNamePattern = Nothing, neverBuilt = True}
+  unbuiltCount <- length <$> lift (App.query (St.QueryBranchDetailsA unbuiltQuery activityLimit))
 
   W.viraSection_ [] $ do
     -- Header with title
     h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100"] "Recent Activity"
 
     -- Tab bar
-    buildsUrl <- lift $ getLinkUrl (Home WithBuilds)
-    unbuiltUrl <- lift $ getLinkUrl (Home WithoutBuilds)
+    buildsUrl <- lift $ getLinkUrl (Home False)
+    unbuiltUrl <- lift $ getLinkUrl (Home True)
     viraTabs_
       []
-      [ TabItem "Builds" buildsUrl (filterMode == WithBuilds) Nothing
-      , TabItem "Unbuilt" unbuiltUrl (filterMode == WithoutBuilds) (Just unbuiltCount)
+      [ TabItem "Builds" buildsUrl (not neverBuilt) Nothing
+      , TabItem "Unbuilt" unbuiltUrl neverBuilt (Just unbuiltCount)
       ]
 
     -- Activity list
