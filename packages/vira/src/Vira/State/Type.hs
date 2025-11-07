@@ -14,6 +14,7 @@ import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit, RepoName (..)
 import Servant.API (FromHttpApiData, ToHttpApiData)
 import Vira.Refresh.Type (RefreshResult)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
+import Web.HttpApiData (FromHttpApiData (..), ToHttpApiData (..))
 
 -- | A project's git repository
 data Repo = Repo
@@ -63,6 +64,14 @@ instance Indexable BranchIxs Branch where
 
 -- | Badge state for 'Branch' status
 data BadgeState = NeverBuilt | OutOfDate
+  deriving stock (Generic, Show, Eq)
+
+-- | Filter for branch queries by build status
+data BranchFilter
+  = -- | Only branches that have at least one build/job
+    WithBuilds
+  | -- | All branches, including those never built
+    AllBranches
   deriving stock (Generic, Show, Eq)
 
 -- | 'Branch' with enriched metadata for display
@@ -182,8 +191,20 @@ $(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
 $(deriveSafeCopy 1 'base ''Branch)
 $(deriveSafeCopy 0 'base ''BadgeState)
+$(deriveSafeCopy 0 'base ''BranchFilter)
 $(deriveSafeCopy 0 'base ''BranchDetails)
 $(deriveSafeCopy 0 'base ''Repo)
+
+-- | HttpApiData instances for BranchFilter (for URL query params)
+instance FromHttpApiData BranchFilter where
+  parseQueryParam = \case
+    "all" -> Right AllBranches
+    _ -> Right WithBuilds
+
+instance ToHttpApiData BranchFilter where
+  toQueryParam = \case
+    AllBranches -> "all"
+    WithBuilds -> "ci"
 
 {- | IMPORTANT: Increment the version number when making breaking changes to 'ViraState' or its indexed types.
 The version is automatically used by the @--auto-reset-state@ feature to detect schema changes.

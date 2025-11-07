@@ -9,6 +9,7 @@ import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
+import Vira.State.Type (BranchFilter (..))
 import Vira.State.Type qualified as St
 import Vira.Web.Lucid (AppHtml, runAppHtml)
 import Vira.Web.Pages.CachePage qualified as CachePage
@@ -21,12 +22,11 @@ import Vira.Web.Stack qualified as Web
 import Vira.Web.Stream.ScopedRefresh qualified as Refresh
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
-import Web.HttpApiData (FromHttpApiData (..), ToHttpApiData (..))
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (Reader, ask, runReader)
 
 data Routes mode = Routes
-  { _home :: mode :- QueryParam "filter" ActivityFilter :> Get '[HTML] (Html ())
+  { _home :: mode :- QueryParam "filter" BranchFilter :> Get '[HTML] (Html ())
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _environment :: mode :- "env" Servant.API.:> NamedRoutes EnvironmentPage.Routes
@@ -56,31 +56,19 @@ handlers globalSettings viraRuntimeState webSettings =
 activityLimit :: Natural
 activityLimit = 15
 
-data ActivityFilter = CIOnly | AllActivity
-  deriving stock (Eq, Show)
-
-instance FromHttpApiData ActivityFilter where
-  parseQueryParam = \case
-    "all" -> Right AllActivity
-    _ -> Right CIOnly
-
-instance ToHttpApiData ActivityFilter where
-  toQueryParam = \case
-    AllActivity -> "all"
-    CIOnly -> "ci"
-
-indexView :: Maybe ActivityFilter -> AppHtml ()
+indexView :: Maybe BranchFilter -> AppHtml ()
 indexView mFilter = do
   logoUrl <- W.appLogoUrl
-  allActivities <- lift $ App.query (St.GetAllBranchesA Nothing Nothing activityLimit)
-  let filterMode = fromMaybe CIOnly mFilter
-      -- By default, show only CI activity (branches with builds)
-      ciActivities = filter (\d -> St.jobsCount d > 0) allActivities
-      excludedCount = length allActivities - length ciActivities
-      activities = case filterMode of
-        CIOnly -> ciActivities
-        AllActivity -> allActivities
-      linkText = show . linkURI
+  let filterMode = fromMaybe WithBuilds mFilter
+  -- Get filtered activities based on filter mode
+  activities <- lift $ App.query (St.GetAllBranchesA Nothing Nothing filterMode activityLimit)
+  -- Get total count to calculate excluded count (only if filtering)
+  excludedCount <- case filterMode of
+    WithBuilds -> do
+      allCount <- length <$> lift (App.query (St.GetAllBranchesA Nothing Nothing AllBranches activityLimit))
+      pure $ allCount - length activities
+    AllBranches -> pure 0
+  let linkText = show . linkURI
       reposLink = linkText $ fieldLink _repos // RegistryPage._listing
       envLink = linkText $ fieldLink _environment // EnvironmentPage._view
       cacheLink = linkText $ fieldLink _cache // CachePage._view
@@ -89,7 +77,7 @@ indexView mFilter = do
     unless (null activities) $
       viewRecentActivity filterMode excludedCount activities
 
-viewRecentActivity :: ActivityFilter -> Int -> [St.BranchDetails] -> AppHtml ()
+viewRecentActivity :: BranchFilter -> Int -> [St.BranchDetails] -> AppHtml ()
 viewRecentActivity filterMode excludedCount activities = do
   W.viraSection_ [] $ do
     -- Header with title
@@ -103,8 +91,8 @@ viewRecentActivity filterMode excludedCount activities = do
           , class_ $
               "px-4 py-3 font-semibold text-sm transition-colors border-b-2 "
                 <> case filterMode of
-                  CIOnly -> "border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20"
-                  AllActivity -> "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                  WithBuilds -> "border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20"
+                  AllBranches -> "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
           ]
           "CI Activity"
         -- All Activity tab
@@ -114,8 +102,8 @@ viewRecentActivity filterMode excludedCount activities = do
             , class_ $
                 "px-4 py-3 font-semibold text-sm transition-colors border-b-2 flex items-center gap-2 "
                   <> case filterMode of
-                    AllActivity -> "border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20"
-                    CIOnly -> "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    AllBranches -> "border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20"
+                    WithBuilds -> "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
             ]
             $ do
               "All Activity"
@@ -124,8 +112,8 @@ viewRecentActivity filterMode excludedCount activities = do
                 [ class_ $
                     "inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full "
                       <> case filterMode of
-                        AllActivity -> "bg-indigo-600 dark:bg-indigo-500 text-white"
-                        CIOnly -> "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                        AllBranches -> "bg-indigo-600 dark:bg-indigo-500 text-white"
+                        WithBuilds -> "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                 ]
                 $ toHtml (show excludedCount :: String)
     -- Activity list

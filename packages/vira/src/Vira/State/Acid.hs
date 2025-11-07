@@ -96,10 +96,11 @@ This is the canonical query for getting branches - used by both RepoPage and Ind
 - Nothing repo: all repos (IndexPage)
 - Just repo: single repo (RepoPage)
 - Filter by branch name if provided
+- Filter by build status based on BranchFilter
 - Sorted by activity time (most recent first)
 -}
-getAllBranchesA :: Maybe RepoName -> Maybe Text -> Natural -> Query ViraState [BranchDetails]
-getAllBranchesA mRepo mFilter limit = do
+getAllBranchesA :: Maybe RepoName -> Maybe Text -> BranchFilter -> Natural -> Query ViraState [BranchDetails]
+getAllBranchesA mRepo mFilter branchFilter limit = do
   ViraState {branches, jobs} <- ask
   let candidateBranches = case mRepo of
         Nothing -> Ix.toList branches
@@ -108,7 +109,11 @@ getAllBranchesA mRepo mFilter limit = do
         Nothing -> True
         Just s -> T.toLower s `T.isInfixOf` T.toLower (toText branch.branchName)
       enriched = enrichBranchWithJobs jobs <$> filter matchesFilter candidateBranches
-      sorted = sortWith (Down . branchActivityTime) enriched
+      -- Filter by build status
+      withBuildsFilter = case branchFilter of
+        WithBuilds -> filter (\d -> d.jobsCount > 0)
+        AllBranches -> Prelude.id
+      sorted = sortWith (Down . branchActivityTime) $ withBuildsFilter enriched
   pure $ take (fromIntegral limit) sorted
 
 -- | Get all branches for a repo
