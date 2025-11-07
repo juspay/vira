@@ -104,19 +104,19 @@ queryBranchDetailsA query limit = do
     branches
       & maybe Prelude.id getEQ query.repoName
       & Ix.toList
-      & filter matchesName
+      & filter matchesBranch
       & fmap (enrichBranchWithJobs jobs)
       & filterByBuildStatus
       & sortWith (Down . branchActivityTime)
       & take (fromIntegral limit)
   where
-    matchesName branch = case query.branchNamePattern of
+    matchesBranch branch = case query.branchNamePattern of
       Nothing -> True
       Just q -> T.toLower q `T.isInfixOf` T.toLower (toText branch.branchName)
     filterByBuildStatus =
       if query.neverBuilt
-        then filter (\d -> d.jobsCount == 0)
-        else filter (\d -> d.jobsCount > 0)
+        then filter (\d -> d.buildState == NeverBuilt)
+        else filter (\d -> d.buildState /= NeverBuilt)
 
 -- | Get single branch with enriched metadata
 getBranchDetailsA :: RepoName -> BranchName -> Query ViraState (Maybe BranchDetails)
