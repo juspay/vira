@@ -7,6 +7,7 @@ module Vira.State.Type where
 
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Data (Data)
+import Data.Default (Default (..))
 import Data.IxSet.Typed
 import Data.SafeCopy
 import Data.Time (UTCTime)
@@ -61,20 +62,44 @@ instance Indexable BranchIxs Branch where
       (ixFun $ \Branch {repoName} -> [repoName])
       (ixFun $ \Branch {branchName} -> [branchName])
 
--- | Badge state for 'Branch' status
-data BadgeState = NeverBuilt | OutOfDate
+-- | Build freshness indicator for branches that have been built
+data BuildFreshness
+  = -- | Latest job commit matches head commit
+    UpToDate
+  | -- | Latest job commit differs from head commit
+    OutOfDate
   deriving stock (Generic, Show, Eq)
+
+-- | Build state for a 'Branch'
+data BranchBuildState
+  = -- | Branch has never been built
+    NeverBuilt
+  | -- | Branch has builds, with the latest job and freshness indicator
+    Built Job BuildFreshness
+  deriving stock (Generic, Show, Eq)
+
+-- | Query parameters for filtering branches
+data BranchQuery = BranchQuery
+  { repoName :: Maybe RepoName
+  -- ^ Filter by specific repository (Nothing = all repos)
+  , branchNamePattern :: Maybe Text
+  -- ^ Filter by branch name substring (Nothing = no name filter)
+  , neverBuilt :: Maybe Bool
+  -- ^ Nothing = all branches, Just True = unbuilt only, Just False = built only
+  }
+  deriving stock (Generic, Show, Eq)
+
+instance Default BranchQuery where
+  def = BranchQuery {repoName = Nothing, branchNamePattern = Nothing, neverBuilt = Nothing}
 
 -- | 'Branch' with enriched metadata for display
 data BranchDetails = BranchDetails
   { branch :: Branch
   -- ^ The 'Branch' information from the database
-  , mLatestJob :: Maybe Job
-  -- ^ The most recent CI 'Job' for this branch, if any
   , jobsCount :: Natural
   -- ^ Total number of 'Job's for this branch
-  , badgeState :: Maybe BadgeState
-  -- ^ 'BadgeState' computed from job/commit comparison
+  , buildState :: BranchBuildState
+  -- ^ Build state computed from job/commit comparison (includes latest job if built)
   }
   deriving stock (Generic, Show, Eq)
 
@@ -84,9 +109,9 @@ Activity is defined as @max(head commit date, latest job created time)@.
 This ensures branches with recent commits OR recent builds appear first.
 -}
 branchActivityTime :: BranchDetails -> UTCTime
-branchActivityTime details = case details.mLatestJob of
-  Nothing -> details.branch.headCommit.date
-  Just job -> max details.branch.headCommit.date job.jobCreatedTime
+branchActivityTime details = case details.buildState of
+  NeverBuilt -> details.branch.headCommit.date
+  Built job _ -> max details.branch.headCommit.date job.jobCreatedTime
 
 -- | Sorts 'BranchDetails' by most recent activity descending (most recent first).
 instance Ord BranchDetails where
@@ -181,7 +206,9 @@ $(deriveSafeCopy 0 'base ''JobStatus)
 $(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
 $(deriveSafeCopy 1 'base ''Branch)
-$(deriveSafeCopy 0 'base ''BadgeState)
+$(deriveSafeCopy 0 'base ''BuildFreshness)
+$(deriveSafeCopy 0 'base ''BranchBuildState)
+$(deriveSafeCopy 0 'base ''BranchQuery)
 $(deriveSafeCopy 0 'base ''BranchDetails)
 $(deriveSafeCopy 0 'base ''Repo)
 
@@ -190,4 +217,4 @@ The version is automatically used by the @--auto-reset-state@ feature to detect 
 When enabled, auto-reset will remove @ViraState/@ and @workspace/*/jobs@ directories on mismatch.
 Run @vira info@ to see the current schema version.
 -}
-$(deriveSafeCopy 6 'base ''ViraState)
+$(deriveSafeCopy 7 'base ''ViraState)

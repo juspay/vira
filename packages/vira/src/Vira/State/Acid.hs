@@ -75,41 +75,56 @@ getRepoByNameA name = do
 enrichBranchWithJobs :: IxJob -> Branch -> BranchDetails
 enrichBranchWithJobs jobsIx branch =
   let branchJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= branch.repoName @= branch.branchName
-      mLatestJob = viaNonEmpty head branchJobs
-      -- Compute badge state based on job and commit comparison
-      badgeState = case mLatestJob of
-        Nothing -> Just NeverBuilt
+      -- Compute build state based on job and commit comparison
+      buildState = case viaNonEmpty head branchJobs of
+        Nothing -> NeverBuilt
         Just job
-          | job.commit /= branch.headCommit.id -> Just OutOfDate
-          | otherwise -> Nothing
+          | job.commit /= branch.headCommit.id -> Built job OutOfDate
+          | otherwise -> Built job UpToDate
    in BranchDetails
         { branch
-        , mLatestJob
         , jobsCount = fromIntegral $ length branchJobs
-        , badgeState
+        , buildState
         }
 
-{- | Get branches with enriched metadata, optionally filtered by repo and/or name.
+{- | Query branches with enriched metadata, filtered by BranchQuery criteria.
 
 This is the canonical query for getting branches - used by both RepoPage and IndexPage.
 
 - Nothing repo: all repos (IndexPage)
 - Just repo: single repo (RepoPage)
 - Filter by branch name if provided
+- Filter by build status (Nothing = all, Just True = unbuilt only, Just False = built only)
 - Sorted by activity time (most recent first)
 -}
-getAllBranchesA :: Maybe RepoName -> Maybe Text -> Natural -> Query ViraState [BranchDetails]
-getAllBranchesA mRepo mFilter limit = do
+queryBranchDetailsA :: BranchQuery -> Natural -> Query ViraState [BranchDetails]
+queryBranchDetailsA query limit = do
   ViraState {branches, jobs} <- ask
-  let candidateBranches = case mRepo of
-        Nothing -> Ix.toList branches
-        Just repo -> Ix.toList $ branches @= repo
-      matchesFilter branch = case mFilter of
-        Nothing -> True
-        Just s -> T.toLower s `T.isInfixOf` T.toLower (toText branch.branchName)
-      enriched = enrichBranchWithJobs jobs <$> filter matchesFilter candidateBranches
-      sorted = sortWith (Down . branchActivityTime) enriched
-  pure $ take (fromIntegral limit) sorted
+  pure $
+    branches
+      & maybe Prelude.id getEQ query.repoName
+      & Ix.toList
+      & filter matchesBranch
+      & fmap (enrichBranchWithJobs jobs)
+      & filterByBuildStatus
+      & sortWith (Down . branchActivityTime)
+      & take (fromIntegral limit)
+  where
+    matchesBranch branch = case query.branchNamePattern of
+      Nothing -> True
+      Just q -> T.toLower q `T.isInfixOf` T.toLower (toText branch.branchName)
+    filterByBuildStatus = case query.neverBuilt of
+      Nothing -> Prelude.id -- all branches
+      Just True -> filter (\d -> d.buildState == NeverBuilt)
+      Just False -> filter (\d -> d.buildState /= NeverBuilt)
+
+-- | Get single branch with enriched metadata
+getBranchDetailsA :: RepoName -> BranchName -> Query ViraState (Maybe BranchDetails)
+getBranchDetailsA repo branchName = do
+  ViraState {branches, jobs} <- ask
+  pure $ do
+    branch <- Ix.getOne $ branches @= repo @= branchName
+    pure $ enrichBranchWithJobs jobs branch
 
 -- | Get all branches for a repo
 getRepoBranchesA :: RepoName -> Query ViraState [Branch]
@@ -122,14 +137,6 @@ getBranchByNameA :: RepoName -> BranchName -> Query ViraState (Maybe Branch)
 getBranchByNameA repo branch = do
   ViraState {branches} <- ask
   pure $ Ix.getOne $ branches @= repo @= branch
-
--- | Get branch with enriched metadata
-getBranchDetailsA :: RepoName -> BranchName -> Query ViraState (Maybe BranchDetails)
-getBranchDetailsA repo branchName = do
-  ViraState {branches, jobs} <- ask
-  case Ix.getOne $ branches @= repo @= branchName of
-    Nothing -> pure Nothing
-    Just branch -> pure $ Just $ enrichBranchWithJobs jobs branch
 
 -- | Set a repository's refresh status
 setRefreshStatusA :: RepoName -> Maybe RefreshResult -> Update ViraState ()
@@ -314,7 +321,7 @@ $( makeAcidic
      [ 'setAllReposA
      , 'getAllReposA
      , 'getRepoByNameA
-     , 'getAllBranchesA
+     , 'queryBranchDetailsA
      , 'getRepoBranchesA
      , 'getBranchByNameA
      , 'getBranchDetailsA

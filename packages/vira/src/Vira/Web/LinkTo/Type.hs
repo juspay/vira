@@ -12,7 +12,7 @@ Avoids cyclic imports by providing a type-level hint instead of direct route ref
 Used with 'Vira.Web.Lucid.getLink' to generate 'Servant.Links.Link' values.
 -}
 data LinkTo
-  = Home
+  = Home (Maybe Bool) -- Nothing = all, Just True = unbuilt, Just False = built
   | RepoListing
   | Repo RepoName
   | RepoUpdate RepoName
@@ -32,7 +32,7 @@ data LinkTo
 
 linkShortTitle :: LinkTo -> Text
 linkShortTitle = \case
-  Home -> "Vira"
+  Home _ -> "Vira"
   RepoListing -> "Repositories"
   Repo name -> toStringText name
   RepoUpdate _ -> "Update" -- unused

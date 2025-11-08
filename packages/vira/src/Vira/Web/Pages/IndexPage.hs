@@ -1,16 +1,18 @@
 -- | Top-level routes and views
 module Vira.Web.Pages.IndexPage where
 
+import Data.Default (def)
 import Lucid
-import Servant.API (Get, NamedRoutes, (:>))
+import Servant.API (Get, NamedRoutes, QueryParam, (:>))
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.API.Generic (GenericMode (type (:-)))
 import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
-import Vira.State.Type qualified as St
-import Vira.Web.Lucid (AppHtml, runAppHtml)
+import Vira.State.Type (BranchQuery (..))
+import Vira.Web.LinkTo.Type (LinkTo (..))
+import Vira.Web.Lucid (AppHtml, getLinkUrl, runAppHtml)
 import Vira.Web.Pages.CachePage qualified as CachePage
 import Vira.Web.Pages.EnvironmentPage qualified as EnvironmentPage
 import Vira.Web.Pages.EventsPage qualified as EventsPage
@@ -21,11 +23,12 @@ import Vira.Web.Stack qualified as Web
 import Vira.Web.Stream.ScopedRefresh qualified as Refresh
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
+import Vira.Web.Widgets.Tabs (TabItem (..), viraTabs_)
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (Reader, ask, runReader)
 
 data Routes mode = Routes
-  { _home :: mode :- Get '[HTML] (Html ())
+  { _home :: mode :- QueryParam "neverBuilt" Bool :> Get '[HTML] (Html ())
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _environment :: mode :- "env" Servant.API.:> NamedRoutes EnvironmentPage.Routes
@@ -40,8 +43,9 @@ handlers :: App.GlobalSettings -> App.ViraRuntimeState -> App.WebSettings -> Rou
 handlers globalSettings viraRuntimeState webSettings =
   Routes
     { _home =
-        Web.runAppInServant globalSettings viraRuntimeState webSettings $
-          runAppHtml indexView
+        Web.runAppInServant globalSettings viraRuntimeState webSettings
+          . runAppHtml
+          . indexView
     , _repos = RegistryPage.handlers globalSettings viraRuntimeState webSettings
     , _jobs = JobPage.handlers globalSettings viraRuntimeState webSettings
     , _environment = EnvironmentPage.handlers globalSettings viraRuntimeState webSettings
@@ -54,24 +58,43 @@ handlers globalSettings viraRuntimeState webSettings =
 activityLimit :: Natural
 activityLimit = 15
 
-indexView :: AppHtml ()
-indexView = do
+indexView :: Maybe Bool -> AppHtml ()
+indexView mUnbuilt = do
   logoUrl <- W.appLogoUrl
-  activities <- lift $ App.query (St.GetAllBranchesA Nothing Nothing activityLimit)
   let linkText = show . linkURI
       reposLink = linkText $ fieldLink _repos // RegistryPage._listing
       envLink = linkText $ fieldLink _environment // EnvironmentPage._view
       cacheLink = linkText $ fieldLink _cache // CachePage._view
   W.layout mempty $ do
     heroWelcome logoUrl reposLink envLink cacheLink
-    unless (null activities) $
-      viewRecentActivity activities
+    viewRecentActivity mUnbuilt
 
-viewRecentActivity :: [St.BranchDetails] -> AppHtml ()
-viewRecentActivity activities = do
+viewRecentActivity :: Maybe Bool -> AppHtml ()
+viewRecentActivity mNeverBuilt = do
+  -- Get filtered activities based on neverBuilt flag
+  let query = def {neverBuilt = mNeverBuilt}
+  activities <- lift $ App.query (St.QueryBranchDetailsA query activityLimit)
+  -- Calculate unbuilt count for badge
+  let unbuiltQuery = def {neverBuilt = Just True}
+  unbuiltCount <- length <$> lift (App.query (St.QueryBranchDetailsA unbuiltQuery activityLimit))
+
   W.viraSection_ [] $ do
-    h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6"] "Recent Activity"
-    div_ [] $ do
+    -- Header with title
+    h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100"] "Recent Activity"
+
+    -- Tab bar
+    allUrl <- lift $ getLinkUrl (Home Nothing)
+    buildsUrl <- lift $ getLinkUrl (Home (Just False))
+    unbuiltUrl <- lift $ getLinkUrl (Home (Just True))
+    viraTabs_
+      []
+      [ TabItem "All" allUrl (isNothing mNeverBuilt) Nothing
+      , TabItem "Builds" buildsUrl (mNeverBuilt == Just False) Nothing
+      , TabItem "Unbuilt" unbuiltUrl (mNeverBuilt == Just True) (Just unbuiltCount)
+      ]
+
+    -- Activity list
+    div_ $ do
       forM_ activities $ \details ->
         W.viraBranchDetailsRow_ True details
 

@@ -40,7 +40,7 @@ import Vira.Refresh (getRepoRefreshStatus)
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshResult (..), RefreshStatus (..))
 import Vira.State.Acid qualified as Acid
 import Vira.State.Core qualified as St
-import Vira.Web.LinkTo.Type qualified as LinkTo
+import Vira.Web.LinkTo.Type (LinkTo (..))
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl)
 import Vira.Web.Widgets.Button qualified as W
 import Web.TablerIcons.Outline qualified as Icon
@@ -110,7 +110,7 @@ viewAllJobStatus :: AppHtml ()
 viewAllJobStatus = do
   activeJobs <- lift $ App.query Acid.GetActiveJobsA
   let active = not (null activeJobs.running) || not (null activeJobs.pending)
-  indexUrl <- lift $ getLinkUrl LinkTo.Home
+  indexUrl <- lift $ getLinkUrl (Home Nothing) -- Nothing = all branches
   a_ [href_ indexUrl, class_ "flex items-center space-x-2 text-white hover:bg-white/20 px-3 py-1 rounded-lg transition-colors", title_ "View all jobs"] $ do
     indicator active
     span_ [class_ "text-sm font-medium"] $
@@ -151,7 +151,7 @@ Status.viraSmartRefreshButton_ repo.name
 -}
 viraSmartRefreshButton_ :: RepoName -> AppHtml ()
 viraSmartRefreshButton_ repo = do
-  updateLink <- lift $ getLink $ LinkTo.RepoUpdate repo
+  updateLink <- lift $ getLink $ RepoUpdate repo
   status <- lift $ getRepoRefreshStatus repo
   now <- liftIO getCurrentTime
 

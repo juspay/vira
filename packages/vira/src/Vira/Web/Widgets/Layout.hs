@@ -186,7 +186,7 @@ viraVersionLink = do
 -- | Get icon for a LinkTo type
 linkToIcon :: (Monad m) => LinkTo -> HtmlT m ()
 linkToIcon = \case
-  Home -> toHtmlRaw Icon.home
+  Home _ -> toHtmlRaw Icon.home
   RepoListing -> toHtmlRaw Icon.folder
   Repo _ -> toHtmlRaw Icon.book_2
   RepoBranch _ _ -> toHtmlRaw Icon.git_branch
