@@ -198,6 +198,8 @@ data ViraState = ViraState
   , branches :: IxBranch
   , commits :: IxCommit
   , jobs :: IxJob
+  , nextJobId :: JobId
+  -- ^ The next job ID to assign (monotonically increasing)
   }
   deriving stock (Generic, Typeable)
 
@@ -217,4 +219,4 @@ The version is automatically used by the @--auto-reset-state@ feature to detect 
 When enabled, auto-reset will remove @ViraState/@ and @workspace/*/jobs@ directories on mismatch.
 Run @vira info@ to see the current schema version.
 -}
-$(deriveSafeCopy 7 'base ''ViraState)
+$(deriveSafeCopy 8 'base ''ViraState)

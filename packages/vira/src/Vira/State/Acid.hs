@@ -12,7 +12,6 @@ module Vira.State.Acid where
 import Data.Acid (Query, Update, makeAcidic)
 import Data.IxSet.Typed
 import Data.IxSet.Typed qualified as Ix
-import Data.List (maximum)
 import Data.Map.Strict qualified as Map
 import Data.SafeCopy
 import Data.Text qualified as T
@@ -254,20 +253,14 @@ getJobA jobId = do
 
 -- | Create a new job returning it.
 addNewJobA :: RepoName -> BranchName -> CommitID -> FilePath -> UTCTime -> Update ViraState Job
-addNewJobA repo branch commit baseDir jobCreatedTime = do
-  jobs <- Ix.toList <$> gets jobs
+addNewJobA repo branch commit baseDir jobCreatedTime = state $ \s ->
   let
-    jobId =
-      let ids = (.jobId) <$> jobs
-       in if Prelude.null ids then JobId 1 else JobId 1 + maximum ids
+    jobId = s.nextJobId
     jobStatus = JobPending
     jobWorkingDir = baseDir </> show jobId
     job = Job {..}
-  modify $ \s ->
-    s
-      { jobs = Ix.insert job s.jobs
-      }
-  pure job
+   in
+    (job, s {jobs = Ix.insert job s.jobs, nextJobId = s.nextJobId + 1})
 
 jobUpdateStatusA :: JobId -> JobStatus -> Update ViraState Job
 jobUpdateStatusA jobId status = state $ \s ->
