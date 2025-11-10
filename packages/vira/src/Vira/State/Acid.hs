@@ -12,7 +12,6 @@ module Vira.State.Acid where
 import Data.Acid (Query, Update, makeAcidic)
 import Data.IxSet.Typed
 import Data.IxSet.Typed qualified as Ix
-import Data.List (maximum)
 import Data.Map.Strict qualified as Map
 import Data.SafeCopy
 import Data.Text qualified as T
@@ -38,7 +37,7 @@ addNewRepoA repo = do
       { repos = Ix.insert repo s.repos
       }
 
-{- | Delete a 'Repo' by name and associated 'Branch'es (keeps 'Job's for history)
+{- | Delete a 'Repo' by name and all associated data ('Branch'es and 'Job's)
 
 Returns @Left@ with error message if there are running jobs
 -}
@@ -55,6 +54,7 @@ deleteRepoByNameA name = do
         st
           { repos = Ix.deleteIx name st.repos
           , branches = deleteIxMulti name st.branches
+          , jobs = deleteIxMulti name st.jobs
           }
       pure $ Right ()
 
@@ -254,17 +254,16 @@ getJobA jobId = do
 -- | Create a new job returning it.
 addNewJobA :: RepoName -> BranchName -> CommitID -> FilePath -> UTCTime -> Update ViraState Job
 addNewJobA repo branch commit baseDir jobCreatedTime = do
-  jobs <- Ix.toList <$> gets jobs
+  s <- get
   let
-    jobId =
-      let ids = (.jobId) <$> jobs
-       in if Prelude.null ids then JobId 1 else JobId 1 + maximum ids
+    jobId = s.nextJobId
     jobStatus = JobPending
     jobWorkingDir = baseDir </> show jobId
     job = Job {..}
-  modify $ \s ->
+  put $
     s
       { jobs = Ix.insert job s.jobs
+      , nextJobId = s.nextJobId + 1
       }
   pure job
 

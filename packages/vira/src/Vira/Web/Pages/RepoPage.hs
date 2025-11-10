@@ -88,7 +88,7 @@ deleteHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRedirect] Text
 deleteHandler name = do
   App.query (St.GetRepoByNameA name) >>= \case
     Just _repo -> do
-      -- Delete from acid-state (repo, branches; jobs kept for history)
+      -- Delete from acid-state (repo, branches, jobs)
       -- Note: Runtime state (refresh state) is auto-cleaned by the refresh daemon
       App.update (St.DeleteRepoByNameA name) >>= \case
         Left errMsg -> throwError $ err400 {errBody = encodeUtf8 errMsg}
