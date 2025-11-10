@@ -38,7 +38,7 @@ addNewRepoA repo = do
       { repos = Ix.insert repo s.repos
       }
 
-{- | Delete a 'Repo' by name and all associated data ('Branch'es and 'Job's)
+{- | Delete a 'Repo' by name and associated 'Branch'es (keeps 'Job's for history)
 
 Returns @Left@ with error message if there are running jobs
 -}
@@ -55,7 +55,6 @@ deleteRepoByNameA name = do
         st
           { repos = Ix.deleteIx name st.repos
           , branches = deleteIxMulti name st.branches
-          , jobs = deleteIxMulti name st.jobs
           }
       pure $ Right ()
 
