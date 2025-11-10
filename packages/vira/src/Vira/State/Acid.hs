@@ -253,19 +253,14 @@ getJobA jobId = do
 
 -- | Create a new job returning it.
 addNewJobA :: RepoName -> BranchName -> CommitID -> FilePath -> UTCTime -> Update ViraState Job
-addNewJobA repo branch commit baseDir jobCreatedTime = do
-  s <- get
+addNewJobA repo branch commit baseDir jobCreatedTime = state $ \s ->
   let
     jobId = s.nextJobId
     jobStatus = JobPending
     jobWorkingDir = baseDir </> show jobId
     job = Job {..}
-  put $
-    s
-      { jobs = Ix.insert job s.jobs
-      , nextJobId = s.nextJobId + 1
-      }
-  pure job
+   in
+    (job, s {jobs = Ix.insert job s.jobs, nextJobId = s.nextJobId + 1})
 
 jobUpdateStatusA :: JobId -> JobStatus -> Update ViraState Job
 jobUpdateStatusA jobId status = state $ \s ->
