@@ -72,6 +72,12 @@ in
       description = "Auto-build new branches (default: only auto-build branches built at least once)";
     };
 
+    jobRetentionDays = mkOption {
+      type = types.ints.unsigned;
+      default = 7;
+      description = "Delete jobs older than N days (0 = disable cleanup)";
+    };
+
     initialState = mkOption {
       description = "Initial state configuration for Vira";
       default = { };
@@ -148,7 +154,8 @@ in
                 ] ++ optionals (!cfg.https) [ "--no-https" ]
                 ++ optionals hasInitialState [ "--import" initialStateJson ]
                 ++ optionals (cfg.maxConcurrentBuilds != null) [ "--max-concurrent-builds" (toString cfg.maxConcurrentBuilds) ]
-                ++ optionals cfg.autoBuildNewBranches [ "--auto-build-new-branches" ];
+                ++ optionals cfg.autoBuildNewBranches [ "--auto-build-new-branches" ]
+                ++ [ "--job-retention-days" (toString cfg.jobRetentionDays) ];
               in
               "${cfg.package}/bin/vira ${concatStringsSep " " globalArgs} web ${concatStringsSep " " webArgs}";
           };

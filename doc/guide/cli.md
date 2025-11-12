@@ -73,3 +73,4 @@ When running `vira web`, these additional options are available:
 - `--import FILE` - Import JSON file on startup
 - `--max-concurrent-builds COUNT` - Maximum concurrent CI builds (defaults to 2)
 - `--auto-build-new-branches` - Auto-build new branches (default: only auto-build branches built at least once)
+- `--job-retention-days DAYS` - Delete jobs older than N days (default: 7, set to 0 to disable cleanup). See [[cleanup]] for details.
