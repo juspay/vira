@@ -41,6 +41,7 @@ library
       Vira.CI.AutoBuild
       Vira.CI.AutoBuild.Type
       Vira.CI.Cleanup
+      Vira.CI.Cleanup.Daemon
       Vira.CI.Client
       Vira.CI.Configuration
       Vira.CI.Error

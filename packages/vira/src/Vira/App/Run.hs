@@ -32,6 +32,7 @@ import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSet
 import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (getInstanceInfo)
 import Vira.CI.AutoBuild qualified as AutoBuild
+import Vira.CI.Cleanup.Daemon qualified as CleanupDaemon
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Pipeline.Program qualified as Program
@@ -95,6 +96,7 @@ runVira = do
               Daemon.startRefreshDaemon
               Worker.startJobWorkerDaemon
               AutoBuild.startAutoBuildDaemon autoBuildSettings
+              CleanupDaemon.startCleanupDaemon webSettings.ciSettings.jobRetentionDays
               cacheApp <- liftIO $ Cache.makeCacheServer cacheKeys.secretKey
               Server.runServer globalSettings webSettings cacheApp
         App.runApp globalSettings viraRuntimeState appServer

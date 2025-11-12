@@ -251,18 +251,20 @@ getJobA jobId = do
   ViraState {jobs} <- ask
   pure $ Ix.getOne $ jobs @= jobId
 
--- | Get all finished jobs older than the cutoff time
-getOldJobsA :: UTCTime -> Query ViraState [Job]
+-- | Get all finished jobs older than the cutoff time (returns job ID, end time, and workspace directory)
+getOldJobsA :: UTCTime -> Query ViraState [(JobId, UTCTime, FilePath)]
 getOldJobsA cutoffTime = do
   ViraState {jobs} <- ask
   let allJobs = Ix.toList jobs
       -- Only finished jobs have an end time
-      finishedOldJobs = filter isOldFinishedJob allJobs
-  pure finishedOldJobs
+      oldJobIds = mapMaybe extractOldJobId allJobs
+  pure $ sortWith (\(_, endTime, _) -> endTime) oldJobIds -- Oldest first
   where
-    isOldFinishedJob job = case jobEndTime job of
-      Nothing -> False -- Not finished (Pending/Running/Stale)
-      Just endTime -> endTime < cutoffTime
+    extractOldJobId job = case jobEndTime job of
+      Nothing -> Nothing -- Not finished (Pending/Running/Stale)
+      Just endTime
+        | endTime < cutoffTime -> Just (job.jobId, endTime, job.jobWorkingDir)
+        | otherwise -> Nothing
 
 -- | Create a new job returning it.
 addNewJobA :: RepoName -> BranchName -> CommitID -> FilePath -> UTCTime -> Update ViraState Job

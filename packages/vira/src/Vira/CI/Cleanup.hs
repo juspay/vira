@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedRecordDot #-}
-
 {- | Job cleanup operations
 
 This module provides functions for cleaning up old jobs from both acid-state
@@ -22,7 +20,7 @@ import Vira.App.AcidState qualified as App
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.Lib.TimeExtra (formatDuration)
 import Vira.State.Acid qualified as St
-import Vira.State.Type (Job (..), JobStatus (..))
+import Vira.State.Type (JobId)
 import Prelude hiding (Reader)
 
 {- | Delete an old job from both acid-state and filesystem
@@ -30,9 +28,9 @@ import Prelude hiding (Reader)
 Performs the following operations:
 1. Deletes the job from acid-state
 2. Removes the job's workspace directory
-3. Logs the deletion with job details
+3. Logs the deletion
 
-Handles missing directories gracefully (logs warning but continues).
+Handles missing directories gracefully.
 -}
 deleteOldJob ::
   ( Reader ViraRuntimeState :> es
@@ -42,38 +40,21 @@ deleteOldJob ::
   , FileSystem :> es
   ) =>
   UTCTime ->
-  Job ->
+  JobId ->
+  UTCTime ->
+  FilePath ->
   Eff es ()
-deleteOldJob now job = case job.jobStatus of
-  JobFinished _ endTime -> do
-    let age = formatDuration $ diffUTCTime now endTime
+deleteOldJob now jobId endTime workDir = do
+  let age = formatDuration $ diffUTCTime now endTime
 
-    -- Delete from acid-state
-    void $ App.update $ St.DeleteJobA job.jobId
+  -- Delete from acid-state
+  void $ App.update $ St.DeleteJobA jobId
 
-    -- Delete workspace directory
-    let workDir = job.jobWorkingDir
-    exists <- liftIO $ doesDirectoryExist workDir
-    if exists
-      then do
-        liftIO $ removePathForcibly workDir
-        log Info $
-          "🧹 Deleted job "
-            <> show job.jobId
-            <> " ("
-            <> toText job.repo
-            <> "/"
-            <> toText job.branch
-            <> " @ "
-            <> show job.commit
-            <> ") - "
-            <> age
-            <> " old"
-      else
-        log Warning $
-          "🧹 Job workspace already missing: "
-            <> show job.jobId
-            <> " (dir: "
-            <> toText workDir
-            <> ")"
-  _ -> log Error $ "Attempted to delete non-finished job: " <> show job.jobId
+  -- Delete workspace directory
+  exists <- liftIO $ doesDirectoryExist workDir
+  if exists
+    then do
+      liftIO $ removePathForcibly workDir
+      log Info $ "🧹 Deleted job " <> show jobId <> " (" <> age <> " old)"
+    else
+      log Warning $ "🧹 Job workspace already missing: " <> show jobId
