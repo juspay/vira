@@ -251,6 +251,19 @@ getJobA jobId = do
   ViraState {jobs} <- ask
   pure $ Ix.getOne $ jobs @= jobId
 
+-- | Get all finished jobs older than the cutoff time
+getOldJobsA :: UTCTime -> Query ViraState [Job]
+getOldJobsA cutoffTime = do
+  ViraState {jobs} <- ask
+  let allJobs = Ix.toList jobs
+      -- Only finished jobs have an end time
+      finishedOldJobs = filter isOldFinishedJob allJobs
+  pure finishedOldJobs
+  where
+    isOldFinishedJob job = case jobEndTime job of
+      Nothing -> False -- Not finished (Pending/Running/Stale)
+      Just endTime -> endTime < cutoffTime
+
 -- | Create a new job returning it.
 addNewJobA :: RepoName -> BranchName -> CommitID -> FilePath -> UTCTime -> Update ViraState Job
 addNewJobA repo branch commit baseDir jobCreatedTime = state $ \s ->
@@ -267,6 +280,11 @@ jobUpdateStatusA jobId status = state $ \s ->
   let job = fromMaybe (error $ "No such job: " <> show jobId) $ Ix.getOne $ s.jobs @= jobId
       updatedJob = job {jobStatus = status}
    in (updatedJob, s {jobs = Ix.updateIx jobId updatedJob s.jobs})
+
+-- | Delete a job from the state (for cleanup of old jobs)
+deleteJobA :: JobId -> Update ViraState ()
+deleteJobA jobId = do
+  modify $ \s -> s {jobs = Ix.deleteIx jobId s.jobs}
 
 markUnfinishedJobsAsStaleA :: Update ViraState ()
 markUnfinishedJobsAsStaleA = do
@@ -326,8 +344,10 @@ $( makeAcidic
      , 'getRecentJobsA
      , 'getActiveJobsA
      , 'getJobA
+     , 'getOldJobsA
      , 'addNewJobA
      , 'jobUpdateStatusA
+     , 'deleteJobA
      , 'markUnfinishedJobsAsStaleA
      , 'cancelPendingJobsInBranchA
      , 'addNewRepoA
@@ -348,5 +368,7 @@ deriving stock instance Show SetRepoBranchesA
 deriving stock instance Show AddNewJobA
 
 deriving stock instance Show JobUpdateStatusA
+
+deriving stock instance Show DeleteJobA
 
 deriving stock instance Show CancelPendingJobsInBranchA
