@@ -14,6 +14,12 @@
 - Follow `DESIGN.md` guidelines.
 - Use existing components in `src/Vira/Widgets/*.hs` before creating new ones.
 
+# Haskell Documentation
+
+- Haddock should be self-sufficient, documenting the 'what' not the 'why' or history
+- Describe current behavior, usage, and examples
+- Avoid references to old code, previous implementations, or how things used to work
+
 # Local Haskell packages
 
 Our Haskell packages are kept under ./packages directory. Whenever adding or removing items to this directory, you must also remember to update the following files: cabal.project, cabal-repl, .ghcid.
