@@ -28,7 +28,7 @@
             echo
             echo "Logging in..."
             attic login "$SERVER_NAME" "$ENDPOINT" "$TOKEN"
-            echo "Done! You can now use: attic push $SERVER_NAME:cache-name /nix/store/..."
+            echo "Done!"
           '';
           meta.description = "Interactive attic login setup - prompts for token, takes server name and endpoint as arguments";
         })
