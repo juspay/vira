@@ -72,6 +72,9 @@ getToolData = do
 -- | Suggestions for fixing Attic configuration issues
 data AtticSuggestion
   = AtticLoginSuggestion
+      { serverName :: Text
+      , endpoint :: AtticServerEndpoint
+      }
   | AtticParseErrorSuggestion
       { configPath :: Text
       }
@@ -79,9 +82,9 @@ data AtticSuggestion
 
 instance TS.Show AtticSuggestion where
   show = \case
-    AtticLoginSuggestion ->
-      -- Just show the one-liner interactive script
-      Attic.Interactive.atticLoginInteractiveBin
+    AtticLoginSuggestion {serverName, endpoint} ->
+      -- Show the one-liner with server name and endpoint as arguments
+      toString $ toText Attic.Interactive.atticLoginInteractiveBin <> " " <> serverName <> " " <> toText endpoint
     AtticParseErrorSuggestion {configPath} ->
       toString $ "rm " <> configPath
 
@@ -90,10 +93,22 @@ configErrorToSuggestion :: ConfigError -> AtticSuggestion
 configErrorToSuggestion = \case
   ParseError _ ->
     AtticParseErrorSuggestion "~/.config/attic/config.toml"
-  MissingEndpoint _ep ->
-    AtticLoginSuggestion
-  MissingToken _server ->
-    AtticLoginSuggestion
+  MissingEndpoint ep ->
+    mkLoginSuggestion (deriveServerName ep) ep
+  MissingToken server ->
+    mkLoginSuggestion server.name server.endpoint
+  where
+    mkLoginSuggestion :: Text -> AtticServerEndpoint -> AtticSuggestion
+    mkLoginSuggestion name endpoint =
+      AtticLoginSuggestion
+        { serverName = name
+        , endpoint = endpoint
+        }
+    deriveServerName (AtticServerEndpoint url) =
+      T.replace "https://" "" url
+        & T.replace "http://" ""
+        & T.replace "." "-"
+        & T.replace "/" ""
 
 -- | ToHtml instance for rendering suggestions in the Tools Page
 instance ToHtml AtticSuggestion where
@@ -125,9 +140,15 @@ viewToolStatus result = do
             toHtml suggestion
       Right atticCfg ->
         if Map.null atticCfg.servers
-          then viraAlertWithTitle_ AlertInfo "Not configured" $ do
-            "No Attic servers configured. "
-            toHtml AtticLoginSuggestion
+          then
+            let suggestion =
+                  AtticLoginSuggestion
+                    { serverName = "cache-example-com"
+                    , endpoint = "https://cache.example.com"
+                    }
+             in viraAlertWithTitle_ AlertInfo "Not configured" $ do
+                  "No Attic servers configured. "
+                  toHtml suggestion
           else viraAlert_ AlertSuccess $ do
             case atticCfg.defaultServer of
               Just defServer -> do
