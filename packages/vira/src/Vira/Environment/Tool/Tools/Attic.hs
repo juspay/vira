@@ -14,6 +14,7 @@ module Vira.Environment.Tool.Tools.Attic (
 import Attic qualified
 import Attic.Config (AtticConfig (..), AtticServerConfig (..))
 import Attic.Config qualified
+import Attic.Interactive qualified
 import Attic.Types (AtticServer (..), AtticServerEndpoint (..))
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
@@ -33,7 +34,13 @@ data ConfigError
     MissingEndpoint AtticServerEndpoint
   | -- | Server configured but no authentication token
     MissingToken AtticServer
-  deriving stock (Show, Eq)
+  deriving stock (Eq)
+
+instance Show ConfigError where
+  show = \case
+    ParseError err -> "ParseError: " <> show err
+    MissingEndpoint endpoint -> "MissingEndpoint: " <> toString (toText endpoint)
+    MissingToken server -> "MissingToken for server: " <> toString server.name
 
 {- | Get validated Attic configuration
 
@@ -72,8 +79,7 @@ getToolData = do
 -- | Suggestions for fixing Attic configuration issues
 data AtticSuggestion
   = AtticLoginSuggestion
-      { bin :: FilePath
-      , serverName :: Text
+      { serverName :: Text
       , endpoint :: AtticServerEndpoint
       }
   | AtticParseErrorSuggestion
@@ -83,14 +89,9 @@ data AtticSuggestion
 
 instance TS.Show AtticSuggestion where
   show = \case
-    AtticLoginSuggestion {bin, serverName, endpoint} ->
-      toString $
-        T.intercalate
-          "\n"
-          [ "ATTIC=" <> toText bin
-          , "TOKEN=YOUR-TOKEN-HERE"
-          , "$ATTIC login " <> serverName <> " " <> toText endpoint <> " $TOKEN"
-          ]
+    AtticLoginSuggestion {serverName, endpoint} ->
+      -- Show the one-liner with server name and endpoint as arguments
+      toString $ toText Attic.Interactive.atticLoginInteractiveBin <> " " <> serverName <> " " <> toText endpoint
     AtticParseErrorSuggestion {configPath} ->
       toString $ "rm " <> configPath
 
@@ -107,9 +108,8 @@ configErrorToSuggestion = \case
     mkLoginSuggestion :: Text -> AtticServerEndpoint -> AtticSuggestion
     mkLoginSuggestion name endpoint =
       AtticLoginSuggestion
-        { bin = Attic.atticBin
+        { serverName = name
         , endpoint = endpoint
-        , serverName = name
         }
     deriveServerName (AtticServerEndpoint url) =
       T.replace "https://" "" url
@@ -150,8 +150,7 @@ viewToolStatus result = do
           then
             let suggestion =
                   AtticLoginSuggestion
-                    { bin = Attic.atticBin
-                    , serverName = "cache-example-com"
+                    { serverName = "cache-example-com"
                     , endpoint = "https://cache.example.com"
                     }
              in viraAlertWithTitle_ AlertInfo "Not configured" $ do

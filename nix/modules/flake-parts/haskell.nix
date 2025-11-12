@@ -25,6 +25,7 @@ in
     haskellProjects.default = { config, ... }: {
       imports = [
         (root + /packages/nix-cache-server/haskell-module.nix)
+        (root + /packages/attic/haskell-module.nix)
       ];
       # To avoid unnecessary rebuilds, we filter projectRoot:
       # https://community.flake.parts/haskell-flake/local#rebuild
@@ -111,11 +112,6 @@ in
           extraBuildDepends = [
             pkgs.gh-signoff
             pkgs.gh
-          ];
-        };
-        attic = {
-          extraBuildDepends = [
-            pkgs.attic-client # For attic
           ];
         };
         cachix = {

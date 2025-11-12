@@ -22,6 +22,7 @@ library
   exposed-modules:
       Attic
       Attic.Config
+      Attic.Interactive
       Attic.Types
       Attic.Url
   other-modules:
