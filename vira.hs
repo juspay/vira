@@ -16,6 +16,6 @@
         ]
     , signoff.enable = True
     , cache.url = if
-        | isMain -> Just "https://cache.nixos.asia/oss"
+        | isMain -> Just "https://TEST.nixos.asia/oss"
         | otherwise -> Nothing
     }

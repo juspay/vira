@@ -27,7 +27,8 @@ data GitHubSuggestion = GhAuthLoginSuggestion
 
 instance TS.Show GitHubSuggestion where
   show GhAuthLoginSuggestion {bin, command} =
-    toString $ "GH=" <> toText bin <> "\n$GH " <> command
+    -- gh auth login is already interactive, just show the one-liner
+    toString $ toText bin <> " " <> command
 
 -- | Get GitHub tool data with metadata and runtime info
 getToolData :: (IOE :> es) => Eff es (ToolData GH.AuthStatus)

@@ -1,6 +1,6 @@
 # CRITICAL SETUP STEPS
 
-1. **MUST** acquire the Haskell skill before doing ANY Haskell work
+1. **MUST** acquire the Haskell skill before doing ANY Haskell work. Same for Nix skill.
 2. If skill load fails, STOP and report the error - don't proceed
 
 # Git
