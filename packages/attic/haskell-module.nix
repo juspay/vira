@@ -3,6 +3,7 @@
   settings = {
     attic = {
       extraBuildDepends = [
+        pkgs.attic-client # For attic
         # Interactive wrapper for attic login
         (pkgs.writeShellApplication {
           name = "attic-login-interactive";

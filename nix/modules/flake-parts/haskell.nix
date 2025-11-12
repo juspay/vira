@@ -114,11 +114,6 @@ in
             pkgs.gh
           ];
         };
-        attic = {
-          extraBuildDepends = [
-            pkgs.attic-client # For attic
-          ];
-        };
         cachix = {
           extraBuildDepends = [
             pkgs.cachix # For cachix
