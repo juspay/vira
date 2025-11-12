@@ -34,7 +34,13 @@ data ConfigError
     MissingEndpoint AtticServerEndpoint
   | -- | Server configured but no authentication token
     MissingToken AtticServer
-  deriving stock (Show, Eq)
+  deriving stock (Eq)
+
+instance Show ConfigError where
+  show = \case
+    ParseError err -> "ParseError: " <> show err
+    MissingEndpoint endpoint -> "MissingEndpoint: " <> toString (toText endpoint)
+    MissingToken server -> "MissingToken for server: " <> toString server.name
 
 {- | Get validated Attic configuration
 
