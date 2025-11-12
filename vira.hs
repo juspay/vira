@@ -17,5 +17,5 @@
     , signoff.enable = True
     , cache.url = if
         | isMain -> Just "https://cache.nixos.asia/oss"
-        | otherwise -> Just "https://missing-cache.com"
+        | otherwise -> Just "https://missing-cache.com/cache1"
     }
