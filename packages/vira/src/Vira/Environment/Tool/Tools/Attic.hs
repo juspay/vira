@@ -17,6 +17,7 @@ import Attic.Config qualified
 import Attic.Interactive qualified
 import Attic.Types (AtticServer (..), AtticServerEndpoint (..))
 import Data.Map.Strict qualified as Map
+import Data.Text qualified as T
 import Effectful (Eff, IOE, (:>))
 import Lucid (HtmlT, ToHtml (..), class_, code_, div_, p_, span_, strong_, toHtml)
 import TOML (TOMLError)
