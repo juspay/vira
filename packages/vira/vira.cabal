@@ -365,6 +365,7 @@ executable vira-tests
   other-modules:
       Vira.CI.ConfigurationSpec
       Vira.CI.WorkerSpec
+      Vira.Lib.TimeExtraSpec
       Vira.State.ResetSpec
       Paths_vira
   autogen-modules:
