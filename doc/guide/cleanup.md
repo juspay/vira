@@ -20,7 +20,7 @@ Vira automatically removes old completed jobs to prevent unbounded disk usage gr
 
 Configure via `--job-retention-days` (see [[cli#web-opts]]):
 
-- **Default: 7 days** - Jobs older than one week are deleted
+- **Default: 14 days** - Jobs older than two weeks are deleted
 - **Custom:** Any positive number (e.g., `--job-retention-days 30` for 30 days)
 - **Disable:** Set to `0` to turn off automatic cleanup
 
@@ -29,7 +29,7 @@ Jobs are considered "old" based on **completion time**, not creation time.
 ### CLI Usage
 
 ```bash
-# Default - 7 day retention
+# Default - 14 day retention
 vira web
 
 # Custom retention - 30 days
@@ -53,8 +53,8 @@ services.vira = {
 Cleanup activity appears in logs:
 
 ```
-Found 15 jobs older than 7 days
-🧹 Deleted job 123 (2 weeks old)
+Found 15 jobs older than 14 days
+🧹 Deleted job 123 (3d 2h 15m 30s old)
 ```
 
 ## Performance Tips

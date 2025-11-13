@@ -171,7 +171,7 @@ webSettingsParser = do
       ( long "job-retention-days"
           <> metavar "DAYS"
           <> help "Delete jobs older than N days (0 = disable cleanup)"
-          <> value 7
+          <> value 14
           <> showDefault
       )
   pure

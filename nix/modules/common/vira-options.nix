@@ -74,7 +74,7 @@ in
 
     jobRetentionDays = mkOption {
       type = types.ints.unsigned;
-      default = 7;
+      default = 14;
       description = "Delete jobs older than N days (0 = disable cleanup)";
     };
 
