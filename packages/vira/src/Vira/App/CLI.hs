@@ -41,6 +41,8 @@ data CISettings = CISettings
   -- ^ Maximum concurrent CI builds
   , autoBuildNewBranches :: AutoBuildNewBranches
   -- ^ Whether to auto-build new branches
+  , jobRetentionDays :: Natural
+  -- ^ Delete jobs older than N days (0 = disable cleanup)
   }
   deriving stock (Show)
 
@@ -163,6 +165,15 @@ webSettingsParser = do
       ( long "auto-build-new-branches"
           <> help "Auto-build new branches (default: only auto-build branches built at least once)"
       )
+  jobRetentionDays <-
+    option
+      auto
+      ( long "job-retention-days"
+          <> metavar "DAYS"
+          <> help "Delete jobs older than N days (0 = disable cleanup)"
+          <> value 14
+          <> showDefault
+      )
   pure
     WebSettings
       { port
@@ -174,6 +185,7 @@ webSettingsParser = do
           CISettings
             { maxConcurrentBuilds
             , autoBuildNewBranches = AutoBuildNewBranches autoBuildNewBranchesBool
+            , jobRetentionDays
             }
       }
 

@@ -83,6 +83,7 @@ The Home Manager module supports the following configuration options:
 - `autoResetState` - Automatically reset state on schema mismatch, removing ViraState and job workspaces (default: `true`)
 - `maxConcurrentBuilds` - Maximum concurrent CI builds (default: `null`, defaults to 2)
 - `autoBuildNewBranches` - Auto-build new branches (default: `false`, only auto-builds branches built at least once)
+- `jobRetentionDays` - Delete jobs older than N days (default: `14`, set to `0` to disable cleanup). See [[cleanup]]
 - `extraPackages` - Extra packages to add to the Vira service PATH
 - `initialState.repositories` - Map of repository names to clone URLs for initial state
 - `systemd.environment` - Additional environment variables for the service (Linux only)
