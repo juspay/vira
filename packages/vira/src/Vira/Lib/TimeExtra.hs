@@ -12,20 +12,22 @@ import Data.Time.Clock (nominalDiffTimeToSeconds)
 import Data.Time.LocalTime (getTimeZone)
 
 {- |
-Format duration for display (e.g., "2m 34s", "1h 15m 30s").
+Format duration for display (e.g., "2m 34s", "1h 15m 30s", "3d 2h 15m 0s").
 
 Converts a NominalDiffTime to a human-readable duration string with appropriate units.
 -}
 formatDuration :: NominalDiffTime -> Text
 formatDuration diffTime =
   let totalSeconds = floor $ nominalDiffTimeToSeconds diffTime :: Int
-      hours = totalSeconds `div` 3600
+      days = totalSeconds `div` 86400
+      hours = (totalSeconds `mod` 86400) `div` 3600
       minutes = (totalSeconds `mod` 3600) `div` 60
       seconds = totalSeconds `mod` 60
-   in case (hours, minutes, seconds) of
-        (0, 0, s) -> show s <> "s"
-        (0, m, s) -> show m <> "m " <> show s <> "s"
-        (h, m, s) -> show h <> "h " <> show m <> "m " <> show s <> "s"
+   in case (days, hours, minutes, seconds) of
+        (0, 0, 0, s) -> show s <> "s"
+        (0, 0, m, s) -> show m <> "m " <> show s <> "s"
+        (0, h, m, s) -> show h <> "h " <> show m <> "m " <> show s <> "s"
+        (d, h, m, s) -> show d <> "d " <> show h <> "h " <> show m <> "m " <> show s <> "s"
 
 {- |
 Format relative time for display (e.g., "2min ago", "3hr ago", "just now").
