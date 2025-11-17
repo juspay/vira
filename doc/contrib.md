@@ -1,6 +1,6 @@
 # Contributing
 
-Before opening PRs, please collaborate on [a project space](https://github.com/juspay/vira/discussions).
+If you are working a non-trivial feature, you can [discuss it first](https://github.com/juspay/vira/discussions).
 
 ## direnv
 
@@ -32,7 +32,7 @@ Or add keyboard shortcut to `.vscode/keybindings.json`:
 
 ## CI
 
-We dogfood Vira by not using GitHub Actions. Vira will "signoff" (see top-level `vira.hs`) on successful build, which will reflect in the commit status on GitHub. PRs should only be merged with green status on both platforms—aarch65-darwin and x86_64-linux.
+We dogfood Vira by not using GitHub Actions. Vira (Srid's instance) will "signoff" (see top-level `vira.hs`) on successful build for both platforms, which will reflect in the commit status on GitHub. PRs should only be merged with green status.
 
 You can also run CI locally using:
 
@@ -40,12 +40,4 @@ You can also run CI locally using:
 just ci  # In nix devshell
 ```
 
-### PR workflow
-
-1. Open PR
-1. Run Vira on two platforms — macOS & Linux.
-1. Build your PR's branch on both the Vira instances (or run `just ci` on clean branch)
-1. Confirm gh-signoff status success on GitHub UI.
-
-> [!NOTE]
-> This workflow will fully be automated once https://github.com/juspay/vira/issues/37 is in place.
+But this will build only for the current platform.
