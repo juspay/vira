@@ -15,6 +15,7 @@ import Attic qualified
 import Attic.Config (lookupEndpointWithToken)
 import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
+import Bitbucket.Signoff qualified as BBSignoff
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (eitherDecodeFileStrict)
@@ -25,9 +26,10 @@ import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Dispatch.Dynamic
 import Effectful.Environment (Environment)
-import Effectful.Error.Static (Error, throwError)
+import Effectful.Error.Static (Error, catchError, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git.Command.Clone qualified as Git
+import Effectful.Git.Platform (GitPlatform (..), parseAndDetect)
 import Effectful.Git.Types (Commit (..))
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
@@ -45,6 +47,8 @@ import Vira.CI.Pipeline.Process (runProcess)
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.Environment.Tool.Core (ToolError (..))
 import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
+import Vira.Environment.Tool.Tools.Bitbucket (BitbucketSuggestion (..))
+import Vira.Environment.Tool.Tools.Bitbucket.CLI (bbBin)
 import Vira.Environment.Tool.Type.ToolData (status)
 import Vira.Environment.Tool.Type.Tools (attic)
 import Vira.State.Type (Branch (..), Repo (..))
@@ -71,7 +75,7 @@ runPipeline env program =
           LoadConfig repoDir -> loadConfigImpl repoDir
           Build repoDir pipeline -> buildImpl repoDir pipeline
           Cache repoDir pipeline buildResults -> cacheImpl repoDir pipeline buildResults
-          Signoff repoDir pipeline -> signoffImpl repoDir pipeline
+          Signoff repo repoDir pipeline -> signoffImpl repo repoDir pipeline
       )
       program
 
@@ -287,17 +291,37 @@ signoffImpl ::
   , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
+  Repo ->
   FilePath ->
   ViraPipeline ->
   Eff es ()
-signoffImpl repoDir pipeline = do
+signoffImpl repo repoDir pipeline = do
   env <- ER.ask @PipelineEnv
   if pipeline.signoff.enable
     then do
-      logPipeline Info "Creating commit signoff"
-      let signoffProc = Signoff.create Signoff.Force "vira"
-      runProcess repoDir env.outputLog signoffProc
-      logPipeline Info "Signoff succeeded"
+      -- Detect platform based on clone URL
+      case parseAndDetect repo.cloneUrl of
+        Just GitHub -> do
+          logPipeline Info "Detected GitHub repository, creating GitHub commit signoff"
+          let ghProc = Signoff.create Signoff.Force "vira"
+          runProcess repoDir env.outputLog ghProc
+          logPipeline Info "GitHub signoff succeeded"
+        Just (Bitbucket bitbucketHost) -> do
+          logPipeline Info "Detected Bitbucket repository, creating Bitbucket commit signoff"
+          let bbProc = BBSignoff.create bbBin BBSignoff.Force "vira"
+          let bitbucketUrl = "https://" <> bitbucketHost
+          let suggestion = BbAuthSuggestion {bitbucketUrl}
+          let handler _callstack err = do
+                logPipeline Error $ "Bitbucket signoff failed: " <> show err
+                logPipeline Info $ "If authentication is required, run: " <> show @Text suggestion
+                throwError err
+          catchError (runProcess repoDir env.outputLog bbProc) handler
+          logPipeline Info "Bitbucket signoff succeeded"
+        Nothing ->
+          throwError $
+            PipelineConfigurationError $
+              MalformedConfig $
+                "Signoff enabled but could not detect platform from clone URL: " <> repo.cloneUrl <> ". Must be GitHub or Bitbucket."
     else
       logPipeline Warning "Signoff disabled, skipping"
 

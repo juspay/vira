@@ -23,6 +23,7 @@ import Effectful.Reader.Dynamic qualified as Reader
 import Effectful.Reader.Static qualified as ER
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
+import Vira.Environment.Tool.Tools.Bitbucket qualified as BitbucketTool
 import Vira.Environment.Tool.Tools.Cachix qualified as CachixTool
 import Vira.Environment.Tool.Tools.Git qualified as GitTool
 import Vira.Environment.Tool.Tools.GitHub qualified as GitHubTool
@@ -78,6 +79,7 @@ getAllTools ::
   Eff es Tools
 getAllTools = do
   attic <- AtticTool.getToolData
+  bitbucket <- BitbucketTool.getToolData
   github <- GitHubTool.getToolData
   git <- GitTool.getToolData
   cachix <- CachixTool.getToolData

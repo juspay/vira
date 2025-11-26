@@ -53,6 +53,7 @@ in
         filepattern.source = "0.1.3";
         aeson-casing.source = "0.2.0.0";
         neat-interpolation.source = "0.5.1.4";
+        req.source = "3.13.4";
       };
 
       # Add your package overrides here
@@ -62,6 +63,8 @@ in
             config.settings.git-effectful
             config.settings.tail
             config.settings.warp-tls-simple
+            config.settings.bitbucket
+            config.settings.bitbucket-cli
             config.settings.gh
             config.settings.attic
             config.settings.cachix
@@ -74,6 +77,7 @@ in
           extraBuildDepends = [
             pkgs.attic-client # For attic
             pkgs.cachix # For cachix
+            self'.packages.bb # For bitbucket
           ];
           custom = drv: drv.overrideAttrs (oldAttrs: {
             postUnpack = (oldAttrs.postUnpack or "") + ''
@@ -164,6 +168,9 @@ in
     # Explicitly define all outputs since autowiring is disabled
     packages = {
       default = config.haskellProjects.default.outputs.packages.vira.package;
+
+      # Bitbucket CLI executable
+      bb = config.haskellProjects.default.outputs.packages.bitbucket-cli.package;
 
       # The Nix version used by Vira
       # Nix 2.18 -> 2.22 are apprently buggy,

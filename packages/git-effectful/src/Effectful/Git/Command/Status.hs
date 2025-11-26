@@ -6,6 +6,7 @@ module Effectful.Git.Command.Status (
   GitStatusPorcelain (..),
   gitStatusPorcelain,
   parseGitStatusPorcelain,
+  hasUnpushedCommits,
 ) where
 
 import Colog (Severity (..))
@@ -68,3 +69,20 @@ parseGitStatusPorcelain output =
    in case mBranchName of
         Nothing -> Left "No branch.head found in git status output"
         Just branchName -> Right $ GitStatusPorcelain {branch = BranchName branchName, dirty = isDirty}
+
+{- | Check if there are unpushed commits
+
+Returns True if there are commits in the current branch that haven't been pushed to the tracked remote branch.
+-}
+hasUnpushedCommits ::
+  ( Error Text :> es
+  , Process :> es
+  , IOE :> es
+  ) =>
+  -- | Repository directory
+  FilePath ->
+  Eff es Bool
+hasUnpushedCommits repoDir = do
+  let logCmd = proc git ["-C", repoDir, "log", "@{push}.."]
+  logOutput <- readCreateProcess logCmd ""
+  pure $ logOutput /= ""

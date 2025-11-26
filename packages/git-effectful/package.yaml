@@ -28,16 +28,18 @@ dependencies:
   - effectful-plugin
   - filepath
   - http-api-data
-  - which
   - ixset-typed
+  - lens
   - lukko
   - megaparsec
+  - modern-uri
   - process
   - safecopy
   - servant-server
   - text
   - time
   - unliftio
+  - which
 
 library:
   source-dirs: src

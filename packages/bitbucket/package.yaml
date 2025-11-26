@@ -1,0 +1,46 @@
+defaults:
+  - local: ../../hpack-common.yaml
+  - local: ../../hpack-relude.yaml
+
+name: bitbucket
+version: 0.1.0.0
+license: MIT
+copyright: 2025 Juspay
+maintainer: srid@srid.ca
+author: Sridhar Ratnakumar
+category: System
+synopsis: Haskell bindings for Bitbucket API
+description: A standalone library for Bitbucket REST API operations
+homepage: https://github.com/juspay/vira/tree/main/packages/bitbucket
+extra-source-files:
+  - CHANGELOG.md
+
+dependencies:
+  - aeson
+  - bytestring
+  - directory
+  - effectful
+  - effectful-core
+  - filepath
+  - git-effectful
+  - optparse-applicative
+  - process
+  - req
+  - text
+  - modern-uri
+
+library:
+  source-dirs: src
+
+tests:
+  bitbucket-test:
+    main: Spec.hs
+    source-dirs: test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - bitbucket
+      - hspec
+      - hspec-discover

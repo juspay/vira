@@ -23,15 +23,15 @@ pipelineProgram ::
   , IOE :> es
   , Error PipelineError :> es
   ) =>
+  Repo ->
   FilePath ->
   Eff es ()
-pipelineProgram repoDir = do
+pipelineProgram repo repoDir = do
   logPipeline Info "Starting pipeline execution"
 
   -- Step 1: Load configuration
   pipeline <- loadConfig repoDir
   logPipeline Info $ toText $ "Pipeline configuration:\n" <> Shower.shower pipeline
-  logPipeline Info "Loaded pipeline configuration"
 
   -- Step 2: Build
   buildResults <- build repoDir pipeline
@@ -41,7 +41,7 @@ pipelineProgram repoDir = do
   cache repoDir pipeline buildResults
 
   -- Step 4: Signoff
-  signoff repoDir pipeline
+  signoff repo repoDir pipeline
   logPipeline Info "Pipeline completed successfully"
 
 {- | Pipeline program with clone (for web/CI)
@@ -64,4 +64,4 @@ pipelineProgramWithClone repo branch workspacePath = do
   clonedDir <- clone repo branch workspacePath
 
   -- Step 2-5: Run pipeline in the cloned directory
-  pipelineProgram clonedDir
+  pipelineProgram repo clonedDir

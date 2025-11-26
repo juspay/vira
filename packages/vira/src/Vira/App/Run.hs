@@ -19,6 +19,7 @@ import Effectful.Concurrent.Async (runConcurrent)
 import Effectful.Environment (runEnvironment)
 import Effectful.Error.Static (runErrorNoCallStack)
 import Effectful.FileSystem (runFileSystem)
+import Effectful.Git (RepoName (..), getRemoteUrl)
 import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
 import Effectful.Process (runProcess)
 import Main.Utf8 qualified as Utf8
@@ -43,7 +44,7 @@ import Vira.Refresh.Daemon qualified as Daemon
 import Vira.Refresh.Type qualified as Refresh
 import Vira.State.Core (closeViraState, openViraState, startPeriodicArchival, viraDbVersion)
 import Vira.State.JSON (getExportData, importViraState)
-import Vira.State.Type (ViraState)
+import Vira.State.Type (Repo (..), ViraState)
 import Vira.Supervisor.Core qualified as Supervisor
 import Vira.Web.LinkTo.Resolve (linkTo)
 import Vira.Web.Server qualified as Server
@@ -144,9 +145,12 @@ runVira = do
         . runErrorNoCallStack
         $ do
           GitStatusPorcelain {branch} <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
+          -- Get remote URL for creating Repo
+          remoteUrl <- runErrorNoCallStack (getRemoteUrl repoDir "origin") >>= either error pure
+          let repo = Repo {name = RepoName "cli-repo", cloneUrl = remoteUrl, lastRefresh = Nothing}
           let ctx = ViraContext branch True
           tools <- Tool.getAllTools
-          Pipeline.runPipeline (Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx) (Program.pipelineProgram repoDir)
+          Pipeline.runPipeline (Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx) (Program.pipelineProgram repo repoDir)
             $> ExitSuccess
 
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()

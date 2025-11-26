@@ -1,0 +1,62 @@
+cabal-version: 2.0
+
+-- This file has been generated from package.yaml by hpack version 0.38.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           bitbucket-cli
+version:        0.1.0.0
+synopsis:       Command-line tool for Bitbucket API
+description:    A CLI tool for interacting with Bitbucket Server
+category:       System
+homepage:       https://github.com/juspay/vira/tree/main/packages/bitbucket-cli
+author:         Sridhar Ratnakumar
+maintainer:     srid@srid.ca
+copyright:      2025 Juspay
+license:        MIT
+build-type:     Simple
+
+executable bb
+  main-is: Main.hs
+  other-modules:
+      Paths_bitbucket_cli
+  autogen-modules:
+      Paths_bitbucket_cli
+  hs-source-dirs:
+      app
+  default-extensions:
+      DataKinds
+      DeriveDataTypeable
+      DeriveGeneric
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      ExplicitForAll
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoStarIsType
+      NumericUnderscores
+      OverloadedStrings
+      ScopedTypeVariables
+      StrictData
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      TypeSynonymInstances
+      ViewPatterns
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base ==4.*
+    , bitbucket
+    , relude >=1.0
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2021
