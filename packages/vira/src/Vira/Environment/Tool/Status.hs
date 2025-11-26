@@ -6,6 +6,7 @@ module Vira.Environment.Tool.Status (
   viewToolsStatus,
 ) where
 
+import BB.Auth.Status qualified as BB
 import Effectful.Reader.Dynamic (ask)
 import GH.Auth.Status (AuthStatus (..))
 import Lucid
@@ -37,7 +38,12 @@ viewToolsStatus = do
     isToolsError t =
       isLeft t.attic.status
         || isAuthError t.github.status
+        || isBitbucketError t.bitbucket.status
     isAuthError :: AuthStatus -> Bool
     isAuthError = \case
       NotAuthenticated -> True
       Authenticated {} -> False
+    isBitbucketError :: BB.AuthStatus -> Bool
+    isBitbucketError = \case
+      BB.NotAuthenticated -> True
+      BB.Authenticated {} -> False
