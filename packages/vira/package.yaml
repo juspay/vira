@@ -62,6 +62,7 @@ dependencies:
   - filepath
   - filepattern
   - bitbucket
+  - bitbucket-cli
   - gh
   - git-effectful
   - hostname

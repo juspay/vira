@@ -159,6 +159,7 @@ library
     , base16-bytestring
     , binary
     , bitbucket
+    , bitbucket-cli
     , bytestring
     , cachix
     , cereal
@@ -285,6 +286,7 @@ executable vira
     , base16-bytestring
     , binary
     , bitbucket
+    , bitbucket-cli
     , bytestring
     , cachix
     , cereal
@@ -416,6 +418,7 @@ executable vira-tests
     , base16-bytestring
     , binary
     , bitbucket
+    , bitbucket-cli
     , bytestring
     , cachix
     , cereal

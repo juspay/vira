@@ -2,7 +2,7 @@
 
 Uses optparse-applicative for command-line parsing.
 -}
-module Bitbucket.CLI (
+module BB.CLI (
   CLISettings (..),
   Command (..),
   AuthArgs (..),

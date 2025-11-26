@@ -23,11 +23,8 @@ library
       Bitbucket.API.V1.BuildStatus
       Bitbucket.API.V1.Core
       Bitbucket.Auth.Status
-      Bitbucket.CLI
       Bitbucket.Config
       Bitbucket.ConfigPath
-      Bitbucket.Run
-      Bitbucket.Signoff
   other-modules:
       Paths_bitbucket
   autogen-modules:
@@ -65,16 +62,9 @@ library
       aeson
     , base ==4.*
     , bytestring
-    , co-log
-    , co-log-effectful
-    , co-log-effectful-simple
     , directory
-    , effectful
-    , effectful-core
     , filepath
-    , git-effectful
     , modern-uri
-    , optparse-applicative
     , process
     , relude >=1.0
     , req
@@ -126,18 +116,11 @@ test-suite bitbucket-test
     , base ==4.*
     , bitbucket
     , bytestring
-    , co-log
-    , co-log-effectful
-    , co-log-effectful-simple
     , directory
-    , effectful
-    , effectful-core
     , filepath
-    , git-effectful
     , hspec
     , hspec-discover
     , modern-uri
-    , optparse-applicative
     , process
     , relude >=1.0
     , req

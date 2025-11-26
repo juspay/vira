@@ -1,14 +1,14 @@
 -- | Command execution for bb CLI
-module Bitbucket.Run (
+module BB.Run (
   runBB,
 ) where
 
+import BB.CLI (AuthArgs, CLISettings, Command (..), SignoffArgs, StatusArgs)
+import BB.CLI qualified as CLI
 import Bitbucket.API.V1.BuildStatus (BuildStatus (..))
 import Bitbucket.API.V1.BuildStatus qualified as BS
 import Bitbucket.API.V1.Core (BitbucketConfig (..))
 import Bitbucket.API.V1.Core qualified as API
-import Bitbucket.CLI (AuthArgs, CLISettings, Command (..), SignoffArgs, StatusArgs)
-import Bitbucket.CLI qualified as CLI
 import Bitbucket.Config (ConfigError (..))
 import Bitbucket.Config qualified as Config
 import Bitbucket.ConfigPath (getConfigPath)

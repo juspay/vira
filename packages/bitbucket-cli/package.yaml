@@ -14,12 +14,32 @@ description: A CLI tool for interacting with Bitbucket Server
 homepage: https://github.com/juspay/vira/tree/main/packages/bitbucket-cli
 
 dependencies:
+  - aeson
   - bitbucket
+  - bytestring
+  - co-log
+  - co-log-effectful
+  - co-log-effectful-simple
+  - directory
+  - effectful
+  - effectful-core
+  - filepath
+  - git-effectful
+  - modern-uri
+  - optparse-applicative
+  - process
+  - req
+  - text
+
+library:
+  source-dirs: src
 
 executables:
   bb:
     main: Main.hs
     source-dirs: app
+    dependencies:
+      - bitbucket-cli
     ghc-options:
       - -threaded
       - -rtsopts

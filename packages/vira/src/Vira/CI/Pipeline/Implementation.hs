@@ -15,7 +15,7 @@ import Attic qualified
 import Attic.Config (lookupEndpointWithToken)
 import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
-import Bitbucket.Signoff qualified as BBSignoff
+import BB.Signoff qualified as BBSignoff
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (eitherDecodeFileStrict)
@@ -33,7 +33,7 @@ import Effectful.Git.Platform (GitPlatform (..), detectPlatform)
 import Effectful.Git.Types (Commit (..))
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
-import GH.Signoff qualified as Signoff
+import GH.Signoff qualified as GHSignoff
 import Shower qualified
 import System.FilePath ((</>))
 import System.Nix.Core (nix)
@@ -304,19 +304,19 @@ signoffImpl cloneUrl repoDir pipeline = do
       case detectPlatform cloneUrl of
         Just GitHub -> do
           logPipeline Info "Detected GitHub repository, creating GitHub commit signoff"
-          let ghProc = Signoff.create Signoff.Force "vira"
+          let ghProc = GHSignoff.create GHSignoff.Force "vira"
           runProcess repoDir env.outputLog ghProc
           logPipeline Info "GitHub signoff succeeded"
         Just (Bitbucket bitbucketHost) -> do
           logPipeline Info "Detected Bitbucket repository, creating Bitbucket commit signoff"
           let bbProc = BBSignoff.create bbBin BBSignoff.Force "vira"
-          let bitbucketUrl = "https://" <> bitbucketHost
-          let suggestion = BbAuthSuggestion {bitbucketUrl}
+              bitbucketUrl = "https://" <> bitbucketHost
+              suggestion = BbAuthSuggestion {bitbucketUrl}
           let handler _callstack err = do
                 logPipeline Error $ "Bitbucket signoff failed: " <> show err
                 logPipeline Info $ "If authentication is required, run: " <> show @Text suggestion
                 throwError err
-          catchError (runProcess repoDir env.outputLog bbProc) handler
+          runProcess repoDir env.outputLog bbProc `catchError` handler
           logPipeline Info "Bitbucket signoff succeeded"
         Nothing ->
           throwError $

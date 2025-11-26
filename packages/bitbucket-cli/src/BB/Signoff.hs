@@ -2,7 +2,7 @@
 
 Wrapper for bb signoff command.
 -}
-module Bitbucket.Signoff (
+module BB.Signoff (
   Force (..),
   create,
 ) where

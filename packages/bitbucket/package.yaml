@@ -18,19 +18,12 @@ extra-source-files:
 dependencies:
   - aeson
   - bytestring
-  - co-log
-  - co-log-effectful
-  - co-log-effectful-simple
   - directory
-  - effectful
-  - effectful-core
   - filepath
-  - git-effectful
-  - optparse-applicative
+  - modern-uri
   - process
   - req
   - text
-  - modern-uri
 
 library:
   source-dirs: src

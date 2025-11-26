@@ -1,6 +1,6 @@
 module Main where
 
-import Bitbucket.Run qualified
+import BB.Run qualified
 
 main :: IO ()
-main = Bitbucket.Run.runBB
+main = BB.Run.runBB
