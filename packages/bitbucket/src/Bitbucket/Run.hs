@@ -20,7 +20,6 @@ import Effectful (Eff, IOE, runEff, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..), runLogActionStdout)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
-import Effectful.Git.Command.Config qualified as Git
 import Effectful.Git.Command.Remote qualified as Git
 import Effectful.Git.Command.RevParse qualified as Git
 import Effectful.Git.Command.Status qualified as Git
@@ -98,9 +97,6 @@ runSignoff forceFlag args = do
   -- Get current commit hash
   commitHash <- Git.getCurrentCommit "."
 
-  -- Get git user name
-  userName <- Git.getUserName "."
-
   -- Build status
   let status =
         BuildStatus
@@ -108,7 +104,7 @@ runSignoff forceFlag args = do
           , BS.key = CLI.key args
           , BS.name = CLI.name args
           , BS.url = CLI.url args
-          , BS.description = CLI.description args <> " (by " <> userName <> ")"
+          , BS.description = CLI.description args
           }
 
   -- Post status

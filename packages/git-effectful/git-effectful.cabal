@@ -19,7 +19,6 @@ library
   exposed-modules:
       Effectful.Git
       Effectful.Git.Command.Clone
-      Effectful.Git.Command.Config
       Effectful.Git.Command.ForEachRef
       Effectful.Git.Command.Remote
       Effectful.Git.Command.RevParse
