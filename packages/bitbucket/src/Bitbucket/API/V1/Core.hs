@@ -3,12 +3,14 @@
 Provides basic types and utilities for Bitbucket API operations.
 -}
 module Bitbucket.API.V1.Core (
-  BitbucketConfig (..),
+  ServerEndpoint (..),
+  Token (..),
   testConnection,
+  makeUrl,
 ) where
 
 import Control.Exception (catch)
-import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.:), (.=))
+import Data.Aeson (FromJSON (..), FromJSONKey (..), ToJSON (..), ToJSONKey (..))
 import Network.HTTP.Req (
   GET (GET),
   HttpException,
@@ -17,43 +19,27 @@ import Network.HTTP.Req (
   Url,
   defaultHttpConfig,
   header,
+  https,
   ignoreResponse,
   renderUrl,
   req,
   runReq,
-  useHttpsURI,
   (/:),
  )
-import Text.URI (mkURI)
 
--- | Configuration for Bitbucket API access
-data BitbucketConfig = BitbucketConfig
-  { baseUrl :: Url 'Https
-  -- ^ Bitbucket server base URL
-  , token :: Text
-  -- ^ Bearer token for authentication
-  }
-  deriving stock (Show)
+-- | Bitbucket server endpoint (host only, no protocol)
+newtype ServerEndpoint = ServerEndpoint {host :: Text}
+  deriving stock (Show, Eq, Ord)
+  deriving newtype (FromJSON, ToJSON, FromJSONKey, ToJSONKey, Hashable)
 
-instance ToJSON BitbucketConfig where
-  toJSON (BitbucketConfig url tok) =
-    object ["baseUrl" .= renderUrl url, "token" .= tok]
+-- | Bearer token for authentication
+newtype Token = Token {unToken :: Text}
+  deriving stock (Show, Eq)
+  deriving newtype (FromJSON, ToJSON)
 
-instance FromJSON BitbucketConfig where
-  parseJSON = withObject "BitbucketConfig" $ \o -> do
-    baseUrlText <- o .: "baseUrl"
-    tokenText <- o .: "token"
-
-    -- Parse URL
-    uri <- case mkURI baseUrlText of
-      Left err -> fail $ "Invalid URL: " <> show err
-      Right u -> pure u
-
-    url <- case useHttpsURI uri of
-      Just (httpsUrl, _) -> pure httpsUrl
-      Nothing -> fail $ "URL must use HTTPS scheme: " <> toString baseUrlText
-
-    pure $ BitbucketConfig url tokenText
+-- | Construct HTTPS URL from ServerEndpoint
+makeUrl :: ServerEndpoint -> Url 'Https
+makeUrl (ServerEndpoint h) = https h
 
 {- | Test connection to Bitbucket API
 
@@ -62,14 +48,15 @@ Makes a simple API request to verify:
 2. API responds
 3. Token is accepted
 -}
-testConnection :: BitbucketConfig -> IO (Either Text ())
-testConnection (BitbucketConfig baseUrl token) = do
-  let url = baseUrl /: "rest" /: "api" /: "1.0" /: "projects"
+testConnection :: ServerEndpoint -> Token -> IO (Either Text ())
+testConnection endpoint (Token tok) = do
+  let baseUrl = makeUrl endpoint
+      url = baseUrl /: "rest" /: "api" /: "1.0" /: "projects"
   putTextLn $ "[bb] GET " <> renderUrl url
   hFlush stdout
   catch
     ( runReq defaultHttpConfig $ do
-        let authHeader = encodeUtf8 $ "Bearer " <> token
+        let authHeader = encodeUtf8 $ "Bearer " <> tok
         void $
           req
             GET

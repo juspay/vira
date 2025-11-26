@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 -- | Bitbucket tool-specific logic
 module Vira.Environment.Tool.Tools.Bitbucket (
   getToolData,
@@ -8,8 +10,10 @@ module Vira.Environment.Tool.Tools.Bitbucket (
 
 import BB.Auth.Status (AuthStatus (..))
 import BB.Auth.Status qualified as BB
+import Bitbucket.API.V1.Core (ServerEndpoint (..))
+import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
-import Lucid (HtmlT, ToHtml (..), class_, div_, p_, toHtml)
+import Lucid (HtmlT, ToHtml (..), class_, div_, li_, p_, toHtml, ul_)
 import Text.Show qualified as TS
 import Vira.Environment.Tool.Tools.Bitbucket.CLI (bbBin)
 import Vira.Environment.Tool.Type.ToolData (ToolData (..))
@@ -61,12 +65,15 @@ viewToolStatus :: (Monad m) => AuthStatus -> HtmlT m ()
 viewToolStatus status = do
   div_ [class_ "mb-3"] $ do
     case status of
-      Authenticated {serverUrl} -> do
+      Authenticated {servers} -> do
         viraAlert_ AlertSuccess $ do
           p_ [class_ "text-green-800 dark:text-green-200 font-semibold mb-1"] $ do
             "Bitbucket CLI authenticated"
-          p_ [class_ "text-green-700 dark:text-green-300 text-xs"] $ do
-            "Server: " <> toHtml serverUrl
+          p_ [class_ "text-green-700 dark:text-green-300 text-xs mb-2"] $ do
+            "Configured servers:"
+          ul_ [class_ "text-green-700 dark:text-green-300 text-xs list-disc list-inside"] $ do
+            forM_ (Map.keys servers) $ \endpoint -> do
+              li_ $ toHtml endpoint.host
       NotAuthenticated -> viraAlertWithTitle_ AlertError "Not authenticated" $ do
         "Please authenticate to use Bitbucket CLI."
         forM_ (authStatusToSuggestion NotAuthenticated) toHtml

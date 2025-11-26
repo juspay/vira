@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 -- | Command execution for bb CLI
 module BB.Run (
   runBB,
@@ -5,16 +7,17 @@ module BB.Run (
 
 import BB.CLI (AuthArgs, CLISettings, Command (..), SignoffArgs, StatusArgs)
 import BB.CLI qualified as CLI
-import BB.Config (ConfigError (..), getConfigPath)
+import BB.Config (ConfigError (..), ServerConfig (..), getConfigPath)
 import BB.Config qualified as Config
 import Bitbucket.API.V1.BuildStatus (BuildStatus (..))
 import Bitbucket.API.V1.BuildStatus qualified as BS
-import Bitbucket.API.V1.Core (BitbucketConfig (..))
+import Bitbucket.API.V1.Core (ServerEndpoint (..), Token (..))
 import Bitbucket.API.V1.Core qualified as API
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (object, (.=))
 import Data.Aeson qualified as Aeson
+import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, runEff, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..), runLogActionStdout)
@@ -26,8 +29,8 @@ import Effectful.Git.Core (git)
 import Effectful.Git.Platform (GitPlatform (..), detectPlatform)
 import Effectful.Process (Process, proc, readCreateProcess, runProcess)
 import Effectful.Reader.Static qualified as ER
-import Network.HTTP.Req (renderUrl, useHttpsURI)
-import Text.URI (mkURI)
+import Text.URI (Authority (..), mkURI, unRText)
+import Text.URI qualified as URI
 
 -- | Main entry point for bb CLI
 runBB :: IO ()
@@ -65,20 +68,15 @@ runSignoff forceFlag args = do
     Just GitHub -> liftIO $ die "Error: GitHub repositories not supported by bb CLI (use gh instead)"
     Nothing -> liftIO $ die $ "Error: Could not detect Bitbucket platform from remote URL: " <> toString remoteUrl
 
-  -- Load config for the detected Bitbucket host
-  let expectedUrl = "https://" <> bitbucketHost
+  -- Load config and lookup server for this host
+  let endpoint = ServerEndpoint bitbucketHost
   configResult <- liftIO Config.loadConfig
-  config <- case configResult of
-    Left err -> liftIO $ die $ toString $ "Failed to load config: " <> showConfigError err <> "\nRun: bb auth --url " <> expectedUrl
-    Right cfg -> do
-      -- Verify config URL matches detected URL
-      let configUrl = renderUrl (baseUrl cfg)
-      when (configUrl /= expectedUrl) $
-        liftIO $
-          die $
-            toString $
-              "Config URL mismatch!\nExpected: " <> expectedUrl <> "\nFound in config: " <> configUrl <> "\nRun: bb auth --url " <> expectedUrl
-      pure cfg
+  serverConfig <- case configResult of
+    Left err -> liftIO $ die $ toString $ "Failed to load config: " <> showConfigError err <> "\nRun: bb auth --url https://" <> bitbucketHost
+    Right servers -> case Config.lookupServer endpoint servers of
+      Nothing ->
+        liftIO $ die $ toString $ "Server not configured: " <> bitbucketHost <> "\nRun: bb auth --url https://" <> bitbucketHost
+      Just cfg -> pure cfg
 
   -- Check working directory is clean (no uncommitted or unpushed changes)
   unless forceFlag $ do
@@ -106,7 +104,7 @@ runSignoff forceFlag args = do
           }
 
   -- Post status
-  liftIO $ BS.postBuildStatus config commitHash status
+  liftIO $ BS.postBuildStatus endpoint serverConfig.token commitHash status
 
   liftIO $ putTextLn $ "✓ Signed off on " <> commitHash
 
@@ -116,9 +114,9 @@ runAuth args = do
   -- Prompt for token
   putStr "Enter your Bitbucket access token: "
   hFlush stdout
-  token <- getLine
+  tokenInput <- getLine
 
-  -- Parse URL
+  -- Parse URL to extract host
   let baseUrlText = CLI.baseUrl args
   uri <- case mkURI baseUrlText of
     Left parseErr -> do
@@ -126,15 +124,23 @@ runAuth args = do
       exitFailure
     Right u -> pure u
 
-  url <- case useHttpsURI uri of
-    Just (httpsUrl, _) -> pure httpsUrl
-    Nothing -> do
-      putTextLn $ "✗ Invalid URL scheme (must be https): " <> baseUrlText
+  -- Extract host from URI
+  host <- case URI.uriAuthority uri of
+    Right auth -> pure $ unRText (authHost auth)
+    Left _ -> do
+      putTextLn $ "✗ Could not extract host from URL: " <> baseUrlText
       exitFailure
 
+  -- Load existing config or start fresh
+  existingServers <- whenRightM Map.empty Config.loadConfig pure
+
+  -- Insert/update server
+  let endpoint = ServerEndpoint host
+      serverConfig = ServerConfig {token = Token (toText tokenInput)}
+      updatedServers = Map.insert endpoint serverConfig existingServers
+
   -- Save config
-  let bbConfig = BitbucketConfig {baseUrl = url, token = toText token}
-  Config.saveConfig bbConfig
+  Config.saveConfig updatedServers
 
   configPath <- getConfigPath
   putTextLn $ "✓ Configuration saved to " <> toText configPath
@@ -153,35 +159,59 @@ runStatus args = do
         else do
           putTextLn $ "✗ " <> showConfigError err
           exitFailure
-    Right config -> do
-      -- Test connection
-      API.testConnection config >>= \case
-        Left testErr -> do
+    Right servers -> do
+      if Map.null servers
+        then do
           if CLI.jsonOutput args
             then do
-              let json =
-                    object
-                      [ "authenticated" .= False
-                      , "config_found" .= True
-                      , "connection_error" .= testErr
-                      ]
+              let json = object ["authenticated" .= False, "error" .= ("No servers configured" :: Text)]
               putLBSLn $ Aeson.encode json
               exitFailure
             else do
-              putTextLn $ "✗ Connection test failed: " <> testErr
+              putTextLn "✗ No servers configured"
               exitFailure
-        Right () -> do
-          if CLI.jsonOutput args
-            then do
-              let json =
-                    object
-                      [ "authenticated" .= True
-                      , "config_path" .= toText configPath
-                      ]
-              putLBSLn $ Aeson.encode json
-            else do
-              putTextLn "✓ Authenticated"
-              putTextLn $ "  Config: " <> toText configPath
+        else do
+          -- Test first server (could be enhanced to test all or prompt user)
+          case viaNonEmpty head (Map.toList servers) of
+            Nothing -> do
+              if CLI.jsonOutput args
+                then do
+                  let json = object ["authenticated" .= False, "error" .= ("No servers configured" :: Text)]
+                  putLBSLn $ Aeson.encode json
+                  exitFailure
+                else do
+                  putTextLn "✗ No servers configured"
+                  exitFailure
+            Just (endpoint, serverConfig) ->
+              API.testConnection endpoint serverConfig.token >>= \case
+                Left testErr -> do
+                  if CLI.jsonOutput args
+                    then do
+                      let json =
+                            object
+                              [ "authenticated" .= False
+                              , "config_found" .= True
+                              , "connection_error" .= testErr
+                              ]
+                      putLBSLn $ Aeson.encode json
+                      exitFailure
+                    else do
+                      putTextLn $ "✗ Connection test failed: " <> testErr
+                      exitFailure
+                Right () -> do
+                  if CLI.jsonOutput args
+                    then do
+                      let json =
+                            object
+                              [ "authenticated" .= True
+                              , "config_path" .= toText configPath
+                              , "server_count" .= Map.size servers
+                              ]
+                      putLBSLn $ Aeson.encode json
+                    else do
+                      putTextLn "✓ Authenticated"
+                      putTextLn $ "  Config: " <> toText configPath
+                      putTextLn $ "  Servers: " <> show (Map.size servers)
 
 -- | Show config error
 showConfigError :: ConfigError -> Text

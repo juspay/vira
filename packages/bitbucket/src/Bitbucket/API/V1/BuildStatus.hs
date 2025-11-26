@@ -10,7 +10,7 @@ module Bitbucket.API.V1.BuildStatus (
   postBuildStatus,
 ) where
 
-import Bitbucket.API.V1.Core (BitbucketConfig (..))
+import Bitbucket.API.V1.Core (ServerEndpoint (..), Token (..), makeUrl)
 import Data.Aeson (ToJSON (..), object, (.=))
 import Data.Aeson qualified as Aeson
 import Network.HTTP.Req (
@@ -67,14 +67,15 @@ instance ToJSON BuildStatus where
 
 Respects HTTPS_PROXY environment variable automatically via req library.
 -}
-postBuildStatus :: BitbucketConfig -> Text -> BuildStatus -> IO ()
-postBuildStatus config commitHash status = do
-  let url = config.baseUrl /: "rest" /: "build-status" /: "1.0" /: "commits" /: commitHash
+postBuildStatus :: ServerEndpoint -> Token -> Text -> BuildStatus -> IO ()
+postBuildStatus endpoint (Token tok) commitHash status = do
+  let baseUrl = makeUrl endpoint
+      url = baseUrl /: "rest" /: "build-status" /: "1.0" /: "commits" /: commitHash
   putTextLn $ "[bb] POST " <> renderUrl url
   putTextLn $ "[bb] JSON: " <> decodeUtf8 (Aeson.encode status)
   hFlush stdout
   runReq defaultHttpConfig $ do
-    let authHeader = encodeUtf8 $ "Bearer " <> config.token
+    let authHeader = encodeUtf8 $ "Bearer " <> tok
 
     void $
       req

@@ -11,14 +11,24 @@ module BB.Config (
   loadConfig,
   saveConfig,
   getConfigPath,
+  lookupServer,
+  ServerConfig (..),
   ConfigError (..),
 ) where
 
-import Bitbucket.API.V1.Core (BitbucketConfig (..))
+import Bitbucket.API.V1.Core (ServerEndpoint (..), Token (..))
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Aeson qualified as Aeson
+import Data.Map.Strict qualified as Map
 import System.Directory (XdgDirectory (..), createDirectoryIfMissing, doesFileExist, getXdgDirectory)
 import System.FilePath (takeDirectory)
+
+-- | Server-specific configuration
+newtype ServerConfig = ServerConfig
+  { token :: Token
+  }
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 -- | Configuration loading errors
 data ConfigError
@@ -37,7 +47,7 @@ getConfigPath = getXdgDirectory XdgConfig "bb/config.json"
 
 -- | Configuration file structure
 newtype Config = Config
-  { server :: BitbucketConfig
+  { servers :: Map ServerEndpoint ServerConfig
   }
   deriving stock (Show, Generic)
   deriving anyclass (FromJSON, ToJSON)
@@ -47,14 +57,18 @@ newtype Config = Config
 Config file format (JSON):
 @
 {
-  "server": {
-    "baseUrl": "https://bitbucket.juspay.net",
-    "token": "BBDC-xyz..."
+  "servers": {
+    "bitbucket.juspay.net": {
+      "token": "BBDC-xyz..."
+    },
+    "bitbucket.example.com": {
+      "token": "BBDC-abc..."
+    }
   }
 }
 @
 -}
-loadConfig :: IO (Either ConfigError BitbucketConfig)
+loadConfig :: IO (Either ConfigError (Map ServerEndpoint ServerConfig))
 loadConfig = do
   configPath <- getConfigPath
   exists <- doesFileExist configPath
@@ -62,21 +76,21 @@ loadConfig = do
     then pure $ Left $ ConfigFileNotFound configPath
     else do
       contentBS <- readFileBS configPath
-      case Aeson.eitherDecodeStrict contentBS of
+      case Aeson.eitherDecodeStrict @Config contentBS of
         Left err -> pure $ Left $ JsonDecodeError $ toText err
-        Right config -> pure $ parseConfig config
+        Right config -> pure $ Right config.servers
 
--- | Parse config from JSON structure
-parseConfig :: Config -> Either ConfigError BitbucketConfig
-parseConfig config = pure config.server
+-- | Lookup server configuration by endpoint
+lookupServer :: ServerEndpoint -> Map ServerEndpoint ServerConfig -> Maybe ServerConfig
+lookupServer = Map.lookup
 
 {- | Save configuration to config file
 
 Writes config to ~/.config/bb/config.json, creating directories if needed.
 -}
-saveConfig :: BitbucketConfig -> IO ()
-saveConfig bbConfig = do
+saveConfig :: Map ServerEndpoint ServerConfig -> IO ()
+saveConfig servers = do
   configPath <- getConfigPath
   createDirectoryIfMissing True (takeDirectory configPath)
-  let config = Config {server = bbConfig}
+  let config = Config {servers}
   writeFileLBS configPath $ Aeson.encode config
