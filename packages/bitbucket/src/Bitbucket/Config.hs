@@ -1,32 +1,60 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DisambiguateRecordFields #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+
 {- | Bitbucket configuration management
 
-Reads configuration from ~/.config/bb/config file.
+Reads configuration from ~/.config/bb/config.json file.
+Follows XDG Base Directory specification for config file location.
 -}
 module Bitbucket.Config (
   loadConfig,
+  saveConfig,
+  getConfigPath,
   ConfigError (..),
 ) where
 
 import Bitbucket.API.V1.Core (BitbucketConfig (..))
-import Bitbucket.ConfigPath (getConfigPath)
-import Data.Text qualified as T
+import Data.Aeson (FromJSON, ToJSON)
+import Data.Aeson qualified as Aeson
 import Network.HTTP.Req (useHttpsURI)
-import System.Directory (doesFileExist)
+import System.Directory (XdgDirectory (..), createDirectoryIfMissing, doesFileExist, getXdgDirectory)
+import System.FilePath (takeDirectory)
 import Text.URI (mkURI)
 
 -- | Configuration loading errors
 data ConfigError
   = ConfigFileNotFound FilePath
-  | ConfigParseError Text
-  | InvalidUrl Text
-  deriving stock (Show, Eq)
+  | JsonDecodeError Text
+  | UrlParseError Text SomeException
+  | InvalidUrlScheme Text
+  deriving stock (Show)
+
+{- | Get the Bitbucket config file path
+
+Uses XDG Base Directory specification, typically:
+- Linux/macOS: @$XDG_CONFIG_HOME/bb/config.json@ or @~/.config/bb/config.json@
+- Windows: @%APPDATA%/bb/config.json@
+-}
+getConfigPath :: IO FilePath
+getConfigPath = getXdgDirectory XdgConfig "bb/config.json"
+
+-- | Configuration file structure
+data Config = Config
+  { baseUrl :: Text
+  , token :: Text
+  }
+  deriving stock (Show, Generic)
+  deriving anyclass (FromJSON, ToJSON)
 
 {- | Load Bitbucket configuration from config file
 
-Config file format (simple key=value):
+Config file format (JSON):
 @
-baseUrl=https://bitbucket.juspay.net
-token=BBDC-xyz...
+{
+  "baseUrl": "https://bitbucket.juspay.net",
+  "token": "BBDC-xyz..."
+}
 @
 -}
 loadConfig :: IO (Either ConfigError BitbucketConfig)
@@ -37,45 +65,34 @@ loadConfig = do
     then pure $ Left $ ConfigFileNotFound configPath
     else do
       contentBS <- readFileBS configPath
-      let content = decodeUtf8 contentBS
-      case parseConfig content of
-        Left err -> pure $ Left err
-        Right cfg -> pure $ Right cfg
+      case Aeson.eitherDecodeStrict contentBS of
+        Left err -> pure $ Left $ JsonDecodeError $ toText err
+        Right config -> pure $ parseConfig config
 
--- | Parse config file content
-parseConfig :: Text -> Either ConfigError BitbucketConfig
-parseConfig content = do
-  let pairs = parsePairs content
-  baseUrlText <- lookupKey "baseUrl" pairs
-  token <- lookupKey "token" pairs
+-- | Parse config from JSON structure
+parseConfig :: Config -> Either ConfigError BitbucketConfig
+parseConfig config = do
+  let baseUrlText = config.baseUrl
+      tokenText = config.token
 
   -- Parse URL using text-uri and req
   uri <- case mkURI baseUrlText of
-    Left _ -> Left $ InvalidUrl baseUrlText
+    Left parseErr -> Left $ UrlParseError baseUrlText parseErr
     Right u -> Right u
 
   baseUrl <- case useHttpsURI uri of
     Just (url, _) -> Right url
-    Nothing -> Left $ InvalidUrl baseUrlText
+    Nothing -> Left $ InvalidUrlScheme baseUrlText
 
-  pure $ BitbucketConfig {baseUrl, token}
+  pure $ BitbucketConfig {baseUrl = baseUrl, token = tokenText}
 
--- | Parse key=value pairs from config file
-parsePairs :: Text -> [(Text, Text)]
-parsePairs content =
-  mapMaybe parseLine $ lines content
-  where
-    parseLine line =
-      let trimmed = T.strip line
-       in if T.null trimmed || "#" `T.isPrefixOf` trimmed
-            then Nothing
-            else case T.splitOn "=" trimmed of
-              [key, value] -> Just (T.strip key, T.strip value)
-              _ -> Nothing
+{- | Save configuration to config file
 
--- | Lookup a key in parsed config
-lookupKey :: Text -> [(Text, Text)] -> Either ConfigError Text
-lookupKey key pairs =
-  case find (\(k, _) -> k == key) pairs of
-    Nothing -> Left $ ConfigParseError $ "Missing required key: " <> key
-    Just (_, value) -> Right value
+Writes config to ~/.config/bb/config.json, creating directories if needed.
+-}
+saveConfig :: Text -> Text -> IO ()
+saveConfig baseUrlText tokenText = do
+  configPath <- getConfigPath
+  createDirectoryIfMissing True (takeDirectory configPath)
+  let config = Config {baseUrl = baseUrlText, token = tokenText}
+  writeFileLBS configPath $ Aeson.encode config

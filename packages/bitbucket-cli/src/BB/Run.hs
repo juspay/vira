@@ -9,9 +9,8 @@ import Bitbucket.API.V1.BuildStatus (BuildStatus (..))
 import Bitbucket.API.V1.BuildStatus qualified as BS
 import Bitbucket.API.V1.Core (BitbucketConfig (..))
 import Bitbucket.API.V1.Core qualified as API
-import Bitbucket.Config (ConfigError (..))
+import Bitbucket.Config (ConfigError (..), getConfigPath)
 import Bitbucket.Config qualified as Config
-import Bitbucket.ConfigPath (getConfigPath)
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (object, (.=))
@@ -28,8 +27,6 @@ import Effectful.Git.Platform (GitPlatform (..), detectPlatform)
 import Effectful.Process (Process, proc, readCreateProcess, runProcess)
 import Effectful.Reader.Static qualified as ER
 import Network.HTTP.Req (renderUrl)
-import System.Directory (createDirectoryIfMissing)
-import System.FilePath (takeDirectory)
 
 -- | Main entry point for bb CLI
 runBB :: IO ()
@@ -120,16 +117,10 @@ runAuth args = do
   hFlush stdout
   token <- getLine
 
-  -- Get config file path
+  -- Save config
+  Config.saveConfig (CLI.baseUrl args) (toText token)
+
   configPath <- getConfigPath
-
-  -- Create directory if it doesn't exist
-  createDirectoryIfMissing True (takeDirectory configPath)
-
-  -- Write config
-  let configContent = "baseUrl=" <> toString (CLI.baseUrl args) <> "\ntoken=" <> toString token
-  writeFile configPath configContent
-
   putTextLn $ "✓ Configuration saved to " <> toText configPath
 
 -- | Run status command
@@ -180,5 +171,6 @@ runStatus args = do
 showConfigError :: ConfigError -> Text
 showConfigError = \case
   ConfigFileNotFound path -> "Config file not found: " <> toText path
-  ConfigParseError msg -> "Config parse error: " <> msg
-  InvalidUrl url -> "Invalid URL: " <> url
+  JsonDecodeError msg -> "JSON decode error: " <> msg
+  UrlParseError url parseErr -> "URL parse error for " <> url <> ": " <> show parseErr
+  InvalidUrlScheme url -> "Invalid URL scheme (must be https): " <> url
