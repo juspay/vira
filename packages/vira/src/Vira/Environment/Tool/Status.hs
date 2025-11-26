@@ -7,6 +7,7 @@ module Vira.Environment.Tool.Status (
 ) where
 
 import BB.Auth.Status qualified as BB
+import Data.Map.Strict qualified as Map
 import Effectful.Reader.Dynamic (ask)
 import GH.Auth.Status (AuthStatus (..))
 import Lucid
@@ -46,4 +47,4 @@ viewToolsStatus = do
     isBitbucketError :: BB.AuthStatus -> Bool
     isBitbucketError = \case
       BB.NotAuthenticated -> True
-      BB.Authenticated {} -> False
+      BB.Authenticated servers -> Map.null servers
