@@ -28,7 +28,7 @@ newtype BitbucketSuggestion = BbAuthSuggestion
 
 instance TS.Show BitbucketSuggestion where
   show BbAuthSuggestion {bitbucketUrl} =
-    toString $ toText bbBin <> " auth --url " <> bitbucketUrl
+    toString $ toText bbBin <> " auth " <> bitbucketUrl
 
 -- | Get Bitbucket tool data with metadata and runtime info
 getToolData :: (IOE :> es) => Eff es (ToolData BB.AuthStatus)

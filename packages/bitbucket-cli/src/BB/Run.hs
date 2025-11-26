@@ -67,10 +67,10 @@ runSignoff forceFlag args = do
   let endpoint = ServerEndpoint bitbucketHost
   configResult <- liftIO Config.loadConfig
   serverConfig <- case configResult of
-    Left err -> liftIO $ die $ toString $ "Failed to load config: " <> showConfigError err <> "\nRun: bb auth --url https://" <> bitbucketHost
+    Left err -> liftIO $ die $ toString $ "Failed to load config: " <> showConfigError err <> "\nRun: bb auth " <> bitbucketHost
     Right servers -> case Config.lookupServer endpoint servers of
       Nothing ->
-        liftIO $ die $ toString $ "Server not configured: " <> bitbucketHost <> "\nRun: bb auth --url https://" <> bitbucketHost
+        liftIO $ die $ toString $ "Server not configured: " <> bitbucketHost <> "\nRun: bb auth " <> bitbucketHost
       Just cfg -> pure cfg
 
   -- Check working directory is clean (no uncommitted or unpushed changes)
@@ -113,7 +113,13 @@ runAuth args = do
 
   -- Parse URL to extract host
   let baseUrlText = CLI.baseUrl args
-  uri <- case mkURI baseUrlText of
+      -- Normalize URL: prepend https:// if no protocol specified
+      normalizedUrl =
+        if "http://" `isPrefixOf` toString baseUrlText || "https://" `isPrefixOf` toString baseUrlText
+          then baseUrlText
+          else "https://" <> baseUrlText
+
+  uri <- case mkURI normalizedUrl of
     Left parseErr ->
       throwError $ "✗ URL parse error for " <> baseUrlText <> ": " <> show parseErr
     Right u -> pure u
@@ -122,7 +128,7 @@ runAuth args = do
   host <- case URI.uriAuthority uri of
     Right auth -> pure $ unRText (authHost auth)
     Left _ ->
-      throwError $ "✗ Could not extract host from URL: " <> baseUrlText
+      throwError $ "✗ Could not extract host from URL: " <> normalizedUrl
 
   -- Load existing config or start fresh
   existingServers <- liftIO $ whenRightM Map.empty Config.loadConfig pure

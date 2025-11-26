@@ -25,6 +25,7 @@ import Options.Applicative (
   metavar,
   progDesc,
   showDefault,
+  strArgument,
   strOption,
   switch,
   value,
@@ -123,10 +124,9 @@ commandParser =
 authArgsParser :: Parser AuthArgs
 authArgsParser =
   AuthArgs
-    <$> strOption
-      ( long "url"
-          <> metavar "URL"
-          <> help "Bitbucket base URL (e.g., https://bitbucket.example.com)"
+    <$> strArgument
+      ( metavar "URL"
+          <> help "Bitbucket base URL (e.g., https://bitbucket.example.com or bitbucket.example.com)"
       )
 
 -- | Parser for status arguments
