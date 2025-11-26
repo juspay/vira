@@ -19,7 +19,6 @@ import BB.Signoff qualified as BBSignoff
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (eitherDecodeFileStrict)
-import Data.List.NonEmpty qualified as NE
 import DevourFlake (DevourFlakeArgs (..), devourFlake)
 import DevourFlake.Result (extractSystems)
 import Effectful
@@ -318,15 +317,17 @@ signoffImpl cloneUrl repoDir pipeline buildResults = do
               logPipeline Info "All GitHub signoffs succeeded"
             Just (Bitbucket bitbucketHost) -> do
               logPipeline Info $ "Detected Bitbucket repository, creating " <> show (length names) <> " commit signoffs: " <> show (toList names)
-              let bbProc = BBSignoff.create bbBin BBSignoff.Force (head names)
+              let bbProcs = BBSignoff.create bbBin BBSignoff.Force names
                   bitbucketUrl = "https://" <> bitbucketHost
                   suggestion = BbAuthSuggestion {bitbucketUrl}
-              let handler _callstack err = do
+                  handler _callstack err = do
                     logPipeline Error $ "Bitbucket signoff failed: " <> show err
                     logPipeline Info $ "If authentication is required, run: " <> show @Text suggestion
                     throwError err
-              runProcess repoDir env.outputLog bbProc `catchError` handler
-              logPipeline Info "Bitbucket signoff succeeded"
+              -- Run each signoff process sequentially
+              forM_ bbProcs $ \bbProc ->
+                runProcess repoDir env.outputLog bbProc `catchError` handler
+              logPipeline Info "All Bitbucket signoffs succeeded"
             Nothing ->
               throwError $
                 PipelineConfigurationError $
