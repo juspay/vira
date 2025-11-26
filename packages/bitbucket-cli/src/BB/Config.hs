@@ -17,17 +17,13 @@ module BB.Config (
 import Bitbucket.API.V1.Core (BitbucketConfig (..))
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Aeson qualified as Aeson
-import Network.HTTP.Req (useHttpsURI)
 import System.Directory (XdgDirectory (..), createDirectoryIfMissing, doesFileExist, getXdgDirectory)
 import System.FilePath (takeDirectory)
-import Text.URI (mkURI)
 
 -- | Configuration loading errors
 data ConfigError
   = ConfigFileNotFound FilePath
   | JsonDecodeError Text
-  | UrlParseError Text SomeException
-  | InvalidUrlScheme Text
   deriving stock (Show)
 
 {- | Get the Bitbucket config file path
@@ -40,9 +36,8 @@ getConfigPath :: IO FilePath
 getConfigPath = getXdgDirectory XdgConfig "bb/config.json"
 
 -- | Configuration file structure
-data Config = Config
-  { baseUrl :: Text
-  , token :: Text
+newtype Config = Config
+  { server :: BitbucketConfig
   }
   deriving stock (Show, Generic)
   deriving anyclass (FromJSON, ToJSON)
@@ -52,8 +47,10 @@ data Config = Config
 Config file format (JSON):
 @
 {
-  "baseUrl": "https://bitbucket.juspay.net",
-  "token": "BBDC-xyz..."
+  "server": {
+    "baseUrl": "https://bitbucket.juspay.net",
+    "token": "BBDC-xyz..."
+  }
 }
 @
 -}
@@ -71,28 +68,15 @@ loadConfig = do
 
 -- | Parse config from JSON structure
 parseConfig :: Config -> Either ConfigError BitbucketConfig
-parseConfig config = do
-  let baseUrlText = config.baseUrl
-      tokenText = config.token
-
-  -- Parse URL using text-uri and req
-  uri <- case mkURI baseUrlText of
-    Left parseErr -> Left $ UrlParseError baseUrlText parseErr
-    Right u -> Right u
-
-  baseUrl <- case useHttpsURI uri of
-    Just (url, _) -> Right url
-    Nothing -> Left $ InvalidUrlScheme baseUrlText
-
-  pure $ BitbucketConfig {baseUrl = baseUrl, token = tokenText}
+parseConfig config = pure config.server
 
 {- | Save configuration to config file
 
 Writes config to ~/.config/bb/config.json, creating directories if needed.
 -}
-saveConfig :: Text -> Text -> IO ()
-saveConfig baseUrlText tokenText = do
+saveConfig :: BitbucketConfig -> IO ()
+saveConfig bbConfig = do
   configPath <- getConfigPath
   createDirectoryIfMissing True (takeDirectory configPath)
-  let config = Config {baseUrl = baseUrlText, token = tokenText}
+  let config = Config {server = bbConfig}
   writeFileLBS configPath $ Aeson.encode config

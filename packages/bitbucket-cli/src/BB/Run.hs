@@ -26,7 +26,8 @@ import Effectful.Git.Core (git)
 import Effectful.Git.Platform (GitPlatform (..), detectPlatform)
 import Effectful.Process (Process, proc, readCreateProcess, runProcess)
 import Effectful.Reader.Static qualified as ER
-import Network.HTTP.Req (renderUrl)
+import Network.HTTP.Req (renderUrl, useHttpsURI)
+import Text.URI (mkURI)
 
 -- | Main entry point for bb CLI
 runBB :: IO ()
@@ -117,8 +118,23 @@ runAuth args = do
   hFlush stdout
   token <- getLine
 
+  -- Parse URL
+  let baseUrlText = CLI.baseUrl args
+  uri <- case mkURI baseUrlText of
+    Left parseErr -> do
+      putTextLn $ "✗ URL parse error for " <> baseUrlText <> ": " <> show parseErr
+      exitFailure
+    Right u -> pure u
+
+  url <- case useHttpsURI uri of
+    Just (httpsUrl, _) -> pure httpsUrl
+    Nothing -> do
+      putTextLn $ "✗ Invalid URL scheme (must be https): " <> baseUrlText
+      exitFailure
+
   -- Save config
-  Config.saveConfig (CLI.baseUrl args) (toText token)
+  let bbConfig = BitbucketConfig {baseUrl = url, token = toText token}
+  Config.saveConfig bbConfig
 
   configPath <- getConfigPath
   putTextLn $ "✓ Configuration saved to " <> toText configPath
@@ -172,5 +188,3 @@ showConfigError :: ConfigError -> Text
 showConfigError = \case
   ConfigFileNotFound path -> "Config file not found: " <> toText path
   JsonDecodeError msg -> "JSON decode error: " <> msg
-  UrlParseError url parseErr -> "URL parse error for " <> url <> ": " <> show parseErr
-  InvalidUrlScheme url -> "Invalid URL scheme (must be https): " <> url

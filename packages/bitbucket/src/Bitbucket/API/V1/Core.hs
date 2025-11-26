@@ -8,6 +8,7 @@ module Bitbucket.API.V1.Core (
 ) where
 
 import Control.Exception (catch)
+import Data.Aeson (FromJSON (..), ToJSON (..), object, withObject, (.:), (.=))
 import Network.HTTP.Req (
   GET (GET),
   HttpException,
@@ -20,8 +21,10 @@ import Network.HTTP.Req (
   renderUrl,
   req,
   runReq,
+  useHttpsURI,
   (/:),
  )
+import Text.URI (mkURI)
 
 -- | Configuration for Bitbucket API access
 data BitbucketConfig = BitbucketConfig
@@ -31,6 +34,26 @@ data BitbucketConfig = BitbucketConfig
   -- ^ Bearer token for authentication
   }
   deriving stock (Show)
+
+instance ToJSON BitbucketConfig where
+  toJSON (BitbucketConfig url tok) =
+    object ["baseUrl" .= renderUrl url, "token" .= tok]
+
+instance FromJSON BitbucketConfig where
+  parseJSON = withObject "BitbucketConfig" $ \o -> do
+    baseUrlText <- o .: "baseUrl"
+    tokenText <- o .: "token"
+
+    -- Parse URL
+    uri <- case mkURI baseUrlText of
+      Left err -> fail $ "Invalid URL: " <> show err
+      Right u -> pure u
+
+    url <- case useHttpsURI uri of
+      Just (httpsUrl, _) -> pure httpsUrl
+      Nothing -> fail $ "URL must use HTTPS scheme: " <> toString baseUrlText
+
+    pure $ BitbucketConfig url tokenText
 
 {- | Test connection to Bitbucket API
 
