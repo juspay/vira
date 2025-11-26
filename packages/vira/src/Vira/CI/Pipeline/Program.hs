@@ -42,7 +42,7 @@ pipelineProgram cloneUrl repoDir = do
   cache repoDir pipeline buildResults
 
   -- Step 4: Signoff
-  signoff cloneUrl repoDir pipeline
+  signoff cloneUrl repoDir pipeline buildResults
   logPipeline Info "Pipeline completed successfully"
 
 {- | Pipeline program with clone (for web/CI)

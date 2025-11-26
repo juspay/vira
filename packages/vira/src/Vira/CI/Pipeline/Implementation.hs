@@ -19,7 +19,9 @@ import BB.Signoff qualified as BBSignoff
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (eitherDecodeFileStrict)
+import Data.List.NonEmpty qualified as NE
 import DevourFlake (DevourFlakeArgs (..), devourFlake)
+import DevourFlake.Result (extractSystems)
 import Effectful
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..))
@@ -75,7 +77,7 @@ runPipeline env program =
           LoadConfig repoDir -> loadConfigImpl repoDir
           Build repoDir pipeline -> buildImpl repoDir pipeline
           Cache repoDir pipeline buildResults -> cacheImpl repoDir pipeline buildResults
-          Signoff cloneUrl repoDir pipeline -> signoffImpl cloneUrl repoDir pipeline
+          Signoff cloneUrl repoDir pipeline buildResults -> signoffImpl cloneUrl repoDir pipeline buildResults
       )
       program
 
@@ -280,7 +282,7 @@ cacheImpl repoDir pipeline buildResults = do
           msg = "Attic configuration error for cache URL '" <> url <> "': " <> show err <> suggestionText
        in PipelineToolError $ ToolError msg
 
--- | Implementation: Create signoff
+-- | Implementation: Create signoff (one per system)
 signoffImpl ::
   ( Concurrent :> es
   , Process :> es
@@ -295,34 +297,41 @@ signoffImpl ::
   Text ->
   FilePath ->
   ViraPipeline ->
+  NonEmpty BuildResult ->
   Eff es ()
-signoffImpl cloneUrl repoDir pipeline = do
+signoffImpl cloneUrl repoDir pipeline buildResults = do
   env <- ER.ask @PipelineEnv
   if pipeline.signoff.enable
     then do
-      -- Detect platform based on clone URL
-      case detectPlatform cloneUrl of
-        Just GitHub -> do
-          logPipeline Info "Detected GitHub repository, creating GitHub commit signoff"
-          let ghProc = GHSignoff.create GHSignoff.Force "vira"
-          runProcess repoDir env.outputLog ghProc
-          logPipeline Info "GitHub signoff succeeded"
-        Just (Bitbucket bitbucketHost) -> do
-          logPipeline Info "Detected Bitbucket repository, creating Bitbucket commit signoff"
-          let bbProc = BBSignoff.create bbBin BBSignoff.Force "vira"
-              bitbucketUrl = "https://" <> bitbucketHost
-              suggestion = BbAuthSuggestion {bitbucketUrl}
-          let handler _callstack err = do
-                logPipeline Error $ "Bitbucket signoff failed: " <> show err
-                logPipeline Info $ "If authentication is required, run: " <> show @Text suggestion
-                throwError err
-          runProcess repoDir env.outputLog bbProc `catchError` handler
-          logPipeline Info "Bitbucket signoff succeeded"
-        Nothing ->
-          throwError $
-            PipelineConfigurationError $
-              MalformedConfig $
-                "Signoff enabled but could not detect platform from clone URL: " <> cloneUrl <> ". Must be GitHub or Bitbucket."
+      -- Extract unique systems from all build results
+      let systems = extractSystems $ fmap (.devourResult) (toList buildResults)
+          signoffNames = fmap (\system -> "vira/" <> toString system) (toList systems)
+      case nonEmpty signoffNames of
+        Nothing -> throwError $ DevourFlakeMalformedOutput "build results" "No systems found in build results"
+        Just names -> do
+          -- Detect platform based on clone URL
+          case detectPlatform cloneUrl of
+            Just GitHub -> do
+              logPipeline Info $ "Detected GitHub repository, creating " <> show (length names) <> " commit signoffs: " <> show (toList names)
+              let ghProc = GHSignoff.create GHSignoff.Force names
+              runProcess repoDir env.outputLog ghProc
+              logPipeline Info "All GitHub signoffs succeeded"
+            Just (Bitbucket bitbucketHost) -> do
+              logPipeline Info $ "Detected Bitbucket repository, creating " <> show (length names) <> " commit signoffs: " <> show (toList names)
+              let bbProc = BBSignoff.create bbBin BBSignoff.Force (head names)
+                  bitbucketUrl = "https://" <> bitbucketHost
+                  suggestion = BbAuthSuggestion {bitbucketUrl}
+              let handler _callstack err = do
+                    logPipeline Error $ "Bitbucket signoff failed: " <> show err
+                    logPipeline Info $ "If authentication is required, run: " <> show @Text suggestion
+                    throwError err
+              runProcess repoDir env.outputLog bbProc `catchError` handler
+              logPipeline Info "Bitbucket signoff succeeded"
+            Nothing ->
+              throwError $
+                PipelineConfigurationError $
+                  MalformedConfig $
+                    "Signoff enabled but could not detect platform from clone URL: " <> cloneUrl <> ". Must be GitHub or Bitbucket."
     else
       logPipeline Warning "Signoff disabled, skipping"
 

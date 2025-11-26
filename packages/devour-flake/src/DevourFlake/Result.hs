@@ -5,10 +5,12 @@
 module DevourFlake.Result (
   DevourFlakeResult (..),
   SystemOutputs (..),
+  extractSystems,
 ) where
 
 import Data.Aeson (FromJSON (..))
 import Data.Map.Strict qualified as Map
+import Data.Set qualified as Set
 import System.Nix.System (System)
 
 -- | Represents the @result@ JSON of @devour-flake@
@@ -36,3 +38,8 @@ data SystemOutputs = SystemOutputs
 instance Semigroup SystemOutputs where
   o1 <> o2 =
     SystemOutputs (o1.byName <> o2.byName) (o1.outPaths <> o2.outPaths)
+
+-- | Extract unique systems from multiple 'DevourFlakeResult's
+extractSystems :: [DevourFlakeResult] -> Set System
+extractSystems results =
+  Set.fromList $ concatMap (Map.keys . (.systems)) results
