@@ -7,7 +7,7 @@
 Reads configuration from ~/.config/bb/config.json file.
 Follows XDG Base Directory specification for config file location.
 -}
-module Bitbucket.Config (
+module BB.Config (
   loadConfig,
   saveConfig,
   getConfigPath,

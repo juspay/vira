@@ -2,13 +2,13 @@
 
 Check if Bitbucket CLI is authenticated by verifying config file exists.
 -}
-module Bitbucket.Auth.Status (
+module BB.Auth.Status (
   AuthStatus (..),
   checkAuthStatus,
 ) where
 
+import BB.Config qualified as Config
 import Bitbucket.API.V1.Core (BitbucketConfig (..))
-import Bitbucket.Config qualified as Config
 import Network.HTTP.Req (renderUrl)
 
 -- | Authentication status for Bitbucket CLI

@@ -5,12 +5,12 @@ module BB.Run (
 
 import BB.CLI (AuthArgs, CLISettings, Command (..), SignoffArgs, StatusArgs)
 import BB.CLI qualified as CLI
+import BB.Config (ConfigError (..), getConfigPath)
+import BB.Config qualified as Config
 import Bitbucket.API.V1.BuildStatus (BuildStatus (..))
 import Bitbucket.API.V1.BuildStatus qualified as BS
 import Bitbucket.API.V1.Core (BitbucketConfig (..))
 import Bitbucket.API.V1.Core qualified as API
-import Bitbucket.Config (ConfigError (..), getConfigPath)
-import Bitbucket.Config qualified as Config
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (object, (.=))

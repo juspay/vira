@@ -18,7 +18,9 @@ build-type:     Simple
 
 library
   exposed-modules:
+      BB.Auth.Status
       BB.CLI
+      BB.Config
       BB.Run
       BB.Signoff
   other-modules:

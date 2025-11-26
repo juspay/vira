@@ -6,8 +6,8 @@ module Vira.Environment.Tool.Tools.Bitbucket (
   authStatusToSuggestion,
 ) where
 
-import Bitbucket.Auth.Status (AuthStatus (..))
-import Bitbucket.Auth.Status qualified as BB
+import BB.Auth.Status (AuthStatus (..))
+import BB.Auth.Status qualified as BB
 import Effectful (Eff, IOE, (:>))
 import Lucid (HtmlT, ToHtml (..), class_, div_, p_, toHtml)
 import Text.Show qualified as TS
