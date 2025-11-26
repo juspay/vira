@@ -7,6 +7,7 @@ module Vira.App.Run (
 ) where
 
 import Control.Exception (bracket)
+
 import Data.Acid (AcidState)
 import Data.Acid.Events qualified as Event
 import Data.Aeson (encode)
@@ -17,7 +18,7 @@ import Effectful (runEff)
 import Effectful.Colog.Simple (LogContext (..), runLogActionStdout)
 import Effectful.Concurrent.Async (runConcurrent)
 import Effectful.Environment (runEnvironment)
-import Effectful.Error.Static (runErrorNoCallStack)
+import Effectful.Error.Static (runErrorNoCallStack, throwError)
 import Effectful.FileSystem (runFileSystem)
 import Effectful.Git (RepoName (..), getRemoteUrl)
 import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
@@ -25,7 +26,7 @@ import Effectful.Process (runProcess)
 import Effectful.Reader.Static (runReader)
 import Main.Utf8 qualified as Utf8
 import Paths_vira qualified
-import System.Directory (getCurrentDirectory, makeAbsolute)
+import System.Directory (doesDirectoryExist, getCurrentDirectory, makeAbsolute)
 import System.Exit (ExitCode (..))
 import System.Nix.Cache.Keys qualified as CacheKeys
 import System.Nix.Cache.Server qualified as Cache
@@ -146,8 +147,9 @@ runVira = do
         . runProcess
         . runConcurrent
         $ do
-          putStrLn repoDir
           result <- runErrorNoCallStack @Text $ do
+            exists <- liftIO $ doesDirectoryExist repoDir
+            unless exists $ throwError $ "Repository directory does not exist: " <> toText repoDir
             GitStatusPorcelain {branch} <- gitStatusPorcelain repoDir
             -- Get remote URL for creating Repo
             remoteUrl <- getRemoteUrl repoDir "origin"
