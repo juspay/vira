@@ -29,7 +29,7 @@ import Effectful.Environment (Environment)
 import Effectful.Error.Static (Error, catchError, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git.Command.Clone qualified as Git
-import Effectful.Git.Platform (GitPlatform (..), parseAndDetect)
+import Effectful.Git.Platform (GitPlatform (..), detectPlatform)
 import Effectful.Git.Types (Commit (..))
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
@@ -300,7 +300,7 @@ signoffImpl repo repoDir pipeline = do
   if pipeline.signoff.enable
     then do
       -- Detect platform based on clone URL
-      case parseAndDetect repo.cloneUrl of
+      case detectPlatform repo.cloneUrl of
         Just GitHub -> do
           logPipeline Info "Detected GitHub repository, creating GitHub commit signoff"
           let ghProc = Signoff.create Signoff.Force "vira"

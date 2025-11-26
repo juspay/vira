@@ -3,15 +3,36 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 
-{- | Git platform detection
+{- | Git platform detection from remote URLs
 
-Detect the git hosting platform from a remote URL.
+This module detects the hosting platform (GitHub, Bitbucket) from git remote URLs.
+Supports various URL formats: HTTPS, SSH, and SCP-style git URLs.
+
+= Usage
+
+@
+import Effectful.Git.Platform (GitPlatform(..), detectPlatform)
+
+-- HTTPS URL
+detectPlatform "https://github.com/user/repo.git"
+-- Just GitHub
+
+-- SSH URL (SCP-style)
+detectPlatform "git@github.com:user/repo.git"
+-- Just GitHub
+
+-- Bitbucket SSH URL
+detectPlatform "git@ssh.bitbucket.example.com:project/repo.git"
+-- Just (Bitbucket "bitbucket.example.com")
+
+-- Unknown platform
+detectPlatform "git@gitlab.com:user/repo.git"
+-- Nothing
+@
 -}
 module Effectful.Git.Platform (
   GitPlatform (..),
   detectPlatform,
-  parseAndDetect,
-  getHostText,
 ) where
 
 import Control.Lens ((^.), (^?), _Right)
@@ -20,10 +41,16 @@ import Text.URI (URI)
 import Text.URI qualified as URI
 import Text.URI.Lens qualified as URIL
 
--- | Supported git platforms
+{- | Git hosting platform
+
+Represents supported git hosting platforms detected from remote URLs.
+-}
 data GitPlatform
-  = GitHub
-  | -- | Bitbucket with base URL
+  = -- | GitHub platform (github.com)
+    GitHub
+  | {- | Bitbucket platform with hostname (e.g., @bitbucket.example.com@).
+    The hostname has @ssh.@ prefix stripped if present.
+    -}
     Bitbucket Text
   deriving stock (Show, Eq)
 
@@ -31,13 +58,23 @@ data GitPlatform
 -- 1. Normalization Logic
 --------------------------------------------------------------------------------
 
-{- | Converts SCP-style Git URLs to standard SSH URIs.
+{- | Normalize git URLs to standard URI format
 
-Input:  git@ssh.bitbucket.juspay.net:xyne/xyne-spaces.git
-Output: ssh://git@ssh.bitbucket.juspay.net/xyne/xyne-spaces.git
+Converts SCP-style git URLs (@user\@host:path@) to SSH URIs (@ssh:\/\/user\@host\/path@).
+URLs with explicit schemes (HTTPS, SSH) pass through unchanged.
 
-Input:  https://github.com/user/repo.git
-Output: https://github.com/user/repo.git (Unchanged)
+Examples:
+
+@
+normalizeGitUrl "git@github.com:user/repo.git"
+-- "ssh://git@github.com/user/repo.git"
+
+normalizeGitUrl "https://github.com/user/repo.git"
+-- "https://github.com/user/repo.git" (unchanged)
+
+normalizeGitUrl "/local/path/to/repo"
+-- "/local/path/to/repo" (unchanged)
+@
 -}
 normalizeGitUrl :: Text -> Text
 normalizeGitUrl raw
@@ -59,16 +96,27 @@ normalizeGitUrl raw
 -- 2. Parsing Logic
 --------------------------------------------------------------------------------
 
--- | Extracts the host from the URI structure using lenses
+{- | Extract hostname from URI
+
+Uses lens traversal to safely extract the host component.
+Returns 'Nothing' if the URI has no authority section.
+-}
 getHostText :: URI -> Maybe Text
 getHostText uri = do
   auth <- uri ^? URIL.uriAuthority . _Right
   let host = auth ^. URIL.authHost
   pure (URI.unRText host)
 
--- | Detects platform based on the host
-detectPlatform :: URI -> Maybe GitPlatform
-detectPlatform uri =
+{- | Detect platform from parsed URI
+
+Examines the hostname to determine the platform:
+
+- Contains @github.com@ → 'GitHub'
+- Contains @bitbucket@ → 'Bitbucket' (with @ssh.@ prefix stripped)
+- Otherwise → 'Nothing'
+-}
+detectPlatformFromURI :: URI -> Maybe GitPlatform
+detectPlatformFromURI uri =
   case getHostText uri of
     Nothing -> Nothing
     Just host ->
@@ -79,21 +127,55 @@ detectPlatform uri =
             then Just (Bitbucket $ stripSSHPrefix host)
             else Nothing
 
--- | Strip "ssh." prefix from hostname for API usage
+{- | Strip @ssh.@ prefix from hostname
+
+Bitbucket SSH URLs often use @ssh.bitbucket.example.com@ but the API
+endpoint is just @bitbucket.example.com@. This strips the prefix.
+
+Examples:
+
+@
+stripSSHPrefix "ssh.bitbucket.juspay.net"
+-- "bitbucket.juspay.net"
+
+stripSSHPrefix "bitbucket.org"
+-- "bitbucket.org" (unchanged)
+@
+-}
 stripSSHPrefix :: Text -> Text
 stripSSHPrefix host =
   if "ssh." `T.isPrefixOf` host
     then T.drop 4 host
     else host
 
--- | Main Entry Point: Handles SCP, HTTP, SSH, Git, etc.
-parseAndDetect :: Text -> Maybe GitPlatform
-parseAndDetect raw = do
-  -- 1. Normalize SCP syntax to SSH syntax
-  let normalized = normalizeGitUrl raw
+{- | Detect git hosting platform from remote URL
 
-  -- 2. Parse strictly with modern-uri
-  uri <- URI.mkURI normalized
+Supports multiple URL formats (HTTPS, SSH, SCP-style) and normalizes them before detection.
 
-  -- 3. Detect Platform
-  detectPlatform uri
+Returns:
+
+- @Just GitHub@ for github.com hosts
+- @Just (Bitbucket host)@ for bitbucket hosts (with @ssh.@ prefix stripped)
+- @Nothing@ for unsupported platforms or invalid URLs
+
+Examples:
+
+@
+detectPlatform "git@github.com:user/repo.git"
+-- Just GitHub
+
+detectPlatform "https://bitbucket.example.com/project/repo.git"
+-- Just (Bitbucket "bitbucket.example.com")
+
+detectPlatform "git@ssh.bitbucket.juspay.net:project/repo.git"
+-- Just (Bitbucket "bitbucket.juspay.net")
+
+detectPlatform "git@gitlab.com:user/repo.git"
+-- Nothing
+@
+-}
+detectPlatform :: Text -> Maybe GitPlatform
+detectPlatform =
+  normalizeGitUrl -- 1. Normalize SCP syntax to SSH syntax
+    >>> URI.mkURI -- 2. Parse strictly with modern-uri
+    >=> detectPlatformFromURI -- 3. Detect platform from parsed URI

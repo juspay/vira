@@ -160,7 +160,8 @@ runVira = do
               let repo = Repo {name = RepoName "cli-repo", cloneUrl = remoteUrl, lastRefresh = Nothing}
               let ctx = ViraContext branch True
               tools <- Tool.getAllTools
-              Pipeline.runPipeline (Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx) (Program.pipelineProgram repo repoDir)
+              let env = Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx
+              Pipeline.runPipeline env (Program.pipelineProgram repo repoDir)
                 $> ExitSuccess
 
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()

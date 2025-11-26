@@ -25,7 +25,7 @@ import Effectful.Git.Command.Remote qualified as Git
 import Effectful.Git.Command.RevParse qualified as Git
 import Effectful.Git.Command.Status qualified as Git
 import Effectful.Git.Core (git)
-import Effectful.Git.Platform (GitPlatform (..), parseAndDetect)
+import Effectful.Git.Platform (GitPlatform (..), detectPlatform)
 import Effectful.Process (Process, proc, readCreateProcess, runProcess)
 import Effectful.Reader.Static qualified as ER
 import Network.HTTP.Req (renderUrl)
@@ -63,7 +63,7 @@ runSignoff forceFlag args = do
   remoteUrl <- Git.getRemoteUrl "." "origin"
 
   -- Detect platform and get stripped URL
-  bitbucketHost <- case parseAndDetect remoteUrl of
+  bitbucketHost <- case detectPlatform remoteUrl of
     Just (Bitbucket host) -> pure host
     Just GitHub -> liftIO $ die "Error: GitHub repositories not supported by bb CLI (use gh instead)"
     Nothing -> liftIO $ die $ "Error: Could not detect Bitbucket platform from remote URL: " <> toString remoteUrl
