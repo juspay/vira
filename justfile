@@ -20,7 +20,13 @@ haddock:
 run:
     nix run .#vira-dev -- --no-server --tui=false
 
+# Run the vira CLI, ci command on a given repo (e.g.: `just run-ci $HOME/code/demo`)
+run-ci REPO_DIR='':
+    @just run-vira "--log-level=debug ci {{ REPO_DIR }}"
+
 # Like `run`, but only runs Vira, taking optional set of args (web, by default)
+#
+# This is useful to run the CLI in ghcid mode.
 [group('1. vira')]
 run-vira ARGS='web --host 0.0.0.0 --base-path ${BASE_PATH:-/} --import ./sample.json':
     #!/usr/bin/env bash
