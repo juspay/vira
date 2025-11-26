@@ -300,7 +300,7 @@ signoffImpl repoDir pipeline buildResults = do
       -- Extract unique systems from all build results
       let allSystems = concatMap (\br -> Map.keys br.devourResult.systems) (toList buildResults)
           uniqueSystems = ordNub allSystems
-          signoffNames = fmap (\system -> toString @Text $ "vira/" <> show system) uniqueSystems
+          signoffNames = fmap (\system -> "vira/" <> toString system) uniqueSystems
       case nonEmpty signoffNames of
         Nothing -> throwError $ DevourFlakeMalformedOutput "build results" "No systems found in build results"
         Just names -> do
