@@ -12,9 +12,13 @@ import Bitbucket.CLI qualified as CLI
 import Bitbucket.Config (ConfigError (..))
 import Bitbucket.Config qualified as Config
 import Bitbucket.ConfigPath (getConfigPath)
+import Colog (Severity (..))
+import Colog.Message (RichMessage)
 import Data.Aeson (object, (.=))
 import Data.Aeson qualified as Aeson
 import Effectful (Eff, IOE, runEff, (:>))
+import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext (..), runLogActionStdout)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.Git.Command.Config qualified as Git
 import Effectful.Git.Command.Remote qualified as Git
@@ -23,6 +27,7 @@ import Effectful.Git.Command.Status qualified as Git
 import Effectful.Git.Core (git)
 import Effectful.Git.Platform (GitPlatform (..), parseAndDetect)
 import Effectful.Process (Process, proc, readCreateProcess, runProcess)
+import Effectful.Reader.Static qualified as ER
 import Network.HTTP.Req (renderUrl)
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath (takeDirectory)
@@ -39,20 +44,20 @@ runBB = do
 -- | Run a command
 runCommand :: CLISettings -> IO ()
 runCommand settings =
-  runEff . runProcess $ do
+  runEff . runLogActionStdout Info . ER.runReader (LogContext []) . runProcess $ do
     case CLI.command settings of
       SignoffCommand args -> runSignoffIO (CLI.force settings) args
       AuthCommand args -> liftIO $ runAuth args
       StatusCommand args -> liftIO $ runStatus args
 
 -- | Run signoff with error handling
-runSignoffIO :: (Process :> es, IOE :> es) => Bool -> SignoffArgs -> Eff es ()
+runSignoffIO :: (Log (RichMessage IO) :> es, ER.Reader LogContext :> es, Process :> es, IOE :> es) => Bool -> SignoffArgs -> Eff es ()
 runSignoffIO forceFlag args = do
   result <- runErrorNoCallStack @Text $ runSignoff forceFlag args
   either (liftIO . die . toString @Text) pure result
 
 -- | Run signoff command
-runSignoff :: (Error Text :> es, Process :> es, IOE :> es) => Bool -> SignoffArgs -> Eff es ()
+runSignoff :: (Error Text :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es, Process :> es, IOE :> es) => Bool -> SignoffArgs -> Eff es ()
 runSignoff forceFlag args = do
   -- Get git remote URL (from current directory)
   remoteUrl <- Git.getRemoteUrl "." "origin"

@@ -14,7 +14,7 @@ import Data.ByteString.Lazy qualified as LBS
 import Data.Time (getCurrentTime)
 import Data.Version (showVersion)
 import Effectful (runEff)
-import Effectful.Colog.Simple (runLogActionStdout)
+import Effectful.Colog.Simple (LogContext (..), runLogActionStdout)
 import Effectful.Concurrent.Async (runConcurrent)
 import Effectful.Environment (runEnvironment)
 import Effectful.Error.Static (runErrorNoCallStack)
@@ -22,6 +22,7 @@ import Effectful.FileSystem (runFileSystem)
 import Effectful.Git (RepoName (..), getRemoteUrl)
 import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
 import Effectful.Process (runProcess)
+import Effectful.Reader.Static (runReader)
 import Main.Utf8 qualified as Utf8
 import Paths_vira qualified
 import System.Directory (getCurrentDirectory, makeAbsolute)
@@ -138,20 +139,27 @@ runVira = do
     runCIEffects gs repoDir =
       runEff
         . runLogActionStdout gs.logLevel
+        . runReader (LogContext [])
+        . runErrorNoCallStack @Pipeline.PipelineError
         . runEnvironment
         . runFileSystem
         . runProcess
         . runConcurrent
-        . runErrorNoCallStack
         $ do
-          GitStatusPorcelain {branch} <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
-          -- Get remote URL for creating Repo
-          remoteUrl <- runErrorNoCallStack (getRemoteUrl repoDir "origin") >>= either error pure
-          let repo = Repo {name = RepoName "cli-repo", cloneUrl = remoteUrl, lastRefresh = Nothing}
-          let ctx = ViraContext branch True
-          tools <- Tool.getAllTools
-          Pipeline.runPipeline (Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx) (Program.pipelineProgram repo repoDir)
-            $> ExitSuccess
+          putStrLn repoDir
+          result <- runErrorNoCallStack @Text $ do
+            GitStatusPorcelain {branch} <- gitStatusPorcelain repoDir
+            -- Get remote URL for creating Repo
+            remoteUrl <- getRemoteUrl repoDir "origin"
+            pure (branch, remoteUrl)
+          case result of
+            Left err -> liftIO $ die $ toString err
+            Right (branch, remoteUrl) -> do
+              let repo = Repo {name = RepoName "cli-repo", cloneUrl = remoteUrl, lastRefresh = Nothing}
+              let ctx = ViraContext branch True
+              tools <- Tool.getAllTools
+              Pipeline.runPipeline (Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx) (Program.pipelineProgram repo repoDir)
+                $> ExitSuccess
 
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()
     importFromFileOrStdin acid mFilePath = do

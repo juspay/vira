@@ -76,6 +76,8 @@ Returns True if there are commits in the current branch that haven't been pushed
 -}
 hasUnpushedCommits ::
   ( Error Text :> es
+  , Log (RichMessage IO) :> es
+  , ER.Reader LogContext :> es
   , Process :> es
   , IOE :> es
   ) =>
@@ -84,5 +86,7 @@ hasUnpushedCommits ::
   Eff es Bool
 hasUnpushedCommits repoDir = do
   let logCmd = proc git ["-C", repoDir, "log", "@{push}.."]
-  logOutput <- readCreateProcess logCmd ""
+  logOutput <- withLogCommand logCmd $ do
+    log Debug "Running git log @{push}.."
+    readCreateProcess logCmd ""
   pure $ logOutput /= ""

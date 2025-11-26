@@ -65,6 +65,9 @@ library
       aeson
     , base ==4.*
     , bytestring
+    , co-log
+    , co-log-effectful
+    , co-log-effectful-simple
     , directory
     , effectful
     , effectful-core
@@ -123,6 +126,9 @@ test-suite bitbucket-test
     , base ==4.*
     , bitbucket
     , bytestring
+    , co-log
+    , co-log-effectful
+    , co-log-effectful-simple
     , directory
     , effectful
     , effectful-core
