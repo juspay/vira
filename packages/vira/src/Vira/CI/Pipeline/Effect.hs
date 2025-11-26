@@ -75,8 +75,8 @@ data Pipeline :: Effect where
   Build :: FilePath -> ViraPipeline -> Pipeline m (NonEmpty BuildResult)
   -- | Push 'BuildResult's to cache
   Cache :: FilePath -> ViraPipeline -> NonEmpty BuildResult -> Pipeline m ()
-  -- | Create GitHub commit status
-  Signoff :: FilePath -> ViraPipeline -> Pipeline m ()
+  -- | Create GitHub commit status (one per system)
+  Signoff :: FilePath -> ViraPipeline -> NonEmpty BuildResult -> Pipeline m ()
 
 -- Generate boilerplate for the effect
 makeEffect ''Pipeline

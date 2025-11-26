@@ -6,6 +6,7 @@ A standalone library for gh-signoff operations.
 -}
 module GH.Signoff (create, Force (..), ghSignoffBin) where
 
+import Data.List.NonEmpty qualified as NE
 import System.Process (CreateProcess, proc)
 import System.Which (staticWhich)
 import Prelude hiding (force)
@@ -24,8 +25,8 @@ data Force = Force | NoForce deriving stock (Show, Eq)
 
 Parameters:
   * @force@: Whether to use the @--force@ flag
-  * @name@: The signoff name argument
+  * @names@: The signoff name arguments (one or more)
 -}
-create :: Force -> String -> CreateProcess
-create force name =
-  proc ghSignoffBin $ "create" : (["-f" | force == Force] <> [name])
+create :: Force -> NonEmpty String -> CreateProcess
+create force names =
+  proc ghSignoffBin $ "create" : (["-f" | force == Force] <> NE.toList names)
