@@ -18,7 +18,11 @@ extra-source-files:
 dependencies:
   - aeson
   - bytestring
+  - co-log
+  - co-log-effectful
+  - co-log-effectful-simple
   - directory
+  - effectful-core
   - filepath
   - modern-uri
   - process

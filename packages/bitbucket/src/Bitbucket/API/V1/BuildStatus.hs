@@ -11,8 +11,14 @@ module Bitbucket.API.V1.BuildStatus (
 ) where
 
 import Bitbucket.API.V1.Core (ServerEndpoint (..), Token (..), makeUrl)
+import Colog (Severity (..))
+import Colog.Message (RichMessage)
 import Data.Aeson (ToJSON (..))
 import Data.Aeson qualified as Aeson
+import Effectful (Eff, IOE, (:>))
+import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext, log, withLogContext)
+import Effectful.Reader.Static qualified as ER
 import Network.HTTP.Req (
   POST (POST),
   ReqBodyJson (ReqBodyJson),
@@ -58,14 +64,13 @@ data BuildStatus = BuildStatus
 
 Respects HTTPS_PROXY environment variable automatically via req library.
 -}
-postBuildStatus :: ServerEndpoint -> Token -> Text -> BuildStatus -> IO ()
-postBuildStatus endpoint (Token tok) commitHash status = do
+postBuildStatus :: (Log (RichMessage IO) :> es, ER.Reader LogContext :> es, IOE :> es) => ServerEndpoint -> Token -> Text -> BuildStatus -> Eff es ()
+postBuildStatus endpoint (Token tok) commitHash status = withLogContext [("api", "bitbucket")] $ do
   let baseUrl = makeUrl endpoint
       url = baseUrl /: "rest" /: "build-status" /: "1.0" /: "commits" /: commitHash
-  putTextLn $ "[bb] POST " <> renderUrl url
-  putTextLn $ "[bb] JSON: " <> decodeUtf8 (Aeson.encode status)
-  hFlush stdout
-  runReq defaultHttpConfig $ do
+  log Debug $ "POST " <> renderUrl url
+  log Debug $ "JSON: " <> decodeUtf8 (Aeson.encode status)
+  liftIO $ runReq defaultHttpConfig $ do
     let authHeader = encodeUtf8 $ "Bearer " <> tok
 
     void $

@@ -24,6 +24,11 @@ run:
 run-ci REPO_DIR='':
     @just run-vira "--log-level=debug ci {{ REPO_DIR }}"
 
+# Check Bitbucket authentication status
+[group('1. vira')]
+bb-status:
+    nix run .#bb -- status
+
 # Like `run`, but only runs Vira, taking optional set of args (web, by default)
 #
 # This is useful to run the CLI in ghcid mode.

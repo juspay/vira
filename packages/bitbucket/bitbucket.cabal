@@ -59,7 +59,11 @@ library
       aeson
     , base ==4.*
     , bytestring
+    , co-log
+    , co-log-effectful
+    , co-log-effectful-simple
     , directory
+    , effectful-core
     , filepath
     , modern-uri
     , process
@@ -113,7 +117,11 @@ test-suite bitbucket-test
     , base ==4.*
     , bitbucket
     , bytestring
+    , co-log
+    , co-log-effectful
+    , co-log-effectful-simple
     , directory
+    , effectful-core
     , filepath
     , hspec
     , hspec-discover

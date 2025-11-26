@@ -20,7 +20,7 @@ import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, runEff, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..), runLogActionStdout)
-import Effectful.Error.Static (Error, runErrorNoCallStack)
+import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.Git.Command.Remote qualified as Git
 import Effectful.Git.Command.RevParse qualified as Git
 import Effectful.Git.Command.Status qualified as Git
@@ -44,16 +44,12 @@ runBB = do
 runCommand :: CLISettings -> IO ()
 runCommand settings =
   runEff . runLogActionStdout Info . ER.runReader (LogContext []) . runProcess $ do
-    case CLI.command settings of
-      SignoffCommand args -> runSignoffIO (CLI.force settings) args
-      AuthCommand args -> liftIO $ runAuth args
-      StatusCommand args -> liftIO $ runStatus args
-
--- | Run signoff with error handling
-runSignoffIO :: (Log (RichMessage IO) :> es, ER.Reader LogContext :> es, Process :> es, IOE :> es) => Bool -> SignoffArgs -> Eff es ()
-runSignoffIO forceFlag args = do
-  result <- runErrorNoCallStack @Text $ runSignoff forceFlag args
-  either (liftIO . die . toString @Text) pure result
+    result <- runErrorNoCallStack @Text $ do
+      case CLI.command settings of
+        SignoffCommand args -> runSignoff (CLI.force settings) args
+        AuthCommand args -> runAuth args
+        StatusCommand args -> runStatus args
+    either (liftIO . die . toString @Text) pure result
 
 -- | Run signoff command
 runSignoff :: (Error Text :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es, Process :> es, IOE :> es) => Bool -> SignoffArgs -> Eff es ()
@@ -103,35 +99,33 @@ runSignoff forceFlag args = do
           }
 
   -- Post status
-  liftIO $ BS.postBuildStatus endpoint serverConfig.token commitHash status
+  BS.postBuildStatus endpoint serverConfig.token commitHash status
 
   liftIO $ putTextLn $ "✓ Signed off on " <> commitHash
 
 -- | Run auth command
-runAuth :: AuthArgs -> IO ()
+runAuth :: (Error Text :> es, IOE :> es) => AuthArgs -> Eff es ()
 runAuth args = do
   -- Prompt for token
-  putStr "Enter your Bitbucket access token: "
-  hFlush stdout
-  tokenInput <- getLine
+  liftIO $ putStr "Enter your Bitbucket access token: "
+  liftIO $ hFlush stdout
+  tokenInput <- liftIO getLine
 
   -- Parse URL to extract host
   let baseUrlText = CLI.baseUrl args
   uri <- case mkURI baseUrlText of
-    Left parseErr -> do
-      putTextLn $ "✗ URL parse error for " <> baseUrlText <> ": " <> show parseErr
-      exitFailure
+    Left parseErr ->
+      throwError $ "✗ URL parse error for " <> baseUrlText <> ": " <> show parseErr
     Right u -> pure u
 
   -- Extract host from URI
   host <- case URI.uriAuthority uri of
     Right auth -> pure $ unRText (authHost auth)
-    Left _ -> do
-      putTextLn $ "✗ Could not extract host from URL: " <> baseUrlText
-      exitFailure
+    Left _ ->
+      throwError $ "✗ Could not extract host from URL: " <> baseUrlText
 
   -- Load existing config or start fresh
-  existingServers <- whenRightM Map.empty Config.loadConfig pure
+  existingServers <- liftIO $ whenRightM Map.empty Config.loadConfig pure
 
   -- Insert/update server
   let endpoint = ServerEndpoint host
@@ -139,36 +133,36 @@ runAuth args = do
       updatedServers = Map.insert endpoint serverConfig existingServers
 
   -- Save config
-  Config.saveConfig updatedServers
+  liftIO $ Config.saveConfig updatedServers
 
-  configPath <- getConfigPath
-  putTextLn $ "✓ Configuration saved to " <> toText configPath
+  configPath <- liftIO getConfigPath
+  liftIO $ putTextLn $ "✓ Configuration saved to " <> toText configPath
 
 -- | Run status command
-runStatus :: StatusArgs -> IO ()
+runStatus :: (Error Text :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es, IOE :> es) => StatusArgs -> Eff es ()
 runStatus args = do
-  configPath <- getConfigPath
-  Config.loadConfig >>= \case
+  configPath <- liftIO getConfigPath
+  liftIO Config.loadConfig >>= \case
     Left err -> do
       if CLI.jsonOutput args
         then do
           let json = object ["authenticated" .= False, "error" .= showConfigError err]
-          putLBSLn $ Aeson.encode json
-          exitFailure
+          liftIO $ putLBSLn $ Aeson.encode json
+          throwError @Text "Config error"
         else do
-          putTextLn $ "✗ " <> showConfigError err
-          exitFailure
+          liftIO $ putTextLn $ "✗ " <> showConfigError err
+          throwError @Text "Config error"
     Right servers -> do
       if Map.null servers
         then do
           if CLI.jsonOutput args
             then do
               let json = object ["authenticated" .= False, "error" .= ("No servers configured" :: Text)]
-              putLBSLn $ Aeson.encode json
-              exitFailure
+              liftIO $ putLBSLn $ Aeson.encode json
+              throwError @Text "No servers configured"
             else do
-              putTextLn "✗ No servers configured"
-              exitFailure
+              liftIO $ putTextLn "✗ No servers configured"
+              throwError @Text "No servers configured"
         else do
           -- Test first server (could be enhanced to test all or prompt user)
           case viaNonEmpty head (Map.toList servers) of
@@ -176,11 +170,11 @@ runStatus args = do
               if CLI.jsonOutput args
                 then do
                   let json = object ["authenticated" .= False, "error" .= ("No servers configured" :: Text)]
-                  putLBSLn $ Aeson.encode json
-                  exitFailure
+                  liftIO $ putLBSLn $ Aeson.encode json
+                  throwError @Text "No servers configured"
                 else do
-                  putTextLn "✗ No servers configured"
-                  exitFailure
+                  liftIO $ putTextLn "✗ No servers configured"
+                  throwError @Text "No servers configured"
             Just (endpoint, serverConfig) ->
               Config.testConnection endpoint serverConfig.token >>= \case
                 Left testErr -> do
@@ -192,11 +186,11 @@ runStatus args = do
                               , "config_found" .= True
                               , "connection_error" .= testErr
                               ]
-                      putLBSLn $ Aeson.encode json
-                      exitFailure
+                      liftIO $ putLBSLn $ Aeson.encode json
+                      throwError @Text testErr
                     else do
-                      putTextLn $ "✗ Connection test failed: " <> testErr
-                      exitFailure
+                      liftIO $ putTextLn $ "✗ Connection test failed: " <> testErr
+                      throwError @Text testErr
                 Right () -> do
                   if CLI.jsonOutput args
                     then do
@@ -206,11 +200,11 @@ runStatus args = do
                               , "config_path" .= toText configPath
                               , "server_count" .= Map.size servers
                               ]
-                      putLBSLn $ Aeson.encode json
+                      liftIO $ putLBSLn $ Aeson.encode json
                     else do
-                      putTextLn "✓ Authenticated"
-                      putTextLn $ "  Config: " <> toText configPath
-                      putTextLn $ "  Servers: " <> show (Map.size servers)
+                      liftIO $ putTextLn "✓ Authenticated"
+                      liftIO $ putTextLn $ "  Config: " <> toText configPath
+                      liftIO $ putTextLn $ "  Servers: " <> show (Map.size servers)
 
 -- | Show config error
 showConfigError :: ConfigError -> Text
