@@ -41,7 +41,7 @@ pipelineProgram repoDir = do
   cache repoDir pipeline buildResults
 
   -- Step 4: Signoff
-  signoff repoDir pipeline
+  signoff repoDir pipeline buildResults
   logPipeline Info "Pipeline completed successfully"
 
 {- | Pipeline program with clone (for web/CI)

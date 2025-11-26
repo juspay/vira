@@ -19,6 +19,7 @@ import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (eitherDecodeFileStrict)
 import DevourFlake (DevourFlakeArgs (..), devourFlake)
+import DevourFlake.Result (extractSystems)
 import Effectful
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..))
@@ -71,7 +72,7 @@ runPipeline env program =
           LoadConfig repoDir -> loadConfigImpl repoDir
           Build repoDir pipeline -> buildImpl repoDir pipeline
           Cache repoDir pipeline buildResults -> cacheImpl repoDir pipeline buildResults
-          Signoff repoDir pipeline -> signoffImpl repoDir pipeline
+          Signoff repoDir pipeline buildResults -> signoffImpl repoDir pipeline buildResults
       )
       program
 
@@ -276,7 +277,7 @@ cacheImpl repoDir pipeline buildResults = do
           msg = "Attic configuration error for cache URL '" <> url <> "': " <> show err <> suggestionText
        in PipelineToolError $ ToolError msg
 
--- | Implementation: Create signoff
+-- | Implementation: Create signoff (one per system)
 signoffImpl ::
   ( Concurrent :> es
   , Process :> es
@@ -289,15 +290,22 @@ signoffImpl ::
   ) =>
   FilePath ->
   ViraPipeline ->
+  NonEmpty BuildResult ->
   Eff es ()
-signoffImpl repoDir pipeline = do
+signoffImpl repoDir pipeline buildResults = do
   env <- ER.ask @PipelineEnv
   if pipeline.signoff.enable
     then do
-      logPipeline Info "Creating commit signoff"
-      let signoffProc = Signoff.create Signoff.Force "vira"
-      runProcess repoDir env.outputLog signoffProc
-      logPipeline Info "Signoff succeeded"
+      -- Extract unique systems from all build results
+      let systems = extractSystems $ fmap (.devourResult) (toList buildResults)
+          signoffNames = fmap (\system -> "vira/" <> toString system) (toList systems)
+      case nonEmpty signoffNames of
+        Nothing -> throwError $ DevourFlakeMalformedOutput "build results" "No systems found in build results"
+        Just names -> do
+          logPipeline Info $ "Creating commit signoffs for " <> show (length names) <> " systems: " <> show (toList names)
+          let signoffProc = Signoff.create Signoff.Force names
+          runProcess repoDir env.outputLog signoffProc
+          logPipeline Info "All signoffs succeeded"
     else
       logPipeline Warning "Signoff disabled, skipping"
 
