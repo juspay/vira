@@ -18,9 +18,8 @@ import Attic.Url qualified
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (eitherDecodeFileStrict)
-import Data.Map.Strict qualified as Map
 import DevourFlake (DevourFlakeArgs (..), devourFlake)
-import DevourFlake.Result (DevourFlakeResult (..))
+import DevourFlake.Result (extractSystems)
 import Effectful
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..))
@@ -298,9 +297,8 @@ signoffImpl repoDir pipeline buildResults = do
   if pipeline.signoff.enable
     then do
       -- Extract unique systems from all build results
-      let allSystems = concatMap (\br -> Map.keys br.devourResult.systems) (toList buildResults)
-          uniqueSystems = ordNub allSystems
-          signoffNames = fmap (\system -> "vira/" <> toString system) uniqueSystems
+      let systems = extractSystems $ fmap (.devourResult) (toList buildResults)
+          signoffNames = fmap (\system -> "vira/" <> toString system) (toList systems)
       case nonEmpty signoffNames of
         Nothing -> throwError $ DevourFlakeMalformedOutput "build results" "No systems found in build results"
         Just names -> do

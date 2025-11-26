@@ -40,7 +40,7 @@ pipelineProgram repoDir = do
   -- Step 3: Cache using build results
   cache repoDir pipeline buildResults
 
-  -- Step 4: Signoff (one per system)
+  -- Step 4: Signoff
   signoff repoDir pipeline buildResults
   logPipeline Info "Pipeline completed successfully"
 
