@@ -12,14 +12,28 @@ module BB.Config (
   saveConfig,
   getConfigPath,
   lookupServer,
+  testConnection,
   ServerConfig (..),
   ConfigError (..),
 ) where
 
-import Bitbucket.API.V1.Core (ServerEndpoint (..), Token (..))
+import Bitbucket.API.V1.Core (ServerEndpoint (..), Token (..), makeUrl)
+import Control.Exception (catch)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Aeson qualified as Aeson
 import Data.Map.Strict qualified as Map
+import Network.HTTP.Req (
+  GET (GET),
+  HttpException,
+  NoReqBody (NoReqBody),
+  defaultHttpConfig,
+  header,
+  ignoreResponse,
+  renderUrl,
+  req,
+  runReq,
+  (/:),
+ )
 import System.Directory (XdgDirectory (..), createDirectoryIfMissing, doesFileExist, getXdgDirectory)
 import System.FilePath (takeDirectory)
 
@@ -94,3 +108,30 @@ saveConfig servers = do
   createDirectoryIfMissing True (takeDirectory configPath)
   let config = Config {servers}
   writeFileLBS configPath $ Aeson.encode config
+
+{- | Test connection to Bitbucket API
+
+Makes a simple API request to verify:
+1. URL is reachable
+2. API responds
+3. Token is accepted
+-}
+testConnection :: ServerEndpoint -> Token -> IO (Either Text ())
+testConnection endpoint (Token tok) = do
+  let baseUrl = makeUrl endpoint
+      url = baseUrl /: "rest" /: "api" /: "1.0" /: "projects"
+  putTextLn $ "[bb] GET " <> renderUrl url
+  hFlush stdout
+  catch
+    ( runReq defaultHttpConfig $ do
+        let authHeader = encodeUtf8 $ "Bearer " <> tok
+        void $
+          req
+            GET
+            url
+            NoReqBody
+            ignoreResponse
+            (header "Authorization" authHeader)
+        pure (Right ())
+    )
+    (\(e :: HttpException) -> pure $ Left $ "HTTP error: " <> show e)

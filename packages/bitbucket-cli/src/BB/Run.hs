@@ -12,7 +12,6 @@ import BB.Config qualified as Config
 import Bitbucket.API.V1.BuildStatus (BuildStatus (..))
 import Bitbucket.API.V1.BuildStatus qualified as BS
 import Bitbucket.API.V1.Core (ServerEndpoint (..), Token (..))
-import Bitbucket.API.V1.Core qualified as API
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (object, (.=))
@@ -183,7 +182,7 @@ runStatus args = do
                   putTextLn "✗ No servers configured"
                   exitFailure
             Just (endpoint, serverConfig) ->
-              API.testConnection endpoint serverConfig.token >>= \case
+              Config.testConnection endpoint serverConfig.token >>= \case
                 Left testErr -> do
                   if CLI.jsonOutput args
                     then do

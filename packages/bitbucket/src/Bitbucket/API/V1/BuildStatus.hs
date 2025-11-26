@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 {- | Bitbucket Build Status API
 
@@ -11,7 +11,7 @@ module Bitbucket.API.V1.BuildStatus (
 ) where
 
 import Bitbucket.API.V1.Core (ServerEndpoint (..), Token (..), makeUrl)
-import Data.Aeson (ToJSON (..), object, (.=))
+import Data.Aeson (ToJSON (..))
 import Data.Aeson qualified as Aeson
 import Network.HTTP.Req (
   POST (POST),
@@ -51,17 +51,8 @@ data BuildStatus = BuildStatus
   , description :: Text
   -- ^ Description of the build status
   }
-  deriving stock (Show, Eq)
-
-instance ToJSON BuildStatus where
-  toJSON status =
-    object
-      [ "state" .= status.state
-      , "key" .= status.key
-      , "name" .= status.name
-      , "url" .= status.url
-      , "description" .= status.description
-      ]
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (ToJSON)
 
 {- | Post build status to a Bitbucket commit
 
