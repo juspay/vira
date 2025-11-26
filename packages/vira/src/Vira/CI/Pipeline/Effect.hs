@@ -76,7 +76,7 @@ data Pipeline :: Effect where
   -- | Push 'BuildResult's to cache
   Cache :: FilePath -> ViraPipeline -> NonEmpty BuildResult -> Pipeline m ()
   -- | Create GitHub/Bitbucket commit signoff
-  Signoff :: Repo -> FilePath -> ViraPipeline -> Pipeline m ()
+  Signoff :: Text -> FilePath -> ViraPipeline -> Pipeline m ()
 
 -- Generate boilerplate for the effect
 makeEffect ''Pipeline

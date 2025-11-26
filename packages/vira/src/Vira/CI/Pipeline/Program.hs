@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 
 module Vira.CI.Pipeline.Program where
 
@@ -12,7 +13,7 @@ import Effectful.Reader.Static qualified as ER
 import Shower qualified
 import Vira.CI.Error (PipelineError (..))
 import Vira.CI.Pipeline.Effect
-import Vira.State.Type (Branch, Repo)
+import Vira.State.Type (Branch, Repo (cloneUrl))
 
 -- | Pipeline program for CLI (uses existing local directory)
 pipelineProgram ::
@@ -23,10 +24,10 @@ pipelineProgram ::
   , IOE :> es
   , Error PipelineError :> es
   ) =>
-  Repo ->
+  Text ->
   FilePath ->
   Eff es ()
-pipelineProgram repo repoDir = do
+pipelineProgram cloneUrl repoDir = do
   logPipeline Info "Starting pipeline execution"
 
   -- Step 1: Load configuration
@@ -41,7 +42,7 @@ pipelineProgram repo repoDir = do
   cache repoDir pipeline buildResults
 
   -- Step 4: Signoff
-  signoff repo repoDir pipeline
+  signoff cloneUrl repoDir pipeline
   logPipeline Info "Pipeline completed successfully"
 
 {- | Pipeline program with clone (for web/CI)
@@ -64,4 +65,4 @@ pipelineProgramWithClone repo branch workspacePath = do
   clonedDir <- clone repo branch workspacePath
 
   -- Step 2-5: Run pipeline in the cloned directory
-  pipelineProgram repo clonedDir
+  pipelineProgram repo.cloneUrl clonedDir

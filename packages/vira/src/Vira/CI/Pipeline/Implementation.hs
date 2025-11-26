@@ -75,7 +75,7 @@ runPipeline env program =
           LoadConfig repoDir -> loadConfigImpl repoDir
           Build repoDir pipeline -> buildImpl repoDir pipeline
           Cache repoDir pipeline buildResults -> cacheImpl repoDir pipeline buildResults
-          Signoff repo repoDir pipeline -> signoffImpl repo repoDir pipeline
+          Signoff cloneUrl repoDir pipeline -> signoffImpl cloneUrl repoDir pipeline
       )
       program
 
@@ -291,16 +291,17 @@ signoffImpl ::
   , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
-  Repo ->
+  -- | Clone URL for platform detection
+  Text ->
   FilePath ->
   ViraPipeline ->
   Eff es ()
-signoffImpl repo repoDir pipeline = do
+signoffImpl cloneUrl repoDir pipeline = do
   env <- ER.ask @PipelineEnv
   if pipeline.signoff.enable
     then do
       -- Detect platform based on clone URL
-      case detectPlatform repo.cloneUrl of
+      case detectPlatform cloneUrl of
         Just GitHub -> do
           logPipeline Info "Detected GitHub repository, creating GitHub commit signoff"
           let ghProc = Signoff.create Signoff.Force "vira"
@@ -321,7 +322,7 @@ signoffImpl repo repoDir pipeline = do
           throwError $
             PipelineConfigurationError $
               MalformedConfig $
-                "Signoff enabled but could not detect platform from clone URL: " <> repo.cloneUrl <> ". Must be GitHub or Bitbucket."
+                "Signoff enabled but could not detect platform from clone URL: " <> cloneUrl <> ". Must be GitHub or Bitbucket."
     else
       logPipeline Warning "Signoff disabled, skipping"
 
