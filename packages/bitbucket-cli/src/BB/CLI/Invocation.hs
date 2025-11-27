@@ -1,10 +1,10 @@
-{- | Bitbucket signoff functionality
+{- | CLI invocation wrappers for use by vira
 
-Wrapper for bb signoff command.
+Provides wrappers for bb commands that shell out via process invocation.
 -}
-module BB.Signoff (
+module BB.CLI.Invocation (
   Force (..),
-  create,
+  createSignoff,
 ) where
 
 import System.Process (CreateProcess, proc)
@@ -23,8 +23,8 @@ Arguments:
 - 'Force': Whether to force signoff (skip dirty check)
 - 'NonEmpty String': Context names (e.g., ["vira/x86_64-linux", "vira/aarch64-darwin"])
 -}
-create :: FilePath -> Force -> NonEmpty String -> NonEmpty CreateProcess
-create bbBin force_ =
+createSignoff :: FilePath -> Force -> NonEmpty String -> NonEmpty CreateProcess
+createSignoff bbBin force_ =
   fmap createOne
   where
     createOne contextName =

@@ -6,7 +6,7 @@ module Vira.Environment.Tool.Status (
   viewToolsStatus,
 ) where
 
-import BB.Auth.Status qualified as BB
+import BB.Command.Auth.Status qualified as BB
 import Data.Map.Strict qualified as Map
 import Effectful.Reader.Dynamic (ask)
 import GH.Auth.Status (AuthStatus (..))

@@ -18,11 +18,12 @@ build-type:     Simple
 
 library
   exposed-modules:
-      BB.Auth.Status
-      BB.CLI
+      BB.CLI.Core
+      BB.CLI.Invocation
+      BB.Command.Auth.Login
+      BB.Command.Auth.Status
       BB.Config
       BB.Run
-      BB.Signoff
   other-modules:
       Paths_bitbucket_cli
   autogen-modules:

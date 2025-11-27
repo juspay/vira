@@ -2,12 +2,11 @@
 
 Uses optparse-applicative for command-line parsing.
 -}
-module BB.CLI (
+module BB.CLI.Core (
   CLISettings (..),
   Command (..),
-  AuthArgs (..),
+  AuthCommand (..),
   SignoffArgs (..),
-  StatusArgs (..),
   parseCLI,
 ) where
 
@@ -43,22 +42,19 @@ data CLISettings = CLISettings
 -- | Available commands
 data Command
   = SignoffCommand SignoffArgs
-  | AuthCommand AuthArgs
-  | StatusCommand StatusArgs
+  | AuthCommand AuthCommand
   deriving stock (Show, Eq)
 
--- | Arguments for auth command
-newtype AuthArgs = AuthArgs
-  { baseUrl :: Text
-  -- ^ Bitbucket base URL
-  }
-  deriving stock (Show, Eq)
-
--- | Arguments for status command
-newtype StatusArgs = StatusArgs
-  { jsonOutput :: Bool
-  -- ^ Output in JSON format
-  }
+-- | Auth subcommands
+data AuthCommand
+  = LoginCommand
+      { baseUrl :: Text
+      -- ^ Bitbucket base URL
+      }
+  | StatusCommand
+      { jsonOutput :: Bool
+      -- ^ Output in JSON format
+      }
   deriving stock (Show, Eq)
 
 -- | Arguments for signoff command
@@ -109,9 +105,21 @@ commandParser =
         <> OA.command
           "auth"
           ( info
-              (AuthCommand <$> authArgsParser)
+              (AuthCommand <$> authCommandParser)
               (progDesc "Configure Bitbucket authentication")
           )
+    )
+
+-- | Parser for auth subcommands
+authCommandParser :: Parser AuthCommand
+authCommandParser =
+  hsubparser
+    ( OA.command
+        "login"
+        ( info
+            (LoginCommand <$> loginArgsParser)
+            (progDesc "Authenticate to Bitbucket server")
+        )
         <> OA.command
           "status"
           ( info
@@ -120,23 +128,21 @@ commandParser =
           )
     )
 
--- | Parser for auth arguments
-authArgsParser :: Parser AuthArgs
-authArgsParser =
-  AuthArgs
-    <$> strArgument
-      ( metavar "URL"
-          <> help "Bitbucket base URL (e.g., https://bitbucket.example.com or bitbucket.example.com)"
-      )
+-- | Parser for login arguments
+loginArgsParser :: Parser Text
+loginArgsParser =
+  strArgument
+    ( metavar "URL"
+        <> help "Bitbucket base URL (e.g., https://bitbucket.example.com or bitbucket.example.com)"
+    )
 
 -- | Parser for status arguments
-statusArgsParser :: Parser StatusArgs
+statusArgsParser :: Parser Bool
 statusArgsParser =
-  StatusArgs
-    <$> switch
-      ( long "json"
-          <> help "Output in JSON format"
-      )
+  switch
+    ( long "json"
+        <> help "Output in JSON format"
+    )
 
 -- | Parser for signoff arguments
 signoffArgsParser :: Parser SignoffArgs

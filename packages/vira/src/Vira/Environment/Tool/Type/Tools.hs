@@ -6,7 +6,7 @@ module Vira.Environment.Tool.Type.Tools (
 ) where
 
 import Attic.Config (AtticConfig)
-import BB.Auth.Status qualified as BB
+import BB.Command.Auth.Status qualified as BB
 import GH.Auth.Status (AuthStatus)
 import Vira.Environment.Tool.Tools.Attic (ConfigError)
 import Vira.Environment.Tool.Tools.Nix (NixStatus)

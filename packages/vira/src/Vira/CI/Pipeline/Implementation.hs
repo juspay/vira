@@ -15,7 +15,7 @@ import Attic qualified
 import Attic.Config (lookupEndpointWithToken)
 import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
-import BB.Signoff qualified as BBSignoff
+import BB.CLI.Invocation qualified as BBInvocation
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (eitherDecodeFileStrict)
@@ -317,7 +317,7 @@ signoffImpl cloneUrl repoDir pipeline buildResults = do
               logPipeline Info "All GitHub signoffs succeeded"
             Just (Bitbucket bitbucketHost) -> do
               logPipeline Info $ "Detected Bitbucket repository, creating " <> show (length names) <> " commit signoffs: " <> show (toList names)
-              let bbProcs = BBSignoff.create bbBin BBSignoff.Force names
+              let bbProcs = BBInvocation.createSignoff bbBin BBInvocation.Force names
                   bitbucketUrl = "https://" <> bitbucketHost
                   suggestion = mkBitbucketSuggestion bitbucketUrl
                   handler _callstack err = do

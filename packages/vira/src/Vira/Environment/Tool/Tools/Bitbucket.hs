@@ -9,8 +9,7 @@ module Vira.Environment.Tool.Tools.Bitbucket (
   authStatusToSuggestion,
 ) where
 
-import BB.Auth.Status (AuthStatus (..))
-import BB.Auth.Status qualified as BB
+import BB.Command.Auth.Status (AuthStatus (..), checkAuthStatus)
 import Bitbucket.API.V1.Core (ServerEndpoint (..))
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
@@ -30,7 +29,7 @@ data BitbucketSuggestion = BbAuthSuggestion
 
 -- | Format the auth command CLI
 formatAuthCommand :: Text -> Text
-formatAuthCommand url = toText bbBin <> " auth " <> url
+formatAuthCommand url = toText bbBin <> " auth login " <> url
 
 -- | Create a BitbucketSuggestion with default help text
 mkBitbucketSuggestion :: Text -> BitbucketSuggestion
@@ -45,9 +44,9 @@ instance TS.Show BitbucketSuggestion where
     toString $ helpText <> formatAuthCommand bitbucketUrl
 
 -- | Get Bitbucket tool data with metadata and runtime info
-getToolData :: (IOE :> es) => Eff es (ToolData BB.AuthStatus)
+getToolData :: (IOE :> es) => Eff es (ToolData AuthStatus)
 getToolData = do
-  info <- liftIO BB.checkAuthStatus
+  info <- liftIO checkAuthStatus
   pure
     ToolData
       { name = "Bitbucket CLI"
