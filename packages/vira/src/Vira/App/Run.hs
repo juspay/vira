@@ -20,7 +20,6 @@ import Effectful.Error.Static (runErrorNoCallStack, throwError)
 import Effectful.Git (getRemoteUrl)
 import Effectful.Git.Command.RevParse (getCurrentCommit)
 import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
-import Effectful.Git.Types (CommitID (..))
 import Effectful.Process (runProcess)
 import Main.Utf8 qualified as Utf8
 import Paths_vira qualified
@@ -130,22 +129,23 @@ runVira = do
           -- Get remote URL for creating Repo
           remoteUrl <- getRemoteUrl dir "origin"
           -- Get current commit hash
-          commitHash <- getCurrentCommit dir
-          pure (branch, remoteUrl, CommitID commitHash)
+          commitId <- getCurrentCommit dir
+          let ctx = ViraContext branch onlyBuild commitId remoteUrl dir
+          tools <- Tool.getAllTools
+          let env = Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx
+          runErrorNoCallStack (Pipeline.runPipeline env Program.pipelineProgram) >>= \case
+            Left (err :: Pipeline.PipelineError) -> do
+              log Error $ show err
+              log Error "CI pipeline failed"
+              pure $ ExitFailure 2
+            Right () -> do
+              log Info "CI pipeline succeeded"
+              pure ExitSuccess
         case result of
-          Left err -> liftIO $ die $ toString err
-          Right (branch, remoteUrl, commitId) -> do
-            let ctx = ViraContext branch onlyBuild commitId remoteUrl dir
-            tools <- Tool.getAllTools
-            let env = Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx
-            pipelineResult <- runErrorNoCallStack $ Pipeline.runPipeline env Program.pipelineProgram
-            case pipelineResult of
-              Left err -> do
-                log Error $ "CI pipeline failed: " <> show err
-                pure $ ExitFailure 1
-              Right () -> do
-                log Info "CI pipeline succeeded"
-                pure ExitSuccess
+          Left err -> do
+            log Error err
+            pure $ ExitFailure 1
+          Right code -> pure code
       exitWith exitCode
 
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()

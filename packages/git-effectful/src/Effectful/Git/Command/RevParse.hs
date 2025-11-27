@@ -16,6 +16,7 @@ import Effectful.Colog.Simple (LogContext, log)
 import Effectful.Colog.Simple.Process (withLogCommand)
 import Effectful.Error.Static (Error)
 import Effectful.Git.Core (git)
+import Effectful.Git.Types (CommitID)
 import Effectful.Process (Process, proc, readCreateProcess)
 import Effectful.Reader.Static qualified as ER
 
@@ -55,5 +56,5 @@ getCurrentCommit ::
   ) =>
   -- | Repository directory
   FilePath ->
-  Eff es Text
-getCurrentCommit repoDir = revParse repoDir "HEAD"
+  Eff es CommitID
+getCurrentCommit repoDir = fromString . toString <$> revParse repoDir "HEAD"
