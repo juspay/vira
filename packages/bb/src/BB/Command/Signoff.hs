@@ -17,9 +17,8 @@ import Effectful.Error.Static (Error)
 import Effectful.Git.Command.Remote qualified as Git
 import Effectful.Git.Command.RevParse qualified as Git
 import Effectful.Git.Command.Status qualified as Git
-import Effectful.Git.Core (git)
 import Effectful.Git.Platform (GitPlatform (..), detectPlatform)
-import Effectful.Process (Process, proc, readCreateProcess)
+import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
 
 -- | Run signoff command
@@ -47,8 +46,8 @@ runSignoff forceFlag status = do
   -- Check working directory is clean (no uncommitted or unpushed changes)
   unless forceFlag $ do
     -- Check for uncommitted changes
-    statusOutput <- readCreateProcess (proc git ["-C", ".", "status", "--porcelain"]) ""
-    let uncommitted = statusOutput /= ""
+    statusResult <- Git.gitStatusPorcelain "."
+    let uncommitted = statusResult.dirty
     -- Check for unpushed commits
     unpushed <- Git.hasUnpushedCommits "."
     when (uncommitted || unpushed) $
