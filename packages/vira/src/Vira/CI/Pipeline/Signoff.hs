@@ -75,12 +75,12 @@ performSignoff commitId platform repoDir signoffNames outputLog = do
       case env.tools.bitbucket.status of
         Left configErr -> do
           logPipeline Error $ "Failed to load Bitbucket config: " <> configErr
-          logPipeline Info $ "If authentication is required, run: " <> show @Text suggestion
+          logPipeline Info $ show @Text suggestion
           throwError $ PipelineConfigurationError (MalformedConfig configErr)
         Right servers -> case Map.lookup endpoint servers of
           Nothing -> do
             logPipeline Error $ "Server not configured: " <> show endpoint
-            logPipeline Info $ "If authentication is required, run: " <> show @Text suggestion
+            logPipeline Info $ show @Text suggestion
             throwError $ PipelineConfigurationError (MalformedConfig $ "Server not configured: " <> show endpoint)
           Just (serverConfig :: ServerConfig) -> do
             -- Create and post each signoff
@@ -98,7 +98,6 @@ performSignoff commitId platform repoDir signoffNames outputLog = do
                 Left httpEx -> do
                   let errMsg = "HTTP request failed: " <> show httpEx
                   logPipeline Error $ "Bitbucket signoff failed: " <> errMsg
-                  logPipeline Info $ "If authentication is required, run: " <> show @Text suggestion
                   throwError $ PipelineConfigurationError (MalformedConfig errMsg)
                 Right _ -> pass
             logPipeline Info "All Bitbucket signoffs succeeded"
