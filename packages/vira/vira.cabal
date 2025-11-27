@@ -51,6 +51,7 @@ library
       Vira.CI.Pipeline.Implementation
       Vira.CI.Pipeline.Process
       Vira.CI.Pipeline.Program
+      Vira.CI.Pipeline.Signoff
       Vira.CI.Worker
       Vira.CI.Worker.Type
       Vira.CI.Workspace

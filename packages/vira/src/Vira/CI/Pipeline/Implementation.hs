@@ -15,7 +15,6 @@ import Attic qualified
 import Attic.Config (lookupEndpointWithToken)
 import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
-import BB.CLI.Invocation qualified as BBInvocation
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (eitherDecodeFileStrict)
@@ -27,14 +26,13 @@ import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Dispatch.Dynamic
 import Effectful.Environment (Environment)
-import Effectful.Error.Static (Error, catchError, throwError)
+import Effectful.Error.Static (Error, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git.Command.Clone qualified as Git
-import Effectful.Git.Platform (GitPlatform (..), detectPlatform)
+import Effectful.Git.Platform (detectPlatform)
 import Effectful.Git.Types (Commit (..))
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
-import GH.Signoff qualified as GHSignoff
 import Shower qualified
 import System.FilePath ((</>))
 import System.Nix.Core (nix)
@@ -45,11 +43,10 @@ import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
 import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Process (runProcess)
+import Vira.CI.Pipeline.Signoff qualified as Signoff
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.Environment.Tool.Core (ToolError (..))
 import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
-import Vira.Environment.Tool.Tools.Bitbucket (mkBitbucketSuggestion)
-import Vira.Environment.Tool.Tools.Bitbucket.CLI (bbBin)
 import Vira.Environment.Tool.Type.ToolData (status)
 import Vira.Environment.Tool.Type.Tools (attic)
 import Vira.State.Type (Branch (..), Repo (..))
@@ -304,35 +301,19 @@ signoffImpl cloneUrl repoDir pipeline buildResults = do
     then do
       -- Extract unique systems from all build results
       let systems = extractSystems $ fmap (.devourResult) (toList buildResults)
-          signoffNames = fmap (\system -> "vira/" <> toString system) (toList systems)
+          signoffNames = fmap (\system -> "vira/" <> show system) (toList systems)
       case nonEmpty signoffNames of
         Nothing -> throwError $ DevourFlakeMalformedOutput "build results" "No systems found in build results"
         Just names -> do
           -- Detect platform based on clone URL
           case detectPlatform cloneUrl of
-            Just GitHub -> do
-              logPipeline Info $ "Detected GitHub repository, creating " <> show (length names) <> " commit signoffs: " <> show (toList names)
-              let ghProc = GHSignoff.create GHSignoff.Force names
-              runProcess repoDir env.outputLog ghProc
-              logPipeline Info "All GitHub signoffs succeeded"
-            Just (Bitbucket bitbucketHost) -> do
-              logPipeline Info $ "Detected Bitbucket repository, creating " <> show (length names) <> " commit signoffs: " <> show (toList names)
-              let bbProcs = BBInvocation.createSignoff bbBin BBInvocation.Force names
-                  bitbucketUrl = "https://" <> bitbucketHost
-                  suggestion = mkBitbucketSuggestion bitbucketUrl
-                  handler _callstack err = do
-                    logPipeline Error $ "Bitbucket signoff failed: " <> show err
-                    logPipeline Info $ "If authentication is required, run: " <> show @Text suggestion
-                    throwError err
-              -- Run each signoff process sequentially
-              forM_ bbProcs $ \bbProc ->
-                runProcess repoDir env.outputLog bbProc `catchError` handler
-              logPipeline Info "All Bitbucket signoffs succeeded"
             Nothing ->
               throwError $
                 PipelineConfigurationError $
                   MalformedConfig $
                     "Signoff enabled but could not detect platform from clone URL: " <> cloneUrl <> ". Must be GitHub or Bitbucket."
+            Just platform -> do
+              Signoff.performSignoff platform repoDir names env.outputLog
     else
       logPipeline Warning "Signoff disabled, skipping"
 
