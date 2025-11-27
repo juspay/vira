@@ -48,7 +48,7 @@ import Vira.CI.Pipeline.Process (runProcess)
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.Environment.Tool.Core (ToolError (..))
 import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
-import Vira.Environment.Tool.Tools.Bitbucket (BitbucketSuggestion (..))
+import Vira.Environment.Tool.Tools.Bitbucket (mkBitbucketSuggestion)
 import Vira.Environment.Tool.Tools.Bitbucket.CLI (bbBin)
 import Vira.Environment.Tool.Type.ToolData (status)
 import Vira.Environment.Tool.Type.Tools (attic)
@@ -319,7 +319,7 @@ signoffImpl cloneUrl repoDir pipeline buildResults = do
               logPipeline Info $ "Detected Bitbucket repository, creating " <> show (length names) <> " commit signoffs: " <> show (toList names)
               let bbProcs = BBSignoff.create bbBin BBSignoff.Force names
                   bitbucketUrl = "https://" <> bitbucketHost
-                  suggestion = BbAuthSuggestion {bitbucketUrl}
+                  suggestion = mkBitbucketSuggestion bitbucketUrl
                   handler _callstack err = do
                     logPipeline Error $ "Bitbucket signoff failed: " <> show err
                     logPipeline Info $ "If authentication is required, run: " <> show @Text suggestion

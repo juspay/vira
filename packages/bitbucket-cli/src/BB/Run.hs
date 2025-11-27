@@ -34,9 +34,6 @@ import Text.URI qualified as URI
 -- | Main entry point for bb CLI
 runBB :: IO ()
 runBB = do
-  -- Set proxy for Bitbucket API requests (comment out if not needed)
-  -- setEnv "HTTPS_PROXY" "socks5://127.0.0.1:8080"
-
   settings <- CLI.parseCLI
   runCommand settings
 
@@ -65,12 +62,13 @@ runSignoff forceFlag args = do
 
   -- Load config and lookup server for this host
   let endpoint = ServerEndpoint bitbucketHost
+      authHelp = "\nCreate a token in Bitbucket (Account → HTTP access tokens) with 'Repository write' permission, then run: bb auth " <> bitbucketHost
   configResult <- liftIO Config.loadConfig
   serverConfig <- case configResult of
-    Left err -> liftIO $ die $ toString $ "Failed to load config: " <> showConfigError err <> "\nRun: bb auth " <> bitbucketHost
+    Left err -> liftIO $ die $ toString $ "Failed to load config: " <> showConfigError err <> authHelp
     Right servers -> case Config.lookupServer endpoint servers of
       Nothing ->
-        liftIO $ die $ toString $ "Server not configured: " <> bitbucketHost <> "\nRun: bb auth " <> bitbucketHost
+        liftIO $ die $ toString $ "Server not configured: " <> bitbucketHost <> authHelp
       Just cfg -> pure cfg
 
   -- Check working directory is clean (no uncommitted or unpushed changes)
