@@ -20,7 +20,6 @@ import Effectful.Error.Static (runErrorNoCallStack, throwError)
 import Effectful.Git (getRemoteUrl)
 import Effectful.Git.Command.RevParse (getCurrentCommit)
 import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
-import Effectful.Git.Types (CommitID (..))
 import Effectful.Process (runProcess)
 import Main.Utf8 qualified as Utf8
 import Paths_vira qualified
@@ -117,9 +116,9 @@ runVira = do
     runInfo = do
       instanceInfo <- getInstanceInfo
       let viraVersion = showVersion Paths_vira.version
-          gitHash = maybe "dev" unCommitID instanceInfo.commitId
+          gitHash = maybe "unknown" toString instanceInfo.commitId
       putTextLn $ "Vira version: " <> toText viraVersion
-      putTextLn $ "Git revision: " <> gitHash
+      putTextLn $ "Git revision: " <> toText gitHash
       putTextLn $ "Hostname: " <> instanceInfo.hostname
       putTextLn $ "Platform: " <> platform instanceInfo
       putTextLn $ "Schema version: " <> show viraDbVersion
