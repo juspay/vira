@@ -1,22 +1,21 @@
-{- |
-Git revision information injected at build time.
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
-This file is overwritten during Nix builds with the actual git commit hash.
-For local development, it shows "dev" to indicate development mode.
+{- | Runtime access to git commit ID set by Nix build wrapper.
+
+Reads commit ID from environment variable set by wrapProgram.
 -}
 module Vira.App.GitRev (
-  gitHashFull,
-  gitHashShort,
-) where
+  getCommitId,
+)
+where
 
-{- | Full git commit hash (40 characters)
-Overwritten during Nix build with actual hash
--}
-gitHashFull :: Text
-gitHashFull = "dev"
+import Effectful.Git.Types (CommitID (..))
+import Relude
 
-{- | Short git commit hash (7 characters)
-Overwritten during Nix build with actual hash
+{- | Get git commit ID from NIX_GIT_HASH environment variable.
+
+Returns Nothing if environment variable is not set (local development).
 -}
-gitHashShort :: Text
-gitHashShort = "dev"
+getCommitId :: IO (Maybe CommitID)
+getCommitId = fmap (CommitID . toText) <$> lookupEnv "NIX_GIT_HASH"

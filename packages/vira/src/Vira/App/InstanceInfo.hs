@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 -- | Instance information (hostname and platform) for the running Vira instance.
@@ -7,8 +8,10 @@ module Vira.App.InstanceInfo (
   platform,
 ) where
 
+import Effectful.Git.Types (CommitID)
 import Network.HostName (getHostName)
 import System.Info qualified as SysInfo
+import Vira.App.GitRev qualified as GitRev
 
 -- | Information about the current Vira instance
 data InstanceInfo = InstanceInfo
@@ -18,6 +21,8 @@ data InstanceInfo = InstanceInfo
   -- ^ The operating system name (from 'System.Info.os')
   , arch :: Text
   -- ^ The architecture name (from 'System.Info.arch')
+  , commitId :: Maybe CommitID
+  -- ^ Git commit ID from Nix build wrapper (Nothing in dev)
   }
   deriving stock (Show, Eq)
 
@@ -25,11 +30,13 @@ data InstanceInfo = InstanceInfo
 getInstanceInfo :: IO InstanceInfo
 getInstanceInfo = do
   hostName <- getHostName
+  commit <- GitRev.getCommitId
   pure $
     InstanceInfo
       { hostname = toText hostName
       , os = toText SysInfo.os
       , arch = toText SysInfo.arch
+      , commitId = commit
       }
 
 -- | Compute the platform string from 'InstanceInfo'

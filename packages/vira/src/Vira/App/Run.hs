@@ -30,7 +30,7 @@ import System.Nix.Cache.Server qualified as Cache
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
-import Vira.App.InstanceInfo (getInstanceInfo)
+import Vira.App.InstanceInfo (InstanceInfo (..), getInstanceInfo, platform)
 import Vira.CI.AutoBuild qualified as AutoBuild
 import Vira.CI.Cleanup.Daemon qualified as CleanupDaemon
 import Vira.CI.Context (ViraContext (..))
@@ -114,8 +114,13 @@ runVira = do
 
     runInfo :: IO ()
     runInfo = do
+      instanceInfo <- getInstanceInfo
       let viraVersion = showVersion Paths_vira.version
+          gitHash = maybe "unknown" toString instanceInfo.commitId
       putTextLn $ "Vira version: " <> toText viraVersion
+      putTextLn $ "Git revision: " <> toText gitHash
+      putTextLn $ "Hostname: " <> instanceInfo.hostname
+      putTextLn $ "Platform: " <> platform instanceInfo
       putTextLn $ "Schema version: " <> show viraDbVersion
 
     runCI :: GlobalSettings -> Maybe FilePath -> Bool -> IO ()
