@@ -12,7 +12,7 @@ import DevourFlake (DevourFlakeResult)
 import Effectful
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext)
-import Effectful.Git.Types (BranchName)
+import Effectful.Git.Types (BranchName, CommitID)
 import Effectful.Reader.Static qualified as ER
 import Effectful.TH
 import System.FilePath ((</>))
@@ -76,7 +76,7 @@ data Pipeline :: Effect where
   -- | Push 'BuildResult's to cache
   Cache :: FilePath -> ViraPipeline -> NonEmpty BuildResult -> Pipeline m ()
   -- | Create GitHub/Bitbucket commit signoff (one per system)
-  Signoff :: Text -> FilePath -> ViraPipeline -> NonEmpty BuildResult -> Pipeline m ()
+  Signoff :: CommitID -> Text -> FilePath -> ViraPipeline -> NonEmpty BuildResult -> Pipeline m ()
 
 -- Generate boilerplate for the effect
 makeEffect ''Pipeline

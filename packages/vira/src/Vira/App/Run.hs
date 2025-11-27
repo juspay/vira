@@ -21,7 +21,9 @@ import Effectful.Environment (runEnvironment)
 import Effectful.Error.Static (runErrorNoCallStack, throwError)
 import Effectful.FileSystem (runFileSystem)
 import Effectful.Git (getRemoteUrl)
+import Effectful.Git.Command.RevParse (getCurrentCommit)
 import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
+import Effectful.Git.Types (CommitID (..))
 import Effectful.Process (runProcess)
 import Effectful.Reader.Static (runReader)
 import Main.Utf8 qualified as Utf8
@@ -153,14 +155,16 @@ runVira = do
             GitStatusPorcelain {branch} <- gitStatusPorcelain repoDir
             -- Get remote URL for creating Repo
             remoteUrl <- getRemoteUrl repoDir "origin"
-            pure (branch, remoteUrl)
+            -- Get current commit hash
+            commitHash <- getCurrentCommit repoDir
+            pure (branch, remoteUrl, CommitID commitHash)
           case result of
             Left err -> liftIO $ die $ toString err
-            Right (branch, remoteUrl) -> do
+            Right (branch, remoteUrl, commitId) -> do
               let ctx = ViraContext branch onlyBuild
               tools <- Tool.getAllTools
               let env = Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx
-              Pipeline.runPipeline env (Program.pipelineProgram remoteUrl repoDir)
+              Pipeline.runPipeline env (Program.pipelineProgram commitId remoteUrl repoDir)
                 $> ExitSuccess
 
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()

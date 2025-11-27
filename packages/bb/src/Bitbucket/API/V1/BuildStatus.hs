@@ -10,7 +10,7 @@ module Bitbucket.API.V1.BuildStatus (
   postBuildStatus,
 ) where
 
-import Bitbucket.API.V1.Core (ServerEndpoint (..), Token (..), makeUrl)
+import Bitbucket.API.V1.Core (ServerEndpoint (..), Token (..), makeUrl, runReqEff)
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (ToJSON (..))
@@ -20,6 +20,7 @@ import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext, log, withLogContext)
 import Effectful.Reader.Static qualified as ER
 import Network.HTTP.Req (
+  HttpException,
   POST (POST),
   ReqBodyJson (ReqBodyJson),
   defaultHttpConfig,
@@ -27,7 +28,6 @@ import Network.HTTP.Req (
   ignoreResponse,
   renderUrl,
   req,
-  runReq,
   (/:),
  )
 
@@ -64,15 +64,14 @@ data BuildStatus = BuildStatus
 
 See https://developer.atlassian.com/server/bitbucket/rest/v803/api-group-build-status/#api-build-status-latest-commits-commitid-post
 -}
-postBuildStatus :: (Log (RichMessage IO) :> es, ER.Reader LogContext :> es, IOE :> es) => ServerEndpoint -> Token -> Text -> BuildStatus -> Eff es ()
+postBuildStatus :: (Log (RichMessage IO) :> es, ER.Reader LogContext :> es, IOE :> es) => ServerEndpoint -> Token -> Text -> BuildStatus -> Eff es (Either HttpException ())
 postBuildStatus endpoint (Token tok) commitHash status = withLogContext [("api", "bitbucket")] $ do
   let baseUrl = makeUrl endpoint
       url = baseUrl /: "rest" /: "build-status" /: "1.0" /: "commits" /: commitHash
   log Debug $ "POST " <> renderUrl url
   log Debug $ "JSON: " <> decodeUtf8 (Aeson.encode status)
-  liftIO $ runReq defaultHttpConfig $ do
+  runReqEff defaultHttpConfig $ do
     let authHeader = encodeUtf8 $ "Bearer " <> tok
-
     void $
       req
         POST

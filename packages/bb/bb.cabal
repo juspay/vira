@@ -20,11 +20,9 @@ extra-source-files:
 
 library
   exposed-modules:
-      BB.CLI.Core
-      BB.CLI.Invocation
+      BB.CLI
       BB.Command.Auth.Login
       BB.Command.Auth.Status
-      BB.Command.Signoff
       BB.Config
       BB.Run
       Bitbucket.API.V1.BuildStatus
@@ -69,14 +67,13 @@ library
     , co-log
     , co-log-effectful
     , co-log-effectful-simple
+    , containers
     , directory
     , effectful
     , effectful-core
     , filepath
-    , git-effectful
     , modern-uri
     , optparse-applicative
-    , process
     , relude >=1.0
     , req
     , text
@@ -129,14 +126,13 @@ executable bb
     , co-log
     , co-log-effectful
     , co-log-effectful-simple
+    , containers
     , directory
     , effectful
     , effectful-core
     , filepath
-    , git-effectful
     , modern-uri
     , optparse-applicative
-    , process
     , relude >=1.0
     , req
     , text
@@ -190,16 +186,15 @@ test-suite bb-test
     , co-log
     , co-log-effectful
     , co-log-effectful-simple
+    , containers
     , directory
     , effectful
     , effectful-core
     , filepath
-    , git-effectful
     , hspec
     , hspec-discover
     , modern-uri
     , optparse-applicative
-    , process
     , relude >=1.0
     , req
     , text

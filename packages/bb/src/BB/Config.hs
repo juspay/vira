@@ -11,14 +11,12 @@ module BB.Config (
   loadConfig,
   saveConfig,
   getConfigPath,
-  lookupServer,
   ServerConfig (..),
 ) where
 
 import Bitbucket.API.V1.Core (ServerEndpoint (..), Token (..))
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Aeson qualified as Aeson
-import Data.Map.Strict qualified as Map
 import System.Directory (XdgDirectory (..), createDirectoryIfMissing, doesFileExist, getXdgDirectory)
 import System.FilePath (takeDirectory)
 
@@ -74,10 +72,6 @@ loadConfig = do
       case Aeson.eitherDecodeStrict @Config contentBS of
         Left err -> pure $ Left $ toText err
         Right config -> pure $ Right config.servers
-
--- | Lookup server configuration by endpoint
-lookupServer :: ServerEndpoint -> Map ServerEndpoint ServerConfig -> Maybe ServerConfig
-lookupServer = Map.lookup
 
 {- | Save configuration to config file
 

@@ -30,7 +30,7 @@ import Effectful.Error.Static (Error, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git.Command.Clone qualified as Git
 import Effectful.Git.Platform (detectPlatform)
-import Effectful.Git.Types (Commit (..))
+import Effectful.Git.Types (Commit (..), CommitID)
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
 import Shower qualified
@@ -73,7 +73,7 @@ runPipeline env program =
           LoadConfig repoDir -> loadConfigImpl repoDir
           Build repoDir pipeline -> buildImpl repoDir pipeline
           Cache repoDir pipeline buildResults -> cacheImpl repoDir pipeline buildResults
-          Signoff cloneUrl repoDir pipeline buildResults -> signoffImpl cloneUrl repoDir pipeline buildResults
+          Signoff commitId cloneUrl repoDir pipeline buildResults -> signoffImpl commitId cloneUrl repoDir pipeline buildResults
       )
       program
 
@@ -289,13 +289,15 @@ signoffImpl ::
   , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
+  -- | Commit ID to sign off
+  CommitID ->
   -- | Clone URL for platform detection
   Text ->
   FilePath ->
   ViraPipeline ->
   NonEmpty BuildResult ->
   Eff es ()
-signoffImpl cloneUrl repoDir pipeline buildResults = do
+signoffImpl commitId cloneUrl repoDir pipeline buildResults = do
   env <- ER.ask @PipelineEnv
   if pipeline.signoff.enable
     then do
@@ -313,7 +315,7 @@ signoffImpl cloneUrl repoDir pipeline buildResults = do
                   MalformedConfig $
                     "Signoff enabled but could not detect platform from clone URL: " <> cloneUrl <> ". Must be GitHub or Bitbucket."
             Just platform -> do
-              Signoff.performSignoff platform repoDir names env.outputLog
+              Signoff.performSignoff commitId platform repoDir names env.outputLog
     else
       logPipeline Warning "Signoff disabled, skipping"
 

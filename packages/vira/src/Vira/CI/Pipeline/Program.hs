@@ -9,11 +9,12 @@ import Effectful
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext)
 import Effectful.Error.Static (Error)
+import Effectful.Git.Types (Commit (id), CommitID)
 import Effectful.Reader.Static qualified as ER
 import Shower qualified
 import Vira.CI.Error (PipelineError (..))
 import Vira.CI.Pipeline.Effect
-import Vira.State.Type (Branch, Repo (cloneUrl))
+import Vira.State.Type (Branch (headCommit), Repo (cloneUrl))
 
 -- | Pipeline program for CLI (uses existing local directory)
 pipelineProgram ::
@@ -24,10 +25,11 @@ pipelineProgram ::
   , IOE :> es
   , Error PipelineError :> es
   ) =>
+  CommitID ->
   Text ->
   FilePath ->
   Eff es ()
-pipelineProgram cloneUrl repoDir = do
+pipelineProgram commitId cloneUrl repoDir = do
   logPipeline Info "Starting pipeline execution"
 
   -- Step 1: Load configuration
@@ -42,7 +44,7 @@ pipelineProgram cloneUrl repoDir = do
   cache repoDir pipeline buildResults
 
   -- Step 4: Signoff
-  signoff cloneUrl repoDir pipeline buildResults
+  signoff commitId cloneUrl repoDir pipeline buildResults
   logPipeline Info "Pipeline completed successfully"
 
 {- | Pipeline program with clone (for web/CI)
@@ -65,4 +67,5 @@ pipelineProgramWithClone repo branch workspacePath = do
   clonedDir <- clone repo branch workspacePath
 
   -- Step 2-5: Run pipeline in the cloned directory
-  pipelineProgram repo.cloneUrl clonedDir
+  let commitId = branch.headCommit.id
+  pipelineProgram commitId repo.cloneUrl clonedDir

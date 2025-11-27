@@ -21,14 +21,13 @@ dependencies:
   - co-log
   - co-log-effectful
   - co-log-effectful-simple
+  - containers
   - directory
   - effectful
   - effectful-core
   - filepath
-  - git-effectful
   - modern-uri
   - optparse-applicative
-  - process
   - req
   - text
 
