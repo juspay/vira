@@ -12,7 +12,6 @@ import DevourFlake (DevourFlakeResult)
 import Effectful
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext)
-import Effectful.Git.Types (BranchName)
 import Effectful.Reader.Static qualified as ER
 import Effectful.TH
 import System.FilePath ((</>))
@@ -70,24 +69,24 @@ data Pipeline :: Effect where
   -- | Clone repository and return cloned directory path
   Clone :: Repo -> Branch -> FilePath -> Pipeline m FilePath
   -- | Load @vira.hs@ configuration from repository directory
-  LoadConfig :: FilePath -> Pipeline m ViraPipeline
+  LoadConfig :: Pipeline m ViraPipeline
   -- | Build flakes and return list of 'BuildResult's
-  Build :: FilePath -> ViraPipeline -> Pipeline m (NonEmpty BuildResult)
+  Build :: ViraPipeline -> Pipeline m (NonEmpty BuildResult)
   -- | Push 'BuildResult's to cache
-  Cache :: FilePath -> ViraPipeline -> NonEmpty BuildResult -> Pipeline m ()
-  -- | Create GitHub commit status (one per system)
-  Signoff :: FilePath -> ViraPipeline -> NonEmpty BuildResult -> Pipeline m ()
+  Cache :: ViraPipeline -> NonEmpty BuildResult -> Pipeline m ()
+  -- | Create GitHub/Bitbucket commit signoff (one per system)
+  Signoff :: ViraPipeline -> NonEmpty BuildResult -> Pipeline m ()
 
 -- Generate boilerplate for the effect
 makeEffect ''Pipeline
 
 -- | Construct PipelineEnv for web/CI execution (with output log)
-pipelineEnvFromRemote :: BranchName -> FilePath -> Tools -> (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) -> PipelineEnv
-pipelineEnvFromRemote branchName workspacePath tools logger =
+pipelineEnvFromRemote :: Tools -> (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) -> ViraContext -> PipelineEnv
+pipelineEnvFromRemote tools logger ctx =
   PipelineEnv
-    { outputLog = Just $ workspacePath </> "output.log"
+    { outputLog = Just $ ctx.repoDir </> "output.log"
     , tools = tools
-    , viraContext = ViraContext {branch = branchName, onlyBuild = False}
+    , viraContext = ctx
     , logger = PipelineLogger logger
     }
 

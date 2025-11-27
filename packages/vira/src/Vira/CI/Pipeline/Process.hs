@@ -21,7 +21,7 @@ import Effectful.Process (CreateProcess (create_group, cwd, std_err, std_out), P
 import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (ExitFailure, ExitSuccess))
 import Vira.CI.Error (PipelineError (PipelineProcessFailed, PipelineTerminated))
-import Vira.CI.Pipeline.Effect (PipelineEnv (logger), PipelineLogger (unPipelineLogger))
+import Vira.CI.Pipeline.Effect (PipelineEnv (logger, outputLog), PipelineLogger (unPipelineLogger))
 import Vira.Supervisor.Type (Terminated (Terminated))
 
 -- | Helper: Run a single process with logger from effect
@@ -36,12 +36,11 @@ runProcess ::
   , Error PipelineError :> es
   ) =>
   FilePath ->
-  Maybe FilePath ->
   CreateProcess ->
   Eff es ()
-runProcess repoDir outputLog p = do
+runProcess repoDir p = do
   env <- ER.ask @PipelineEnv
-  runProcess' repoDir outputLog (unPipelineLogger env.logger) p >>= \case
+  runProcess' repoDir env.outputLog (unPipelineLogger env.logger) p >>= \case
     Left err -> throwError $ PipelineTerminated err
     Right ExitSuccess -> pass
     Right exitCode -> throwError $ PipelineProcessFailed exitCode

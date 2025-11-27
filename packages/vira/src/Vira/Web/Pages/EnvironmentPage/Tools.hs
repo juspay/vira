@@ -10,6 +10,7 @@ import Lucid
 import Vira.Environment.Tool.Core (ToolData (..), Tools (..))
 import Vira.Environment.Tool.Core qualified as Tool
 import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
+import Vira.Environment.Tool.Tools.Bitbucket qualified as BitbucketTool
 import Vira.Environment.Tool.Tools.GitHub qualified as GitHubTool
 import Vira.Environment.Tool.Tools.Nix qualified as NixTool
 import Vira.Web.Lucid (AppHtml)
@@ -33,6 +34,7 @@ viewTools = do
     viewToolCard tools.attic (AtticTool.viewToolStatus tools.attic.status)
     viewToolCard tools.cachix mempty
     viewToolCard tools.github (GitHubTool.viewToolStatus tools.github.status)
+    viewToolCard tools.bitbucket (BitbucketTool.viewToolStatus tools.bitbucket.status)
 
   pure tools
 
@@ -80,6 +82,7 @@ viewToolIcon disp =
 mkToolDisplay :: Text -> ToolDisplay
 mkToolDisplay name = case name of
   "Attic" -> mkDisplay "bg-indigo-100" "text-indigo-600"
+  "Bitbucket CLI" -> mkDisplay "bg-blue-100" "text-blue-600"
   "GitHub" -> mkDisplay "bg-green-100" "text-green-600"
   "Git" -> mkDisplay "bg-orange-100" "text-orange-600"
   "Cachix" -> mkDisplay "bg-blue-100" "text-blue-600"

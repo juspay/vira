@@ -94,6 +94,11 @@ The cache URL should point to an Attic cache. Make sure you've run `attic login`
 pipeline { signoff.enable = True }
 ```
 
+Enables commit status reporting to GitHub or Bitbucket. When enabled, Vira posts build status (successful-only for now) to commits.
+
+- For GitHub, uses GitHub API with token from `gh` CLI.
+- For Bitbucket, uses Bitbucket API with token from `bb` CLI.
+
 ## Conditional Configuration {#cond}
 
 You can customize the pipeline based on branch or repository information:

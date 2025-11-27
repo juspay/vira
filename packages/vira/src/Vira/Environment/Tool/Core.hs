@@ -23,6 +23,7 @@ import Effectful.Reader.Dynamic qualified as Reader
 import Effectful.Reader.Static qualified as ER
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
+import Vira.Environment.Tool.Tools.Bitbucket qualified as BitbucketTool
 import Vira.Environment.Tool.Tools.Cachix qualified as CachixTool
 import Vira.Environment.Tool.Tools.Git qualified as GitTool
 import Vira.Environment.Tool.Tools.GitHub qualified as GitHubTool
@@ -31,8 +32,11 @@ import Vira.Environment.Tool.Type.ToolData
 import Vira.Environment.Tool.Type.Tools
 import Prelude hiding (Reader)
 
--- | Tool-related errors
-newtype ToolError = ToolError Text
+-- | Tool-related errors with optional actionable suggestions
+data ToolError = ToolError
+  { message :: Text
+  , suggestion :: Maybe Text
+  }
   deriving stock (Show)
 
 -- | Create a new 'TVar' with all 'Tools' data
@@ -78,6 +82,7 @@ getAllTools ::
   Eff es Tools
 getAllTools = do
   attic <- AtticTool.getToolData
+  bitbucket <- BitbucketTool.getToolData
   github <- GitHubTool.getToolData
   git <- GitTool.getToolData
   cachix <- CachixTool.getToolData

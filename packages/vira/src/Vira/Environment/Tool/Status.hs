@@ -6,6 +6,9 @@ module Vira.Environment.Tool.Status (
   viewToolsStatus,
 ) where
 
+import BB.Config (ServerConfig)
+import Bitbucket.API.V1.Core (ServerEndpoint)
+import Data.Map.Strict qualified as Map
 import Effectful.Reader.Dynamic (ask)
 import GH.Auth.Status (AuthStatus (..))
 import Lucid
@@ -37,7 +40,12 @@ viewToolsStatus = do
     isToolsError t =
       isLeft t.attic.status
         || isAuthError t.github.status
+        || isBitbucketError t.bitbucket.status
     isAuthError :: AuthStatus -> Bool
     isAuthError = \case
       NotAuthenticated -> True
       Authenticated {} -> False
+    isBitbucketError :: Either Text (Map.Map ServerEndpoint ServerConfig) -> Bool
+    isBitbucketError = \case
+      Left _ -> True
+      Right servers -> Map.null servers

@@ -51,12 +51,15 @@ library
       Vira.CI.Pipeline.Implementation
       Vira.CI.Pipeline.Process
       Vira.CI.Pipeline.Program
+      Vira.CI.Pipeline.Signoff
       Vira.CI.Worker
       Vira.CI.Worker.Type
       Vira.CI.Workspace
       Vira.Environment.Tool.Core
       Vira.Environment.Tool.Status
       Vira.Environment.Tool.Tools.Attic
+      Vira.Environment.Tool.Tools.Bitbucket
+      Vira.Environment.Tool.Tools.Bitbucket.CLI
       Vira.Environment.Tool.Tools.Cachix
       Vira.Environment.Tool.Tools.Git
       Vira.Environment.Tool.Tools.GitHub
@@ -155,6 +158,7 @@ library
     , attic
     , base ==4.*
     , base16-bytestring
+    , bb
     , binary
     , bytestring
     , cachix
@@ -280,6 +284,7 @@ executable vira
     , attic
     , base ==4.*
     , base16-bytestring
+    , bb
     , binary
     , bytestring
     , cachix
@@ -410,6 +415,7 @@ executable vira-tests
     , attic
     , base ==4.*
     , base16-bytestring
+    , bb
     , binary
     , bytestring
     , cachix

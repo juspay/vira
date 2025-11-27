@@ -29,10 +29,10 @@ import Effectful.Environment (Environment)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git.Command.Clone qualified as Git
-import Effectful.Git.Types (Commit (..))
+import Effectful.Git.Platform (detectPlatform)
+import Effectful.Git.Types (Commit (id))
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
-import GH.Signoff qualified as Signoff
 import Shower qualified
 import System.FilePath ((</>))
 import System.Nix.Core (nix)
@@ -40,11 +40,11 @@ import System.Nix.System (System)
 import System.Process (proc)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
-import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
+import Vira.CI.Error (ConfigurationError (..), PipelineError (..), pipelineToolError)
 import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Process (runProcess)
+import Vira.CI.Pipeline.Signoff qualified as Signoff
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
-import Vira.Environment.Tool.Core (ToolError (..))
 import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
 import Vira.Environment.Tool.Type.ToolData (status)
 import Vira.Environment.Tool.Type.Tools (attic)
@@ -69,10 +69,10 @@ runPipeline env program =
     interpret
       ( \_ -> \case
           Clone repo branch workspacePath -> cloneImpl repo branch workspacePath
-          LoadConfig repoDir -> loadConfigImpl repoDir
-          Build repoDir pipeline -> buildImpl repoDir pipeline
-          Cache repoDir pipeline buildResults -> cacheImpl repoDir pipeline buildResults
-          Signoff repoDir pipeline buildResults -> signoffImpl repoDir pipeline buildResults
+          LoadConfig -> loadConfigImpl
+          Build pipeline -> buildImpl pipeline
+          Cache pipeline buildResults -> cacheImpl pipeline buildResults
+          Signoff pipeline buildResults -> signoffImpl pipeline buildResults
       )
       program
 
@@ -93,7 +93,6 @@ cloneImpl ::
   FilePath ->
   Eff es FilePath
 cloneImpl repo branch workspacePath = do
-  env <- ER.ask @PipelineEnv
   let projectDirName = "project"
   cloneProc <-
     Git.cloneAtCommit
@@ -103,7 +102,7 @@ cloneImpl repo branch workspacePath = do
 
   logPipeline Info $ "Cloning repository at commit " <> toText branch.headCommit.id
 
-  runProcess workspacePath env.outputLog cloneProc
+  runProcess workspacePath cloneProc
 
   let clonedDir = workspacePath </> projectDirName
   logPipeline Info $ "Repository cloned to " <> toText clonedDir
@@ -118,11 +117,11 @@ loadConfigImpl ::
   , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
-  FilePath ->
   Eff es ViraPipeline
-loadConfigImpl repoDir = do
+loadConfigImpl = do
   env <- ER.ask @PipelineEnv
-  let viraConfigPath = repoDir </> "vira.hs"
+  let repoDir = env.viraContext.repoDir
+      viraConfigPath = repoDir </> "vira.hs"
   doesFileExist viraConfigPath >>= \case
     True -> do
       logPipeline Info "Found vira.hs configuration file, applying customizations..."
@@ -161,14 +160,13 @@ buildImpl ::
   , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
-  FilePath ->
   ViraPipeline ->
   Eff es (NonEmpty BuildResult)
-buildImpl repoDir pipeline = do
+buildImpl pipeline = do
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
   -- Build each flake sequentially and return BuildResult for each
   forM pipeline.build.flakes $ \flake ->
-    buildFlake repoDir pipeline.build.systems flake
+    buildFlake pipeline.build.systems flake
 
 -- | Build a single flake
 buildFlake ::
@@ -181,12 +179,12 @@ buildFlake ::
   , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
-  FilePath ->
   [System] ->
   Flake ->
   Eff es BuildResult
-buildFlake repoDir systems (Flake flakePath overrideInputs) = do
+buildFlake systems (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
+  let repoDir = env.viraContext.repoDir
   let buildProc =
         proc nix $
           devourFlake $
@@ -200,7 +198,7 @@ buildFlake repoDir systems (Flake flakePath overrideInputs) = do
   logPipeline Info $ "Building flake at " <> toText flakePath
 
   -- Run build process from working directory
-  runProcess repoDir env.outputLog buildProc
+  runProcess repoDir buildProc
 
   -- Return relative path to result symlink (relative to repo root)
   let resultPath = flakePath </> "result"
@@ -226,12 +224,12 @@ cacheImpl ::
   , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
-  FilePath ->
   ViraPipeline ->
   NonEmpty BuildResult ->
   Eff es ()
-cacheImpl repoDir pipeline buildResults = do
+cacheImpl pipeline buildResults = do
   env <- ER.ask @PipelineEnv
+  let repoDir = env.viraContext.repoDir
   case pipeline.cache.url of
     Nothing -> do
       logPipeline Warning "Cache disabled, skipping"
@@ -259,7 +257,7 @@ cacheImpl repoDir pipeline buildResults = do
       let pathsToPush = fmap (.resultPath) buildResults
       logPipeline Info $ "Pushing " <> show (length pathsToPush) <> " result files: " <> show (toList pathsToPush)
       let pushProc = Attic.atticPushProcess server cacheName pathsToPush
-      runProcess repoDir env.outputLog pushProc
+      runProcess repoDir pushProc
       logPipeline Info "Cache push succeeded"
   where
     parseErrorToPipelineError :: Text -> Attic.Url.ParseError -> PipelineError
@@ -271,11 +269,8 @@ cacheImpl repoDir pipeline buildResults = do
     atticErrorToPipelineError :: Text -> AtticServerEndpoint -> AtticTool.ConfigError -> PipelineError
     atticErrorToPipelineError url _endpoint err =
       let suggestion = AtticTool.configErrorToSuggestion err
-          suggestionText =
-            "\n\nSuggestion: Run the following in your terminal\n\n"
-              <> show @Text suggestion
-          msg = "Attic configuration error for cache URL '" <> url <> "': " <> show err <> suggestionText
-       in PipelineToolError $ ToolError msg
+          msg = "Attic configuration error for cache URL '" <> url <> "': " <> show err
+       in pipelineToolError msg (Just suggestion)
 
 -- | Implementation: Create signoff (one per system)
 signoffImpl ::
@@ -288,12 +283,14 @@ signoffImpl ::
   , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
-  FilePath ->
   ViraPipeline ->
   NonEmpty BuildResult ->
   Eff es ()
-signoffImpl repoDir pipeline buildResults = do
+signoffImpl pipeline buildResults = do
   env <- ER.ask @PipelineEnv
+  let commitId = env.viraContext.commitId
+      cloneUrl = env.viraContext.cloneUrl
+      repoDir = env.viraContext.repoDir
   if pipeline.signoff.enable
     then do
       -- Extract unique systems from all build results
@@ -302,10 +299,15 @@ signoffImpl repoDir pipeline buildResults = do
       case nonEmpty signoffNames of
         Nothing -> throwError $ DevourFlakeMalformedOutput "build results" "No systems found in build results"
         Just names -> do
-          logPipeline Info $ "Creating commit signoffs for " <> show (length names) <> " systems: " <> show (toList names)
-          let signoffProc = Signoff.create Signoff.Force names
-          runProcess repoDir env.outputLog signoffProc
-          logPipeline Info "All signoffs succeeded"
+          -- Detect platform based on clone URL
+          case detectPlatform cloneUrl of
+            Nothing ->
+              throwError $
+                pipelineToolError
+                  ("Signoff enabled but could not detect platform from clone URL: " <> cloneUrl <> ". Must be GitHub or Bitbucket.")
+                  (Nothing :: Maybe Text)
+            Just platform -> do
+              Signoff.performSignoff commitId platform repoDir names
     else
       logPipeline Warning "Signoff disabled, skipping"
 

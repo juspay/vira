@@ -7,6 +7,7 @@ module Vira.App.Run (
 ) where
 
 import Control.Exception (bracket)
+
 import Data.Acid (AcidState)
 import Data.Acid.Events qualified as Event
 import Data.Aeson (encode)
@@ -14,16 +15,15 @@ import Data.ByteString.Lazy qualified as LBS
 import Data.Time (getCurrentTime)
 import Data.Version (showVersion)
 import Effectful (runEff)
-import Effectful.Colog.Simple (runLogActionStdout)
-import Effectful.Concurrent.Async (runConcurrent)
-import Effectful.Environment (runEnvironment)
-import Effectful.Error.Static (runErrorNoCallStack)
-import Effectful.FileSystem (runFileSystem)
+import Effectful.Colog.Simple (Severity (..), log, runLogActionStdout)
+import Effectful.Error.Static (runErrorNoCallStack, throwError)
+import Effectful.Git (getRemoteUrl)
+import Effectful.Git.Command.RevParse (getCurrentCommit)
 import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
 import Effectful.Process (runProcess)
 import Main.Utf8 qualified as Utf8
 import Paths_vira qualified
-import System.Directory (getCurrentDirectory, makeAbsolute)
+import System.Directory (doesDirectoryExist, getCurrentDirectory, makeAbsolute)
 import System.Exit (ExitCode (..))
 import System.Nix.Cache.Keys qualified as CacheKeys
 import System.Nix.Cache.Server qualified as Cache
@@ -121,33 +121,32 @@ runVira = do
     runCI :: GlobalSettings -> Maybe FilePath -> Bool -> IO ()
     runCI gs mDir onlyBuild = do
       dir <- maybe getCurrentDirectory makeAbsolute mDir
-      result <- runCIEffects gs dir onlyBuild
-      case result of
-        Left err -> do
-          putTextLn $ "CI pipeline failed: " <> show err
-          exitFailure
-        Right exitCode -> do
-          case exitCode of
-            ExitSuccess -> putTextLn "CI pipeline succeeded"
-            ExitFailure code -> do
-              putTextLn $ "CI pipeline failed with exit code: " <> show code
-              exitWith exitCode
-
-    runCIEffects :: GlobalSettings -> FilePath -> Bool -> IO (Either Pipeline.PipelineError ExitCode)
-    runCIEffects gs repoDir onlyBuild =
-      runEff
-        . runLogActionStdout gs.logLevel
-        . runEnvironment
-        . runFileSystem
-        . runProcess
-        . runConcurrent
-        . runErrorNoCallStack
-        $ do
-          GitStatusPorcelain {branch} <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
-          let ctx = ViraContext branch onlyBuild
+      exitCode <- App.runAppCLI gs $ do
+        result <- runErrorNoCallStack @Text $ do
+          exists <- liftIO $ doesDirectoryExist dir
+          unless exists $ throwError $ "Repository directory does not exist: " <> toText dir
+          GitStatusPorcelain {branch} <- gitStatusPorcelain dir
+          -- Get remote URL for creating Repo
+          remoteUrl <- getRemoteUrl dir "origin"
+          -- Get current commit hash
+          commitId <- getCurrentCommit dir
+          let ctx = ViraContext branch onlyBuild commitId remoteUrl dir
           tools <- Tool.getAllTools
-          Pipeline.runPipeline (Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx) (Program.pipelineProgram repoDir)
-            $> ExitSuccess
+          let env = Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx
+          runErrorNoCallStack (Pipeline.runPipeline env Program.pipelineProgram) >>= \case
+            Left (err :: Pipeline.PipelineError) -> do
+              log Error $ show err
+              log Error "CI pipeline failed"
+              pure $ ExitFailure 2
+            Right () -> do
+              log Info "CI pipeline succeeded"
+              pure ExitSuccess
+        case result of
+          Left err -> do
+            log Error err
+            pure $ ExitFailure 1
+          Right code -> pure code
+      exitWith exitCode
 
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()
     importFromFileOrStdin acid mFilePath = do
