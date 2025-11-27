@@ -13,7 +13,7 @@ import Colog.Message (RichMessage)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext)
-import Effectful.Error.Static (Error)
+import Effectful.Error.Static (Error, throwError)
 import Effectful.Git.Command.Remote qualified as Git
 import Effectful.Git.Command.RevParse qualified as Git
 import Effectful.Git.Command.Status qualified as Git
@@ -30,17 +30,17 @@ runSignoff forceFlag status = do
   -- Detect platform and get stripped URL
   bitbucketHost <- case detectPlatform remoteUrl of
     Just (Bitbucket host) -> pure host
-    Just GitHub -> liftIO $ die "Error: GitHub repositories not supported by bb CLI (use gh instead)"
-    Nothing -> liftIO $ die $ "Error: Could not detect Bitbucket platform from remote URL: " <> toString remoteUrl
+    Just GitHub -> throwError @Text "Error: GitHub repositories not supported by bb CLI (use gh instead)"
+    Nothing -> throwError @Text $ "Error: Could not detect Bitbucket platform from remote URL: " <> remoteUrl
 
   -- Load config and lookup server for this host
   let endpoint = ServerEndpoint bitbucketHost
   configResult <- liftIO Config.loadConfig
   serverConfig <- case configResult of
-    Left err -> liftIO $ die $ toString $ "Failed to load config: " <> err
+    Left err -> throwError @Text $ "Failed to load config: " <> err
     Right servers -> case Config.lookupServer endpoint servers of
       Nothing ->
-        liftIO $ die $ toString $ "Server not configured: " <> bitbucketHost
+        throwError @Text $ "Server not configured: " <> bitbucketHost
       Just cfg -> pure cfg
 
   -- Check working directory is clean (no uncommitted or unpushed changes)
@@ -51,9 +51,7 @@ runSignoff forceFlag status = do
     -- Check for unpushed commits
     unpushed <- Git.hasUnpushedCommits "."
     when (uncommitted || unpushed) $
-      liftIO $
-        die $
-          toString @Text "Error: repository has uncommitted or unpushed changes (use -f to force)"
+      throwError @Text "Error: repository has uncommitted or unpushed changes (use -f to force)"
 
   -- Get current commit hash
   commitHash <- Git.getCurrentCommit "."
