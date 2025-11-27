@@ -7,6 +7,7 @@ import BB.Config (ServerConfig (..), getConfigPath)
 import BB.Config qualified as Config
 import Bitbucket.API.V1.Core (ServerEndpoint (..), Token (..))
 import Data.Map.Strict qualified as Map
+import Data.Text qualified as Text
 import Effectful (Eff, IOE, (:>))
 import Effectful.Error.Static (Error, throwError)
 import Text.URI (Authority (..), mkURI, unRText)
@@ -18,7 +19,7 @@ runLogin baseUrlText = do
   -- Prompt for token
   liftIO $ putStr "Enter your Bitbucket access token: "
   liftIO $ hFlush stdout
-  tokenInput <- liftIO getLine
+  tokenInput <- Text.strip . toText <$> liftIO getLine
 
   -- Parse URL to extract host
   -- Normalize URL: prepend https:// if no protocol specified
@@ -43,7 +44,7 @@ runLogin baseUrlText = do
 
   -- Insert/update server
   let endpoint = ServerEndpoint host
-      serverConfig = ServerConfig {token = Token (toText tokenInput)}
+      serverConfig = ServerConfig {token = Token tokenInput}
       updatedServers = Map.insert endpoint serverConfig existingServers
 
   -- Save config
