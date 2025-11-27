@@ -84,7 +84,9 @@ performSignoff commitId platform repoDir signoffNames = do
                       { state = Successful
                       , key = toText signoffName
                       , name = toText signoffName
-                      , url = ""
+                      , -- URL is mandatory, but we don't have a URL for signoffs,
+                        -- so we use a placeholder.
+                        url = "https://vira.nixos.asia"
                       , description = "Vira signoff"
                       }
               result <- postBuildStatus endpoint serverConfig.token commitHash status
