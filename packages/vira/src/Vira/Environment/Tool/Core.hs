@@ -32,8 +32,11 @@ import Vira.Environment.Tool.Type.ToolData
 import Vira.Environment.Tool.Type.Tools
 import Prelude hiding (Reader)
 
--- | Tool-related errors
-newtype ToolError = ToolError Text
+-- | Tool-related errors with optional actionable suggestions
+data ToolError = ToolError
+  { message :: Text
+  , suggestion :: Maybe Text
+  }
   deriving stock (Show)
 
 -- | Create a new 'TVar' with all 'Tools' data

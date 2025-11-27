@@ -24,7 +24,7 @@ import Effectful.Git.Types (CommitID)
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
 import GH.Signoff qualified as GHSignoff
-import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
+import Vira.CI.Error (PipelineError, pipelineToolError)
 import Vira.CI.Pipeline.Effect (PipelineEnv (tools), logPipeline)
 import Vira.CI.Pipeline.Process (runProcess)
 import Vira.Environment.Tool.Tools.Bitbucket (mkBitbucketSuggestion)
@@ -71,15 +71,11 @@ performSignoff commitId platform repoDir signoffNames = do
           suggestion = mkBitbucketSuggestion bitbucketUrl
       -- Get server config from tools
       case env.tools.bitbucket.status of
-        Left configErr -> do
-          logPipeline Error $ "Failed to load Bitbucket config: " <> configErr
-          logPipeline Info $ show @Text suggestion
-          throwError $ PipelineConfigurationError (MalformedConfig configErr)
+        Left configErr ->
+          throwError $ pipelineToolError ("Failed to load Bitbucket config: " <> configErr) (Just suggestion)
         Right servers -> case Map.lookup endpoint servers of
-          Nothing -> do
-            logPipeline Error $ "Server not configured: " <> show endpoint
-            logPipeline Info $ show @Text suggestion
-            throwError $ PipelineConfigurationError (MalformedConfig $ "Server not configured: " <> show endpoint)
+          Nothing ->
+            throwError $ pipelineToolError ("Server not configured: " <> show endpoint) (Just suggestion)
           Just (serverConfig :: ServerConfig) -> do
             -- Create and post each signoff
             forM_ signoffNames $ \signoffName -> do
@@ -93,9 +89,7 @@ performSignoff commitId platform repoDir signoffNames = do
                       }
               result <- postBuildStatus endpoint serverConfig.token commitHash status
               case result of
-                Left httpEx -> do
-                  let errMsg = "HTTP request failed: " <> show httpEx
-                  logPipeline Error $ "Bitbucket signoff failed: " <> errMsg
-                  throwError $ PipelineConfigurationError (MalformedConfig errMsg)
+                Left httpEx ->
+                  throwError $ pipelineToolError ("HTTP request failed: " <> show httpEx) (Nothing @Text)
                 Right _ -> pass
             logPipeline Info "All Bitbucket signoffs succeeded"

@@ -40,12 +40,11 @@ import System.Nix.System (System)
 import System.Process (proc)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
-import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
+import Vira.CI.Error (ConfigurationError (..), PipelineError (..), pipelineToolError)
 import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Process (runProcess)
 import Vira.CI.Pipeline.Signoff qualified as Signoff
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
-import Vira.Environment.Tool.Core (ToolError (..))
 import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
 import Vira.Environment.Tool.Type.ToolData (status)
 import Vira.Environment.Tool.Type.Tools (attic)
@@ -270,11 +269,8 @@ cacheImpl repoDir pipeline buildResults = do
     atticErrorToPipelineError :: Text -> AtticServerEndpoint -> AtticTool.ConfigError -> PipelineError
     atticErrorToPipelineError url _endpoint err =
       let suggestion = AtticTool.configErrorToSuggestion err
-          suggestionText =
-            "\n\nSuggestion: Run the following in your terminal\n\n"
-              <> show @Text suggestion
-          msg = "Attic configuration error for cache URL '" <> url <> "': " <> show err <> suggestionText
-       in PipelineToolError $ ToolError msg
+          msg = "Attic configuration error for cache URL '" <> url <> "': " <> show err
+       in pipelineToolError msg (Just suggestion)
 
 -- | Implementation: Create signoff (one per system)
 signoffImpl ::
@@ -308,9 +304,9 @@ signoffImpl commitId cloneUrl repoDir pipeline buildResults = do
           case detectPlatform cloneUrl of
             Nothing ->
               throwError $
-                PipelineConfigurationError $
-                  MalformedConfig $
-                    "Signoff enabled but could not detect platform from clone URL: " <> cloneUrl <> ". Must be GitHub or Bitbucket."
+                pipelineToolError
+                  ("Signoff enabled but could not detect platform from clone URL: " <> cloneUrl <> ". Must be GitHub or Bitbucket.")
+                  (Nothing :: Maybe Text)
             Just platform -> do
               Signoff.performSignoff commitId platform repoDir names
     else

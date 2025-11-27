@@ -1,6 +1,9 @@
 module Vira.CI.Error (
   ConfigurationError (..),
   PipelineError (..),
+  pipelineToolError,
+  -- Re-export ToolError but only for pattern matching
+  ToolError (..),
 ) where
 
 import Data.List qualified
@@ -20,17 +23,37 @@ data PipelineError
   | -- | @devour-flake@ produced malformed JSON output
     DevourFlakeMalformedOutput FilePath String
 
--- | Configuration error types (typically from @vira.hs@)
+{- | Configuration error types
+
+ONLY for @vira.hs@ file parsing/interpretation errors.
+For tool configuration errors (attic, git, platform detection, etc),
+use 'PipelineToolError' with 'ToolError' instead.
+-}
 data ConfigurationError
   = InterpreterError InterpreterError
   | MalformedConfig Text
   deriving stock (Show)
 
+{- | Convert tool errors to PipelineError with optional suggestion.
+
+Use this for tool/platform failures. Include suggestions when we can provide
+actionable commands to fix the issue (e.g., config setup). Use Nothing for
+errors beyond user control (e.g., HTTP failures).
+
+The suggestion is automatically converted to Text via Show.
+-}
+pipelineToolError :: (Show suggestion) => Text -> Maybe suggestion -> PipelineError
+pipelineToolError errorMsg maybeSuggestion =
+  PipelineToolError (ToolError {message = errorMsg, suggestion = show @Text <$> maybeSuggestion})
+
 instance TS.Show PipelineError where
-  show (PipelineToolError (ToolError msg)) =
-    "Tool: " <> toString msg
+  show (PipelineToolError (ToolError msg sug)) =
+    let suggestionText = case sug of
+          Nothing -> ""
+          Just s -> "\n\nSuggestion: Run the following in your terminal\n\n" <> s
+     in "Tool error: " <> toString (msg <> suggestionText)
   show (PipelineConfigurationError (InterpreterError herr)) =
-    "vira.hs error: " <> case herr of
+    "vira.hs interpreter error: " <> case herr of
       WontCompile ghcErrors -> "WontCompile\n" <> Data.List.unlines (errMsg <$> ghcErrors)
       UnknownError err -> "UnknownError\n" <> err
       NotAllowed err -> "NotAllowed\n" <> err
