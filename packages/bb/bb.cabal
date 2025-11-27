@@ -4,17 +4,19 @@ cabal-version: 2.0
 --
 -- see: https://github.com/sol/hpack
 
-name:           bitbucket-cli
+name:           bb
 version:        0.1.0.0
-synopsis:       Command-line tool for Bitbucket API
-description:    A CLI tool for interacting with Bitbucket Server
+synopsis:       Bitbucket API bindings and CLI tool
+description:    Library for Bitbucket REST API operations with command-line interface
 category:       System
-homepage:       https://github.com/juspay/vira/tree/main/packages/bitbucket-cli
+homepage:       https://github.com/juspay/vira/tree/main/packages/bb
 author:         Sridhar Ratnakumar
 maintainer:     srid@srid.ca
 copyright:      2025 Juspay
 license:        MIT
 build-type:     Simple
+extra-source-files:
+    CHANGELOG.md
 
 library
   exposed-modules:
@@ -24,10 +26,12 @@ library
       BB.Command.Auth.Status
       BB.Config
       BB.Run
+      Bitbucket.API.V1.BuildStatus
+      Bitbucket.API.V1.Core
   other-modules:
-      Paths_bitbucket_cli
+      Paths_bb
   autogen-modules:
-      Paths_bitbucket_cli
+      Paths_bb
   hs-source-dirs:
       src
   default-extensions:
@@ -60,7 +64,6 @@ library
   build-depends:
       aeson
     , base ==4.*
-    , bitbucket
     , bytestring
     , co-log
     , co-log-effectful
@@ -85,9 +88,9 @@ library
 executable bb
   main-is: Main.hs
   other-modules:
-      Paths_bitbucket_cli
+      Paths_bb
   autogen-modules:
-      Paths_bitbucket_cli
+      Paths_bb
   hs-source-dirs:
       app
   default-extensions:
@@ -120,8 +123,7 @@ executable bb
   build-depends:
       aeson
     , base ==4.*
-    , bitbucket
-    , bitbucket-cli
+    , bb
     , bytestring
     , co-log
     , co-log-effectful
@@ -131,6 +133,69 @@ executable bb
     , effectful-core
     , filepath
     , git-effectful
+    , modern-uri
+    , optparse-applicative
+    , process
+    , relude >=1.0
+    , req
+    , text
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2021
+
+test-suite bb-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_bb
+  autogen-modules:
+      Paths_bb
+  hs-source-dirs:
+      test
+  default-extensions:
+      DataKinds
+      DeriveDataTypeable
+      DeriveGeneric
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      ExplicitForAll
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoStarIsType
+      NumericUnderscores
+      OverloadedStrings
+      ScopedTypeVariables
+      StrictData
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      TypeSynonymInstances
+      ViewPatterns
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson
+    , base ==4.*
+    , bb
+    , bytestring
+    , co-log
+    , co-log-effectful
+    , co-log-effectful-simple
+    , directory
+    , effectful
+    , effectful-core
+    , filepath
+    , git-effectful
+    , hspec
+    , hspec-discover
     , modern-uri
     , optparse-applicative
     , process

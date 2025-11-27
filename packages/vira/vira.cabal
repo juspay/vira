@@ -158,9 +158,8 @@ library
     , attic
     , base ==4.*
     , base16-bytestring
+    , bb
     , binary
-    , bitbucket
-    , bitbucket-cli
     , bytestring
     , cachix
     , cereal
@@ -285,9 +284,8 @@ executable vira
     , attic
     , base ==4.*
     , base16-bytestring
+    , bb
     , binary
-    , bitbucket
-    , bitbucket-cli
     , bytestring
     , cachix
     , cereal
@@ -417,9 +415,8 @@ executable vira-tests
     , attic
     , base ==4.*
     , base16-bytestring
+    , bb
     , binary
-    , bitbucket
-    , bitbucket-cli
     , bytestring
     , cachix
     , cereal

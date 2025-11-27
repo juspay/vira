@@ -3,8 +3,7 @@
 --restart=packages/vira-ci-types/vira-ci-types.cabal
 --restart=packages/acid-state-events/acid-state-events.cabal
 --restart=packages/attic/attic.cabal
---restart=packages/bitbucket/bitbucket.cabal
---restart=packages/bitbucket-cli/bitbucket-cli.cabal
+--restart=packages/bb/bb.cabal
 --restart=packages/cachix/cachix.cabal
 --restart=packages/co-log-effectful-simple/co-log-effectful-simple.cabal
 --restart=packages/devour-flake/devour-flake.cabal

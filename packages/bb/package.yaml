@@ -2,16 +2,16 @@ defaults:
   - local: ../../hpack-common.yaml
   - local: ../../hpack-relude.yaml
 
-name: bitbucket
+name: bb
 version: 0.1.0.0
 license: MIT
 copyright: 2025 Juspay
 maintainer: srid@srid.ca
 author: Sridhar Ratnakumar
 category: System
-synopsis: Haskell bindings for Bitbucket API
-description: A standalone library for Bitbucket REST API operations
-homepage: https://github.com/juspay/vira/tree/main/packages/bitbucket
+synopsis: Bitbucket API bindings and CLI tool
+description: Library for Bitbucket REST API operations with command-line interface
+homepage: https://github.com/juspay/vira/tree/main/packages/bb
 extra-source-files:
   - CHANGELOG.md
 
@@ -22,9 +22,12 @@ dependencies:
   - co-log-effectful
   - co-log-effectful-simple
   - directory
+  - effectful
   - effectful-core
   - filepath
+  - git-effectful
   - modern-uri
+  - optparse-applicative
   - process
   - req
   - text
@@ -32,8 +35,19 @@ dependencies:
 library:
   source-dirs: src
 
+executables:
+  bb:
+    main: Main.hs
+    source-dirs: app
+    dependencies:
+      - bb
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+
 tests:
-  bitbucket-test:
+  bb-test:
     main: Spec.hs
     source-dirs: test
     ghc-options:
@@ -41,6 +55,6 @@ tests:
       - -rtsopts
       - -with-rtsopts=-N
     dependencies:
-      - bitbucket
+      - bb
       - hspec
       - hspec-discover

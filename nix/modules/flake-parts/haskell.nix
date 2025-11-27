@@ -63,8 +63,7 @@ in
             config.settings.git-effectful
             config.settings.tail
             config.settings.warp-tls-simple
-            config.settings.bitbucket
-            config.settings.bitbucket-cli
+            config.settings.bb
             config.settings.gh
             config.settings.attic
             config.settings.cachix
@@ -170,7 +169,7 @@ in
       default = config.haskellProjects.default.outputs.packages.vira.package;
 
       # Bitbucket CLI executable
-      bb = config.haskellProjects.default.outputs.packages.bitbucket-cli.package;
+      bb = config.haskellProjects.default.outputs.packages.bb.package;
 
       # The Nix version used by Vira
       # Nix 2.18 -> 2.22 are apprently buggy,
