@@ -69,7 +69,7 @@ data Command
   | ExportCommand
   | ImportCommand
   | InfoCommand
-  | CICommand (Maybe FilePath)
+  | CICommand (Maybe FilePath) Bool
   deriving stock (Show)
 
 -- | Complete CLI configuration
@@ -198,6 +198,11 @@ ciCommandParser =
           ( metavar "DIRECTORY"
               <> help "Directory to run CI in (defaults to current directory)"
           )
+      )
+    <*> switch
+      ( long "only-build"
+          <> short 'b'
+          <> help "Skip cache and signoff stages, only run build"
       )
 
 -- | Parser for commands
