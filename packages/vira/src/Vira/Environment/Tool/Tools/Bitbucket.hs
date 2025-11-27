@@ -59,7 +59,7 @@ getToolData = do
 -- | Convert server map to a suggestion for fixing it
 authStatusToSuggestion :: Map ServerEndpoint ServerConfig -> Maybe BitbucketSuggestion
 authStatusToSuggestion servers
-  | Map.null servers = Just $ mkBitbucketSuggestion "https://bitbucket.example.com"
+  | Map.null servers = Just $ mkBitbucketSuggestion "<your bitbucket domain>"
   | otherwise = Nothing
 
 -- | ToHtml instance for rendering suggestions in the Tools Page

@@ -36,13 +36,12 @@ runSignoff forceFlag status = do
 
   -- Load config and lookup server for this host
   let endpoint = ServerEndpoint bitbucketHost
-      authHelp = "\nCreate a token in Bitbucket (Account → HTTP access tokens) with 'Repository write' permission, then run:\nbb auth login " <> bitbucketHost
   configResult <- liftIO Config.loadConfig
   serverConfig <- case configResult of
-    Left err -> liftIO $ die $ toString $ "Failed to load config: " <> err <> authHelp
+    Left err -> liftIO $ die $ toString $ "Failed to load config: " <> err
     Right servers -> case Config.lookupServer endpoint servers of
       Nothing ->
-        liftIO $ die $ toString $ "Server not configured: " <> bitbucketHost <> authHelp
+        liftIO $ die $ toString $ "Server not configured: " <> bitbucketHost
       Just cfg -> pure cfg
 
   -- Check working directory is clean (no uncommitted or unpushed changes)
