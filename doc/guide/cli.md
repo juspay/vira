@@ -24,6 +24,7 @@ If no directory is specified, runs in the current directory. The directory must 
 
 By default, `vira ci` respects the [[config|`vira.hs`]] configuration for all stages:
 
+- Fails if working directory has uncommitted changes or untracked files
 - Runs build, cache, and signoff stages as configured
 - Enables creating per-system signoffs (e.g., `vira/x86_64-linux`) during local development
 - Pushes to cache if configured
@@ -42,6 +43,7 @@ vira ci -b
 
 When `--only-build` is used:
 
+- Allows running on dirty working directory (uncommitted changes or untracked files)
 - Only runs the build stage
 - Ignores `build.systems` from config (uses current system only)
 - Skips cache push even if configured
