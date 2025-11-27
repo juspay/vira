@@ -82,12 +82,6 @@ in
             postUnpack = (oldAttrs.postUnpack or "") + ''
               ln -s ${self'.packages.jsAssets}/js $sourceRoot/static/js
             '';
-            nativeBuildInputs = (oldAttrs.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
-            postInstall = (oldAttrs.postInstall or "") + ''
-              # Required for building private repos, see https://github.com/juspay/vira/pull/166
-              wrapProgram $out/bin/vira \
-                --prefix PATH : ${lib.makeBinPath [ pkgs.openssh pkgs.git ]}${lib.optionalString (inputs.self ? rev) " \\\n                --set NIX_GIT_HASH \"${inputs.self.rev}\""}
-            '';
           });
         };
         git-effectful = {
@@ -157,7 +151,28 @@ in
 
     # Explicitly define all outputs since autowiring is disabled
     packages = {
-      default = config.haskellProjects.default.outputs.packages.vira.package;
+      # Unwrapped vira package (no runtime git hash)
+      vira-unwrapped = config.haskellProjects.default.outputs.packages.vira.package;
+
+      # Wrapped vira with runtime environment variables
+      # This is a separate derivation so changing git hash doesn't rebuild Haskell
+      vira =
+        let
+          gitHashArg = lib.optionalString (inputs.self ? rev) ''--set NIX_GIT_HASH "${inputs.self.rev}"'';
+        in
+        pkgs.runCommand "vira-wrapped"
+          {
+            nativeBuildInputs = [ pkgs.makeWrapper ];
+            buildInputs = [ self'.packages.vira-unwrapped ];
+            meta.mainProgram = "vira";
+          } ''
+          mkdir -p $out/bin
+          makeWrapper ${self'.packages.vira-unwrapped}/bin/vira $out/bin/vira \
+            --prefix PATH : ${lib.makeBinPath [ pkgs.openssh pkgs.git ]} \
+            ${gitHashArg}
+        '';
+
+      default = self'.packages.vira;
 
       # Bitbucket CLI executable
       bb = config.haskellProjects.default.outputs.packages.bb.package;
