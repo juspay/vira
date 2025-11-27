@@ -26,28 +26,12 @@ type AppStackCommon =
    , IOE
    ]
 
-type AppStack =
-  '[ Reader ViraRuntimeState
-   , Concurrent
-   , Process
-   , FileSystem
-   , Environment
-   , ER.Reader LogContext
-   , Log (RichMessage IO)
-   , IOE
-   ]
+type AppStack = Reader ViraRuntimeState : AppStackCommon
 
 -- | Run the application stack in IO monad
 runApp :: GlobalSettings -> ViraRuntimeState -> Eff AppStack a -> IO a
 runApp globalSettings viraRuntimeState =
-  do
-    runEff
-    . runLogActionStdout (logLevel globalSettings)
-    . runEnvironment
-    . runFileSystem
-    . runProcess
-    . runConcurrent
-    . runReader viraRuntimeState
+  runAppCLI globalSettings . runReader viraRuntimeState
 
 -- | Run common effect stack (for CLI, without ViraRuntimeState)
 runAppCLI :: GlobalSettings -> Eff AppStackCommon a -> IO a
