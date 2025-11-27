@@ -34,9 +34,9 @@ createSignoff bbBin force_ =
              , "--state"
              , "successful"
              , "--key"
-             , contextName <> "-signoff"
+             , contextName
              , "--name"
              , contextName
              , "--description"
-             , "Build succeeded"
+             , "Vira signoff"
              ]

@@ -1,6 +1,9 @@
 {- | Core Bitbucket API functionality
 
 Provides basic types and utilities for Bitbucket API operations.
+
+Note: We only support Bitbucket Server, not Bitbucket Cloud. Hence V1.
+See https://community.atlassian.com/forums/Bitbucket-questions/Does-the-rest-api-2-0-exist-for-server/qaq-p/881631
 -}
 module Bitbucket.API.V1.Core (
   ServerEndpoint (..),

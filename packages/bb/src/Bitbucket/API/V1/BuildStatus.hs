@@ -62,7 +62,7 @@ data BuildStatus = BuildStatus
 
 {- | Post build status to a Bitbucket commit
 
-Respects HTTPS_PROXY environment variable automatically via req library.
+See https://developer.atlassian.com/server/bitbucket/rest/v803/api-group-build-status/#api-build-status-latest-commits-commitid-post
 -}
 postBuildStatus :: (Log (RichMessage IO) :> es, ER.Reader LogContext :> es, IOE :> es) => ServerEndpoint -> Token -> Text -> BuildStatus -> Eff es ()
 postBuildStatus endpoint (Token tok) commitHash status = withLogContext [("api", "bitbucket")] $ do
