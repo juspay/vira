@@ -30,6 +30,7 @@ data ViraContext = ViraContext
   , -- Repository clone URL (for platform detection)
     cloneUrl :: Text
   , -- Repository working directory
+    -- HACK: See Program.hs:pipelineProgramWithClone for `ER.local` hack.
     repoDir :: FilePath
   }
 

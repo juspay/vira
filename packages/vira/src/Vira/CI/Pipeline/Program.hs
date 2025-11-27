@@ -64,7 +64,7 @@ pipelineProgramWithClone repo branch workspacePath = do
   clonedDir <- clone repo branch workspacePath
 
   -- Step 2-5: Run pipeline in the cloned directory
-  -- Update context with actual cloned directory
+  -- HACK: Update context with actual cloned directory
   ER.local @PipelineEnv
     ( \env ->
         let oldCtx = env.viraContext
