@@ -34,7 +34,7 @@ data PipelineEnv = PipelineEnv
   , tools :: Tools
   -- ^ Available CI 'Vira.Environment.Tool.Type.Tools.Tools'
   , viraContext :: ViraContext
-  -- ^ 'ViraContext' (branch, CLI flag)
+  -- ^ 'ViraContext' (branch, onlyBuild flag)
   , logger :: PipelineLogger
   -- ^ 'PipelineLogger' function for pipeline messages
   }
@@ -87,7 +87,7 @@ pipelineEnvFromRemote branchName workspacePath tools logger =
   PipelineEnv
     { outputLog = Just $ workspacePath </> "output.log"
     , tools = tools
-    , viraContext = ViraContext {branch = branchName, cli = False}
+    , viraContext = ViraContext {branch = branchName, onlyBuild = False}
     , logger = PipelineLogger logger
     }
 

@@ -23,13 +23,13 @@ and focused on what users actually need for conditional logic in vira.hs files.
 -}
 data ViraContext = ViraContext
   { branch :: BranchName
-  , -- Whether running in CLI mode (vs web/CI mode)
-    cli :: Bool
+  , -- Skip cache and signoff stages when True
+    onlyBuild :: Bool
   }
 
 -- HasField instances for ViraContext
 instance HasField "branch" ViraContext BranchName where
-  hasField (ViraContext branch cli) = (\x -> ViraContext x cli, branch)
+  hasField (ViraContext branch onlyBuild) = (\x -> ViraContext x onlyBuild, branch)
 
-instance HasField "cli" ViraContext Bool where
-  hasField (ViraContext branch cli) = (\x -> ViraContext branch x, cli)
+instance HasField "onlyBuild" ViraContext Bool where
+  hasField (ViraContext branch onlyBuild) = (\x -> ViraContext branch x, onlyBuild)

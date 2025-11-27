@@ -11,25 +11,53 @@ Vira provides a command-line interface for running CI pipelines locally and mana
 Run the CI pipeline in any directory:
 
 ```bash
-vira ci [DIRECTORY]
+vira ci [DIRECTORY] [OPTIONS]
 ```
 
 If no directory is specified, runs in the current directory. The directory must be a git repository.
 
-### CLI Mode Restrictions {#build-only}
+### Options {#ci-opts}
 
-When running CI via the command line, only the build stage will run and for current system only.
+- `--only-build` / `-b` - Skip cache and signoff stages, only run build for current system
 
-This behavior is enforced automatically, regardless of what [[config|`vira.hs`]] specifies.
+### Default Behavior {#default}
+
+By default, `vira ci` respects the [[config|`vira.hs`]] configuration for all stages:
+
+- Runs build, cache, and signoff stages as configured
+- Enables creating per-system signoffs (e.g., `vira/x86_64-linux`) during local development
+- Pushes to cache if configured
+
+### Build-Only Mode {#build-only}
+
+Use the `--only-build` flag for quick local testing without side effects:
+
+```bash
+# Only build, skip cache and signoff
+vira ci --only-build
+
+# Short form
+vira ci -b
+```
+
+When `--only-build` is used:
+
+- Only runs the build stage
+- Ignores `build.systems` from config (uses current system only)
+- Skips cache push even if configured
+- Skips signoff creation even if configured
 
 ### Example
 
 ```bash
-# Run CI in current directory
+# Run CI with full configuration (build, cache, signoff)
 vira ci
 
 # Run CI in specific directory
 vira ci /path/to/repo
+
+# Quick build-only mode
+vira ci -b
 ```
 
 ## Export/Import State {#import-export}

@@ -35,7 +35,7 @@ testContextStaging :: ViraContext
 testContextStaging =
   ViraContext
     { branch = testBranchStaging.branchName
-    , cli = False
+    , onlyBuild = False
     }
 
 spec :: Spec

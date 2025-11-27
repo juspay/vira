@@ -64,7 +64,7 @@ runVira = do
         ExportCommand -> runExport globalSettings
         ImportCommand -> runImport globalSettings
         InfoCommand -> runInfo
-        CICommand mDir -> runCI globalSettings mDir
+        CICommand mDir onlyBuild -> runCI globalSettings mDir onlyBuild
 
     runWebServer :: GlobalSettings -> WebSettings -> IO ()
     runWebServer globalSettings webSettings = do
@@ -118,10 +118,10 @@ runVira = do
       putTextLn $ "Vira version: " <> toText viraVersion
       putTextLn $ "Schema version: " <> show viraDbVersion
 
-    runCI :: GlobalSettings -> Maybe FilePath -> IO ()
-    runCI gs mDir = do
+    runCI :: GlobalSettings -> Maybe FilePath -> Bool -> IO ()
+    runCI gs mDir onlyBuild = do
       dir <- maybe getCurrentDirectory makeAbsolute mDir
-      result <- runCIEffects gs dir
+      result <- runCIEffects gs dir onlyBuild
       case result of
         Left err -> do
           putTextLn $ "CI pipeline failed: " <> show err
@@ -133,8 +133,8 @@ runVira = do
               putTextLn $ "CI pipeline failed with exit code: " <> show code
               exitWith exitCode
 
-    runCIEffects :: GlobalSettings -> FilePath -> IO (Either Pipeline.PipelineError ExitCode)
-    runCIEffects gs repoDir =
+    runCIEffects :: GlobalSettings -> FilePath -> Bool -> IO (Either Pipeline.PipelineError ExitCode)
+    runCIEffects gs repoDir onlyBuild =
       runEff
         . runLogActionStdout gs.logLevel
         . runEnvironment
@@ -144,7 +144,7 @@ runVira = do
         . runErrorNoCallStack
         $ do
           GitStatusPorcelain {branch} <- runErrorNoCallStack (gitStatusPorcelain repoDir) >>= either error pure
-          let ctx = ViraContext branch True
+          let ctx = ViraContext branch onlyBuild
           tools <- Tool.getAllTools
           Pipeline.runPipeline (Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx) (Program.pipelineProgram repoDir)
             $> ExitSuccess
