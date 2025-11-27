@@ -81,21 +81,12 @@ in
           custom = drv: drv.overrideAttrs (oldAttrs: {
             postUnpack = (oldAttrs.postUnpack or "") + ''
               ln -s ${self'.packages.jsAssets}/js $sourceRoot/static/js
-
-              # Replace "dev" with actual git hash in GitRev.hs
-              gitRevFile="$sourceRoot/src/Vira/App/GitRev.hs"
-              gitHash="${inputs.self.rev or "UNKNOWN"}"
-              gitHashShort="''${gitHash:0:7}"
-              ${pkgs.gnused}/bin/sed -i \
-                -e "s/gitHashFull = \"dev\"/gitHashFull = \"$gitHash\"/" \
-                -e "s/gitHashShort = \"dev\"/gitHashShort = \"$gitHashShort\"/" \
-                "$gitRevFile"
             '';
             nativeBuildInputs = (oldAttrs.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
             postInstall = (oldAttrs.postInstall or "") + ''
               # Required for building private repos, see https://github.com/juspay/vira/pull/166
               wrapProgram $out/bin/vira \
-                --prefix PATH : ${lib.makeBinPath [ pkgs.openssh pkgs.git ]}
+                --prefix PATH : ${lib.makeBinPath [ pkgs.openssh pkgs.git ]}${lib.optionalString (inputs.self ? rev) " \\\n                --set NIX_GIT_HASH \"${inputs.self.rev}\""}
             '';
           });
         };

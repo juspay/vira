@@ -37,11 +37,12 @@ module Vira.Web.Widgets.Layout (
   viraDivider_,
 ) where
 
+import Data.Text qualified as Text
 import Data.Time (UTCTime)
+import Effectful.Git.Types (CommitID (..))
 import Effectful.Reader.Dynamic (asks)
 import Lucid
 import Vira.App.CLI (WebSettings (..))
-import Vira.App.GitRev qualified as GitRev
 import Vira.App.InstanceInfo (InstanceInfo (..), platform)
 import Vira.App.Type (ViraRuntimeState (..))
 import Vira.CI.AutoBuild.Type (AutoBuildNewBranches (..), AutoBuildSettings (..))
@@ -176,12 +177,16 @@ uptimeLink startTime = do
     Time.viraUptime_ startTime
 
 -- | Display Vira version with git commit hash
-viraVersionLink :: (Monad m) => HtmlT m ()
+viraVersionLink :: AppHtml ()
 viraVersionLink = do
-  let commitUrl = "https://github.com/juspay/vira/commit/" <> GitRev.gitHashFull
+  instanceInfo <- lift $ asks @ViraRuntimeState instanceInfo
   a_ [href_ "https://github.com/juspay/vira", target_ "_blank", class_ "hover:text-gray-700 dark:hover:text-gray-200 transition-colors"] "Vira"
   span_ [class_ "text-gray-400 dark:text-gray-500 mx-1"] "@"
-  a_ [href_ commitUrl, target_ "_blank", class_ "hover:text-gray-700 dark:hover:text-gray-200 transition-colors font-mono", title_ GitRev.gitHashFull] $ toHtml GitRev.gitHashShort
+  case instanceInfo.commitId of
+    Just (CommitID commit) ->
+      let shortHash = Text.take 7 commit
+       in a_ [href_ $ "https://github.com/juspay/vira/commit/" <> commit, target_ "_blank", class_ "hover:text-gray-700 dark:hover:text-gray-200 transition-colors font-mono", title_ commit] $ toHtml shortHash
+    Nothing -> span_ [class_ "font-mono"] "unknown"
 
 -- | Get icon for a LinkTo type
 linkToIcon :: (Monad m) => LinkTo -> HtmlT m ()
