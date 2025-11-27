@@ -25,7 +25,7 @@ import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
 import GH.Signoff qualified as GHSignoff
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..))
-import Vira.CI.Pipeline.Effect (PipelineEnv (..), logPipeline)
+import Vira.CI.Pipeline.Effect (PipelineEnv (tools), logPipeline)
 import Vira.CI.Pipeline.Process (runProcess)
 import Vira.Environment.Tool.Tools.Bitbucket (mkBitbucketSuggestion)
 import Vira.Environment.Tool.Type.ToolData (ToolData (status))
@@ -33,7 +33,7 @@ import Vira.Environment.Tool.Type.Tools (Tools (bitbucket))
 
 {- | Create commit signoffs for a specific git platform.
 
-Takes commit ID, platform, repository directory, signoff names, and output log.
+Takes commit ID, platform, repository directory, and signoff names.
 Handles platform-specific signoff creation and error handling.
 -}
 performSignoff ::
@@ -54,19 +54,17 @@ performSignoff ::
   FilePath ->
   -- | Signoff names (e.g., "vira/x86_64-linux")
   NonEmpty String ->
-  -- | Output log destination
-  Maybe FilePath ->
   Eff es ()
-performSignoff commitId platform repoDir signoffNames outputLog = do
+performSignoff commitId platform repoDir signoffNames = do
+  env <- ER.ask @PipelineEnv
   case platform of
     GitHub -> do
       logPipeline Info $ "Creating " <> show (length signoffNames) <> " GitHub signoffs: " <> show (toList signoffNames)
       let ghProc = GHSignoff.create GHSignoff.Force signoffNames
-      runProcess repoDir outputLog ghProc
+      runProcess repoDir ghProc
       logPipeline Info "All GitHub signoffs succeeded"
     Bitbucket bitbucketHost -> do
       logPipeline Info $ "Creating " <> show (length signoffNames) <> " Bitbucket signoffs: " <> show (toList signoffNames)
-      env <- ER.ask @PipelineEnv
       let endpoint = ServerEndpoint bitbucketHost
           commitHash = toText commitId
           bitbucketUrl = "https://" <> bitbucketHost

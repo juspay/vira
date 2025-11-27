@@ -94,7 +94,6 @@ cloneImpl ::
   FilePath ->
   Eff es FilePath
 cloneImpl repo branch workspacePath = do
-  env <- ER.ask @PipelineEnv
   let projectDirName = "project"
   cloneProc <-
     Git.cloneAtCommit
@@ -104,7 +103,7 @@ cloneImpl repo branch workspacePath = do
 
   logPipeline Info $ "Cloning repository at commit " <> toText branch.headCommit.id
 
-  runProcess workspacePath env.outputLog cloneProc
+  runProcess workspacePath cloneProc
 
   let clonedDir = workspacePath </> projectDirName
   logPipeline Info $ "Repository cloned to " <> toText clonedDir
@@ -187,7 +186,6 @@ buildFlake ::
   Flake ->
   Eff es BuildResult
 buildFlake repoDir systems (Flake flakePath overrideInputs) = do
-  env <- ER.ask @PipelineEnv
   let buildProc =
         proc nix $
           devourFlake $
@@ -201,7 +199,7 @@ buildFlake repoDir systems (Flake flakePath overrideInputs) = do
   logPipeline Info $ "Building flake at " <> toText flakePath
 
   -- Run build process from working directory
-  runProcess repoDir env.outputLog buildProc
+  runProcess repoDir buildProc
 
   -- Return relative path to result symlink (relative to repo root)
   let resultPath = flakePath </> "result"
@@ -260,7 +258,7 @@ cacheImpl repoDir pipeline buildResults = do
       let pathsToPush = fmap (.resultPath) buildResults
       logPipeline Info $ "Pushing " <> show (length pathsToPush) <> " result files: " <> show (toList pathsToPush)
       let pushProc = Attic.atticPushProcess server cacheName pathsToPush
-      runProcess repoDir env.outputLog pushProc
+      runProcess repoDir pushProc
       logPipeline Info "Cache push succeeded"
   where
     parseErrorToPipelineError :: Text -> Attic.Url.ParseError -> PipelineError
@@ -298,7 +296,6 @@ signoffImpl ::
   NonEmpty BuildResult ->
   Eff es ()
 signoffImpl commitId cloneUrl repoDir pipeline buildResults = do
-  env <- ER.ask @PipelineEnv
   if pipeline.signoff.enable
     then do
       -- Extract unique systems from all build results
@@ -315,7 +312,7 @@ signoffImpl commitId cloneUrl repoDir pipeline buildResults = do
                   MalformedConfig $
                     "Signoff enabled but could not detect platform from clone URL: " <> cloneUrl <> ". Must be GitHub or Bitbucket."
             Just platform -> do
-              Signoff.performSignoff commitId platform repoDir names env.outputLog
+              Signoff.performSignoff commitId platform repoDir names
     else
       logPipeline Warning "Signoff disabled, skipping"
 
