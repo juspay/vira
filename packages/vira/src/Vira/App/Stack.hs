@@ -4,7 +4,7 @@ module Vira.App.Stack where
 import Colog.Message (RichMessage)
 import Effectful (Eff, IOE, runEff)
 import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext, runLogActionStdout)
+import Effectful.Colog.Simple (LogContext (..), runLogActionStdout)
 import Effectful.Concurrent.Async (Concurrent, runConcurrent)
 import Effectful.Environment (Environment, runEnvironment)
 import Effectful.FileSystem (FileSystem, runFileSystem)
@@ -14,6 +14,17 @@ import Effectful.Reader.Static qualified as ER
 import Vira.App.CLI (GlobalSettings (..))
 import Vira.App.Type (ViraRuntimeState)
 import Prelude hiding (Reader, ask, asks, runReader)
+
+-- | Common effect stack (without ViraRuntimeState)
+type AppStackCommon =
+  '[ Concurrent
+   , Process
+   , FileSystem
+   , Environment
+   , ER.Reader LogContext
+   , Log (RichMessage IO)
+   , IOE
+   ]
 
 type AppStack =
   '[ Reader ViraRuntimeState
@@ -37,3 +48,13 @@ runApp globalSettings viraRuntimeState =
     . runProcess
     . runConcurrent
     . runReader viraRuntimeState
+
+-- | Run common effect stack (for CLI, without ViraRuntimeState)
+runAppCLI :: GlobalSettings -> Eff AppStackCommon a -> IO a
+runAppCLI globalSettings =
+  runEff
+    . runLogActionStdout (logLevel globalSettings)
+    . runEnvironment
+    . runFileSystem
+    . runProcess
+    . runConcurrent
