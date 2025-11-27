@@ -34,6 +34,7 @@ import System.Exit (ExitCode (..))
 import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (jobWorker, supervisor))
+import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Worker.Type (JobWorkerState (..))
@@ -159,6 +160,7 @@ startJob job = do
   -- Start task
   st <- ask @ViraRuntimeState
   tools <- Tool.refreshTools
+  let ctx = ViraContext job.branch False branch.headCommit.id repo.cloneUrl job.jobWorkingDir
   Supervisor.startTask
     st.supervisor
     job.jobId
@@ -166,7 +168,7 @@ startJob job = do
     job.jobWorkingDir
     ( \logger ->
         Pipeline.runPipeline
-          (Pipeline.pipelineEnvFromRemote branch.headCommit.id repo.cloneUrl job.jobWorkingDir tools logger job.branch)
+          (Pipeline.pipelineEnvFromRemote tools logger ctx)
           (Program.pipelineProgramWithClone repo branch job.jobWorkingDir)
     )
     $ \result -> do
