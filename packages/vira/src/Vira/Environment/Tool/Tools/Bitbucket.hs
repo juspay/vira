@@ -37,7 +37,7 @@ mkBitbucketSuggestion :: Text -> BitbucketSuggestion
 mkBitbucketSuggestion url =
   BbAuthSuggestion
     { bitbucketUrl = url
-    , helpText = "Create a token in Bitbucket (Account → HTTP access tokens) with 'Repository write' permission, then run: "
+    , helpText = "Create a token in Bitbucket (Account → HTTP access tokens) with 'Repository write' permission, then run:\n"
     }
 
 instance TS.Show BitbucketSuggestion where

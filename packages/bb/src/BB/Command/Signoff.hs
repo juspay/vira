@@ -36,7 +36,7 @@ runSignoff forceFlag status = do
 
   -- Load config and lookup server for this host
   let endpoint = ServerEndpoint bitbucketHost
-      authHelp = "\nCreate a token in Bitbucket (Account → HTTP access tokens) with 'Repository write' permission, then run: bb auth login " <> bitbucketHost
+      authHelp = "\nCreate a token in Bitbucket (Account → HTTP access tokens) with 'Repository write' permission, then run:\nbb auth login " <> bitbucketHost
   configResult <- liftIO Config.loadConfig
   serverConfig <- case configResult of
     Left err -> liftIO $ die $ toString $ "Failed to load config: " <> err <> authHelp
