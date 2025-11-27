@@ -30,6 +30,7 @@ Represents the current branch and its working tree state.
 data GitStatusPorcelain = GitStatusPorcelain
   { branch :: BranchName
   , dirty :: Bool
+  -- ^ True if working directory has uncommitted changes or untracked files
   }
   deriving stock (Eq, Show)
 
@@ -37,10 +38,12 @@ data GitStatusPorcelain = GitStatusPorcelain
 
 Uses git status --porcelain=v2 to atomically retrieve both values,
 avoiding race conditions and reducing git process overhead.
+
+Checks for both uncommitted changes and untracked files.
 -}
 gitStatusPorcelain :: (Error Text :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es, Process :> es, IOE :> es) => FilePath -> Eff es GitStatusPorcelain
 gitStatusPorcelain repoPath = do
-  let statusCmd = proc git ["status", "--porcelain=v2", "--branch", "--untracked-files=no"]
+  let statusCmd = proc git ["status", "--porcelain=v2", "--branch"]
   output <-
     withLogCommand statusCmd $ do
       log Debug "Running git status"
@@ -54,6 +57,7 @@ gitStatusPorcelain repoPath = do
 
 {- | Parse git status --porcelain=v2 output to extract GitStatusPorcelain
 
+Detects dirty state from any non-header lines (uncommitted changes or untracked files).
 Returns Left with error message if branch.head line is missing.
 -}
 parseGitStatusPorcelain :: Text -> Either Text GitStatusPorcelain

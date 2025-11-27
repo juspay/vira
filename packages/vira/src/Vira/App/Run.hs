@@ -125,12 +125,15 @@ runVira = do
         result <- runErrorNoCallStack @Text $ do
           exists <- liftIO $ doesDirectoryExist dir
           unless exists $ throwError $ "Repository directory does not exist: " <> toText dir
-          GitStatusPorcelain {branch} <- gitStatusPorcelain dir
+          status <- gitStatusPorcelain dir
+          -- Check for dirty working directory unless --only-build is set
+          unless onlyBuild $ do
+            when status.dirty $ throwError "Working directory has uncommitted changes or untracked files. Use --only-build to run CI anyway."
           -- Get remote URL for creating Repo
           remoteUrl <- getRemoteUrl dir "origin"
           -- Get current commit hash
           commitId <- getCurrentCommit dir
-          let ctx = ViraContext branch onlyBuild commitId remoteUrl dir
+          let ctx = ViraContext status.branch onlyBuild commitId remoteUrl dir
           tools <- Tool.getAllTools
           let env = Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx
           runErrorNoCallStack (Pipeline.runPipeline env Program.pipelineProgram) >>= \case
