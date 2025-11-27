@@ -133,7 +133,7 @@ signoffArgsParser =
       ( long "url"
           <> metavar "URL"
           <> help "URL to view build details"
-          <> value "https://vira.nixos.asia/"
+          <> value "https://vira.nixos.asia"
           <> showDefault
       )
     <*> strOption
