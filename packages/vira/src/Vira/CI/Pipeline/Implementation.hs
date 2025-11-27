@@ -301,7 +301,7 @@ signoffImpl cloneUrl repoDir pipeline buildResults = do
     then do
       -- Extract unique systems from all build results
       let systems = extractSystems $ fmap (.devourResult) (toList buildResults)
-          signoffNames = fmap (\system -> "vira/" <> show system) (toList systems)
+          signoffNames = fmap (\system -> "vira/" <> toString system) (toList systems)
       case nonEmpty signoffNames of
         Nothing -> throwError $ DevourFlakeMalformedOutput "build results" "No systems found in build results"
         Just names -> do
