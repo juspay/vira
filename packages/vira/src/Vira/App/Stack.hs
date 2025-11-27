@@ -16,7 +16,7 @@ import Vira.App.Type (ViraRuntimeState)
 import Prelude hiding (Reader, ask, asks, runReader)
 
 -- | Common effect stack (without ViraRuntimeState)
-type AppStackCommon =
+type AppStackCLI =
   '[ Concurrent
    , Process
    , FileSystem
@@ -26,7 +26,7 @@ type AppStackCommon =
    , IOE
    ]
 
-type AppStack = Reader ViraRuntimeState : AppStackCommon
+type AppStack = Reader ViraRuntimeState : AppStackCLI
 
 -- | Run the application stack in IO monad
 runApp :: GlobalSettings -> ViraRuntimeState -> Eff AppStack a -> IO a
@@ -34,7 +34,7 @@ runApp globalSettings viraRuntimeState =
   runAppCLI globalSettings . runReader viraRuntimeState
 
 -- | Run common effect stack (for CLI, without ViraRuntimeState)
-runAppCLI :: GlobalSettings -> Eff AppStackCommon a -> IO a
+runAppCLI :: GlobalSettings -> Eff AppStackCLI a -> IO a
 runAppCLI globalSettings =
   runEff
     . runLogActionStdout (logLevel globalSettings)
