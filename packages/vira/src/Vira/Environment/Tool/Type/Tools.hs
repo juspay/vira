@@ -6,7 +6,8 @@ module Vira.Environment.Tool.Type.Tools (
 ) where
 
 import Attic.Config (AtticConfig)
-import BB.Command.Auth.Status qualified as BB
+import BB.Config (ServerConfig)
+import Bitbucket.API.V1.Core (ServerEndpoint)
 import GH.Auth.Status (AuthStatus)
 import Vira.Environment.Tool.Tools.Attic (ConfigError)
 import Vira.Environment.Tool.Tools.Nix (NixStatus)
@@ -16,8 +17,8 @@ import Vira.Environment.Tool.Type.ToolData (ToolData)
 data Tools = Tools
   { attic :: ToolData (Either ConfigError AtticConfig)
   -- ^ Attic binary cache tool with 'Attic.Config.AtticConfig' status
-  , bitbucket :: ToolData BB.AuthStatus
-  -- ^ Bitbucket CLI tool with 'BB.AuthStatus'
+  , bitbucket :: ToolData (Map ServerEndpoint ServerConfig)
+  -- ^ Bitbucket CLI tool with configured servers
   , github :: ToolData AuthStatus
   -- ^ GitHub CLI tool with 'GH.Auth.Status.AuthStatus'
   , git :: ToolData ()

@@ -9,7 +9,8 @@ module Vira.Environment.Tool.Tools.Bitbucket (
   authStatusToSuggestion,
 ) where
 
-import BB.Command.Auth.Status (AuthStatus (..), checkAuthStatus)
+import BB.Command.Auth.Status (checkAuthStatus)
+import BB.Config (ServerConfig)
 import Bitbucket.API.V1.Core (ServerEndpoint (..))
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
@@ -44,22 +45,22 @@ instance TS.Show BitbucketSuggestion where
     toString $ helpText <> formatAuthCommand bitbucketUrl
 
 -- | Get Bitbucket tool data with metadata and runtime info
-getToolData :: (IOE :> es) => Eff es (ToolData AuthStatus)
+getToolData :: (IOE :> es) => Eff es (ToolData (Map ServerEndpoint ServerConfig))
 getToolData = do
-  info <- liftIO checkAuthStatus
+  servers <- liftIO checkAuthStatus
   pure
     ToolData
       { name = "Bitbucket CLI"
       , url = "https://github.com/juspay/vira/tree/main/packages/bitbucket"
       , binPaths = toText bbBin :| []
-      , status = info
+      , status = servers
       }
 
--- | Convert an AuthStatus to a suggestion for fixing it
-authStatusToSuggestion :: AuthStatus -> Maybe BitbucketSuggestion
-authStatusToSuggestion = \case
-  Authenticated {} -> Nothing
-  NotAuthenticated -> Just $ mkBitbucketSuggestion "https://bitbucket.example.com"
+-- | Convert server map to a suggestion for fixing it
+authStatusToSuggestion :: Map ServerEndpoint ServerConfig -> Maybe BitbucketSuggestion
+authStatusToSuggestion servers
+  | Map.null servers = Just $ mkBitbucketSuggestion "https://bitbucket.example.com"
+  | otherwise = Nothing
 
 -- | ToHtml instance for rendering suggestions in the Tools Page
 instance ToHtml BitbucketSuggestion where
@@ -70,11 +71,14 @@ instance ToHtml BitbucketSuggestion where
       W.viraCodeBlockCopyable Nothing $ formatAuthCommand bitbucketUrl
 
 -- | View Bitbucket tool status
-viewToolStatus :: (Monad m) => AuthStatus -> HtmlT m ()
-viewToolStatus status = do
+viewToolStatus :: (Monad m) => Map ServerEndpoint ServerConfig -> HtmlT m ()
+viewToolStatus servers = do
   div_ [class_ "mb-3"] $ do
-    case status of
-      Authenticated {servers} -> do
+    if Map.null servers
+      then viraAlertWithTitle_ AlertError "Not authenticated" $ do
+        "Please authenticate to use Bitbucket CLI."
+        forM_ (authStatusToSuggestion servers) toHtml
+      else do
         viraAlert_ AlertSuccess $ do
           p_ [class_ "text-green-800 dark:text-green-200 font-semibold mb-1"] $ do
             "Bitbucket CLI authenticated"
@@ -83,6 +87,3 @@ viewToolStatus status = do
           ul_ [class_ "text-green-700 dark:text-green-300 text-xs list-disc list-inside"] $ do
             forM_ (Map.keys servers) $ \endpoint -> do
               li_ $ toHtml endpoint.host
-      NotAuthenticated -> viraAlertWithTitle_ AlertError "Not authenticated" $ do
-        "Please authenticate to use Bitbucket CLI."
-        forM_ (authStatusToSuggestion NotAuthenticated) toHtml

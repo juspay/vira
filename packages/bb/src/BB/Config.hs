@@ -12,34 +12,13 @@ module BB.Config (
   saveConfig,
   getConfigPath,
   lookupServer,
-  testConnection,
   ServerConfig (..),
-  ConfigError (..),
 ) where
 
-import Bitbucket.API.V1.Core (ServerEndpoint (..), Token (..), makeUrl)
-import Colog (Severity (..))
-import Colog.Message (RichMessage)
-import Control.Exception (catch)
+import Bitbucket.API.V1.Core (ServerEndpoint (..), Token (..))
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Aeson qualified as Aeson
 import Data.Map.Strict qualified as Map
-import Effectful (Eff, IOE, (:>))
-import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext, log, withLogContext)
-import Effectful.Reader.Static qualified as ER
-import Network.HTTP.Req (
-  GET (GET),
-  HttpException,
-  NoReqBody (NoReqBody),
-  defaultHttpConfig,
-  header,
-  ignoreResponse,
-  renderUrl,
-  req,
-  runReq,
-  (/:),
- )
 import System.Directory (XdgDirectory (..), createDirectoryIfMissing, doesFileExist, getXdgDirectory)
 import System.FilePath (takeDirectory)
 
@@ -49,12 +28,6 @@ newtype ServerConfig = ServerConfig
   }
   deriving stock (Show, Eq, Generic)
   deriving anyclass (FromJSON, ToJSON)
-
--- | Configuration loading errors
-data ConfigError
-  = ConfigFileNotFound FilePath
-  | JsonDecodeError Text
-  deriving stock (Show)
 
 {- | Get the Bitbucket config file path
 
@@ -74,6 +47,8 @@ newtype Config = Config
 
 {- | Load Bitbucket configuration from config file
 
+Returns empty map if config file doesn't exist.
+
 Config file format (JSON):
 @
 {
@@ -88,16 +63,16 @@ Config file format (JSON):
 }
 @
 -}
-loadConfig :: IO (Either ConfigError (Map ServerEndpoint ServerConfig))
+loadConfig :: IO (Either Text (Map ServerEndpoint ServerConfig))
 loadConfig = do
   configPath <- getConfigPath
   exists <- doesFileExist configPath
   if not exists
-    then pure $ Left $ ConfigFileNotFound configPath
+    then pure $ Right mempty
     else do
       contentBS <- readFileBS configPath
       case Aeson.eitherDecodeStrict @Config contentBS of
-        Left err -> pure $ Left $ JsonDecodeError $ toText err
+        Left err -> pure $ Left $ toText err
         Right config -> pure $ Right config.servers
 
 -- | Lookup server configuration by endpoint
@@ -114,30 +89,3 @@ saveConfig servers = do
   createDirectoryIfMissing True (takeDirectory configPath)
   let config = Config {servers}
   writeFileLBS configPath $ Aeson.encode config
-
-{- | Test connection to Bitbucket API
-
-Makes a simple API request to verify:
-1. URL is reachable
-2. API responds
-3. Token is accepted
--}
-testConnection :: (Log (RichMessage IO) :> es, ER.Reader LogContext :> es, IOE :> es) => ServerEndpoint -> Token -> Eff es (Either Text ())
-testConnection endpoint (Token tok) = withLogContext [("api", "bitbucket")] $ do
-  let baseUrl = makeUrl endpoint
-      url = baseUrl /: "rest" /: "api" /: "1.0" /: "projects"
-  log Debug $ "GET " <> renderUrl url
-  liftIO $
-    catch
-      ( runReq defaultHttpConfig $ do
-          let authHeader = encodeUtf8 $ "Bearer " <> tok
-          void $
-            req
-              GET
-              url
-              NoReqBody
-              ignoreResponse
-              (header "Authorization" authHeader)
-          pure (Right ())
-      )
-      (\(e :: HttpException) -> pure $ Left $ "HTTP error: " <> show e)

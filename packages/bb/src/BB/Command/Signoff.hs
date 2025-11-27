@@ -5,7 +5,6 @@ module BB.Command.Signoff (
   runSignoff,
 ) where
 
-import BB.Config (ConfigError (..))
 import BB.Config qualified as Config
 import Bitbucket.API.V1.BuildStatus (BuildStatus (..))
 import Bitbucket.API.V1.BuildStatus qualified as BS
@@ -40,7 +39,7 @@ runSignoff forceFlag status = do
       authHelp = "\nCreate a token in Bitbucket (Account → HTTP access tokens) with 'Repository write' permission, then run: bb auth login " <> bitbucketHost
   configResult <- liftIO Config.loadConfig
   serverConfig <- case configResult of
-    Left err -> liftIO $ die $ toString $ "Failed to load config: " <> showConfigError err <> authHelp
+    Left err -> liftIO $ die $ toString $ "Failed to load config: " <> err <> authHelp
     Right servers -> case Config.lookupServer endpoint servers of
       Nothing ->
         liftIO $ die $ toString $ "Server not configured: " <> bitbucketHost <> authHelp
@@ -65,9 +64,3 @@ runSignoff forceFlag status = do
   BS.postBuildStatus endpoint serverConfig.token commitHash status
 
   liftIO $ putTextLn $ "✓ Signed off on " <> commitHash
-
--- | Show config error
-showConfigError :: ConfigError -> Text
-showConfigError = \case
-  ConfigFileNotFound path -> "Config file not found: " <> toText path
-  JsonDecodeError msg -> "JSON decode error: " <> msg
