@@ -45,15 +45,15 @@ instance TS.Show BitbucketSuggestion where
     toString $ helpText <> formatAuthCommand bitbucketUrl
 
 -- | Get Bitbucket tool data with metadata and runtime info
-getToolData :: (IOE :> es) => Eff es (ToolData (Map ServerEndpoint ServerConfig))
+getToolData :: (IOE :> es) => Eff es (ToolData (Either Text (Map ServerEndpoint ServerConfig)))
 getToolData = do
-  servers <- liftIO checkAuthStatus
+  serversOrErr <- liftIO checkAuthStatus
   pure
     ToolData
       { name = "Bitbucket CLI"
       , url = "https://github.com/juspay/vira/tree/main/packages/bitbucket"
       , binPaths = toText bbBin :| []
-      , status = servers
+      , status = serversOrErr
       }
 
 -- | Convert server map to a suggestion for fixing it
@@ -71,19 +71,23 @@ instance ToHtml BitbucketSuggestion where
       W.viraCodeBlockCopyable Nothing $ formatAuthCommand bitbucketUrl
 
 -- | View Bitbucket tool status
-viewToolStatus :: (Monad m) => Map ServerEndpoint ServerConfig -> HtmlT m ()
-viewToolStatus servers = do
+viewToolStatus :: (Monad m) => Either Text (Map ServerEndpoint ServerConfig) -> HtmlT m ()
+viewToolStatus serversOrErr = do
   div_ [class_ "mb-3"] $ do
-    if Map.null servers
-      then viraAlertWithTitle_ AlertError "Not authenticated" $ do
-        "Please authenticate to use Bitbucket CLI."
-        forM_ (authStatusToSuggestion servers) toHtml
-      else do
-        viraAlert_ AlertSuccess $ do
-          p_ [class_ "text-green-800 dark:text-green-200 font-semibold mb-1"] $ do
-            "Bitbucket CLI authenticated"
-          p_ [class_ "text-green-700 dark:text-green-300 text-xs mb-2"] $ do
-            "Configured servers:"
-          ul_ [class_ "text-green-700 dark:text-green-300 text-xs list-disc list-inside"] $ do
-            forM_ (Map.keys servers) $ \endpoint -> do
-              li_ $ toHtml endpoint.host
+    case serversOrErr of
+      Left err -> viraAlertWithTitle_ AlertError "Config error" $ do
+        toHtml $ "Failed to load config: " <> err
+      Right servers ->
+        if Map.null servers
+          then viraAlertWithTitle_ AlertError "Not authenticated" $ do
+            "Please authenticate to use Bitbucket CLI."
+            forM_ (authStatusToSuggestion servers) toHtml
+          else do
+            viraAlert_ AlertSuccess $ do
+              p_ [class_ "text-green-800 dark:text-green-200 font-semibold mb-1"] $ do
+                "Bitbucket CLI authenticated"
+              p_ [class_ "text-green-700 dark:text-green-300 text-xs mb-2"] $ do
+                "Configured servers:"
+              ul_ [class_ "text-green-700 dark:text-green-300 text-xs list-disc list-inside"] $ do
+                forM_ (Map.keys servers) $ \endpoint -> do
+                  li_ $ toHtml endpoint.host

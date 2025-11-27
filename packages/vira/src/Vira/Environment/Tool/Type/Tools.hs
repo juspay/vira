@@ -17,8 +17,8 @@ import Vira.Environment.Tool.Type.ToolData (ToolData)
 data Tools = Tools
   { attic :: ToolData (Either ConfigError AtticConfig)
   -- ^ Attic binary cache tool with 'Attic.Config.AtticConfig' status
-  , bitbucket :: ToolData (Map ServerEndpoint ServerConfig)
-  -- ^ Bitbucket CLI tool with configured servers
+  , bitbucket :: ToolData (Either Text (Map ServerEndpoint ServerConfig))
+  -- ^ Bitbucket CLI tool with configured servers or config error
   , github :: ToolData AuthStatus
   -- ^ GitHub CLI tool with 'GH.Auth.Status.AuthStatus'
   , git :: ToolData ()

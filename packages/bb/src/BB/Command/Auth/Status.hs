@@ -24,13 +24,10 @@ import Effectful.Reader.Static qualified as ER
 {- | Get configured Bitbucket servers
 
 Returns map of configured servers from @~/.config/bb/config.json@.
-Returns empty map if no config exists. Throws on malformed JSON.
+Returns empty map if no config exists. Returns error on malformed JSON.
 -}
-checkAuthStatus :: IO (Map ServerEndpoint Config.ServerConfig)
-checkAuthStatus = do
-  Config.loadConfig >>= \case
-    Left err -> fail $ toString $ "Failed to load config: " <> err
-    Right servers -> pure servers
+checkAuthStatus :: IO (Either Text (Map ServerEndpoint Config.ServerConfig))
+checkAuthStatus = Config.loadConfig
 
 {- | List configured Bitbucket servers
 

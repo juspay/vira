@@ -45,5 +45,7 @@ viewToolsStatus = do
     isAuthError = \case
       NotAuthenticated -> True
       Authenticated {} -> False
-    isBitbucketError :: Map ServerEndpoint ServerConfig -> Bool
-    isBitbucketError = Map.null
+    isBitbucketError :: Either Text (Map.Map ServerEndpoint ServerConfig) -> Bool
+    isBitbucketError = \case
+      Left _ -> True
+      Right servers -> Map.null servers
