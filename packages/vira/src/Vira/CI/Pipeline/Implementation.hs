@@ -140,16 +140,16 @@ loadConfigImpl repoDir = do
       logPipeline Info "No vira.hs found - using default pipeline"
       pure $ patchPipelineForCli env.viraContext defaultPipeline
   where
-    -- When running in CLI mode, restrict to current system and disable cache/signoff
+    -- When onlyBuild is enabled, restrict to current system and disable cache/signoff
     patchPipelineForCli :: ViraContext -> ViraPipeline -> ViraPipeline
     patchPipelineForCli ctx pipeline
-      | ctx.cli =
+      | ctx.onlyBuild =
           pipeline
-            { -- Don't signoff when running in CLI
+            { -- Don't signoff when only building
               signoff = pipeline.signoff {enable = False}
-            , -- Don't push to cache when running in CLI
+            , -- Don't push to cache when only building
               cache = pipeline.cache {url = Nothing}
-            , -- Only build for current system in CLI mode
+            , -- Only build for current system when only building
               build = BuildStage {flakes = pipeline.build.flakes, systems = []}
             }
       | otherwise = pipeline
