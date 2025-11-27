@@ -50,7 +50,7 @@ instance TS.Show PipelineError where
   show (PipelineToolError (ToolError msg sug)) =
     let suggestionText = case sug of
           Nothing -> ""
-          Just s -> "\n\nSuggestion: Run the following in your terminal\n\n" <> s
+          Just s -> "\n\nSuggestion: Run the following in your terminal: ⤵️\n\n" <> s
      in "Tool error: " <> toString (msg <> suggestionText)
   show (PipelineConfigurationError (InterpreterError herr)) =
     "vira.hs interpreter error: " <> case herr of

@@ -16,6 +16,9 @@ import Text.URI qualified as URI
 -- | Run login command
 runLogin :: (Error Text :> es, IOE :> es) => Text -> Eff es ()
 runLogin baseUrlText = do
+  -- Show instructions
+  liftIO $ putTextLn "Create a token in Bitbucket (Account → HTTP access tokens) with 'Repository write' permission"
+  liftIO $ putTextLn ""
   -- Prompt for token
   liftIO $ putStr "Enter your Bitbucket access token: "
   liftIO $ hFlush stdout

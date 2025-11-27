@@ -22,27 +22,21 @@ import Vira.Web.Widgets.Alert (AlertType (..), viraAlertWithTitle_, viraAlert_)
 import Vira.Web.Widgets.Code qualified as W
 
 -- | Suggestions for fixing Bitbucket CLI configuration issues
-data BitbucketSuggestion = BbAuthSuggestion
+newtype BitbucketSuggestion = BbAuthSuggestion
   { bitbucketUrl :: Text
-  , helpText :: Text
   }
   deriving stock (Eq)
 
--- | Format the auth command CLI
-formatAuthCommand :: Text -> Text
-formatAuthCommand url = toText bbBin <> " auth login " <> url
-
--- | Create a BitbucketSuggestion with default help text
+-- | Create a BitbucketSuggestion
 mkBitbucketSuggestion :: Text -> BitbucketSuggestion
 mkBitbucketSuggestion url =
   BbAuthSuggestion
     { bitbucketUrl = url
-    , helpText = "Create a token in Bitbucket (Account → HTTP access tokens) with 'Repository write' permission, then run:\n"
     }
 
 instance TS.Show BitbucketSuggestion where
-  show BbAuthSuggestion {bitbucketUrl, helpText} =
-    toString $ helpText <> formatAuthCommand bitbucketUrl
+  show BbAuthSuggestion {bitbucketUrl} =
+    toString $ toText bbBin <> " auth login " <> bitbucketUrl
 
 -- | Get Bitbucket tool data with metadata and runtime info
 getToolData :: (IOE :> es) => Eff es (ToolData (Either Text (Map ServerEndpoint ServerConfig)))
@@ -65,10 +59,9 @@ authStatusToSuggestion servers
 -- | ToHtml instance for rendering suggestions in the Tools Page
 instance ToHtml BitbucketSuggestion where
   toHtmlRaw = toHtml
-  toHtml BbAuthSuggestion {bitbucketUrl, helpText} = do
+  toHtml suggestion = do
     div_ [class_ "mt-2"] $ do
-      p_ [class_ "text-sm text-red-700 dark:text-red-300 mb-1"] $ toHtml helpText
-      W.viraCodeBlockCopyable Nothing $ formatAuthCommand bitbucketUrl
+      W.viraCodeBlockCopyable Nothing $ show @Text suggestion
 
 -- | View Bitbucket tool status
 viewToolStatus :: (Monad m) => Either Text (Map ServerEndpoint ServerConfig) -> HtmlT m ()
