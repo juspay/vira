@@ -161,10 +161,10 @@ runVira = do
           case result of
             Left err -> liftIO $ die $ toString err
             Right (branch, remoteUrl, commitId) -> do
-              let ctx = ViraContext branch onlyBuild
+              let ctx = ViraContext branch onlyBuild commitId remoteUrl repoDir
               tools <- Tool.getAllTools
               let env = Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx
-              Pipeline.runPipeline env (Program.pipelineProgram commitId remoteUrl repoDir)
+              Pipeline.runPipeline env Program.pipelineProgram
                 $> ExitSuccess
 
     importFromFileOrStdin :: AcidState ViraState -> Maybe FilePath -> IO ()

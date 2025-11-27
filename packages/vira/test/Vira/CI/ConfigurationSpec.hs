@@ -36,6 +36,9 @@ testContextStaging =
   ViraContext
     { branch = testBranchStaging.branchName
     , onlyBuild = False
+    , commitId = testBranchStaging.headCommit.id
+    , cloneUrl = "https://example.com/test-repo.git"
+    , repoDir = "/tmp/test-repo"
     }
 
 spec :: Spec

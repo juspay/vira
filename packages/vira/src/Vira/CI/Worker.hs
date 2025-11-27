@@ -26,6 +26,7 @@ import Effectful.Concurrent.MVar (withMVar)
 import Effectful.Concurrent.STM (atomically)
 import Effectful.Environment (Environment)
 import Effectful.FileSystem (FileSystem)
+import Effectful.Git.Types (Commit (id))
 import Effectful.Process (Process)
 import Effectful.Reader.Dynamic (Reader, ask)
 import Effectful.Reader.Static qualified as ER
@@ -165,7 +166,7 @@ startJob job = do
     job.jobWorkingDir
     ( \logger ->
         Pipeline.runPipeline
-          (Pipeline.pipelineEnvFromRemote job.branch job.jobWorkingDir tools logger)
+          (Pipeline.pipelineEnvFromRemote branch.headCommit.id repo.cloneUrl job.jobWorkingDir tools logger job.branch)
           (Program.pipelineProgramWithClone repo branch job.jobWorkingDir)
     )
     $ \result -> do

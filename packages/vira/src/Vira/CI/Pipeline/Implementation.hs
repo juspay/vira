@@ -30,7 +30,7 @@ import Effectful.Error.Static (Error, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git.Command.Clone qualified as Git
 import Effectful.Git.Platform (detectPlatform)
-import Effectful.Git.Types (Commit (..), CommitID)
+import Effectful.Git.Types (Commit (id))
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
 import Shower qualified
@@ -69,10 +69,10 @@ runPipeline env program =
     interpret
       ( \_ -> \case
           Clone repo branch workspacePath -> cloneImpl repo branch workspacePath
-          LoadConfig repoDir -> loadConfigImpl repoDir
-          Build repoDir pipeline -> buildImpl repoDir pipeline
-          Cache repoDir pipeline buildResults -> cacheImpl repoDir pipeline buildResults
-          Signoff commitId cloneUrl repoDir pipeline buildResults -> signoffImpl commitId cloneUrl repoDir pipeline buildResults
+          LoadConfig -> loadConfigImpl
+          Build pipeline -> buildImpl pipeline
+          Cache pipeline buildResults -> cacheImpl pipeline buildResults
+          Signoff pipeline buildResults -> signoffImpl pipeline buildResults
       )
       program
 
@@ -117,11 +117,11 @@ loadConfigImpl ::
   , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
-  FilePath ->
   Eff es ViraPipeline
-loadConfigImpl repoDir = do
+loadConfigImpl = do
   env <- ER.ask @PipelineEnv
-  let viraConfigPath = repoDir </> "vira.hs"
+  let repoDir = env.viraContext.repoDir
+      viraConfigPath = repoDir </> "vira.hs"
   doesFileExist viraConfigPath >>= \case
     True -> do
       logPipeline Info "Found vira.hs configuration file, applying customizations..."
@@ -160,14 +160,13 @@ buildImpl ::
   , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
-  FilePath ->
   ViraPipeline ->
   Eff es (NonEmpty BuildResult)
-buildImpl repoDir pipeline = do
+buildImpl pipeline = do
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
   -- Build each flake sequentially and return BuildResult for each
   forM pipeline.build.flakes $ \flake ->
-    buildFlake repoDir pipeline.build.systems flake
+    buildFlake pipeline.build.systems flake
 
 -- | Build a single flake
 buildFlake ::
@@ -180,11 +179,12 @@ buildFlake ::
   , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
-  FilePath ->
   [System] ->
   Flake ->
   Eff es BuildResult
-buildFlake repoDir systems (Flake flakePath overrideInputs) = do
+buildFlake systems (Flake flakePath overrideInputs) = do
+  env <- ER.ask @PipelineEnv
+  let repoDir = env.viraContext.repoDir
   let buildProc =
         proc nix $
           devourFlake $
@@ -224,12 +224,12 @@ cacheImpl ::
   , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
-  FilePath ->
   ViraPipeline ->
   NonEmpty BuildResult ->
   Eff es ()
-cacheImpl repoDir pipeline buildResults = do
+cacheImpl pipeline buildResults = do
   env <- ER.ask @PipelineEnv
+  let repoDir = env.viraContext.repoDir
   case pipeline.cache.url of
     Nothing -> do
       logPipeline Warning "Cache disabled, skipping"
@@ -283,15 +283,14 @@ signoffImpl ::
   , ER.Reader PipelineEnv :> es
   , Error PipelineError :> es
   ) =>
-  -- | Commit ID to sign off
-  CommitID ->
-  -- | Clone URL for platform detection
-  Text ->
-  FilePath ->
   ViraPipeline ->
   NonEmpty BuildResult ->
   Eff es ()
-signoffImpl commitId cloneUrl repoDir pipeline buildResults = do
+signoffImpl pipeline buildResults = do
+  env <- ER.ask @PipelineEnv
+  let commitId = env.viraContext.commitId
+      cloneUrl = env.viraContext.cloneUrl
+      repoDir = env.viraContext.repoDir
   if pipeline.signoff.enable
     then do
       -- Extract unique systems from all build results
