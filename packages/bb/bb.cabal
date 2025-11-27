@@ -24,6 +24,7 @@ library
       BB.CLI.Invocation
       BB.Command.Auth.Login
       BB.Command.Auth.Status
+      BB.Command.Signoff
       BB.Config
       BB.Run
       Bitbucket.API.V1.BuildStatus

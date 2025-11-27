@@ -6,29 +6,12 @@ module BB.CLI.Core (
   CLISettings (..),
   Command (..),
   AuthCommand (..),
-  SignoffArgs (..),
   parseCLI,
 ) where
 
-import Bitbucket.API.V1.BuildStatus (BuildState (..))
+import Bitbucket.API.V1.BuildStatus (BuildState (..), BuildStatus (..))
 import Data.Char (toLower)
-import Options.Applicative (
-  Parser,
-  ParserInfo,
-  execParser,
-  help,
-  helper,
-  hsubparser,
-  info,
-  long,
-  metavar,
-  progDesc,
-  showDefault,
-  strArgument,
-  strOption,
-  switch,
-  value,
- )
+import Options.Applicative
 import Options.Applicative qualified as OA
 
 -- | Top-level CLI settings
@@ -41,7 +24,7 @@ data CLISettings = CLISettings
 
 -- | Available commands
 data Command
-  = SignoffCommand SignoffArgs
+  = SignoffCommand BuildStatus
   | AuthCommand AuthCommand
   deriving stock (Show, Eq)
 
@@ -55,21 +38,6 @@ data AuthCommand
       { jsonOutput :: Bool
       -- ^ Output in JSON format
       }
-  deriving stock (Show, Eq)
-
--- | Arguments for signoff command
-data SignoffArgs = SignoffArgs
-  { state :: BuildState
-  -- ^ Build state (successful, failed, inprogress)
-  , key :: Text
-  -- ^ Unique identifier for this build
-  , name :: Text
-  -- ^ Display name for the build
-  , url :: Text
-  -- ^ URL to view build details
-  , description :: Text
-  -- ^ Description of the build status
-  }
   deriving stock (Show, Eq)
 
 -- | Parse CLI arguments
@@ -89,8 +57,6 @@ cliSettingsParser =
   CLISettings
     <$> switch (long "force" <> short 'f' <> help "Force operation (skip dirty check)")
     <*> commandParser
-  where
-    short = OA.short
 
 -- | Parser for commands
 commandParser :: Parser Command
@@ -145,9 +111,9 @@ statusArgsParser =
     )
 
 -- | Parser for signoff arguments
-signoffArgsParser :: Parser SignoffArgs
+signoffArgsParser :: Parser BuildStatus
 signoffArgsParser =
-  SignoffArgs
+  BuildStatus
     <$> stateParser
     <*> strOption
       ( long "key"
