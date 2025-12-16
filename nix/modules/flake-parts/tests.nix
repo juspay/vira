@@ -4,7 +4,7 @@
       # Like runCommand, but with network access enabled
       # Requires `sandbox = relaxed` in CI's nix.conf
       runCommandWithInternet = name: script:
-        pkgs.runCommandNoCC name
+        pkgs.runCommand name
           {
             __noChroot = true; # Allow network access
             nativeBuildInputs = [ pkgs.cacert ];
