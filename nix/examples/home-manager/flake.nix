@@ -129,6 +129,20 @@
             # Check if the service is running
             machine.succeed("sudo -u testuser XDG_RUNTIME_DIR=/run/user/1000 systemctl --user is-active vira.service")
 
+            # Give the service a moment to process initial state (when errors might occur)
+            time.sleep(5)
+
+            # Check for ERROR messages in service output
+            logs = machine.succeed("sudo -u testuser XDG_RUNTIME_DIR=/run/user/1000 journalctl --user-unit=vira.service --no-pager -q --since='30 seconds ago'")
+            if logs.find("ERROR") >= 0:
+                print('ERROR messages found in vira service output:')
+                for line in logs.split('\n'):
+                    if line.find("ERROR") >= 0:
+                        print(f'  {line}')
+                raise Exception("Vira service logged errors")
+            else:
+                print('No ERROR messages found in vira service output')
+
             # Check if the service is listening on port 8080
             machine.wait_for_open_port(8080)
 
