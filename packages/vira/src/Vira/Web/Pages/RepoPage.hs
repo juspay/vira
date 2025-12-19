@@ -21,13 +21,14 @@ import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.Refresh qualified as Refresh
-import Vira.Refresh.Type (RefreshPriority (Now))
+import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (Now), RefreshResult (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
 import Vira.State.Type (BranchDetails (..), BranchQuery (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
 import Vira.Web.Stack qualified as Web
+import Vira.Web.Widgets.Alert qualified as W
 import Vira.Web.Widgets.Button qualified as W
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
@@ -100,6 +101,9 @@ deleteHandler name = do
 
 viewRepo :: St.Repo -> [BranchDetails] -> Bool -> AppHtml ()
 viewRepo repo branchDetails isPruned = do
+  -- Fetch current refresh status to show errors
+  refreshStatus <- lift $ Refresh.getRepoRefreshStatus repo.name
+
   -- Repository header with smart refresh button
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.book_2)
@@ -110,6 +114,14 @@ viewRepo repo branchDetails isPruned = do
         div_ [class_ "ml-4"] $
           Status.viraSmartRefreshButton_ repo.name
     )
+
+  -- Show error alert if last refresh failed
+  case refreshStatus of
+    Completed RefreshResult {outcome = Failure errorMsg} ->
+      div_ [class_ "mb-6"] $
+        W.viraAlertWithTitle_ W.AlertError "Repository refresh failed" $
+          toHtml errorMsg
+    _ -> pass
 
   W.viraSection_ [] $ do
     -- Branch listing
