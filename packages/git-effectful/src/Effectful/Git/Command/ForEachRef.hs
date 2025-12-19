@@ -31,7 +31,7 @@ import Effectful.Git.Types (BranchName (..), Commit (..))
 import Effectful.Process (CreateProcess (..), Process, proc, readCreateProcess)
 import Effectful.Reader.Static qualified as ER
 import Text.Megaparsec (Parsec, anySingle, manyTill, parse, takeRest)
-import Text.Megaparsec.Char (tab)
+import Text.Megaparsec.Char (string, tab)
 
 {- | Get remote branches from a git clone.
 
@@ -49,13 +49,13 @@ remoteBranchesFromClone clonePath = do
           log Error errorMsg
           throwError $ toText errorMsg
 
-  -- Drop the first line, which is 'origin' (not a branch)
-  let gitRefLines = drop 1 $ lines $ T.strip (toText output)
+  -- Parse each line; gitRefParser returns Nothing for bare remote names (filtered out by mapMaybe)
+  let gitRefLines = lines $ T.strip (toText output)
   case traverse parseCommitLine gitRefLines of
     Left err -> throwError err
-    Right commits -> return $ Map.fromList commits
+    Right commits -> return $ Map.fromList $ catMaybes commits
   where
-    parseCommitLine :: Text -> Either Text (BranchName, Commit)
+    parseCommitLine :: Text -> Either Text (Maybe (BranchName, Commit))
     parseCommitLine line = case parse gitRefParser "" line of
       Left err ->
         Left $ "Parse error on line '" <> line <> "': " <> show err
@@ -71,18 +71,31 @@ forEachRefRemoteBranches =
     , "refs/remotes"
     ]
 
--- | Parse a git ref line into a 'BranchName' and 'Commit'
-gitRefParser :: Parsec Void Text (BranchName, Commit)
+{- | Parse a git ref line into a 'BranchName' and 'Commit'.
+
+Assumes the remote is named "origin". Returns 'Nothing' for bare remote names
+(like "origin") that don't have a branch component, filtering out remote HEAD
+refs that aren't actual branches
+-}
+gitRefParser :: Parsec Void Text (Maybe (BranchName, Commit))
 gitRefParser = do
-  branchName' <- toText <$> manyTill anySingle tab
+  -- Try to parse "origin/" prefix; if missing (bare "origin"), return Nothing
+  mOriginPrefix <- optional (string "origin/")
+  case mOriginPrefix of
+    Nothing -> takeRest $> Nothing
+    Just _ -> Just <$> gitRefParser'
+
+-- | Like 'gitRefParser', but assumes "origin/" prefix was already consumed
+gitRefParser' :: Parsec Void Text (BranchName, Commit)
+gitRefParser' = do
+  branchNameStr <- toText <$> manyTill anySingle tab
   cid <- fromString <$> manyTill anySingle tab
   timestampStr <- manyTill anySingle tab
   author <- toText <$> manyTill anySingle tab
   authorEmailRaw <- toText <$> manyTill anySingle tab
   message <- takeRest
 
-  -- Strip "origin/" prefix from branch name if present to get clean branch names
-  let branchName = fromString . toString $ T.stripPrefix "origin/" branchName' ?: branchName'
+  let branchName = fromString $ toString branchNameStr
 
   -- Strip angle brackets from email if present (git %(authoremail) includes < >)
   let authorEmail = T.strip $ fromMaybe authorEmailRaw $ do
@@ -93,4 +106,4 @@ gitRefParser = do
   let date = posixSecondsToUTCTime (fromIntegral (timestamp :: Int))
 
   let commit = Commit {id = cid, ..}
-  return (branchName, commit)
+  pure (branchName, commit)
