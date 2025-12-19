@@ -13,9 +13,6 @@ module Effectful.Git.Command.ForEachRef (
 
   -- * Operations
   remoteBranchesFromClone,
-
-  -- * Filtering (exported for testing)
-  filterRemoteRefs,
 ) where
 
 import Colog (Severity (..))
@@ -52,12 +49,13 @@ remoteBranchesFromClone clonePath = do
           log Error errorMsg
           throwError $ toText errorMsg
 
-  let gitRefLines = filterRemoteRefs $ lines $ T.strip (toText output)
+  -- Parse each line; gitRefParser returns Nothing for bare remote names (filtered out by mapMaybe)
+  let gitRefLines = lines $ T.strip (toText output)
   case traverse parseCommitLine gitRefLines of
     Left err -> throwError err
-    Right commits -> return $ Map.fromList commits
+    Right commits -> return $ Map.fromList $ catMaybes commits
   where
-    parseCommitLine :: Text -> Either Text (BranchName, Commit)
+    parseCommitLine :: Text -> Either Text (Maybe (BranchName, Commit))
     parseCommitLine line = case parse gitRefParser "" line of
       Left err ->
         Left $ "Parse error on line '" <> line <> "': " <> show err
@@ -73,8 +71,12 @@ forEachRefRemoteBranches =
     , "refs/remotes"
     ]
 
--- | Parse a git ref line into a 'BranchName' and 'Commit'
-gitRefParser :: Parsec Void Text (BranchName, Commit)
+{- | Parse a git ref line into a 'BranchName' and 'Commit'.
+
+Returns 'Nothing' for bare remote names (like "origin") that don't contain "/".
+This filters out remote references that aren't actual branches (issue #282).
+-}
+gitRefParser :: Parsec Void Text (Maybe (BranchName, Commit))
 gitRefParser = do
   branchName' <- toText <$> manyTill anySingle tab
   cid <- fromString <$> manyTill anySingle tab
@@ -83,24 +85,20 @@ gitRefParser = do
   authorEmailRaw <- toText <$> manyTill anySingle tab
   message <- takeRest
 
-  -- Strip "origin/" prefix from branch name if present to get clean branch names
-  let branchName = fromString . toString $ T.stripPrefix "origin/" branchName' ?: branchName'
+  -- Reject bare remote names (like "origin") that don't have a branch component
+  if not (T.isInfixOf "/" branchName')
+    then return Nothing
+    else do
+      -- Strip "origin/" prefix from branch name if present to get clean branch names
+      let branchName = fromString . toString $ T.stripPrefix "origin/" branchName' ?: branchName'
 
-  -- Strip angle brackets from email if present (git %(authoremail) includes < >)
-  let authorEmail = T.strip $ fromMaybe authorEmailRaw $ do
-        stripped1 <- T.stripPrefix "<" authorEmailRaw
-        T.stripSuffix ">" stripped1
+      -- Strip angle brackets from email if present (git %(authoremail) includes < >)
+      let authorEmail = T.strip $ fromMaybe authorEmailRaw $ do
+            stripped1 <- T.stripPrefix "<" authorEmailRaw
+            T.stripSuffix ">" stripped1
 
-  timestamp <- maybe (fail $ "Invalid timestamp: " <> timestampStr) return (readMaybe timestampStr)
-  let date = posixSecondsToUTCTime (fromIntegral (timestamp :: Int))
+      timestamp <- maybe (fail $ "Invalid timestamp: " <> timestampStr) return (readMaybe timestampStr)
+      let date = posixSecondsToUTCTime (fromIntegral (timestamp :: Int))
 
-  let commit = Commit {id = cid, ..}
-  return (branchName, commit)
-
-{- | Filter remote refs to exclude bare remote names (like "origin").
-
-Filters out entries that don't contain a "/" since those are just remote names
-(like "origin") rather than actual branch refs (like "origin/main").
--}
-filterRemoteRefs :: [Text] -> [Text]
-filterRemoteRefs = filter (T.isInfixOf "/")
+      let commit = Commit {id = cid, ..}
+      return $ Just (branchName, commit)
