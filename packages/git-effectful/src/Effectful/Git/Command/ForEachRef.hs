@@ -75,34 +75,35 @@ forEachRefRemoteBranches =
 
 Assumes the remote is named "origin". Returns 'Nothing' for bare remote names
 (like "origin") that don't have a branch component, filtering out remote HEAD
-refs that aren't actual branches (issue #282).
+refs that aren't actual branches
 -}
 gitRefParser :: Parsec Void Text (Maybe (BranchName, Commit))
 gitRefParser = do
   -- Try to parse "origin/" prefix; if missing (bare "origin"), return Nothing
   mOriginPrefix <- optional (string "origin/")
   case mOriginPrefix of
-    Nothing -> do
-      -- Consume rest of line and return Nothing (bare remote name)
-      takeRest $> Nothing
-    Just _ -> do
-      -- Parse branch name (everything until tab)
-      branchNameStr <- toText <$> manyTill anySingle tab
-      cid <- fromString <$> manyTill anySingle tab
-      timestampStr <- manyTill anySingle tab
-      author <- toText <$> manyTill anySingle tab
-      authorEmailRaw <- toText <$> manyTill anySingle tab
-      message <- takeRest
+    Nothing -> takeRest $> Nothing
+    Just _ -> Just <$> gitRefParser'
 
-      let branchName = fromString $ toString branchNameStr
+-- | Like 'gitRefParser', but assumes "origin/" prefix was already consumed
+gitRefParser' :: Parsec Void Text (BranchName, Commit)
+gitRefParser' = do
+  branchNameStr <- toText <$> manyTill anySingle tab
+  cid <- fromString <$> manyTill anySingle tab
+  timestampStr <- manyTill anySingle tab
+  author <- toText <$> manyTill anySingle tab
+  authorEmailRaw <- toText <$> manyTill anySingle tab
+  message <- takeRest
 
-      -- Strip angle brackets from email if present (git %(authoremail) includes < >)
-      let authorEmail = T.strip $ fromMaybe authorEmailRaw $ do
-            stripped1 <- T.stripPrefix "<" authorEmailRaw
-            T.stripSuffix ">" stripped1
+  let branchName = fromString $ toString branchNameStr
 
-      timestamp <- maybe (fail $ "Invalid timestamp: " <> timestampStr) return (readMaybe timestampStr)
-      let date = posixSecondsToUTCTime (fromIntegral (timestamp :: Int))
+  -- Strip angle brackets from email if present (git %(authoremail) includes < >)
+  let authorEmail = T.strip $ fromMaybe authorEmailRaw $ do
+        stripped1 <- T.stripPrefix "<" authorEmailRaw
+        T.stripSuffix ">" stripped1
 
-      let commit = Commit {id = cid, ..}
-      return $ Just (branchName, commit)
+  timestamp <- maybe (fail $ "Invalid timestamp: " <> timestampStr) return (readMaybe timestampStr)
+  let date = posixSecondsToUTCTime (fromIntegral (timestamp :: Int))
+
+  let commit = Commit {id = cid, ..}
+  pure (branchName, commit)
