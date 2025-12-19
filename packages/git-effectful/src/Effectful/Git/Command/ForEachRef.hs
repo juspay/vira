@@ -13,6 +13,9 @@ module Effectful.Git.Command.ForEachRef (
 
   -- * Operations
   remoteBranchesFromClone,
+
+  -- * Filtering (exported for testing)
+  filterRemoteRefs,
 ) where
 
 import Colog (Severity (..))
@@ -49,8 +52,7 @@ remoteBranchesFromClone clonePath = do
           log Error errorMsg
           throwError $ toText errorMsg
 
-  -- Drop the first line, which is 'origin' (not a branch)
-  let gitRefLines = drop 1 $ lines $ T.strip (toText output)
+  let gitRefLines = filterRemoteRefs $ lines $ T.strip (toText output)
   case traverse parseCommitLine gitRefLines of
     Left err -> throwError err
     Right commits -> return $ Map.fromList commits
@@ -94,3 +96,11 @@ gitRefParser = do
 
   let commit = Commit {id = cid, ..}
   return (branchName, commit)
+
+{- | Filter remote refs to exclude bare remote names (like "origin").
+
+Filters out entries that don't contain a "/" since those are just remote names
+(like "origin") rather than actual branch refs (like "origin/main").
+-}
+filterRemoteRefs :: [Text] -> [Text]
+filterRemoteRefs = filter (T.isInfixOf "/")
