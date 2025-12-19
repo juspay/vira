@@ -29,12 +29,9 @@ spec = do
         Left err -> expectationFailure $ "Parse failed: " <> show err
         Right result -> result `shouldBe` Nothing
 
-    it "parses refs with non-origin remote names" $ do
+    -- Non-origin remotes are not supported (we assume remote name is "origin")
+    it "returns Nothing for non-origin remote names" $ do
       let input = "upstream/feature\tdef456\t1640000001\tAuthor\t<a@b.com>\tfeature work"
       case parse gitRefParser "" input of
         Left err -> expectationFailure $ "Parse failed: " <> show err
-        Right Nothing -> expectationFailure "Expected Just, got Nothing"
-        Right (Just (branchName, commit)) -> do
-          -- Non-origin remotes keep the full name since only "origin/" is stripped
-          branchName `shouldBe` BranchName "upstream/feature"
-          commit.id `shouldBe` CommitID "def456"
+        Right result -> result `shouldBe` Nothing

@@ -31,7 +31,7 @@ import Effectful.Git.Types (BranchName (..), Commit (..))
 import Effectful.Process (CreateProcess (..), Process, proc, readCreateProcess)
 import Effectful.Reader.Static qualified as ER
 import Text.Megaparsec (Parsec, anySingle, manyTill, parse, takeRest)
-import Text.Megaparsec.Char (tab)
+import Text.Megaparsec.Char (string, tab)
 
 {- | Get remote branches from a git clone.
 
@@ -73,24 +73,28 @@ forEachRefRemoteBranches =
 
 {- | Parse a git ref line into a 'BranchName' and 'Commit'.
 
-Returns 'Nothing' for bare remote names (like "origin") that don't contain "/".
-This filters out remote references that aren't actual branches (issue #282).
+Assumes the remote is named "origin". Returns 'Nothing' for bare remote names
+(like "origin") that don't have a branch component, filtering out remote HEAD
+refs that aren't actual branches (issue #282).
 -}
 gitRefParser :: Parsec Void Text (Maybe (BranchName, Commit))
 gitRefParser = do
-  branchName' <- toText <$> manyTill anySingle tab
-  cid <- fromString <$> manyTill anySingle tab
-  timestampStr <- manyTill anySingle tab
-  author <- toText <$> manyTill anySingle tab
-  authorEmailRaw <- toText <$> manyTill anySingle tab
-  message <- takeRest
+  -- Try to parse "origin/" prefix; if missing (bare "origin"), return Nothing
+  mOriginPrefix <- optional (string "origin/")
+  case mOriginPrefix of
+    Nothing -> do
+      -- Consume rest of line and return Nothing (bare remote name)
+      takeRest $> Nothing
+    Just _ -> do
+      -- Parse branch name (everything until tab)
+      branchNameStr <- toText <$> manyTill anySingle tab
+      cid <- fromString <$> manyTill anySingle tab
+      timestampStr <- manyTill anySingle tab
+      author <- toText <$> manyTill anySingle tab
+      authorEmailRaw <- toText <$> manyTill anySingle tab
+      message <- takeRest
 
-  -- Reject bare remote names (like "origin") that don't have a branch component
-  if not (T.isInfixOf "/" branchName')
-    then return Nothing
-    else do
-      -- Strip "origin/" prefix from branch name if present to get clean branch names
-      let branchName = fromString . toString $ T.stripPrefix "origin/" branchName' ?: branchName'
+      let branchName = fromString $ toString branchNameStr
 
       -- Strip angle brackets from email if present (git %(authoremail) includes < >)
       let authorEmail = T.strip $ fromMaybe authorEmailRaw $ do
