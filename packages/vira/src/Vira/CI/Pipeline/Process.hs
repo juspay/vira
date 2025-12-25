@@ -26,7 +26,7 @@ import System.IO (hGetLine, hPutStrLn)
 import System.IO.Error (isEOFError, tryIOError)
 import System.Process qualified as P
 import Vira.CI.Error (PipelineError (PipelineProcessFailed, PipelineTerminated))
-import Vira.CI.Log (ViraLog (..), encodeViraLogJson)
+import Vira.CI.Log (ViraLog (..), encodeViraLog)
 import Vira.CI.Pipeline.Effect (PipelineEnv (logger, outputLog), PipelineLogger (unPipelineLogger))
 import Vira.Supervisor.Type (Terminated (Terminated))
 
@@ -200,10 +200,10 @@ streamLines input output ctx = loop
               let errMsg :: String
                   errMsg = show err
                   errLog = ViraLog Warning (toText errMsg) ctx
-              hPutStrLn output (toString $ encodeViraLogJson errLog)
+              hPutStrLn output (toString $ encodeViraLog errLog)
         Right line -> do
           let viraLog = ViraLog Debug (toText line) ctx
-          hPutStrLn output (toString $ encodeViraLogJson viraLog)
+          hPutStrLn output (toString $ encodeViraLog viraLog)
           loop
 
 -- | With stdout and stderr redirected to given handle

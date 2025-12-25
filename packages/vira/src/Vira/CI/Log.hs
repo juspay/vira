@@ -10,7 +10,6 @@ Web UI renders them with 'Colog.Severity'-specific styling (emoji + colored back
 module Vira.CI.Log (
   ViraLog (..),
   encodeViraLog,
-  encodeViraLogJson,
   decodeViraLog,
   renderViraLogCLI,
 ) where
@@ -56,31 +55,16 @@ data ViraLog = ViraLog
   deriving stock (Generic, Show)
   deriving anyclass (FromJSON, ToJSON)
 
--- | Encode ViraLog to JSON with viralog: prefix (legacy)
+-- | Encode ViraLog to JSON
 encodeViraLog :: ViraLog -> Text
-encodeViraLog viraLog = "viralog:" <> encodeViraLogJson viraLog
+encodeViraLog viraLog = decodeUtf8 (encode viraLog)
 
--- | Encode ViraLog to pure JSON (no prefix)
-encodeViraLogJson :: ViraLog -> Text
-encodeViraLogJson viraLog = decodeUtf8 (encode viraLog)
-
-{- | Decode ViraLog from a line.
-Tries pure JSON first, then falls back to viralog: prefix for backwards compatibility.
-Returns Left with original line if not a valid ViraLog entry (for raw printing).
--}
+-- | Decode ViraLog from a JSON line
 decodeViraLog :: Text -> Either Text ViraLog
 decodeViraLog line =
-  -- Try pure JSON first
   case decode (encodeUtf8 line) of
     Just viraLog -> Right viraLog
-    Nothing ->
-      -- Fall back to viralog: prefix for backwards compatibility
-      case T.stripPrefix "viralog:" line of
-        Nothing -> Left line
-        Just jsonStr ->
-          case decode (encodeUtf8 jsonStr) of
-            Nothing -> Left line
-            Just viraLog -> Right viraLog
+    Nothing -> Left line
 
 {- | Render ViraLog for CLI with ANSI colors
 
