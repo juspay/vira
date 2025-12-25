@@ -107,8 +107,10 @@ renderViraLogCLI vlog =
 
 {- | Render ViraLog for web UI with TailwindCSS
 
-Renders viralog entries with build context badge, emoji and colored text.
-Context (flake, system) is shown as [system;flake] prefix before the message.
+Renders viralog entries with:
+- System icon prefix (🍎 darwin, 🐧 linux) if system is in context
+- Severity emoji and colored message
+- All context key-value pairs shown after message
 -}
 instance ToHtml ViraLog where
   toHtml viraLog =
@@ -119,23 +121,31 @@ instance ToHtml ViraLog where
           Warning -> "text-amber-400 dark:text-amber-500"
           Error -> "text-rose-400 dark:text-rose-500"
         LogContext ctx = viraLog.context
-        -- Extract flake and system from context
-        mFlake = lookup "flake" ctx
+        -- Extract system for icon, remove from display context
         mSystem = lookup "system" ctx
+        systemIcon = case mSystem of
+          Just sys
+            | "darwin" `T.isInfixOf` sys -> "🍎 "
+            | "linux" `T.isInfixOf` sys -> "🐧 "
+            | otherwise -> ""
+          Nothing -> ""
      in span_ [class_ textClass] $ do
-          -- Show [system;flake] badge first if present
-          case (mSystem, mFlake) of
-            (Just sys, Just flk) ->
-              span_ [class_ "bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded text-xs font-mono mr-2"] $
-                toHtml $
-                  "[" <> sys <> ";" <> flk <> "]"
-            (Just sys, Nothing) ->
-              span_ [class_ "bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded text-xs font-mono mr-2"] $
-                toHtml $
-                  "[" <> sys <> "]"
-            _ -> pass
+          -- System icon prefix
+          unless (T.null systemIcon) $
+            span_ [class_ "mr-1"] $
+              toHtml systemIcon
+          -- Severity emoji and message
           toHtml emoji
           toHtml (" " :: Text)
           toHtml viraLog.message
+          -- All context as-is
+          unless (null ctx) $ do
+            toHtml (" " :: Text)
+            span_ [class_ "text-slate-500 dark:text-slate-600 text-xs"] $ do
+              toHtml ("{" :: Text)
+              forM_ (intersperse Nothing $ map Just ctx) $ \case
+                Nothing -> toHtml (", " :: Text)
+                Just (k, v) -> toHtml $ k <> "=" <> v
+              toHtml ("}" :: Text)
           br_ []
   toHtmlRaw = toHtml
