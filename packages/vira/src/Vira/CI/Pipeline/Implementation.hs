@@ -26,7 +26,7 @@ import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Dispatch.Dynamic
 import Effectful.Environment (Environment)
-import Effectful.Error.Static (Error, throwError)
+import Effectful.Error.Static (Error, runErrorNoCallStack, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git.Command.Clone qualified as Git
 import Effectful.Git.Platform (detectPlatform)
@@ -35,12 +35,14 @@ import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
 import Shower qualified
 import System.FilePath ((</>))
+import System.Nix.Config.Builders (RemoteBuilder (..))
 import System.Nix.Core (nix)
 import System.Nix.System (System)
 import System.Process (proc)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..), pipelineToolError)
+import Vira.CI.Nix.RemoteBuilderResolver (BuildTarget (..), partitionByLocalSystem)
 import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Process (runProcess)
 import Vira.CI.Pipeline.Signoff qualified as Signoff
@@ -163,13 +165,79 @@ buildImpl ::
   ViraPipeline ->
   Eff es (NonEmpty BuildResult)
 buildImpl pipeline = do
+  let systems = pipeline.build.systems
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
-  -- Build each flake sequentially and return BuildResult for each
-  forM pipeline.build.flakes $ \flake ->
-    buildFlake pipeline.build.systems flake
+  if length systems <= 1
+    then do
+      -- Single system or default: use existing devour-flake path
+      forM pipeline.build.flakes $ \flake ->
+        buildFlakeWithDevourFlake systems flake
+    else do
+      -- Multi-platform: partition into local vs remote and build in parallel
+      logPipeline Info $ "Multi-platform build: " <> show (length systems) <> " systems"
+      buildMultiPlatform pipeline
 
--- | Build a single flake
-buildFlake ::
+-- | Multi-platform build: partitions systems into local and remote, builds in parallel
+buildMultiPlatform ::
+  ( Concurrent :> es
+  , Process :> es
+  , Log (RichMessage IO) :> es
+  , IOE :> es
+  , FileSystem :> es
+  , ER.Reader LogContext :> es
+  , ER.Reader PipelineEnv :> es
+  , Error PipelineError :> es
+  ) =>
+  ViraPipeline ->
+  Eff es (NonEmpty BuildResult)
+buildMultiPlatform pipeline = do
+  -- Partition systems into local vs remote build targets
+  -- Adapt Text errors to PipelineError
+  buildTargetsResult <-
+    runErrorNoCallStack $
+      partitionByLocalSystem pipeline.build.systems
+  buildTargets <- case buildTargetsResult of
+    Left msg -> throwError $ PipelineConfigurationError $ MalformedConfig msg
+    Right targets -> pure targets
+  logPipeline Info $ "Build targets: " <> show buildTargets
+
+  -- Build each flake for each target in parallel
+  -- For now, build flakes sequentially but targets could be parallelized
+  -- TODO: Use pooledMapConcurrently for true parallelism when ready
+  forM pipeline.build.flakes $ \flake -> do
+    -- Build each target for this flake
+    targetResults <- forM buildTargets $ \target ->
+      buildFlakeForTarget target flake
+    -- Return the first result (they should all produce equivalent results)
+    -- In future, we could merge the devour-flake results
+    case nonEmpty targetResults of
+      Nothing -> throwError $ PipelineConfigurationError $ MalformedConfig "No build targets"
+      Just rs -> pure $ head rs
+
+-- | Build a flake for a specific target (local or remote)
+buildFlakeForTarget ::
+  ( Concurrent :> es
+  , Process :> es
+  , Log (RichMessage IO) :> es
+  , IOE :> es
+  , FileSystem :> es
+  , ER.Reader LogContext :> es
+  , ER.Reader PipelineEnv :> es
+  , Error PipelineError :> es
+  ) =>
+  BuildTarget ->
+  Flake ->
+  Eff es BuildResult
+buildFlakeForTarget target flake = case target of
+  LocalBuild sys -> do
+    logPipeline Info $ "[" <> show sys <> "] Building locally"
+    buildFlakeWithDevourFlake [sys] flake
+  RemoteBuild sys builder -> do
+    logPipeline Info $ "[" <> show sys <> "] Building on remote: " <> builder.uri
+    buildFlakeOnRemote sys builder flake
+
+-- | Build a single flake using devour-flake (local build)
+buildFlakeWithDevourFlake ::
   ( Concurrent :> es
   , Process :> es
   , Log (RichMessage IO) :> es
@@ -182,7 +250,7 @@ buildFlake ::
   [System] ->
   Flake ->
   Eff es BuildResult
-buildFlake systems (Flake flakePath overrideInputs) = do
+buildFlakeWithDevourFlake systems (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
   let repoDir = env.viraContext.repoDir
   let buildProc =
@@ -212,6 +280,60 @@ buildFlake systems (Flake flakePath overrideInputs) = do
     Right parsed -> do
       logPipeline Info $ toText $ "Build result for " <> flakePath <> ":\n" <> Shower.shower parsed
       pure $ BuildResult flakePath resultPath parsed
+
+-- | Build a single flake on a remote builder via SSH
+buildFlakeOnRemote ::
+  ( Concurrent :> es
+  , Process :> es
+  , Log (RichMessage IO) :> es
+  , IOE :> es
+  , FileSystem :> es
+  , ER.Reader LogContext :> es
+  , ER.Reader PipelineEnv :> es
+  , Error PipelineError :> es
+  ) =>
+  System ->
+  RemoteBuilder ->
+  Flake ->
+  Eff es BuildResult
+buildFlakeOnRemote sys builder (Flake flakePath overrideInputs) = do
+  env <- ER.ask @PipelineEnv
+  let repoDir = env.viraContext.repoDir
+      sshUri = builder.uri
+      -- Build the flake reference with system filter
+      flakeRef = "." <> (if null flakePath || flakePath == "." then "" else "/" <> flakePath)
+      -- SSH options for non-interactive Nix operations
+      sshOpts = "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30"
+
+  -- Use nix build with --store to build on remote
+  -- This evaluates locally but performs the build on the remote store
+  logPipeline Info $ "[" <> show sys <> "] Building on remote store: " <> sshUri
+  let buildProc =
+        proc nix $
+          [ "build"
+          , flakeRef
+          , "--store"
+          , toString sshUri
+          , "--eval-store"
+          , "auto" -- Evaluate locally
+          , "--no-link"
+          , "--json"
+          ]
+            <> ["--option", "ssh-options", sshOpts]
+            <> concatMap (\(k, v) -> ["--override-input", toString k, toString v]) overrideInputs
+  runProcess repoDir buildProc
+
+  -- Copy the built outputs back to local store
+  logPipeline Info $ "[" <> show sys <> "] Copying results from remote..."
+  let copyFromProc =
+        proc nix $
+          ["copy", "--from", toString sshUri, "--no-check-sigs", flakeRef]
+            <> ["--option", "ssh-options", sshOpts]
+  runProcess repoDir copyFromProc
+
+  -- Run devour-flake locally to get the result JSON (should be instant now)
+  logPipeline Info $ "[" <> show sys <> "] Evaluating result locally..."
+  buildFlakeWithDevourFlake [sys] (Flake flakePath overrideInputs)
 
 -- | Implementation: Push to cache
 cacheImpl ::

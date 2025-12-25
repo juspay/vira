@@ -46,6 +46,7 @@ library
       Vira.CI.Configuration
       Vira.CI.Error
       Vira.CI.Log
+      Vira.CI.Nix.RemoteBuilderResolver
       Vira.CI.Pipeline
       Vira.CI.Pipeline.Effect
       Vira.CI.Pipeline.Implementation
@@ -369,6 +370,7 @@ executable vira-tests
   main-is: Spec.hs
   other-modules:
       Vira.CI.ConfigurationSpec
+      Vira.CI.Nix.RemoteBuilderResolverSpec
       Vira.CI.WorkerSpec
       Vira.Lib.TimeExtraSpec
       Vira.State.ResetSpec

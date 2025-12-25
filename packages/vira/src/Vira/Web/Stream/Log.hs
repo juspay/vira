@@ -17,6 +17,7 @@ import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import Data.Map qualified as Map
+import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
@@ -72,7 +73,9 @@ logChunkMsg = \case
       Status.indicator False
       span_ [class_ "font-medium"] "Log streaming stopped"
 
--- | Render log lines with special styling for viralog lines (JSON format)
+{- | Render log lines with special styling for viralog lines (JSON format)
+Also detects platform badges like [x86_64-linux] and renders them with colors
+-}
 renderLogLines :: (Monad m) => [Text] -> HtmlT m ()
 renderLogLines ls =
   -- Use `lines . unlines` to normalize: each Text may contain embedded newlines,
@@ -84,7 +87,41 @@ renderLogLines ls =
     renderLine line =
       case decodeViraLog line of
         Right viraLog -> toHtml viraLog
-        Left _ -> toHtml line <> br_ []
+        Left _ -> renderWithPlatformBadge line <> br_ []
+
+    -- \| Detect and render platform badges with colors
+    renderWithPlatformBadge :: (Monad m) => Text -> HtmlT m ()
+    renderWithPlatformBadge line
+      | Just (badge, rest) <- extractPlatformBadge line = do
+          renderBadge badge
+          toHtml rest
+      | otherwise = toHtml line
+
+    -- \| Extract platform badge if line starts with [system]
+    extractPlatformBadge :: Text -> Maybe (Text, Text)
+    extractPlatformBadge line
+      | T.isPrefixOf "[" line
+      , Just idx <- T.findIndex (== ']') line
+      , idx > 1 =
+          let (badgePart, rest) = T.splitAt (idx + 1) line
+           in Just (badgePart, rest)
+      | otherwise = Nothing
+
+    -- \| Render a platform badge with appropriate color
+    renderBadge :: (Monad m) => Text -> HtmlT m ()
+    renderBadge badge
+      | T.isInfixOf "linux" badge =
+          span_
+            [class_ "inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 mr-2"]
+            (toHtml badge)
+      | T.isInfixOf "darwin" badge =
+          span_
+            [class_ "inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 mr-2"]
+            (toHtml badge)
+      | otherwise =
+          span_
+            [class_ "inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 mr-2"]
+            (toHtml badge)
 
 -- | Render multiline lines for placing under a <pre> such that newlines are preserved & rendered
 rawMultiLine :: (Monad m) => [Text] -> HtmlT m ()
