@@ -41,14 +41,14 @@ import Shower qualified
 import System.FilePath ((</>))
 import System.Nix.Config.Builders (RemoteBuilder (..))
 import System.Nix.Core (nix)
-import System.Nix.System (System)
+import System.Nix.System (System (..))
 import System.Process (proc, readProcess)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..), pipelineToolError)
 import Vira.CI.Nix.RemoteBuilderResolver (BuildTarget (..), partitionByLocalSystem)
 import Vira.CI.Pipeline.Effect
-import Vira.CI.Pipeline.Process (runProcess)
+import Vira.CI.Pipeline.Process (runProcess, runProcessWithContext)
 import Vira.CI.Pipeline.Signoff qualified as Signoff
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
@@ -235,10 +235,10 @@ buildFlakeForTarget ::
   Eff es BuildResult
 buildFlakeForTarget target flake = case target of
   LocalBuild sys -> do
-    logPipeline Info $ "[" <> show sys <> "] Building locally"
-    buildFlakeWithDevourFlake [sys] flake
+    logPipeline Info "Building locally"
+    buildFlakeWithDevourFlakeCtx sys flake
   RemoteBuild sys builder -> do
-    logPipeline Info $ "[" <> show sys <> "] Building on remote: " <> builder.uri
+    logPipeline Info $ "Building on remote: " <> builder.uri
     buildFlakeOnRemote sys builder flake
 
 -- | Build a single flake using devour-flake (local build)
@@ -286,6 +286,52 @@ buildFlakeWithDevourFlake systems (Flake flakePath overrideInputs) = do
       logPipeline Info $ toText $ "Build result for " <> flakePath <> ":\n" <> Shower.shower parsed
       pure $ BuildResult flakePath resultPath parsed
 
+-- | Build a single flake with build context for JSON log streaming
+buildFlakeWithDevourFlakeCtx ::
+  ( Concurrent :> es
+  , Process :> es
+  , Log (RichMessage IO) :> es
+  , IOE :> es
+  , FileSystem :> es
+  , ER.Reader LogContext :> es
+  , ER.Reader PipelineEnv :> es
+  , Error PipelineError :> es
+  ) =>
+  System ->
+  Flake ->
+  Eff es BuildResult
+buildFlakeWithDevourFlakeCtx sys (Flake flakePath overrideInputs) = do
+  env <- ER.ask @PipelineEnv
+  let repoDir = env.viraContext.repoDir
+      buildCtx = LogContext [("flake", toText flakePath), ("system", sys.unSystem)]
+  let buildProc =
+        proc nix $
+          devourFlake $
+            DevourFlakeArgs
+              { flakePath = flakePath
+              , systems = [sys]
+              , outLink = Just (flakePath </> "result")
+              , overrideInputs = overrideInputs
+              }
+
+  logPipeline Info $ "Building flake at " <> toText flakePath
+
+  -- Run build process with build context for JSON streaming
+  runProcessWithContext repoDir buildCtx buildProc
+
+  -- Return relative path to result symlink (relative to repo root)
+  let resultPath = flakePath </> "result"
+  logPipeline Info $ "Build succeeded, result at " <> toText resultPath
+
+  -- Parse the JSON result
+  devourResult <- liftIO $ eitherDecodeFileStrict $ repoDir </> resultPath
+  case devourResult of
+    Left err ->
+      throwError $ DevourFlakeMalformedOutput resultPath err
+    Right parsed -> do
+      logPipeline Info $ toText $ "Build result for " <> flakePath <> ":\n" <> Shower.shower parsed
+      pure $ BuildResult flakePath resultPath parsed
+
 -- | Build a single flake on a remote builder via SSH
 buildFlakeOnRemote ::
   ( Concurrent :> es
@@ -305,6 +351,7 @@ buildFlakeOnRemote sys builder (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
   let repoDir = env.viraContext.repoDir
       sshUri = builder.uri
+      buildCtx = LogContext [("flake", toText flakePath), ("system", sys.unSystem)]
       -- Extract host from ssh-ng://user@host or ssh://user@host
       sshHost =
         toString $
@@ -314,7 +361,7 @@ buildFlakeOnRemote sys builder (Flake flakePath overrideInputs) = do
       sshOpts = ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=30"]
 
   -- Step 1: Archive the flake to get its store path
-  logPipeline Info $ "[" <> show sys <> "] Archiving flake to store..."
+  logPipeline Info "Archiving flake to store..."
   flakeStorePath <- liftIO $ do
     -- nix flake archive --json returns {"path": "/nix/store/...", ...}
     output <- readProcess nix ["flake", "archive", "--json", repoDir </> flakePath] ""
@@ -322,15 +369,15 @@ buildFlakeOnRemote sys builder (Flake flakePath overrideInputs) = do
       Right (result :: FlakeArchiveOutput) -> pure result.path
       Left err -> error $ toText $ "Failed to parse flake archive output: " <> err
 
-  logPipeline Info $ "[" <> show sys <> "] Flake store path: " <> toText flakeStorePath
+  logPipeline Info $ "Flake store path: " <> toText flakeStorePath
 
   -- Step 2: Copy flake source to remote
-  logPipeline Info $ "[" <> show sys <> "] Copying flake to remote: " <> sshUri
+  logPipeline Info $ "Copying flake to remote: " <> sshUri
   let copyToProc = proc nix ["copy", "--to", toString sshUri, "--no-check-sigs", flakeStorePath]
-  runProcess repoDir copyToProc
+  runProcessWithContext repoDir buildCtx copyToProc
 
   -- Step 3: SSH and run devour-flake on the remote using the store path
-  logPipeline Info $ "[" <> show sys <> "] Building on remote via SSH..."
+  logPipeline Info "Building on remote via SSH..."
   let devourFlakeArgs =
         devourFlake $
           DevourFlakeArgs
@@ -342,12 +389,12 @@ buildFlakeOnRemote sys builder (Flake flakePath overrideInputs) = do
       -- Construct the remote nix build command
       remoteBuildCmd = List.unwords $ ["nix"] <> map escapeArg devourFlakeArgs
       sshBuildProc = proc "ssh" $ sshOpts <> [sshHost, remoteBuildCmd]
-  runProcess repoDir sshBuildProc
+  runProcessWithContext repoDir buildCtx sshBuildProc
 
   -- Step 4: Run devour-flake locally to get the result JSON
   -- This will substitute the already-built outputs from the remote
-  logPipeline Info $ "[" <> show sys <> "] Evaluating result locally (substituting from remote)..."
-  buildFlakeWithDevourFlake [sys] (Flake flakePath overrideInputs)
+  logPipeline Info "Evaluating result locally (substituting from remote)..."
+  buildFlakeWithDevourFlakeCtx sys (Flake flakePath overrideInputs)
   where
     -- Escape shell arguments for SSH
     escapeArg :: String -> String

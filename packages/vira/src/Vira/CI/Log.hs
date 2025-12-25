@@ -4,19 +4,20 @@
 
 {- | Structured logging for Vira pipeline messages
 
-'ViraLog' messages are written as JSON with @viralog:@ prefix to @output.log@,
-distinguishing them from build tool output. Web UI renders them with
-'Colog.Severity'-specific styling (emoji + colored background).
+'ViraLog' messages are written as JSON (one object per line) to @output.log.json@.
+Web UI renders them with 'Colog.Severity'-specific styling (emoji + colored background).
 -}
 module Vira.CI.Log (
   ViraLog (..),
   encodeViraLog,
+  encodeViraLogJson,
   decodeViraLog,
   renderViraLogCLI,
 ) where
 
 import Colog (Severity (..))
 import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON), decode, encode)
+import Data.List (lookup)
 import Data.Text qualified as T
 import Effectful.Colog.Simple (LogContext (..), severityEmoji)
 import Lucid (ToHtml (..), br_, class_, span_, toHtml)
@@ -55,21 +56,31 @@ data ViraLog = ViraLog
   deriving stock (Generic, Show)
   deriving anyclass (FromJSON, ToJSON)
 
--- | Encode ViraLog to JSON with viralog: prefix
+-- | Encode ViraLog to JSON with viralog: prefix (legacy)
 encodeViraLog :: ViraLog -> Text
-encodeViraLog viraLog = "viralog:" <> decodeUtf8 (encode viraLog)
+encodeViraLog viraLog = "viralog:" <> encodeViraLogJson viraLog
 
-{- | Decode ViraLog from a line, stripping viralog: prefix and parsing JSON
-Returns Left with original line if not a valid viralog entry (for raw printing)
+-- | Encode ViraLog to pure JSON (no prefix)
+encodeViraLogJson :: ViraLog -> Text
+encodeViraLogJson viraLog = decodeUtf8 (encode viraLog)
+
+{- | Decode ViraLog from a line.
+Tries pure JSON first, then falls back to viralog: prefix for backwards compatibility.
+Returns Left with original line if not a valid ViraLog entry (for raw printing).
 -}
 decodeViraLog :: Text -> Either Text ViraLog
 decodeViraLog line =
-  case T.stripPrefix "viralog:" line of
-    Nothing -> Left line -- Not a viralog line, return original for raw printing
-    Just jsonStr ->
-      case decode (encodeUtf8 jsonStr) of
-        Nothing -> Left line -- Invalid JSON, return original for raw printing
-        Just viraLog -> Right viraLog
+  -- Try pure JSON first
+  case decode (encodeUtf8 line) of
+    Just viraLog -> Right viraLog
+    Nothing ->
+      -- Fall back to viralog: prefix for backwards compatibility
+      case T.stripPrefix "viralog:" line of
+        Nothing -> Left line
+        Just jsonStr ->
+          case decode (encodeUtf8 jsonStr) of
+            Nothing -> Left line
+            Just viraLog -> Right viraLog
 
 {- | Render ViraLog for CLI with ANSI colors
 
@@ -96,8 +107,8 @@ renderViraLogCLI vlog =
 
 {- | Render ViraLog for web UI with TailwindCSS
 
-Renders viralog entries with emoji and colored text.
-Displays context key-value pairs if present.
+Renders viralog entries with build context badge, emoji and colored text.
+Context (flake, system) is shown as [system;flake] prefix before the message.
 -}
 instance ToHtml ViraLog where
   toHtml viraLog =
@@ -108,17 +119,23 @@ instance ToHtml ViraLog where
           Warning -> "text-amber-400 dark:text-amber-500"
           Error -> "text-rose-400 dark:text-rose-500"
         LogContext ctx = viraLog.context
+        -- Extract flake and system from context
+        mFlake = lookup "flake" ctx
+        mSystem = lookup "system" ctx
      in span_ [class_ textClass] $ do
+          -- Show [system;flake] badge first if present
+          case (mSystem, mFlake) of
+            (Just sys, Just flk) ->
+              span_ [class_ "bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded text-xs font-mono mr-2"] $
+                toHtml $
+                  "[" <> sys <> ";" <> flk <> "]"
+            (Just sys, Nothing) ->
+              span_ [class_ "bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded text-xs font-mono mr-2"] $
+                toHtml $
+                  "[" <> sys <> "]"
+            _ -> pass
           toHtml emoji
           toHtml (" " :: Text)
           toHtml viraLog.message
-          unless (null ctx) $ do
-            toHtml (" " :: Text)
-            span_ [class_ "text-slate-500 dark:text-slate-600"] $ do
-              toHtml ("{" :: Text)
-              forM_ (intersperse Nothing $ map Just ctx) $ \case
-                Nothing -> toHtml (", " :: Text)
-                Just (k, v) -> toHtml $ k <> "=" <> v
-              toHtml ("}" :: Text)
           br_ []
   toHtmlRaw = toHtml
