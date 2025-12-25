@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
@@ -17,7 +18,8 @@ import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
-import Data.Aeson (eitherDecodeFileStrict)
+import Data.Aeson (FromJSON, eitherDecode, eitherDecodeFileStrict)
+import Data.ByteString.Lazy.Char8 qualified as LBS
 import Data.List qualified as List
 import Data.Text qualified as T
 import DevourFlake (DevourFlakeArgs (..), devourFlake)
@@ -310,12 +312,14 @@ buildFlakeOnRemote sys builder (Flake flakePath overrideInputs) = do
       -- SSH options for non-interactive operation
       sshOpts = ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=30"]
 
-  -- Step 1: Get the flake's store path via nix path-info
-  logPipeline Info $ "[" <> show sys <> "] Getting flake store path..."
+  -- Step 1: Archive the flake to get its store path
+  logPipeline Info $ "[" <> show sys <> "] Archiving flake to store..."
   flakeStorePath <- liftIO $ do
-    -- nix path-info returns the store path of the flake
-    storePath <- readProcess nix ["path-info", repoDir </> flakePath] ""
-    pure $ List.dropWhileEnd (== '\n') storePath
+    -- nix flake archive --json returns {"path": "/nix/store/...", ...}
+    output <- readProcess nix ["flake", "archive", "--json", repoDir </> flakePath] ""
+    case eitherDecode (LBS.pack output) of
+      Right (result :: FlakeArchiveOutput) -> pure result.path
+      Left err -> error $ toText $ "Failed to parse flake archive output: " <> err
 
   logPipeline Info $ "[" <> show sys <> "] Flake store path: " <> toText flakeStorePath
 
@@ -458,3 +462,10 @@ defaultPipeline =
     }
   where
     defaultFlake = Flake "." mempty
+
+-- | Output of @nix flake archive --json@
+newtype FlakeArchiveOutput = FlakeArchiveOutput
+  { path :: FilePath
+  }
+  deriving stock (Eq, Show, Generic)
+  deriving anyclass (FromJSON)
