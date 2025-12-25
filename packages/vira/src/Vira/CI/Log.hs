@@ -127,7 +127,7 @@ instance ToHtml ViraLog where
           Just sys
             | "darwin" `T.isInfixOf` sys -> "🍎 "
             | "linux" `T.isInfixOf` sys -> "🐧 "
-            | otherwise -> ""
+            | otherwise -> "❓ " -- Unknown system
           Nothing -> ""
      in span_ [class_ textClass] $ do
           -- System icon prefix
