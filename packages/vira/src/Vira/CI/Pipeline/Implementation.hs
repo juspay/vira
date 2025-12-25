@@ -303,7 +303,7 @@ buildFlakeWithDevourFlakeCtx ::
 buildFlakeWithDevourFlakeCtx sys (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
   let repoDir = env.viraContext.repoDir
-      buildCtx = [("flake", toText flakePath), ("system", sys.unSystem)]
+      buildCtx = [("flake", toText flakePath), ("system", sys.unSystem), ("host", "localhost")]
   -- Wrap everything with build context so all logPipeline calls include it
   withLogContext buildCtx $ do
     let buildProc =
@@ -353,12 +353,14 @@ buildFlakeOnRemote sys builder (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
   let repoDir = env.viraContext.repoDir
       sshUri = builder.uri
-      buildCtx = [("flake", toText flakePath), ("system", sys.unSystem)]
       -- Extract host from ssh-ng://user@host or ssh://user@host
       sshHost =
-        toString $
-          fromMaybe sshUri $
-            T.stripPrefix "ssh-ng://" sshUri <|> T.stripPrefix "ssh://" sshUri
+        fromMaybe sshUri $
+          T.stripPrefix "ssh-ng://" sshUri <|> T.stripPrefix "ssh://" sshUri
+      -- Base context for local operations
+      buildCtx = [("flake", toText flakePath), ("system", sys.unSystem), ("host", "localhost")]
+      -- Context with SSH host for remote operations
+      sshBuildCtx = [("flake", toText flakePath), ("system", sys.unSystem), ("host", sshHost)]
       -- SSH options for non-interactive operation
       sshOpts = ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=30"]
 
@@ -378,7 +380,7 @@ buildFlakeOnRemote sys builder (Flake flakePath overrideInputs) = do
     -- Step 2: Copy flake source to remote
     logPipeline Info $ "Copying flake to remote: " <> sshUri
     let copyToProc = proc nix ["copy", "--to", toString sshUri, "--no-check-sigs", flakeStorePath]
-    runProcessWithContext repoDir (LogContext buildCtx) copyToProc
+    runProcessWithContext repoDir (LogContext sshBuildCtx) copyToProc
 
     -- Step 3: SSH and run devour-flake on the remote using the store path
     logPipeline Info "Building on remote via SSH..."
@@ -392,8 +394,8 @@ buildFlakeOnRemote sys builder (Flake flakePath overrideInputs) = do
               }
         -- Construct the remote nix build command
         remoteBuildCmd = List.unwords $ ["nix"] <> map escapeArg devourFlakeArgs
-        sshBuildProc = proc "ssh" $ sshOpts <> [sshHost, remoteBuildCmd]
-    runProcessWithContext repoDir (LogContext buildCtx) sshBuildProc
+        sshBuildProc = proc "ssh" $ sshOpts <> [toString sshHost, remoteBuildCmd]
+    runProcessWithContext repoDir (LogContext sshBuildCtx) sshBuildProc
 
     -- Step 4: Run devour-flake locally to get the result JSON
     -- This will substitute the already-built outputs from the remote
