@@ -18,6 +18,8 @@ import Attic.Url qualified
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (eitherDecodeFileStrict)
+import Data.List qualified as List
+import Data.Text qualified as T
 import DevourFlake (DevourFlakeArgs (..), devourFlake)
 import DevourFlake.Result (extractSystems)
 import Effectful
@@ -38,7 +40,7 @@ import System.FilePath ((</>))
 import System.Nix.Config.Builders (RemoteBuilder (..))
 import System.Nix.Core (nix)
 import System.Nix.System (System)
-import System.Process (proc)
+import System.Process (proc, readProcess)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..), pipelineToolError)
@@ -300,40 +302,53 @@ buildFlakeOnRemote sys builder (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
   let repoDir = env.viraContext.repoDir
       sshUri = builder.uri
-      -- Build the flake reference with system filter
-      flakeRef = "." <> (if null flakePath || flakePath == "." then "" else "/" <> flakePath)
-      -- SSH options for non-interactive Nix operations
-      sshOpts = "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30"
+      -- Extract host from ssh-ng://user@host or ssh://user@host
+      sshHost =
+        toString $
+          fromMaybe sshUri $
+            T.stripPrefix "ssh-ng://" sshUri <|> T.stripPrefix "ssh://" sshUri
+      -- SSH options for non-interactive operation
+      sshOpts = ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=30"]
 
-  -- Use nix build with --store to build on remote
-  -- This evaluates locally but performs the build on the remote store
-  logPipeline Info $ "[" <> show sys <> "] Building on remote store: " <> sshUri
-  let buildProc =
-        proc nix $
-          [ "build"
-          , flakeRef
-          , "--store"
-          , toString sshUri
-          , "--eval-store"
-          , "auto" -- Evaluate locally
-          , "--no-link"
-          , "--json"
-          ]
-            <> ["--option", "ssh-options", sshOpts]
-            <> concatMap (\(k, v) -> ["--override-input", toString k, toString v]) overrideInputs
-  runProcess repoDir buildProc
+  -- Step 1: Get the flake's store path via nix path-info
+  logPipeline Info $ "[" <> show sys <> "] Getting flake store path..."
+  flakeStorePath <- liftIO $ do
+    -- nix path-info returns the store path of the flake
+    storePath <- readProcess nix ["path-info", repoDir </> flakePath] ""
+    pure $ List.dropWhileEnd (== '\n') storePath
 
-  -- Copy the built outputs back to local store
-  logPipeline Info $ "[" <> show sys <> "] Copying results from remote..."
-  let copyFromProc =
-        proc nix $
-          ["copy", "--from", toString sshUri, "--no-check-sigs", flakeRef]
-            <> ["--option", "ssh-options", sshOpts]
-  runProcess repoDir copyFromProc
+  logPipeline Info $ "[" <> show sys <> "] Flake store path: " <> toText flakeStorePath
 
-  -- Run devour-flake locally to get the result JSON (should be instant now)
-  logPipeline Info $ "[" <> show sys <> "] Evaluating result locally..."
+  -- Step 2: Copy flake source to remote
+  logPipeline Info $ "[" <> show sys <> "] Copying flake to remote: " <> sshUri
+  let copyToProc = proc nix ["copy", "--to", toString sshUri, "--no-check-sigs", flakeStorePath]
+  runProcess repoDir copyToProc
+
+  -- Step 3: SSH and run devour-flake on the remote using the store path
+  logPipeline Info $ "[" <> show sys <> "] Building on remote via SSH..."
+  let devourFlakeArgs =
+        devourFlake $
+          DevourFlakeArgs
+            { flakePath = flakeStorePath -- Use store path, not relative path
+            , systems = [sys]
+            , outLink = Nothing -- No out-link on remote
+            , overrideInputs = overrideInputs
+            }
+      -- Construct the remote nix build command
+      remoteBuildCmd = List.unwords $ ["nix"] <> map escapeArg devourFlakeArgs
+      sshBuildProc = proc "ssh" $ sshOpts <> [sshHost, remoteBuildCmd]
+  runProcess repoDir sshBuildProc
+
+  -- Step 4: Run devour-flake locally to get the result JSON
+  -- This will substitute the already-built outputs from the remote
+  logPipeline Info $ "[" <> show sys <> "] Evaluating result locally (substituting from remote)..."
   buildFlakeWithDevourFlake [sys] (Flake flakePath overrideInputs)
+  where
+    -- Escape shell arguments for SSH
+    escapeArg :: String -> String
+    escapeArg s = "'" <> concatMap escapeChar s <> "'"
+    escapeChar '\'' = "'\\''"
+    escapeChar c = [c]
 
 -- | Implementation: Push to cache
 cacheImpl ::
