@@ -205,18 +205,19 @@ buildMultiPlatform pipeline = do
     Right targets -> pure targets
   logPipeline Info $ "Build targets: " <> show buildTargets
 
-  -- Build each flake for each target in parallel
-  -- For now, build flakes sequentially but targets could be parallelized
-  -- TODO: Use pooledMapConcurrently for true parallelism when ready
+  -- Build each flake for each target
   forM pipeline.build.flakes $ \flake -> do
     -- Build each target for this flake
     targetResults <- forM buildTargets $ \target ->
       buildFlakeForTarget target flake
-    -- Return the first result (they should all produce equivalent results)
-    -- In future, we could merge the devour-flake results
+    -- Merge all target results by combining their devourResult fields
     case nonEmpty targetResults of
       Nothing -> throwError $ PipelineConfigurationError $ MalformedConfig "No build targets"
-      Just rs -> pure $ head rs
+      Just rs -> do
+        -- Combine all devourResults using Semigroup
+        let firstResult = head rs
+            mergedDevourResult = sconcat $ fmap (.devourResult) rs
+        pure $ firstResult {devourResult = mergedDevourResult}
 
 -- | Build a flake for a specific target (local or remote)
 buildFlakeForTarget ::
