@@ -21,9 +21,10 @@ import Colog.Message (RichMessage)
 import Data.Aeson (FromJSON, eitherDecode, eitherDecodeFileStrict)
 import Data.ByteString.Lazy.Char8 qualified as LBS
 import Data.List qualified as List
+import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import DevourFlake (DevourFlakeArgs (..), devourFlake)
-import DevourFlake.Result (extractSystems)
+import DevourFlake.Result (DevourFlakeResult (..), SystemOutputs (..), extractSystems)
 import Effectful
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..))
@@ -37,7 +38,6 @@ import Effectful.Git.Platform (detectPlatform)
 import Effectful.Git.Types (Commit (id))
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
-import Shower qualified
 import System.FilePath ((</>))
 import System.Nix.Config.Builders (RemoteBuilder (..))
 import System.Nix.Core (nix)
@@ -283,7 +283,7 @@ buildFlakeWithDevourFlake systems (Flake flakePath overrideInputs) = do
     Left err ->
       throwError $ DevourFlakeMalformedOutput resultPath err
     Right parsed -> do
-      logPipeline Info $ toText $ "Build result for " <> flakePath <> ":\n" <> Shower.shower parsed
+      logPipeline Info $ formatDevourResult flakePath parsed
       pure $ BuildResult flakePath resultPath parsed
 
 -- | Build a single flake with build context for JSON log streaming
@@ -329,7 +329,7 @@ buildFlakeWithDevourFlakeCtx sys (Flake flakePath overrideInputs) = do
     Left err ->
       throwError $ DevourFlakeMalformedOutput resultPath err
     Right parsed -> do
-      logPipeline Info $ toText $ "Build result for " <> flakePath <> ":\n" <> Shower.shower parsed
+      logPipeline Info $ formatDevourResult flakePath parsed
       pure $ BuildResult flakePath resultPath parsed
 
 -- | Build a single flake on a remote builder via SSH
@@ -517,3 +517,11 @@ newtype FlakeArchiveOutput = FlakeArchiveOutput
   }
   deriving stock (Eq, Show, Generic)
   deriving anyclass (FromJSON)
+
+-- | Format DevourFlakeResult concisely for logging
+formatDevourResult :: FilePath -> DevourFlakeResult -> Text
+formatDevourResult flakePath result =
+  "Built " <> toText flakePath <> ":\n" <> unlines (concatMap formatSystem $ Map.toList result.systems)
+  where
+    formatSystem (sys, outputs) =
+      map (\p -> "  " <> sys.unSystem <> ": " <> toText p) outputs.outPaths
