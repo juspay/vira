@@ -27,7 +27,7 @@ import DevourFlake (DevourFlakeArgs (..), devourFlake)
 import DevourFlake.Result (DevourFlakeResult (..), SystemOutputs (..), extractSystems)
 import Effectful
 import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext (..))
+import Effectful.Colog.Simple (LogContext (..), withLogContext)
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Dispatch.Dynamic
 import Effectful.Environment (Environment)
@@ -303,34 +303,36 @@ buildFlakeWithDevourFlakeCtx ::
 buildFlakeWithDevourFlakeCtx sys (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
   let repoDir = env.viraContext.repoDir
-      buildCtx = LogContext [("flake", toText flakePath), ("system", sys.unSystem)]
-  let buildProc =
-        proc nix $
-          devourFlake $
-            DevourFlakeArgs
-              { flakePath = flakePath
-              , systems = [sys]
-              , outLink = Just (flakePath </> "result")
-              , overrideInputs = overrideInputs
-              }
+      buildCtx = [("flake", toText flakePath), ("system", sys.unSystem)]
+  -- Wrap everything with build context so all logPipeline calls include it
+  withLogContext buildCtx $ do
+    let buildProc =
+          proc nix $
+            devourFlake $
+              DevourFlakeArgs
+                { flakePath = flakePath
+                , systems = [sys]
+                , outLink = Just (flakePath </> "result")
+                , overrideInputs = overrideInputs
+                }
 
-  logPipeline Info $ "Building flake at " <> toText flakePath
+    logPipeline Info $ "Building flake at " <> toText flakePath
 
-  -- Run build process with build context for JSON streaming
-  runProcessWithContext repoDir buildCtx buildProc
+    -- Run build process with build context for JSON streaming
+    runProcessWithContext repoDir (LogContext buildCtx) buildProc
 
-  -- Return relative path to result symlink (relative to repo root)
-  let resultPath = flakePath </> "result"
-  logPipeline Info $ "Build succeeded, result at " <> toText resultPath
+    -- Return relative path to result symlink (relative to repo root)
+    let resultPath = flakePath </> "result"
+    logPipeline Info $ "Build succeeded, result at " <> toText resultPath
 
-  -- Parse the JSON result
-  devourResult <- liftIO $ eitherDecodeFileStrict $ repoDir </> resultPath
-  case devourResult of
-    Left err ->
-      throwError $ DevourFlakeMalformedOutput resultPath err
-    Right parsed -> do
-      logPipeline Info $ formatDevourResult flakePath parsed
-      pure $ BuildResult flakePath resultPath parsed
+    -- Parse the JSON result
+    devourResult <- liftIO $ eitherDecodeFileStrict $ repoDir </> resultPath
+    case devourResult of
+      Left err ->
+        throwError $ DevourFlakeMalformedOutput resultPath err
+      Right parsed -> do
+        logPipeline Info $ formatDevourResult flakePath parsed
+        pure $ BuildResult flakePath resultPath parsed
 
 -- | Build a single flake on a remote builder via SSH
 buildFlakeOnRemote ::
@@ -351,7 +353,7 @@ buildFlakeOnRemote sys builder (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
   let repoDir = env.viraContext.repoDir
       sshUri = builder.uri
-      buildCtx = LogContext [("flake", toText flakePath), ("system", sys.unSystem)]
+      buildCtx = [("flake", toText flakePath), ("system", sys.unSystem)]
       -- Extract host from ssh-ng://user@host or ssh://user@host
       sshHost =
         toString $
@@ -360,41 +362,43 @@ buildFlakeOnRemote sys builder (Flake flakePath overrideInputs) = do
       -- SSH options for non-interactive operation
       sshOpts = ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=30"]
 
-  -- Step 1: Archive the flake to get its store path
-  logPipeline Info "Archiving flake to store..."
-  flakeStorePath <- liftIO $ do
-    -- nix flake archive --json returns {"path": "/nix/store/...", ...}
-    output <- readProcess nix ["flake", "archive", "--json", repoDir </> flakePath] ""
-    case eitherDecode (LBS.pack output) of
-      Right (result :: FlakeArchiveOutput) -> pure result.path
-      Left err -> error $ toText $ "Failed to parse flake archive output: " <> err
+  -- Wrap everything with build context so all logPipeline calls include it
+  withLogContext buildCtx $ do
+    -- Step 1: Archive the flake to get its store path
+    logPipeline Info "Archiving flake to store..."
+    flakeStorePath <- liftIO $ do
+      -- nix flake archive --json returns {"path": "/nix/store/...", ...}
+      output <- readProcess nix ["flake", "archive", "--json", repoDir </> flakePath] ""
+      case eitherDecode (LBS.pack output) of
+        Right (result :: FlakeArchiveOutput) -> pure result.path
+        Left err -> error $ toText $ "Failed to parse flake archive output: " <> err
 
-  logPipeline Info $ "Flake store path: " <> toText flakeStorePath
+    logPipeline Info $ "Flake store path: " <> toText flakeStorePath
 
-  -- Step 2: Copy flake source to remote
-  logPipeline Info $ "Copying flake to remote: " <> sshUri
-  let copyToProc = proc nix ["copy", "--to", toString sshUri, "--no-check-sigs", flakeStorePath]
-  runProcessWithContext repoDir buildCtx copyToProc
+    -- Step 2: Copy flake source to remote
+    logPipeline Info $ "Copying flake to remote: " <> sshUri
+    let copyToProc = proc nix ["copy", "--to", toString sshUri, "--no-check-sigs", flakeStorePath]
+    runProcessWithContext repoDir (LogContext buildCtx) copyToProc
 
-  -- Step 3: SSH and run devour-flake on the remote using the store path
-  logPipeline Info "Building on remote via SSH..."
-  let devourFlakeArgs =
-        devourFlake $
-          DevourFlakeArgs
-            { flakePath = flakeStorePath -- Use store path, not relative path
-            , systems = [sys]
-            , outLink = Nothing -- No out-link on remote
-            , overrideInputs = overrideInputs
-            }
-      -- Construct the remote nix build command
-      remoteBuildCmd = List.unwords $ ["nix"] <> map escapeArg devourFlakeArgs
-      sshBuildProc = proc "ssh" $ sshOpts <> [sshHost, remoteBuildCmd]
-  runProcessWithContext repoDir buildCtx sshBuildProc
+    -- Step 3: SSH and run devour-flake on the remote using the store path
+    logPipeline Info "Building on remote via SSH..."
+    let devourFlakeArgs =
+          devourFlake $
+            DevourFlakeArgs
+              { flakePath = flakeStorePath -- Use store path, not relative path
+              , systems = [sys]
+              , outLink = Nothing -- No out-link on remote
+              , overrideInputs = overrideInputs
+              }
+        -- Construct the remote nix build command
+        remoteBuildCmd = List.unwords $ ["nix"] <> map escapeArg devourFlakeArgs
+        sshBuildProc = proc "ssh" $ sshOpts <> [sshHost, remoteBuildCmd]
+    runProcessWithContext repoDir (LogContext buildCtx) sshBuildProc
 
-  -- Step 4: Run devour-flake locally to get the result JSON
-  -- This will substitute the already-built outputs from the remote
-  logPipeline Info "Evaluating result locally (substituting from remote)..."
-  buildFlakeWithDevourFlakeCtx sys (Flake flakePath overrideInputs)
+    -- Step 4: Run devour-flake locally to get the result JSON
+    -- This will substitute the already-built outputs from the remote
+    logPipeline Info "Evaluating result locally (substituting from remote)..."
+    buildFlakeWithDevourFlakeCtx sys (Flake flakePath overrideInputs)
   where
     -- Escape shell arguments for SSH
     escapeArg :: String -> String
