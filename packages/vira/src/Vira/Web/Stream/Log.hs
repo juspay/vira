@@ -83,10 +83,10 @@ renderLogLines ls =
       case decodeViraLog line of
         Right viraLog -> do
           toHtml viraLog
-          toHtml ("\n" :: Text)
+          br_ []
         Left _ -> do
           toHtml line
-          toHtml ("\n" :: Text)
+          br_ []
 
 -- | Render multiline lines for placing under a <pre> such that newlines are preserved & rendered
 rawMultiLine :: (Monad m) => [Text] -> HtmlT m ()
