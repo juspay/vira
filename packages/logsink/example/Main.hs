@@ -21,7 +21,6 @@ import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, wait, withAsync)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import Data.Aeson (ToJSON, encode)
-import Data.Text.Lazy.Encoding qualified as TLE
 import LogSink (Sink (..))
 import LogSink.Broadcast (Broadcast (..), broadcastSink, newBroadcast)
 import LogSink.File (fileSink)
@@ -41,14 +40,13 @@ data Severity = Debug | Info | Warning | Error
   deriving stock (Generic, Show)
   deriving anyclass (ToJSON)
 
--- | Encode log entry to JSON text
 encodeLogEntry :: LogEntry -> Text
-encodeLogEntry = toText . TLE.decodeUtf8 . encode
+encodeLogEntry = decodeUtf8 . encode
 
 main :: IO ()
 main = do
-  putStrLn "=== logsink Example: Vira CI Workflow Simulation ==="
-  putStrLn ""
+  putTextLn "=== logsink Example: Vira CI Workflow Simulation ==="
+  putTextLn ""
 
   -- Create broadcast sink (ring buffer of 100 lines) for Text (encoded JSON)
   broadcast <- newBroadcast 100
@@ -74,7 +72,7 @@ main = do
   threadDelay 100_000
 
   -- Spawn worker processes (simulating nix build, git clone, etc.)
-  putStrLn "[MASTER] Spawning 3 worker processes..."
+  putTextLn "[MASTER] Spawning 3 worker processes..."
   workers <- mapM (\wid -> async $ runWorker wid sink) [1 .. 3]
 
   -- Wait for all workers
@@ -85,15 +83,15 @@ main = do
   threadDelay 500_000
 
   -- Close broadcast (signals reader to stop)
-  putStrLn "[MASTER] Closing broadcast..."
+  putTextLn "[MASTER] Closing broadcast..."
   bcClose broadcast
   sinkClose fileSink'
 
   -- Wait for reader to finish
   wait readerAsync
 
-  putStrLn ""
-  putStrLn "=== Done! Check output.log.jsonl for file output ==="
+  putTextLn ""
+  putTextLn "=== Done! Check output.log.jsonl for file output ==="
 
 -- | Run a simulated worker process
 runWorker :: Int -> Sink LogEntry -> IO ()
@@ -130,12 +128,12 @@ runWorker workerId sink = do
 streamReader :: Broadcast Text -> IO ()
 streamReader bc = do
   queue <- bcSubscribe bc
-  putStrLn "[READER] Subscribed to broadcast, streaming..."
+  putTextLn "[READER] Subscribed to broadcast, streaming..."
   let loop = do
         result <- atomically $ CB.drain queue
         case result of
-          Nothing -> putStrLn "[READER] --- Stream ended ---"
+          Nothing -> putTextLn "[READER] --- Stream ended ---"
           Just entries -> do
-            mapM_ (\entry -> putStrLn $ "[STREAM] " <> toString entry) entries
+            mapM_ (\entry -> putTextLn $ "[STREAM] " <> entry) entries
             loop
   loop
