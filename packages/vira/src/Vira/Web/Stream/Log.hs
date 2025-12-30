@@ -15,6 +15,7 @@ module Vira.Web.Stream.Log (
 import Colog (Severity (..))
 import Control.Concurrent (threadDelay)
 import Data.Map qualified as Map
+import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
@@ -78,13 +79,24 @@ renderLogLines ls =
   let allLines = lines $ mconcat ls
    in mconcat $ map renderLine allLines
   where
+    -- Check if a line is Nix input noise that should be dimmed
+    isNixInputNoise :: Text -> Bool
+    isNixInputNoise line =
+      "• Added input" `T.isPrefixOf` line
+        || "• Updated input" `T.isPrefixOf` line
+        || "    " `T.isPrefixOf` line -- Indented continuation
+        || "  → " `T.isPrefixOf` line -- Arrow continuation
     renderLine :: (Monad m) => Text -> HtmlT m ()
-    renderLine line =
+    renderLine line = do
+      let wrapper =
+            if isNixInputNoise line
+              then span_ [class_ "opacity-20 hover:opacity-100 transition-opacity"]
+              else id
       case decodeViraLog line of
-        Right viraLog -> do
+        Right viraLog -> wrapper $ do
           toHtml viraLog
           br_ []
-        Left _ -> do
+        Left _ -> wrapper $ do
           toHtml line
           br_ []
 
