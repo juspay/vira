@@ -57,6 +57,7 @@ dependencies:
   - effectful-core
   - effectful-plugin
   - http-media
+  - logsink
   - effectful-th
   - envparse
   - filepath
@@ -97,7 +98,6 @@ dependencies:
   - sqlite-simple
   - stm
   - streaming
-  - tail
   - text
   - time
   - toml-reader

@@ -50,7 +50,7 @@ viewStaticLog :: Job -> AppHtml ()
 viewStaticLog job = do
   logText <- readJobLogFull job
   Log.logViewerWidget job $ do
-    Log.renderLogLines $ lines logText
+    Log.renderLogLines [logText]
 
 readJobLogFull :: (MonadIO m) => Job -> m Text
 readJobLogFull job = do

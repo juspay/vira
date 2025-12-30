@@ -166,9 +166,9 @@ startJob job = do
     job.jobId
     st.jobWorker.minSeverity
     job.jobWorkingDir
-    ( \logger ->
+    ( \logger logSink ->
         Pipeline.runPipeline
-          (Pipeline.pipelineEnvFromRemote tools logger ctx)
+          (Pipeline.pipelineEnvFromRemote tools logger logSink ctx)
           (Program.pipelineProgramWithClone repo branch job.jobWorkingDir)
     )
     $ \result -> do
