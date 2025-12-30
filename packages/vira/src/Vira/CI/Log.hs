@@ -4,9 +4,8 @@
 
 {- | Structured logging for Vira pipeline messages
 
-'ViraLog' messages are written as JSON with @viralog:@ prefix to @output.log@,
-distinguishing them from build tool output. Web UI renders them with
-'Colog.Severity'-specific styling (emoji + colored background).
+'ViraLog' messages are written as JSON to @output.log@.
+Web UI renders them with 'Colog.Severity'-specific styling (emoji + colored background).
 -}
 module Vira.CI.Log (
   ViraLog (..),
@@ -55,21 +54,18 @@ data ViraLog = ViraLog
   deriving stock (Generic, Show)
   deriving anyclass (FromJSON, ToJSON)
 
--- | Encode ViraLog to JSON with viralog: prefix
+-- | Encode ViraLog to JSON
 encodeViraLog :: ViraLog -> Text
-encodeViraLog viraLog = "viralog:" <> decodeUtf8 (encode viraLog)
+encodeViraLog viraLog = decodeUtf8 (encode viraLog)
 
-{- | Decode ViraLog from a line, stripping viralog: prefix and parsing JSON
-Returns Left with original line if not a valid viralog entry (for raw printing)
+{- | Decode ViraLog from a JSON line
+Returns Left with original line if not valid JSON (for raw printing)
 -}
 decodeViraLog :: Text -> Either Text ViraLog
 decodeViraLog line =
-  case T.stripPrefix "viralog:" line of
-    Nothing -> Left line -- Not a viralog line, return original for raw printing
-    Just jsonStr ->
-      case decode (encodeUtf8 jsonStr) of
-        Nothing -> Left line -- Invalid JSON, return original for raw printing
-        Just viraLog -> Right viraLog
+  case decode (encodeUtf8 line) of
+    Nothing -> Left line -- Invalid JSON, return original for raw printing
+    Just viraLog -> Right viraLog
 
 {- | Render ViraLog for CLI with ANSI colors
 

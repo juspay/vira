@@ -197,6 +197,7 @@ library
     , http-media
     , http-types
     , ixset-typed
+    , logsink
     , lucid2
     , modern-uri
     , mtl
@@ -219,7 +220,6 @@ library
     , stm
     , streaming
     , tabler-icons
-    , tail
     , text
     , time
     , toml-reader
@@ -323,6 +323,7 @@ executable vira
     , http-media
     , http-types
     , ixset-typed
+    , logsink
     , lucid2
     , modern-uri
     , mtl
@@ -345,7 +346,6 @@ executable vira
     , stm
     , streaming
     , tabler-icons
-    , tail
     , text
     , time
     , toml-reader
@@ -454,6 +454,7 @@ executable vira-tests
     , http-media
     , http-types
     , ixset-typed
+    , logsink
     , lucid2
     , modern-uri
     , mtl
@@ -476,7 +477,6 @@ executable vira-tests
     , stm
     , streaming
     , tabler-icons
-    , tail
     , text
     , time
     , toml-reader

@@ -14,6 +14,7 @@ import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext)
 import Effectful.Reader.Static qualified as ER
 import Effectful.TH
+import LogSink (Sink (..))
 import System.FilePath ((</>))
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
@@ -36,6 +37,8 @@ data PipelineEnv = PipelineEnv
   -- ^ 'ViraContext' (branch, onlyBuild flag)
   , logger :: PipelineLogger
   -- ^ 'PipelineLogger' function for pipeline messages
+  , logSink :: Sink ViraLog
+  -- ^ 'LogSink.Sink' for structured log output (file + broadcast)
   }
   deriving stock (Generic)
 
@@ -80,14 +83,15 @@ data Pipeline :: Effect where
 -- Generate boilerplate for the effect
 makeEffect ''Pipeline
 
--- | Construct PipelineEnv for web/CI execution (with output log)
-pipelineEnvFromRemote :: Tools -> (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) -> ViraContext -> PipelineEnv
-pipelineEnvFromRemote tools logger ctx =
+-- | Construct PipelineEnv for web/CI execution (with output log and sink)
+pipelineEnvFromRemote :: Tools -> (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) -> Sink ViraLog -> ViraContext -> PipelineEnv
+pipelineEnvFromRemote tools logger sink ctx =
   PipelineEnv
     { outputLog = Just $ ctx.repoDir </> "output.log"
     , tools = tools
     , viraContext = ctx
     , logger = PipelineLogger logger
+    , logSink = sink
     }
 
 -- | Construct PipelineEnv for CLI execution (no output log, severity-filtered)
@@ -98,6 +102,7 @@ pipelineEnvFromCLI minSeverity tools ctx =
     , tools = tools
     , viraContext = ctx
     , logger = PipelineLogger logger
+    , logSink = mempty -- No file/broadcast sink for CLI mode; logging goes to stdout via logger
     }
   where
     logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()

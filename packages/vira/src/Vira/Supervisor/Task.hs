@@ -20,9 +20,11 @@ import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
+import LogSink (Sink (..))
+import LogSink.Broadcast (bcClose, broadcastSink, newBroadcast)
+import LogSink.File (fileSink)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
-import System.Tail qualified as Tail
 import Vira.CI.Log (ViraLog (..), encodeViraLog)
 import Vira.Supervisor.Type (Task (..), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..), Terminated (Terminated))
 import Prelude hiding (readMVar)
@@ -66,7 +68,10 @@ startTask ::
     , Error err :> es1
     , Environment :> es1
     ) =>
+    -- Logger callback for structured pipeline messages
     (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ()) ->
+    -- Log sink for structured output (file + broadcast)
+    Sink ViraLog ->
     Eff es1 ()
   ) ->
   -- Handler to call after the task finishes
@@ -90,23 +95,29 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
         die "Task already exists"
       else do
         createDirectoryIfMissing True workDir
-        appendFileText (outputLogFile workDir) "" -- Create empty log file before tail starts
-        tailHandle <- liftIO $ Tail.tailFile 1000 (outputLogFile workDir)
+        -- Create log sinks: file + broadcast
+        fSink <- liftIO $ fileSink (outputLogFile workDir)
+        broadcast <- liftIO $ newBroadcast 1000
+        -- Combined sink: writes to file AND broadcasts for SSE
+        let logSink :: Sink ViraLog
+            logSink = contramap ((<> "\n") . encodeViraLog) (fSink <> broadcastSink broadcast)
         let
           logger :: (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ())
           logger msgSeverity msgText = do
-            when (msgSeverity >= minSeverity) $ -- only write to file if severity is high enough
-              logToWorkspaceOutput workspaceKeys msgSeverity msgText
+            when (msgSeverity >= minSeverity) $ -- only write if severity is high enough
+              logToWorkspaceOutput logSink workspaceKeys msgSeverity msgText
         logger Info msg
         asyncHandle <- async $ do
-          result <- runErrorNoCallStack $ orchestrator logger
+          result <- runErrorNoCallStack $ orchestrator logger logSink
           -- Convert () to ExitSuccess
           let exitResult = result $> ExitSuccess
           -- Log the errors if any
           whenLeft_ exitResult $ \err -> do
             logger Error $ show err
-          -- Stop the tail when task finishes for any reason
-          liftIO $ Tail.tailStop tailHandle
+          -- Close sinks when task finishes
+          liftIO $ do
+            sinkClose fSink
+            bcClose broadcast
           -- Then call the original handler
           onFinish exitResult
         let info = TaskInfo {..}
@@ -115,15 +126,14 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
   where
     -- TODO: In lieu of https://github.com/juspay/vira/issues/6
     -- FIXME: Don't complect with Vira
-    logToWorkspaceOutput :: forall es'. (Log (RichMessage IO) :> es', ER.Reader LogContext :> es', IOE :> es') => [Text] -> Severity -> Text -> Eff es' ()
-    logToWorkspaceOutput excludeKeys severity msg = do
+    logToWorkspaceOutput :: forall es'. (Log (RichMessage IO) :> es', ER.Reader LogContext :> es', IOE :> es') => Sink ViraLog -> [Text] -> Severity -> Text -> Eff es' ()
+    logToWorkspaceOutput logSink excludeKeys severity msg = do
       -- Filter out workspace-level context (repo, branch, job) since it's redundant
       -- in workspace-scoped log file (already encoded in file path)
       withoutLogContext excludeKeys $ do
         ctx <- ER.ask
         let viraLog = ViraLog {level = severity, message = msg, context = ctx}
-            jsonLog = encodeViraLog viraLog <> "\n"
-        appendFileText (outputLogFile workDir) jsonLog
+        liftIO $ sinkWrite logSink viraLog
 
     -- Send all output to a file under working directory.
     -- FIXME: Don't complect with Vira

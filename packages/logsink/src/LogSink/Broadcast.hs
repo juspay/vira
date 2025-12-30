@@ -40,9 +40,13 @@ module LogSink.Broadcast (
   -- * Operations
   newBroadcast,
   broadcastSink,
+
+  -- * Re-exports for subscribers
+  CircularBuffer,
+  drain,
 ) where
 
-import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
+import Control.Concurrent.STM.CircularBuffer (CircularBuffer, drain)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import LogSink (Sink (..))
 
