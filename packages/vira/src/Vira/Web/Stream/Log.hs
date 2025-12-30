@@ -15,7 +15,6 @@ module Vira.Web.Stream.Log (
 import Colog (Severity (..))
 import Control.Concurrent (threadDelay)
 import Data.Map qualified as Map
-import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
@@ -40,6 +39,7 @@ import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Stack (tagStreamThread)
 import Vira.Web.Stream.KeepAlive (KeepAlive)
 import Vira.Web.Stream.KeepAlive qualified as KeepAlive
+import Vira.Web.Stream.NixNoise qualified as NixNoise
 import Vira.Web.Widgets.Status qualified as Status
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO (KeepAlive LogChunk)))
@@ -77,26 +77,29 @@ renderLogLines ls =
   -- Each chunk already has a trailing newline from the sink, so use mconcat instead of unlines
   -- to avoid adding extra newlines that would create empty lines between entries
   let allLines = lines $ mconcat ls
-   in mconcat $ map renderLine allLines
+      lineGroups = NixNoise.groupNixNoiseLines allLines
+   in mconcat $ map renderLineGroup lineGroups
   where
-    -- Check if a line is Nix input noise that should be dimmed
-    isNixInputNoise :: Text -> Bool
-    isNixInputNoise line =
-      "• Added input" `T.isPrefixOf` line
-        || "• Updated input" `T.isPrefixOf` line
-        || "    " `T.isPrefixOf` line -- Indented continuation
-        || "  → " `T.isPrefixOf` line -- Arrow continuation
+    -- Render a line group (either collapsible block or regular line)
+    renderLineGroup :: (Monad m) => NixNoise.LineGroup -> HtmlT m ()
+    renderLineGroup (NixNoise.RegularLine line) = renderLine line
+    renderLineGroup (NixNoise.NixNoiseBlock []) = mempty -- Skip empty blocks
+    renderLineGroup (NixNoise.NixNoiseBlock nixLines) =
+      details_ [class_ "opacity-60 hover:opacity-100 transition-opacity"] $ do
+        summary_ [class_ "cursor-pointer text-slate-500 dark:text-slate-600 select-none"] $
+          toHtml ("○ Nix input details (" <> show (length nixLines) <> " lines)" :: Text)
+        div_ [class_ "pl-4 text-sm opacity-70"] $
+          mconcat $
+            map renderLine nixLines
+
+    -- Render individual line
     renderLine :: (Monad m) => Text -> HtmlT m ()
     renderLine line = do
-      let wrapper =
-            if isNixInputNoise line
-              then span_ [class_ "opacity-20 hover:opacity-100 transition-opacity"]
-              else id
       case decodeViraLog line of
-        Right viraLog -> wrapper $ do
+        Right viraLog -> do
           toHtml viraLog
           br_ []
-        Left _ -> wrapper $ do
+        Left _ -> do
           toHtml line
           br_ []
 
