@@ -92,3 +92,8 @@ hpack:
     for f in $(find ./packages/ -name "package.yaml"); do \
         hpack $f; \
     done
+
+# Run the logsink example (Vira CI workflow simulation)
+[group('2. haskell')]
+logsink-example:
+    cabal run logsink-example

@@ -1,0 +1,175 @@
+cabal-version: 2.0
+
+-- This file has been generated from package.yaml by hpack version 0.38.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           logsink
+version:        0.1.0.0
+synopsis:       Unified log sink with pub/sub streaming
+description:    A Haskell library providing a unified sink abstraction for concurrent
+                log writing with pub/sub streaming via STM-based broadcast channels.
+category:       Concurrency
+homepage:       https://github.com/juspay/vira/tree/main/packages/logsink
+author:         Sridhar Ratnakumar
+maintainer:     srid@srid.ca
+copyright:      2025 Sridhar Ratnakumar
+license:        MIT
+build-type:     Simple
+
+library
+  exposed-modules:
+      LogSink
+      LogSink.Broadcast
+      LogSink.File
+      LogSink.Handle
+  other-modules:
+      Paths_logsink
+  autogen-modules:
+      Paths_logsink
+  hs-source-dirs:
+      src
+  default-extensions:
+      DataKinds
+      DeriveDataTypeable
+      DeriveGeneric
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      ExplicitForAll
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoStarIsType
+      NumericUnderscores
+      OverloadedStrings
+      ScopedTypeVariables
+      StrictData
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      TypeSynonymInstances
+      ViewPatterns
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
+  build-depends:
+      async
+    , base ==4.*
+    , relude >=1.0
+    , stm
+    , stm-chans
+    , tail
+    , text
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2021
+
+executable logsink-example
+  main-is: Main.hs
+  other-modules:
+      Paths_logsink
+  autogen-modules:
+      Paths_logsink
+  hs-source-dirs:
+      example
+  default-extensions:
+      DataKinds
+      DeriveDataTypeable
+      DeriveGeneric
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      ExplicitForAll
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoStarIsType
+      NumericUnderscores
+      OverloadedStrings
+      ScopedTypeVariables
+      StrictData
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      TypeSynonymInstances
+      ViewPatterns
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson
+    , async
+    , base ==4.*
+    , logsink
+    , process
+    , relude >=1.0
+    , stm
+    , stm-chans
+    , tail
+    , text
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2021
+
+test-suite logsink-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_logsink
+  autogen-modules:
+      Paths_logsink
+  hs-source-dirs:
+      test
+  default-extensions:
+      DataKinds
+      DeriveDataTypeable
+      DeriveGeneric
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      ExplicitForAll
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoStarIsType
+      NumericUnderscores
+      OverloadedStrings
+      ScopedTypeVariables
+      StrictData
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      TypeSynonymInstances
+      ViewPatterns
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      async
+    , base ==4.*
+    , hspec
+    , logsink
+    , relude >=1.0
+    , stm
+    , stm-chans
+    , tail
+    , text
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2021
