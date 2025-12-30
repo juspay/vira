@@ -18,8 +18,9 @@ import Attic.Url qualified
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (eitherDecodeFileStrict)
+import Data.Map qualified as Map
 import DevourFlake (DevourFlakeArgs (..), devourFlake, prefetchFlakeInputs)
-import DevourFlake.Result (extractSystems)
+import DevourFlake.Result (DevourFlakeResult (..), SystemOutputs (..), extractSystems)
 import Effectful
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..))
@@ -33,10 +34,11 @@ import Effectful.Git.Platform (detectPlatform)
 import Effectful.Git.Types (Commit (id))
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
-import Shower qualified
+import Prettyprinter
+import Prettyprinter.Render.Text (renderStrict)
 import System.FilePath ((</>))
 import System.Nix.Core (nix)
-import System.Nix.System (System)
+import System.Nix.System (System (..))
 import System.Process (proc)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
@@ -168,6 +170,25 @@ buildImpl pipeline = do
   forM pipeline.build.flakes $ \flake ->
     buildFlake pipeline.build.systems flake
 
+-- | Pretty-print DevourFlakeResult in a concise format
+prettyDevourResult :: FilePath -> DevourFlakeResult -> Text
+prettyDevourResult flakePath (DevourFlakeResult systems) =
+  renderStrict $
+    layoutPretty defaultLayoutOptions $
+      vsep
+        [ "Build outputs for" <+> pretty flakePath <> ":"
+        , indent 2 $ vsep $ map prettySystem (Map.toList systems)
+        ]
+  where
+    prettySystem :: (System, SystemOutputs) -> Doc ann
+    prettySystem (System sys, SystemOutputs {byName}) =
+      pretty sys
+        <> ":"
+        <+> pretty (Map.size byName)
+        <+> "packages"
+        <+> parens (hsep $ punctuate comma $ map pretty $ take 5 $ Map.keys byName)
+        <> if Map.size byName > 5 then ", ..." else mempty
+
 -- | Build a single flake
 buildFlake ::
   ( Concurrent :> es
@@ -211,7 +232,7 @@ buildFlake systems (Flake flakePath overrideInputs) = do
     Left err ->
       throwError $ DevourFlakeMalformedOutput resultPath err
     Right parsed -> do
-      logPipeline Info $ toText $ "Build result for " <> flakePath <> ":\n" <> Shower.shower parsed
+      logPipeline Info $ prettyDevourResult flakePath parsed
       pure $ BuildResult flakePath resultPath parsed
 
 -- | Implementation: Push to cache

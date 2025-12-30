@@ -208,6 +208,7 @@ library
     , optics-core
     , optics-th
     , optparse-applicative
+    , prettyprinter
     , process
     , profunctors
     , record-hasfield
@@ -334,6 +335,7 @@ executable vira
     , optics-core
     , optics-th
     , optparse-applicative
+    , prettyprinter
     , process
     , profunctors
     , record-hasfield
@@ -465,6 +467,7 @@ executable vira-tests
     , optics-core
     , optics-th
     , optparse-applicative
+    , prettyprinter
     , process
     , profunctors
     , record-hasfield

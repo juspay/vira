@@ -86,6 +86,7 @@ dependencies:
   - optics-core
   - optics-th
   - optparse-applicative
+  - prettyprinter
   - process
   - profunctors
   - QuickCheck
