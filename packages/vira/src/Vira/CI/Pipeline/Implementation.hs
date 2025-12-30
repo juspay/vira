@@ -18,7 +18,7 @@ import Attic.Url qualified
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Aeson (eitherDecodeFileStrict)
-import DevourFlake (DevourFlakeArgs (..), devourFlake)
+import DevourFlake (DevourFlakeArgs (..), devourFlake, prefetchFlakeInputs)
 import DevourFlake.Result (extractSystems)
 import Effectful
 import Effectful.Colog (Log)
@@ -185,20 +185,21 @@ buildFlake ::
 buildFlake systems (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
   let repoDir = env.viraContext.repoDir
-  let buildProc =
-        proc nix $
-          devourFlake $
-            DevourFlakeArgs
-              { flakePath = flakePath
-              , systems
-              , outLink = Just (flakePath </> "result")
-              , overrideInputs = overrideInputs
-              }
+  let args =
+        DevourFlakeArgs
+          { flakePath = flakePath
+          , systems
+          , outLink = Just (flakePath </> "result")
+          , overrideInputs = overrideInputs
+          }
 
-  logPipeline Info $ "Building flake at " <> toText flakePath
+  -- Prefetch flake inputs before building (for devourFlakePath and target flake)
+  logPipeline Info "Prefetching flake inputs"
+  runProcess repoDir $ proc nix $ prefetchFlakeInputs args
 
   -- Run build process from working directory
-  runProcess repoDir buildProc
+  logPipeline Info $ "Building flake at " <> toText flakePath
+  runProcess repoDir $ proc nix $ devourFlake args
 
   -- Return relative path to result symlink (relative to repo root)
   let resultPath = flakePath </> "result"

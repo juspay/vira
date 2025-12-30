@@ -5,6 +5,7 @@
 module DevourFlake (
   DevourFlakeArgs (..),
   devourFlake,
+  prefetchFlakeInputs,
   devourFlakePath,
   module DevourFlake.Result,
 ) where
@@ -30,6 +31,11 @@ devourFlake args =
   ]
     ++ toCliArgs args
 
+-- | Generate arguments to @nix@ for prefetching flake inputs before build
+prefetchFlakeInputs :: (HasCallStack) => DevourFlakeArgs -> [String]
+prefetchFlakeInputs args =
+  ["flake", "prefetch-inputs", devourFlakePath] ++ overrideInputArgs args
+
 data DevourFlakeArgs = DevourFlakeArgs
   { flakePath :: FilePath
   , systems :: [System]
@@ -38,13 +44,18 @@ data DevourFlakeArgs = DevourFlakeArgs
   }
   deriving stock (Eq, Show)
 
-toCliArgs :: DevourFlakeArgs -> [String]
-toCliArgs args =
+-- | Generate common --override-input arguments
+overrideInputArgs :: DevourFlakeArgs -> [String]
+overrideInputArgs args =
   concat
     [ ["--override-input", "flake", args.flakePath]
-    , maybe ["--no-link"] (\link -> ["--out-link", link]) args.outLink
     , concatMap (\(k, v) -> ["--override-input", "flake/" <> toString k, toString v]) args.overrideInputs
     , case nixSystemsFlakeFor args.systems of
         Nothing -> []
         Just systemsFlake -> ["--override-input", "systems", systemsFlake]
     ]
+
+toCliArgs :: DevourFlakeArgs -> [String]
+toCliArgs args =
+  overrideInputArgs args
+    ++ maybe ["--no-link"] (\link -> ["--out-link", link]) args.outLink
