@@ -24,7 +24,6 @@ import LogSink.Handle (drainHandleWith)
 import System.Exit (ExitCode (ExitFailure, ExitSuccess))
 import System.Process (interruptProcessGroupOf, waitForProcess)
 import Vira.CI.Error (PipelineError (PipelineProcessFailed, PipelineTerminated))
-import Vira.CI.Log (ViraLog (..))
 import Vira.CI.Pipeline.Effect (PipelineEnv (logSink, logger), PipelineLogger (unPipelineLogger))
 import Vira.Supervisor.Type (Terminated (Terminated))
 
@@ -68,8 +67,8 @@ runProcess' ::
   ) =>
   -- | Working directory for process
   FilePath ->
-  -- | Log sink for structured output
-  Sink ViraLog ->
+  -- | Log sink for raw text output (subprocess stdout/stderr)
+  Sink Text ->
   -- | Logger callback for user-facing messages
   (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) ->
   -- | Process to run
@@ -81,12 +80,11 @@ runProcess' workDir logSink taskLogger process = do
     taskLogger Info "Starting task"
     runProcWithSink logSink
   where
-    runProcWithSink :: Sink ViraLog -> Eff es (Either Terminated ExitCode)
+    runProcWithSink :: Sink Text -> Eff es (Either Terminated ExitCode)
     runProcWithSink sink = do
-      -- Get log context for subprocess output
-      LogContext ctx <- ER.ask
-      let toViraLog :: Text -> ViraLog
-          toViraLog line = ViraLog Info line (LogContext ctx)
+      -- No need to add newline - fileSink's hPutStrLn adds it automatically
+      let toTextLine :: Text -> Text
+          toTextLine = id
       let processSettings cp =
             cp {cwd = Just workDir, create_group = True, std_out = CreatePipe, std_err = CreatePipe}
       (_, mStdoutH, mStderrH, ph) <- createProcess $ process & processSettings
@@ -98,8 +96,8 @@ runProcess' workDir logSink taskLogger process = do
 
         -- Spawn drain threads in IO to capture subprocess output
         -- They will naturally terminate when handles are closed at process exit
-        result <- liftIO $ withAsync (drainHandleWith toViraLog stdoutH sink) $ \stdoutAsync ->
-          withAsync (drainHandleWith toViraLog stderrH sink) $ \stderrAsync -> do
+        result <- liftIO $ withAsync (drainHandleWith toTextLine stdoutH sink) $ \stdoutAsync ->
+          withAsync (drainHandleWith toTextLine stderrH sink) $ \stderrAsync -> do
             -- Wait for process, handling interruption
             procResult <- CE.mask $ \restore ->
               restore (Right <$> waitForProcess ph)

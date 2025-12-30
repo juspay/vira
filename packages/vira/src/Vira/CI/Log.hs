@@ -18,7 +18,7 @@ import Colog (Severity (..))
 import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON), decode, encode)
 import Data.Text qualified as T
 import Effectful.Colog.Simple (LogContext (..), severityEmoji)
-import Lucid (ToHtml (..), br_, class_, span_, toHtml)
+import Lucid (ToHtml (..), class_, span_, toHtml)
 import System.Console.ANSI (
   Color (..),
   ColorIntensity (..),
@@ -116,5 +116,4 @@ instance ToHtml ViraLog where
                 Nothing -> toHtml (", " :: Text)
                 Just (k, v) -> toHtml $ k <> "=" <> v
               toHtml ("}" :: Text)
-          br_ []
   toHtmlRaw = toHtml

@@ -37,8 +37,8 @@ data PipelineEnv = PipelineEnv
   -- ^ 'ViraContext' (branch, onlyBuild flag)
   , logger :: PipelineLogger
   -- ^ 'PipelineLogger' function for pipeline messages
-  , logSink :: Sink ViraLog
-  -- ^ 'LogSink.Sink' for structured log output (file + broadcast)
+  , logSink :: Sink Text
+  -- ^ 'LogSink.Sink' for raw text output (file + broadcast)
   }
   deriving stock (Generic)
 
@@ -84,7 +84,7 @@ data Pipeline :: Effect where
 makeEffect ''Pipeline
 
 -- | Construct PipelineEnv for web/CI execution (with output log and sink)
-pipelineEnvFromRemote :: Tools -> (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) -> Sink ViraLog -> ViraContext -> PipelineEnv
+pipelineEnvFromRemote :: Tools -> (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) -> Sink Text -> ViraContext -> PipelineEnv
 pipelineEnvFromRemote tools logger sink ctx =
   PipelineEnv
     { outputLog = Just $ ctx.repoDir </> "output.log"

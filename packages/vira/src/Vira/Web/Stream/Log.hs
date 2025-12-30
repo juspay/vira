@@ -73,16 +73,20 @@ logChunkMsg = \case
 -- | Render log lines with special styling for viralog lines (JSON format)
 renderLogLines :: (Monad m) => [Text] -> HtmlT m ()
 renderLogLines ls =
-  -- Use `lines . unlines` to normalize: each Text may contain embedded newlines,
-  -- so we flatten them into individual lines to check each for viralog prefix
-  let allLines = lines $ unlines ls
+  -- Each chunk already has a trailing newline from the sink, so use mconcat instead of unlines
+  -- to avoid adding extra newlines that would create empty lines between entries
+  let allLines = lines $ mconcat ls
    in mconcat $ map renderLine allLines
   where
     renderLine :: (Monad m) => Text -> HtmlT m ()
     renderLine line =
       case decodeViraLog line of
-        Right viraLog -> toHtml viraLog
-        Left _ -> toHtml line <> br_ []
+        Right viraLog -> do
+          toHtml viraLog
+          toHtml ("\n" :: Text)
+        Left _ -> do
+          toHtml line
+          toHtml ("\n" :: Text)
 
 -- | Render multiline lines for placing under a <pre> such that newlines are preserved & rendered
 rawMultiLine :: (Monad m) => [Text] -> HtmlT m ()

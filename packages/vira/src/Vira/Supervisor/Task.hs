@@ -70,8 +70,8 @@ startTask ::
     ) =>
     -- Logger callback for structured pipeline messages
     (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ()) ->
-    -- Log sink for structured output (file + broadcast)
-    Sink ViraLog ->
+    -- Log sink for raw text output (file + broadcast)
+    Sink Text ->
     Eff es1 ()
   ) ->
   -- Handler to call after the task finishes
@@ -98,9 +98,9 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
         -- Create log sinks: file + broadcast
         fSink <- liftIO $ fileSink (outputLogFile workDir)
         broadcast <- liftIO $ newBroadcast 1000
-        -- Combined sink: writes to file AND broadcasts for SSE
-        let logSink :: Sink ViraLog
-            logSink = contramap ((<> "\n") . encodeViraLog) (fSink <> broadcastSink broadcast)
+        -- Combined sink: file (hPutStrLn adds \n) + broadcast (needs manual \n)
+        let logSink :: Sink Text
+            logSink = fSink <> contramap (<> "\n") (broadcastSink broadcast)
         let
           logger :: (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ())
           logger msgSeverity msgText = do
@@ -126,14 +126,14 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
   where
     -- TODO: In lieu of https://github.com/juspay/vira/issues/6
     -- FIXME: Don't complect with Vira
-    logToWorkspaceOutput :: forall es'. (Log (RichMessage IO) :> es', ER.Reader LogContext :> es', IOE :> es') => Sink ViraLog -> [Text] -> Severity -> Text -> Eff es' ()
+    logToWorkspaceOutput :: forall es'. (Log (RichMessage IO) :> es', ER.Reader LogContext :> es', IOE :> es') => Sink Text -> [Text] -> Severity -> Text -> Eff es' ()
     logToWorkspaceOutput logSink excludeKeys severity msg = do
       -- Filter out workspace-level context (repo, branch, job) since it's redundant
       -- in workspace-scoped log file (already encoded in file path)
       withoutLogContext excludeKeys $ do
         ctx <- ER.ask
         let viraLog = ViraLog {level = severity, message = msg, context = ctx}
-        liftIO $ sinkWrite logSink viraLog
+        liftIO $ sinkWrite logSink (encodeViraLog viraLog)
 
     -- Send all output to a file under working directory.
     -- FIXME: Don't complect with Vira
