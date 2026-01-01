@@ -95,7 +95,6 @@ dependencies:
   - servant
   - servant-event-stream
   - servant-server
-  - shower
   - sqlite-simple
   - stm
   - streaming

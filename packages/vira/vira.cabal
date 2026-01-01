@@ -217,7 +217,6 @@ library
     , servant
     , servant-event-stream
     , servant-server
-    , shower
     , sqlite-simple
     , stm
     , streaming
@@ -344,7 +343,6 @@ executable vira
     , servant
     , servant-event-stream
     , servant-server
-    , shower
     , sqlite-simple
     , stm
     , streaming
@@ -476,7 +474,6 @@ executable vira-tests
     , servant
     , servant-event-stream
     , servant-server
-    , shower
     , sqlite-simple
     , stm
     , streaming
