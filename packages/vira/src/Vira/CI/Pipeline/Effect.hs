@@ -40,9 +40,25 @@ writePipelineLog ::
   Severity ->
   Text ->
   Eff es ()
-writePipelineLog sink severity msg = do
-  logCtx <- ER.ask @LogContext
-  let viraLog = ViraLog {level = severity, message = msg, context = logCtx}
+writePipelineLog = writePipelineLogFiltered []
+
+{- | Helper: Write a ViraLog message to a sink, filtering out specified context keys
+
+Useful for workspace-scoped logs where context like repo/branch/job is
+already encoded in the file path and would be redundant.
+-}
+writePipelineLogFiltered ::
+  (IOE :> es, ER.Reader LogContext :> es) =>
+  -- | Context keys to exclude from the log entry
+  [Text] ->
+  Sink Text ->
+  Severity ->
+  Text ->
+  Eff es ()
+writePipelineLogFiltered excludeKeys sink severity msg = do
+  LogContext logCtx <- ER.ask @LogContext
+  let filteredCtx = LogContext $ filter ((`notElem` excludeKeys) . fst) logCtx
+  let viraLog = ViraLog {level = severity, message = msg, context = filteredCtx}
   liftIO $ sinkWrite sink (encodeViraLog viraLog)
 
 -- | Helper: Log a pipeline message using 'logSink' from 'PipelineEnv'

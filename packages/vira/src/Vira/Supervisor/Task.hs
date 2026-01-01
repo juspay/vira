@@ -12,7 +12,7 @@ import Colog.Message (RichMessage)
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext (..), log, withLogContext, withoutLogContext)
+import Effectful.Colog.Simple (LogContext (..), log, withLogContext)
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar_, readMVar)
 import Effectful.Environment (Environment)
@@ -25,7 +25,8 @@ import LogSink.Broadcast (bcClose, broadcastSink, newBroadcast)
 import LogSink.File (fileSink)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
-import Vira.CI.Log (ViraLog (..), encodeViraLog)
+
+import Vira.CI.Pipeline.Effect (writePipelineLogFiltered)
 import Vira.Supervisor.Type (Task (..), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..), Terminated (Terminated))
 import Prelude hiding (readMVar)
 
@@ -99,19 +100,18 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
         -- Combined sink: file (hPutStrLn adds \n) + broadcast (needs manual \n)
         let logSink :: Sink Text
             logSink = fSink <> contramap (<> "\n") (broadcastSink broadcast)
-        let
-          logger :: (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ())
-          logger msgSeverity msgText = do
-            when (msgSeverity >= minSeverity) $ -- only write if severity is high enough
-              logToWorkspaceOutput logSink workspaceKeys msgSeverity msgText
-        logger Info msg
+        -- Log starting message (filter out workspace-level context like repo/branch/job
+        -- since it's already encoded in the file path and would be redundant)
+        when (Info >= minSeverity) $
+          writePipelineLogFiltered workspaceKeys logSink Info msg
         asyncHandle <- async $ do
           result <- runErrorNoCallStack $ orchestrator logSink
           -- Convert () to ExitSuccess
           let exitResult = result $> ExitSuccess
           -- Log the errors if any
           whenLeft_ exitResult $ \err -> do
-            logger Error $ show err
+            when (Error >= minSeverity) $
+              writePipelineLogFiltered workspaceKeys logSink Error (show err)
           -- Close sinks when task finishes
           liftIO $ do
             sinkClose fSink
@@ -122,17 +122,6 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
         let task = Task {..}
         pure $ Map.insert taskId task tasks
   where
-    -- TODO: In lieu of https://github.com/juspay/vira/issues/6
-    -- FIXME: Don't complect with Vira
-    logToWorkspaceOutput :: forall es'. (Log (RichMessage IO) :> es', ER.Reader LogContext :> es', IOE :> es') => Sink Text -> [Text] -> Severity -> Text -> Eff es' ()
-    logToWorkspaceOutput logSink excludeKeys severity msg = do
-      -- Filter out workspace-level context (repo, branch, job) since it's redundant
-      -- in workspace-scoped log file (already encoded in file path)
-      withoutLogContext excludeKeys $ do
-        ctx <- ER.ask
-        let viraLog = ViraLog {level = severity, message = msg, context = ctx}
-        liftIO $ sinkWrite logSink (encodeViraLog viraLog)
-
     -- Send all output to a file under working directory.
     -- FIXME: Don't complect with Vira
     outputLogFile :: FilePath -> FilePath
