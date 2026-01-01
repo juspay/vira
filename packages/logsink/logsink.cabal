@@ -62,7 +62,6 @@ library
     , relude >=1.0
     , stm
     , stm-chans
-    , tail
     , text
   mixins:
       base hiding (Prelude)
@@ -114,7 +113,6 @@ executable logsink-example
     , relude >=1.0
     , stm
     , stm-chans
-    , tail
     , text
   mixins:
       base hiding (Prelude)
@@ -166,7 +164,6 @@ test-suite logsink-test
     , relude >=1.0
     , stm
     , stm-chans
-    , tail
     , text
   mixins:
       base hiding (Prelude)
