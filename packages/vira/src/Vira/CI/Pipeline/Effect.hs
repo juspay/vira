@@ -7,25 +7,18 @@ module Vira.CI.Pipeline.Effect where
 import Prelude hiding (asks)
 
 import Colog (Severity)
-import Colog.Message (RichMessage)
 import DevourFlake (DevourFlakeResult)
-import Effectful
-import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext)
+import Effectful (Eff, Effect, IOE, type (:>))
+import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Reader.Static qualified as ER
 import Effectful.TH
 import LogSink (Sink (..))
 import System.FilePath ((</>))
 import Vira.CI.Context (ViraContext (..))
-import Vira.CI.Log (ViraLog (..), renderViraLogCLI)
+import Vira.CI.Log (ViraLog (..), decodeViraLog, encodeViraLog, renderViraLogCLI)
 import Vira.CI.Pipeline.Type (ViraPipeline)
 import Vira.Environment.Tool.Type.Tools (Tools)
 import Vira.State.Type (Branch (..), Repo)
-
--- | Wrapper for the logger function (to avoid impredicative types)
-newtype PipelineLogger = PipelineLogger
-  { unPipelineLogger :: forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()
-  }
 
 -- | Environment for 'Pipeline' execution
 data PipelineEnv = PipelineEnv
@@ -35,17 +28,26 @@ data PipelineEnv = PipelineEnv
   -- ^ Available CI 'Vira.Environment.Tool.Type.Tools.Tools'
   , viraContext :: ViraContext
   -- ^ 'ViraContext' (branch, onlyBuild flag)
-  , logger :: PipelineLogger
-  -- ^ 'PipelineLogger' function for pipeline messages
   , logSink :: Sink Text
-  -- ^ 'LogSink.Sink' for raw text output (file + broadcast)
+  -- ^ 'LogSink.Sink' for all output (ViraLog JSON + subprocess raw output)
   }
   deriving stock (Generic)
 
--- | Helper: Log a pipeline message using 'PipelineLogger' from 'PipelineEnv'
+-- | Helper: Write a ViraLog message to a sink
+writePipelineLog ::
+  (IOE :> es, ER.Reader LogContext :> es) =>
+  Sink Text ->
+  Severity ->
+  Text ->
+  Eff es ()
+writePipelineLog sink severity msg = do
+  logCtx <- ER.ask @LogContext
+  let viraLog = ViraLog {level = severity, message = msg, context = logCtx}
+  liftIO $ sinkWrite sink (encodeViraLog viraLog)
+
+-- | Helper: Log a pipeline message using 'logSink' from 'PipelineEnv'
 logPipeline ::
   ( ER.Reader PipelineEnv :> es
-  , Log (RichMessage IO) :> es
   , ER.Reader LogContext :> es
   , IOE :> es
   ) =>
@@ -54,7 +56,7 @@ logPipeline ::
   Eff es ()
 logPipeline severity msg = do
   env <- ER.ask @PipelineEnv
-  unPipelineLogger env.logger severity msg
+  writePipelineLog env.logSink severity msg
 
 -- | Result from building a single flake
 data BuildResult = BuildResult
@@ -84,31 +86,36 @@ data Pipeline :: Effect where
 makeEffect ''Pipeline
 
 -- | Construct PipelineEnv for web/CI execution (with output log and sink)
-pipelineEnvFromRemote :: Tools -> (forall es1. (Log (RichMessage IO) :> es1, ER.Reader LogContext :> es1, IOE :> es1) => Severity -> Text -> Eff es1 ()) -> Sink Text -> ViraContext -> PipelineEnv
-pipelineEnvFromRemote tools logger sink ctx =
+pipelineEnvFromRemote :: Tools -> Sink Text -> ViraContext -> PipelineEnv
+pipelineEnvFromRemote tools sink ctx =
   PipelineEnv
     { outputLog = Just $ ctx.repoDir </> "output.log"
     , tools = tools
     , viraContext = ctx
-    , logger = PipelineLogger logger
     , logSink = sink
     }
 
--- | Construct PipelineEnv for CLI execution (no output log, severity-filtered)
+-- | Construct PipelineEnv for CLI execution (stdout sink with severity filtering)
 pipelineEnvFromCLI :: Severity -> Tools -> ViraContext -> PipelineEnv
 pipelineEnvFromCLI minSeverity tools ctx =
   PipelineEnv
     { outputLog = Nothing
     , tools = tools
     , viraContext = ctx
-    , logger = PipelineLogger logger
-    , logSink = mempty -- No file/broadcast sink for CLI mode; logging goes to stdout via logger
+    , logSink = filteredStdoutSink minSeverity
     }
   where
-    logger :: forall es1. (IOE :> es1, ER.Reader LogContext :> es1) => Severity -> Text -> Eff es1 ()
-    logger severity msg = do
-      logCtx <- ER.ask
-      when (severity >= minSeverity) $
-        liftIO $
-          putTextLn $
-            renderViraLogCLI (ViraLog {level = severity, message = msg, context = logCtx})
+    filteredStdoutSink :: Severity -> Sink Text
+    filteredStdoutSink minSev =
+      Sink
+        { sinkWrite = \line -> do
+            -- Try to decode as ViraLog, filter by severity
+            case decodeViraLog line of
+              Right viraLog
+                | viraLog.level >= minSev ->
+                    putTextLn $ renderViraLogCLI viraLog
+              Right _ -> pass -- Filtered out
+              Left _ -> putTextLn line -- Raw line (subprocess output)
+        , sinkFlush = pass
+        , sinkClose = pass
+        }

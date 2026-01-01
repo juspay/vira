@@ -68,9 +68,7 @@ startTask ::
     , Error err :> es1
     , Environment :> es1
     ) =>
-    -- Logger callback for structured pipeline messages
-    (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ()) ->
-    -- Log sink for raw text output (file + broadcast)
+    -- Log sink for all output (ViraLog JSON + subprocess raw text)
     Sink Text ->
     Eff es1 ()
   ) ->
@@ -108,7 +106,7 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
               logToWorkspaceOutput logSink workspaceKeys msgSeverity msgText
         logger Info msg
         asyncHandle <- async $ do
-          result <- runErrorNoCallStack $ orchestrator logger logSink
+          result <- runErrorNoCallStack $ orchestrator logSink
           -- Convert () to ExitSuccess
           let exitResult = result $> ExitSuccess
           -- Log the errors if any
