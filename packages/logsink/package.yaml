@@ -20,6 +20,7 @@ dependencies:
   - stm
   - text
   - stm-chans
+  - tail
 
 library:
   source-dirs: src
