@@ -26,6 +26,7 @@ import Servant.API.EventStream
 import Servant.API.Stream (SourceIO)
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
+import System.Nix.Logging.Noise qualified as NixNoise
 import Vira.App qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
@@ -39,7 +40,6 @@ import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Stack (tagStreamThread)
 import Vira.Web.Stream.KeepAlive (KeepAlive)
 import Vira.Web.Stream.KeepAlive qualified as KeepAlive
-import Vira.Web.Stream.NixNoise qualified as NixNoise
 import Vira.Web.Widgets.Status qualified as Status
 
 type StreamRoute = ServerSentEvents (RecommendedEventSourceHeaders (SourceIO (KeepAlive LogChunk)))
