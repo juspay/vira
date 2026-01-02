@@ -5,14 +5,17 @@ module Vira.Supervisor.Task (
   -- * Main supervisor operations
   startTask,
   killTask,
+
+  -- * Log sink management
+  withTaskLogSink,
 ) where
 
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Map.Strict qualified as Map
-import Effectful (Eff, IOE, (:>))
+import Effectful (Eff, IOE, type (:>))
 import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext (..), log, withLogContext)
+import Effectful.Colog.Simple (LogContext, log, withLogContext)
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar_, readMVar)
 import Effectful.Environment (Environment)
@@ -21,7 +24,7 @@ import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
 import LogSink (Sink (..))
-import LogSink.Broadcast (bcClose, broadcastSink, newBroadcast)
+import LogSink.Broadcast (Broadcast (..), bcClose, broadcastSink, newBroadcast)
 import LogSink.File (fileSink)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
@@ -58,13 +61,11 @@ startTask ::
   TaskId ->
   Severity ->
   FilePath ->
+  -- | Broadcast for SSE streaming
+  Broadcast Text ->
   -- | Logging callback for supervisor-level messages (before/after pipeline)
-  ( forall es0.
-    ( ER.Reader LogContext :> es0
-    , IOE :> es0
-    ) =>
-    [Text] -> Sink Text -> Severity -> Text -> Eff es0 ()
-  ) ->
+  (Severity -> Text -> Eff es ()) ->
+  -- | Orchestrator (closes over its own dependencies)
   ( forall es1.
     ( Concurrent :> es1
     , Process :> es1
@@ -75,60 +76,61 @@ startTask ::
     , Error err :> es1
     , Environment :> es1
     ) =>
-    -- Workspace context keys to exclude from log entries
-    [Text] ->
-    -- Log sink for all output (ViraLog JSON + subprocess raw text)
-    Sink Text ->
     Eff es1 ()
   ) ->
-  -- Handler to call after the task finishes
+  -- | Handler to call after the task finishes
   ( -- Exit code
     Either err ExitCode ->
     Eff es ()
   ) ->
   Eff es ()
-startTask supervisor taskId minSeverity workDir writeLog orchestrator onFinish = do
-  -- Capture workspace-level context keys at entry (e.g., repo, branch, job)
-  -- These will be filtered out when writing to workspace-specific log
-  LogContext workspaceCtx <- ER.ask
-  let workspaceKeys = map fst workspaceCtx
-
+startTask supervisor taskId minSeverity workDir broadcast logFn orchestrator onFinish = do
   logSupervisorState supervisor
-  let msg = "Starting Vira pipeline in " <> toText workDir
   modifyMVar_ (tasks supervisor) $ \tasks -> do
     if Map.member taskId tasks
       then do
         log Error "Task already exists"
         die "Task already exists"
       else do
-        createDirectoryIfMissing True workDir
-        -- Create log sinks: file + broadcast
-        fSink <- liftIO $ fileSink (outputLogFile workDir)
-        broadcast <- liftIO $ newBroadcast 1000
-        -- Combined sink: file (hPutStrLn adds \n) + broadcast (needs manual \n)
-        let logSink :: Sink Text
-            logSink = fSink <> contramap (<> "\n") (broadcastSink broadcast)
         -- Log starting message (filter out workspace-level context like repo/branch/job
         -- since it's already encoded in the file path and would be redundant)
         when (Info >= minSeverity) $
-          writeLog workspaceKeys logSink Info msg
+          logFn Info ("Starting task " <> show taskId)
+
         asyncHandle <- async $ do
-          result <- runErrorNoCallStack $ orchestrator workspaceKeys logSink
+          result <- runErrorNoCallStack orchestrator
           -- Convert () to ExitSuccess
           let exitResult = result $> ExitSuccess
           -- Log the errors if any
           whenLeft_ exitResult $ \err -> do
             when (Error >= minSeverity) $
-              writeLog workspaceKeys logSink Error (show err)
-          -- Close sinks when task finishes
-          liftIO $ do
-            sinkClose fSink
-            bcClose broadcast
-          -- Then call the original handler
+              logFn Error (show err)
+
+          -- Call the original handler
           onFinish exitResult
         let info = TaskInfo {..}
         let task = Task {..}
         pure $ Map.insert taskId task tasks
+
+{- | Run an action with a task-specific log sink (file + broadcast)
+
+This helper manages the lifecycle of the log sinks, ensuring they are closed
+even if the action fails.
+-}
+withTaskLogSink ::
+  (IOE :> es, FileSystem :> es) =>
+  FilePath ->
+  ((Sink Text, Broadcast Text) -> Eff es a) ->
+  Eff es a
+withTaskLogSink workDir action = do
+  createDirectoryIfMissing True workDir
+  fSink <- liftIO $ fileSink (outputLogFile workDir)
+  broadcast <- liftIO $ newBroadcast 1000
+  -- Combined sink: file (hPutStrLn adds \n) + broadcast (needs manual \n)
+  let logSink = fSink <> contramap (<> "\n") (broadcastSink broadcast)
+  result <- action (logSink, broadcast)
+  liftIO $ sinkClose fSink >> bcClose broadcast
+  pure result
   where
     -- Send all output to a file under working directory.
     -- FIXME: Don't complect with Vira
