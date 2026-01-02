@@ -26,7 +26,6 @@ import LogSink.File (fileSink)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 
-import Vira.CI.Pipeline.Effect (writePipelineLogFiltered)
 import Vira.Supervisor.Type (Task (..), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..), Terminated (Terminated))
 import Prelude hiding (readMVar)
 
@@ -59,6 +58,13 @@ startTask ::
   TaskId ->
   Severity ->
   FilePath ->
+  -- | Logging callback for supervisor-level messages (before/after pipeline)
+  ( forall es0.
+    ( ER.Reader LogContext :> es0
+    , IOE :> es0
+    ) =>
+    [Text] -> Sink Text -> Severity -> Text -> Eff es0 ()
+  ) ->
   ( forall es1.
     ( Concurrent :> es1
     , Process :> es1
@@ -69,6 +75,8 @@ startTask ::
     , Error err :> es1
     , Environment :> es1
     ) =>
+    -- Workspace context keys to exclude from log entries
+    [Text] ->
     -- Log sink for all output (ViraLog JSON + subprocess raw text)
     Sink Text ->
     Eff es1 ()
@@ -79,7 +87,7 @@ startTask ::
     Eff es ()
   ) ->
   Eff es ()
-startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
+startTask supervisor taskId minSeverity workDir writeLog orchestrator onFinish = do
   -- Capture workspace-level context keys at entry (e.g., repo, branch, job)
   -- These will be filtered out when writing to workspace-specific log
   LogContext workspaceCtx <- ER.ask
@@ -103,15 +111,15 @@ startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
         -- Log starting message (filter out workspace-level context like repo/branch/job
         -- since it's already encoded in the file path and would be redundant)
         when (Info >= minSeverity) $
-          writePipelineLogFiltered workspaceKeys logSink Info msg
+          writeLog workspaceKeys logSink Info msg
         asyncHandle <- async $ do
-          result <- runErrorNoCallStack $ orchestrator logSink
+          result <- runErrorNoCallStack $ orchestrator workspaceKeys logSink
           -- Convert () to ExitSuccess
           let exitResult = result $> ExitSuccess
           -- Log the errors if any
           whenLeft_ exitResult $ \err -> do
             when (Error >= minSeverity) $
-              writePipelineLogFiltered workspaceKeys logSink Error (show err)
+              writeLog workspaceKeys logSink Error (show err)
           -- Close sinks when task finishes
           liftIO $ do
             sinkClose fSink

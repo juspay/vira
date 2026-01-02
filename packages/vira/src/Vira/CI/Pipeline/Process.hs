@@ -21,7 +21,7 @@ import LogSink.Handle (drainHandleWith)
 import System.Exit (ExitCode (ExitFailure, ExitSuccess))
 import System.Process (interruptProcessGroupOf, waitForProcess)
 import Vira.CI.Error (PipelineError (PipelineProcessFailed, PipelineTerminated))
-import Vira.CI.Pipeline.Effect (PipelineEnv (logSink), writePipelineLog)
+import Vira.CI.Pipeline.Effect (PipelineEnv (..), logPipeline)
 import Vira.Supervisor.Type (Terminated (Terminated))
 
 -- | Helper: Run a single process with logger from effect
@@ -57,6 +57,7 @@ runProcess' ::
   ( Concurrent :> es
   , Process :> es
   , ER.Reader LogContext :> es
+  , ER.Reader PipelineEnv :> es
   , IOE :> es
   , FileSystem :> es
   ) =>
@@ -69,7 +70,7 @@ runProcess' ::
   Eff es (Either Terminated ExitCode)
 runProcess' workDir logSink process = do
   tagCurrentThread "🛞 "
-  writePipelineLog logSink Info "Starting task"
+  logPipeline Info "Starting task"
   runProcWithSink logSink
   where
     runProcWithSink :: Sink Text -> Eff es (Either Terminated ExitCode)
@@ -82,7 +83,7 @@ runProcess' workDir logSink process = do
       (_, mStdoutH, mStderrH, ph) <- createProcess $ process & processSettings
       let stdoutH = fromMaybe (error "Expected stdout handle") mStdoutH
           stderrH = fromMaybe (error "Expected stderr handle") mStderrH
-      writePipelineLog sink Debug "Task spawned"
+      logPipeline Debug "Task spawned"
 
       -- Spawn drain threads in IO to capture subprocess output
       -- They will naturally terminate when handles are closed at process exit
@@ -103,7 +104,7 @@ runProcess' workDir logSink process = do
           pure procResult
 
       case result of
-        Right ExitSuccess -> writePipelineLog sink Info "Task completed successfully"
-        Right (ExitFailure code) -> writePipelineLog sink Error $ "Task failed with exit code " <> show code
-        Left err -> writePipelineLog sink Error $ toText $ displayException err
+        Right ExitSuccess -> logPipeline Info "Task completed successfully"
+        Right (ExitFailure code) -> logPipeline Error $ "Task failed with exit code " <> show code
+        Left err -> logPipeline Error $ toText $ displayException err
       pure result

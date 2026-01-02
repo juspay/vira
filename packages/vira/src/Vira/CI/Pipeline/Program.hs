@@ -99,6 +99,6 @@ pipelineProgramWithClone repo branch workspacePath = do
     ( \env ->
         let oldCtx = env.viraContext
             newCtx = ViraContext oldCtx.branch oldCtx.onlyBuild oldCtx.commitId oldCtx.cloneUrl clonedDir
-         in PipelineEnv env.outputLog env.tools newCtx env.logSink
+         in PipelineEnv env.outputLog env.tools newCtx env.logSink env.excludeContextKeys
     )
     pipelineProgram

@@ -30,38 +30,16 @@ data PipelineEnv = PipelineEnv
   -- ^ 'ViraContext' (branch, onlyBuild flag)
   , logSink :: Sink Text
   -- ^ 'LogSink.Sink' for all output (ViraLog JSON + subprocess raw output)
+  , excludeContextKeys :: [Text]
+  -- ^ Context keys to exclude from log entries (repo/branch/job already in file path)
   }
   deriving stock (Generic)
 
--- | Helper: Write a ViraLog message to a sink
-writePipelineLog ::
-  (IOE :> es, ER.Reader LogContext :> es) =>
-  Sink Text ->
-  Severity ->
-  Text ->
-  Eff es ()
-writePipelineLog = writePipelineLogFiltered []
+{- | Log a pipeline message using 'logSink' from 'PipelineEnv'
 
-{- | Helper: Write a ViraLog message to a sink, filtering out specified context keys
-
-Useful for workspace-scoped logs where context like repo/branch/job is
-already encoded in the file path and would be redundant.
+Filters out workspace context keys (repo/branch/job) since they're already
+encoded in the file path and would be redundant in the log entry.
 -}
-writePipelineLogFiltered ::
-  (IOE :> es, ER.Reader LogContext :> es) =>
-  -- | Context keys to exclude from the log entry
-  [Text] ->
-  Sink Text ->
-  Severity ->
-  Text ->
-  Eff es ()
-writePipelineLogFiltered excludeKeys sink severity msg = do
-  LogContext logCtx <- ER.ask @LogContext
-  let filteredCtx = LogContext $ filter ((`notElem` excludeKeys) . fst) logCtx
-  let viraLog = ViraLog {level = severity, message = msg, context = filteredCtx}
-  liftIO $ sinkWrite sink (encodeViraLog viraLog)
-
--- | Helper: Log a pipeline message using 'logSink' from 'PipelineEnv'
 logPipeline ::
   ( ER.Reader PipelineEnv :> es
   , ER.Reader LogContext :> es
@@ -72,7 +50,29 @@ logPipeline ::
   Eff es ()
 logPipeline severity msg = do
   env <- ER.ask @PipelineEnv
-  writePipelineLog env.logSink severity msg
+  logPipeline' env.excludeContextKeys env.logSink severity msg
+
+{- | Write a ViraLog message with explicit parameters
+
+Like 'logPipeline' but takes explicit sink and exclude keys instead of reading
+from 'PipelineEnv'. Used for supervisor-level logging (before/after pipeline).
+-}
+logPipeline' ::
+  (ER.Reader LogContext :> es, IOE :> es) =>
+  -- | Context keys to exclude from the log entry
+  [Text] ->
+  -- | Sink to write to
+  Sink Text ->
+  -- | Log severity
+  Severity ->
+  -- | Log message
+  Text ->
+  Eff es ()
+logPipeline' excludeKeys sink severity msg = do
+  LogContext logCtx <- ER.ask @LogContext
+  let filteredCtx = LogContext $ filter ((`notElem` excludeKeys) . fst) logCtx
+  let viraLog = ViraLog {level = severity, message = msg, context = filteredCtx}
+  liftIO $ sinkWrite sink (encodeViraLog viraLog)
 
 -- | Result from building a single flake
 data BuildResult = BuildResult
@@ -102,23 +102,25 @@ data Pipeline :: Effect where
 makeEffect ''Pipeline
 
 -- | Construct PipelineEnv for web/CI execution (with output log and sink)
-pipelineEnvFromRemote :: Tools -> Sink Text -> ViraContext -> PipelineEnv
-pipelineEnvFromRemote tools sink ctx =
+pipelineEnvFromRemote :: Tools -> Sink Text -> [Text] -> ViraContext -> PipelineEnv
+pipelineEnvFromRemote tools sink excludeKeys ctx =
   PipelineEnv
     { outputLog = Just $ ctx.repoDir </> "output.log"
     , tools = tools
     , viraContext = ctx
     , logSink = sink
+    , excludeContextKeys = excludeKeys
     }
 
 -- | Construct PipelineEnv for CLI execution (stdout sink with severity filtering)
-pipelineEnvFromCLI :: Severity -> Tools -> ViraContext -> PipelineEnv
-pipelineEnvFromCLI minSeverity tools ctx =
+pipelineEnvFromCLI :: Severity -> [Text] -> Tools -> ViraContext -> PipelineEnv
+pipelineEnvFromCLI minSeverity excludeKeys tools ctx =
   PipelineEnv
     { outputLog = Nothing
     , tools = tools
     , viraContext = ctx
     , logSink = filteredStdoutSink minSeverity
+    , excludeContextKeys = excludeKeys
     }
   where
     filteredStdoutSink :: Severity -> Sink Text

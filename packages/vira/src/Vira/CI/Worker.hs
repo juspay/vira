@@ -127,7 +127,7 @@ selectJobsToStart maxConcurrent activeJobs =
     availableSlots = max 0 (maxConcurrent - length activeJobs.running)
     runningBranches = Set.fromList $ activeJobs.running <&> (\j -> (j.repo, j.branch))
 
-{- | Start a single job (extracted from JobPage.hs triggerNewBuild)
+{- | Start a single job
 
 Calls supervisor to run the job, sets up completion callback, marks as running.
 -}
@@ -166,10 +166,11 @@ startJob job = do
     job.jobId
     st.jobWorker.minSeverity
     job.jobWorkingDir
-    ( \logSink ->
-        Pipeline.runPipeline
-          (Pipeline.pipelineEnvFromRemote tools logSink ctx)
-          (Program.pipelineProgramWithClone repo branch job.jobWorkingDir)
+    Pipeline.logPipeline'
+    ( \workspaceKeys logSink ->
+        let env = Pipeline.pipelineEnvFromRemote tools logSink workspaceKeys ctx
+            program = Program.pipelineProgramWithClone repo branch job.jobWorkingDir
+         in Pipeline.runPipeline env program
     )
     $ \result -> do
       endTime <- liftIO getCurrentTime
