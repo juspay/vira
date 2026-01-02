@@ -7,7 +7,7 @@ module Vira.Supervisor.Task (
   killTask,
 
   -- * Log sink management
-  withTaskLogSink,
+  createTaskLogSink,
 ) where
 
 import Colog (Severity (..))
@@ -112,25 +112,23 @@ startTask supervisor taskId minSeverity workDir broadcast logFn orchestrator onF
         let task = Task {..}
         pure $ Map.insert taskId task tasks
 
-{- | Run an action with a task-specific log sink (file + broadcast)
+{- | Create task-specific log sink (file + broadcast)
 
-This helper manages the lifecycle of the log sinks, ensuring they are closed
-even if the action fails.
+Returns the sink, broadcast, and a cleanup action that must be called when the task completes.
+This is NOT a bracket because the sink must outlive the synchronous portion of startTask.
 -}
-withTaskLogSink ::
+createTaskLogSink ::
   (IOE :> es, FileSystem :> es) =>
   FilePath ->
-  ((Sink Text, Broadcast Text) -> Eff es a) ->
-  Eff es a
-withTaskLogSink workDir action = do
+  Eff es (Sink Text, Broadcast Text, IO ())
+createTaskLogSink workDir = do
   createDirectoryIfMissing True workDir
   fSink <- liftIO $ fileSink (outputLogFile workDir)
   broadcast <- liftIO $ newBroadcast 1000
   -- Combined sink: file (hPutStrLn adds \n) + broadcast (needs manual \n)
   let logSink = fSink <> contramap (<> "\n") (broadcastSink broadcast)
-  result <- action (logSink, broadcast)
-  liftIO $ sinkClose fSink >> bcClose broadcast
-  pure result
+  let cleanup = sinkClose fSink >> bcClose broadcast
+  pure (logSink, broadcast, cleanup)
   where
     -- Send all output to a file under working directory.
     -- FIXME: Don't complect with Vira

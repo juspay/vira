@@ -161,31 +161,33 @@ startJob job = do
   st <- ask @ViraRuntimeState
   tools <- Tool.refreshTools
   let ctx = ViraContext job.branch False branch.headCommit.id repo.cloneUrl job.jobWorkingDir
-  Supervisor.withTaskLogSink job.jobWorkingDir $ \(logSink, broadcast) -> do
-    LogContext workspaceCtx <- ER.ask
-    let workspaceKeys = map fst workspaceCtx
-    let logFn = Pipeline.logPipeline' workspaceKeys logSink
-    Supervisor.startTask
-      st.supervisor
-      job.jobId
-      st.jobWorker.minSeverity
-      job.jobWorkingDir
-      broadcast
-      logFn
-      ( do
-          let env = Pipeline.pipelineEnvFromRemote tools logSink workspaceKeys ctx
-          let program = Program.pipelineProgramWithClone repo branch job.jobWorkingDir
-          Pipeline.runPipeline env program
-      )
-      $ \result -> do
-        endTime <- liftIO getCurrentTime
-        let status = case result of
-              Right ExitSuccess -> JobFinished St.JobSuccess endTime
-              Right (ExitFailure _code) -> JobFinished St.JobFailure endTime
-              Left (Pipeline.PipelineTerminated Terminated) -> JobFinished St.JobKilled endTime
-              Left _ -> JobFinished St.JobFailure endTime
-        -- Update status
-        void $ App.update $ JobUpdateStatusA job.jobId status
+  (logSink, broadcast, closeLogSink) <- Supervisor.createTaskLogSink job.jobWorkingDir
+  LogContext workspaceCtx <- ER.ask
+  let workspaceKeys = map fst workspaceCtx
+  let logFn = Pipeline.logPipeline' workspaceKeys logSink
+  Supervisor.startTask
+    st.supervisor
+    job.jobId
+    st.jobWorker.minSeverity
+    job.jobWorkingDir
+    broadcast
+    logFn
+    ( do
+        let env = Pipeline.pipelineEnvFromRemote tools logSink workspaceKeys ctx
+        let program = Program.pipelineProgramWithClone repo branch job.jobWorkingDir
+        Pipeline.runPipeline env program
+    )
+    $ \result -> do
+      -- Close the log sink now that the task is complete
+      liftIO closeLogSink
+      endTime <- liftIO getCurrentTime
+      let status = case result of
+            Right ExitSuccess -> JobFinished St.JobSuccess endTime
+            Right (ExitFailure _code) -> JobFinished St.JobFailure endTime
+            Left (Pipeline.PipelineTerminated Terminated) -> JobFinished St.JobKilled endTime
+            Left _ -> JobFinished St.JobFailure endTime
+      -- Update status
+      void $ App.update $ JobUpdateStatusA job.jobId status
 
   -- Mark as running
   void $ App.update $ JobUpdateStatusA job.jobId JobRunning
