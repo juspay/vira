@@ -15,13 +15,12 @@ import Data.ByteString.Lazy qualified as LBS
 import Data.Time (getCurrentTime)
 import Data.Version (showVersion)
 import Effectful (runEff)
-import Effectful.Colog.Simple (LogContext (..), Severity (..), log, runLogActionStdout)
+import Effectful.Colog.Simple (Severity (..), log, runLogActionStdout)
 import Effectful.Error.Static (runErrorNoCallStack, throwError)
 import Effectful.Git (getRemoteUrl)
 import Effectful.Git.Command.RevParse (getCurrentCommit)
 import Effectful.Git.Command.Status (GitStatusPorcelain (..), gitStatusPorcelain)
 import Effectful.Process (runProcess)
-import Effectful.Reader.Static qualified as ER
 import Main.Utf8 qualified as Utf8
 import Paths_vira qualified
 import System.Directory (doesDirectoryExist, getCurrentDirectory, makeAbsolute)
@@ -141,10 +140,7 @@ runVira = do
           commitId <- getCurrentCommit dir
           let ctx = ViraContext status.branch onlyBuild commitId remoteUrl dir
           tools <- Tool.getAllTools
-          -- Get workspace context keys to filter (same as web mode)
-          LogContext logCtx <- ER.ask @LogContext
-          let excludeKeys = map fst logCtx
-          let env = Pipeline.pipelineEnvFromCLI gs.logLevel excludeKeys tools ctx
+          let env = Pipeline.pipelineEnvFromCLI gs.logLevel Pipeline.workspaceContextKeys tools ctx
           runErrorNoCallStack (Pipeline.runPipeline env Program.pipelineProgram) >>= \case
             Left (err :: Pipeline.PipelineError) -> do
               log Error $ show err

@@ -35,6 +35,14 @@ data PipelineEnv = PipelineEnv
   }
   deriving stock (Generic)
 
+{- | Context keys that are redundant in log entries
+
+These keys (repo, branch, job) are already encoded in the file path,
+so they're filtered out when writing log entries to avoid redundancy.
+-}
+workspaceContextKeys :: [Text]
+workspaceContextKeys = ["repo", "branch", "job"]
+
 {- | Log a pipeline message using 'logSink' from 'PipelineEnv'
 
 Filters out workspace context keys (repo/branch/job) since they're already

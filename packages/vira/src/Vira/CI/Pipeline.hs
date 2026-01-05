@@ -11,11 +11,12 @@ module Vira.CI.Pipeline (
 
   -- * Logging
   logPipeline',
+  workspaceContextKeys,
 
   -- * Error types
   PipelineError (..),
 ) where
 
 import Vira.CI.Error (PipelineError (..))
-import Vira.CI.Pipeline.Effect (logPipeline', pipelineEnvFromCLI, pipelineEnvFromRemote)
+import Vira.CI.Pipeline.Effect (logPipeline', pipelineEnvFromCLI, pipelineEnvFromRemote, workspaceContextKeys)
 import Vira.CI.Pipeline.Implementation (runPipeline)

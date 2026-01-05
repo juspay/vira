@@ -162,9 +162,7 @@ startJob job = do
   tools <- Tool.refreshTools
   let ctx = ViraContext job.branch False branch.headCommit.id repo.cloneUrl job.jobWorkingDir
   (logSink, broadcast, closeLogSink) <- Supervisor.createTaskLogSink job.jobWorkingDir
-  LogContext workspaceCtx <- ER.ask
-  let workspaceKeys = map fst workspaceCtx
-  let logFn = Pipeline.logPipeline' workspaceKeys logSink
+  let logFn = Pipeline.logPipeline' Pipeline.workspaceContextKeys logSink
   Supervisor.startTask
     st.supervisor
     job.jobId
@@ -173,7 +171,7 @@ startJob job = do
     broadcast
     logFn
     ( do
-        let env = Pipeline.pipelineEnvFromRemote tools logSink workspaceKeys ctx
+        let env = Pipeline.pipelineEnvFromRemote tools logSink Pipeline.workspaceContextKeys ctx
         let program = Program.pipelineProgramWithClone repo branch job.jobWorkingDir
         Pipeline.runPipeline env program
     )

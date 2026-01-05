@@ -7,10 +7,13 @@ module Vira.CI.Pipeline.Process (
 ) where
 
 import Colog (Severity (..))
+import Colog.Message (RichMessage)
 import Control.Concurrent.Async (wait, withAsync)
 import Control.Exception qualified as CE
 import Effectful (Eff, IOE, (:>))
-import Effectful.Colog.Simple (LogContext (..), tagCurrentThread)
+import Effectful.Colog (Log)
+import Effectful.Colog.Simple (LogContext (..), tagCurrentThread, withLogContext)
+import Effectful.Colog.Simple.Process (formatCommandForLog)
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.FileSystem (FileSystem)
@@ -28,6 +31,7 @@ import Vira.Supervisor.Type (Terminated (Terminated))
 runProcess ::
   ( Concurrent :> es
   , Process :> es
+  , Log (RichMessage IO) :> es
   , IOE :> es
   , FileSystem :> es
   , ER.Reader LogContext :> es
@@ -56,6 +60,7 @@ runProcess' ::
   forall es.
   ( Concurrent :> es
   , Process :> es
+  , Log (RichMessage IO) :> es
   , ER.Reader LogContext :> es
   , ER.Reader PipelineEnv :> es
   , IOE :> es
@@ -70,8 +75,9 @@ runProcess' ::
   Eff es (Either Terminated ExitCode)
 runProcess' workDir logSink process = do
   tagCurrentThread "🛞 "
-  logPipeline Info "Starting task"
-  runProcWithSink logSink
+  withLogContext [("cmd", formatCommandForLog process)] $ do
+    logPipeline Info "Starting task"
+    runProcWithSink logSink
   where
     runProcWithSink :: Sink Text -> Eff es (Either Terminated ExitCode)
     runProcWithSink sink = do
