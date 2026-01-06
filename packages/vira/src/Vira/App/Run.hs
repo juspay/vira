@@ -140,6 +140,7 @@ runVira = do
     runCI :: GlobalSettings -> Maybe FilePath -> Bool -> IO ()
     runCI gs mDir onlyBuild = do
       dir <- maybe getCurrentDirectory makeAbsolute mDir
+      -- Throw Terminated on Ctrl+C so Process.hs cleanup logic can terminate nix processes
       exitCode <- withTerminationHandler Terminated $ App.runAppCLI gs $ do
         result <- runErrorNoCallStack @Text $ do
           exists <- liftIO $ doesDirectoryExist dir
