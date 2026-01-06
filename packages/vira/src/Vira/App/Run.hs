@@ -6,7 +6,8 @@ module Vira.App.Run (
   runVira,
 ) where
 
-import Control.Exception (bracket)
+import Control.Concurrent (myThreadId)
+import Control.Exception (bracket, throwTo)
 
 import Data.Acid (AcidState)
 import Data.Acid.Events qualified as Event
@@ -27,6 +28,7 @@ import System.Directory (doesDirectoryExist, getCurrentDirectory, makeAbsolute)
 import System.Exit (ExitCode (..))
 import System.Nix.Cache.Keys qualified as CacheKeys
 import System.Nix.Cache.Server qualified as Cache
+import System.Posix.Signals (Handler (..), installHandler, sigINT)
 import Vira.App qualified as App
 import Vira.App.CLI (CLISettings (..), Command (..), GlobalSettings (..), WebSettings (..))
 import Vira.App.CLI qualified as CLI
@@ -45,9 +47,21 @@ import Vira.State.Core (closeViraState, openViraState, startPeriodicArchival, vi
 import Vira.State.JSON (getExportData, importViraState)
 import Vira.State.Type (ViraState)
 import Vira.Supervisor.Core qualified as Supervisor
+import Vira.Supervisor.Type (Terminated (..))
 import Vira.Web.LinkTo.Resolve (linkTo)
 import Vira.Web.Server qualified as Server
 import Prelude hiding (Reader, ask, runReader)
+
+{- | Run an IO action with a SIGINT handler that throws the given exception.
+This allows graceful cleanup when the user presses Ctrl+C.
+-}
+withTerminationHandler :: (Exception e) => e -> IO a -> IO a
+withTerminationHandler termException action = do
+  mainThread <- myThreadId
+  oldHandler <- installHandler sigINT (Catch $ throwTo mainThread termException) Nothing
+  result <- action
+  _ <- installHandler sigINT oldHandler Nothing
+  pure result
 
 -- | Run the Vira application
 runVira :: IO ()
@@ -126,7 +140,8 @@ runVira = do
     runCI :: GlobalSettings -> Maybe FilePath -> Bool -> IO ()
     runCI gs mDir onlyBuild = do
       dir <- maybe getCurrentDirectory makeAbsolute mDir
-      exitCode <- App.runAppCLI gs $ do
+      -- Throw Terminated on Ctrl+C so Process.hs cleanup logic can terminate nix processes
+      exitCode <- withTerminationHandler Terminated $ App.runAppCLI gs $ do
         result <- runErrorNoCallStack @Text $ do
           exists <- liftIO $ doesDirectoryExist dir
           unless exists $ throwError $ "Repository directory does not exist: " <> toText dir

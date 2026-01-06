@@ -101,6 +101,7 @@ dependencies:
   - text
   - time
   - toml-reader
+  - unix
   - unliftio
   - vira-ci-types
   - hint-nix
