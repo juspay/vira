@@ -7,10 +7,12 @@ import Control.Concurrent.Async (async, wait)
 import Control.Concurrent.STM.CircularBuffer qualified as CB
 import LogSink (Sink (..))
 import LogSink.Broadcast (Broadcast (..), broadcastSink, newBroadcast)
+import LogSink.Contrib.NixNoiseSpec qualified as NixNoiseSpec
 import Test.Hspec
 
 main :: IO ()
 main = hspec $ do
+  NixNoiseSpec.spec
   describe "Sink" $ do
     it "mempty discards all writes" $ do
       sinkWrite mempty ("test" :: Text)

@@ -15,7 +15,7 @@ import Colog.Message (RichMessage)
 import Data.Map.Strict qualified as Map
 import Effectful (Eff, IOE, type (:>))
 import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext, log, withLogContext)
+import Effectful.Colog.Simple (LogContext (..), log, withLogContext)
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar_, readMVar)
 import Effectful.Environment (Environment)
@@ -25,9 +25,11 @@ import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
 import LogSink (Sink (..))
 import LogSink.Broadcast (Broadcast (..), bcClose, broadcastSink, newBroadcast)
+import LogSink.Contrib.NixNoise (noiseGroupingSink)
 import LogSink.File (fileSink)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
+import Vira.CI.Log (ViraLog (..), encodeViraLog)
 
 import Vira.Supervisor.Type (Task (..), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..), Terminated (Terminated))
 import Prelude hiding (readMVar)
@@ -126,8 +128,12 @@ createTaskLogSink workDir = do
   fSink <- liftIO $ fileSink (outputLogFile workDir)
   broadcast <- liftIO $ newBroadcast 1000
   -- Combined sink: file (hPutStrLn adds \n) + broadcast (needs manual \n)
-  let logSink = fSink <> contramap (<> "\n") (broadcastSink broadcast)
-  let cleanup = sinkClose fSink >> bcClose broadcast
+  let baseSink = fSink <> contramap (<> "\n") (broadcastSink broadcast)
+  -- Wrap with noise grouping to collapse Nix input noise
+  -- The encoder wraps NixNoise JSON in ViraLog Debug format
+  let noiseEncoder noiseJson = encodeViraLog $ ViraLog Debug noiseJson (LogContext [])
+  logSink <- liftIO $ noiseGroupingSink noiseEncoder baseSink
+  let cleanup = sinkClose logSink >> sinkClose fSink >> bcClose broadcast
   pure (logSink, broadcast, cleanup)
   where
     -- Send all output to a file under working directory.

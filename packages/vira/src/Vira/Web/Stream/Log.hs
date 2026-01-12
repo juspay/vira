@@ -26,7 +26,6 @@ import Servant.API.EventStream
 import Servant.API.Stream (SourceIO)
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
-import System.Nix.Logging.Noise qualified as NixNoise
 import Vira.App qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
@@ -71,32 +70,23 @@ logChunkMsg = \case
       Status.indicator False
       span_ [class_ "font-medium"] "Log streaming stopped"
 
--- | Render log lines with special styling for viralog lines (JSON format)
+{- | Render log lines with special styling for viralog lines (JSON format)
+Noise grouping is done at the sink level, so ViraLog entries with noise
+context are already grouped and will be rendered as collapsible blocks.
+-}
 renderLogLines :: (Monad m) => [Text] -> HtmlT m ()
 renderLogLines ls =
   -- Each chunk already has a trailing newline from the sink, so use mconcat instead of unlines
   -- to avoid adding extra newlines that would create empty lines between entries
   let allLines = lines $ mconcat ls
-      lineGroups = NixNoise.groupNixNoiseLines allLines
-   in mconcat $ map renderLineGroup lineGroups
+   in mconcat $ map renderLine allLines
   where
-    -- Render a line group (either collapsible block or regular line)
-    renderLineGroup :: (Monad m) => NixNoise.LineGroup -> HtmlT m ()
-    renderLineGroup (NixNoise.RegularLine line) = renderLine line
-    renderLineGroup (NixNoise.NixNoiseBlock []) = mempty -- Skip empty blocks
-    renderLineGroup (NixNoise.NixNoiseBlock nixLines) =
-      details_ [class_ "opacity-60 hover:opacity-100 transition-opacity"] $ do
-        summary_ [class_ "cursor-pointer text-slate-500 dark:text-slate-600 select-none"] $
-          toHtml ("○ Nix input details (" <> show (length nixLines) <> " lines)" :: Text)
-        div_ [class_ "pl-4 text-sm opacity-70"] $
-          mconcat $
-            map renderLine nixLines
-
-    -- Render individual line
+    -- Render individual line (ViraLog or raw text)
     renderLine :: (Monad m) => Text -> HtmlT m ()
     renderLine line = do
       case decodeViraLog line of
         Right viraLog -> do
+          -- ViraLog's ToHtml handles noise blocks with special context
           toHtml viraLog
           br_ []
         Left _ -> do

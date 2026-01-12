@@ -28,7 +28,6 @@ library
       System.Nix.Config.Core
       System.Nix.Core
       System.Nix.Flake.Develop
-      System.Nix.Logging.Noise
       System.Nix.System
       System.Nix.Version
   other-modules:
@@ -92,7 +91,6 @@ test-suite nix-test
   other-modules:
       System.Nix.Config.BuildersSpec
       System.Nix.ConfigSpec
-      System.Nix.Logging.NoiseSpec
       System.Nix.VersionSpec
       Paths_nix
   autogen-modules:

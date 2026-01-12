@@ -18,7 +18,8 @@ import Colog (Severity (..))
 import Data.Aeson (FromJSON (parseJSON), ToJSON (toJSON), decode, encode)
 import Data.Text qualified as T
 import Effectful.Colog.Simple (LogContext (..), severityEmoji)
-import Lucid (ToHtml (..), class_, span_, toHtml)
+import LogSink.Contrib.NixNoise (NixNoise (..), decodeNixNoise)
+import Lucid (HtmlT, ToHtml (..), class_, details_, div_, span_, summary_, toHtml)
 import System.Console.ANSI (
   Color (..),
   ColorIntensity (..),
@@ -62,10 +63,11 @@ encodeViraLog viraLog = decodeUtf8 (encode viraLog)
 Returns Left with original line if not valid JSON (for raw printing)
 -}
 decodeViraLog :: Text -> Either Text ViraLog
-decodeViraLog line =
-  case decode (encodeUtf8 line) of
-    Nothing -> Left line -- Invalid JSON, return original for raw printing
-    Just viraLog -> Right viraLog
+decodeViraLog line
+  | not ("{" `T.isPrefixOf` line) = Left line -- Fast fail for non-JSON
+  | otherwise = case decode (encodeUtf8 line) of
+      Nothing -> Left line
+      Just viraLog -> Right viraLog
 
 {- | Render ViraLog for CLI with ANSI colors
 
@@ -97,23 +99,38 @@ Displays context key-value pairs if present.
 -}
 instance ToHtml ViraLog where
   toHtml viraLog =
-    let emoji = severityEmoji viraLog.level
-        textClass = case viraLog.level of
-          Debug -> "text-slate-400 dark:text-slate-500"
-          Info -> "text-cyan-400 dark:text-cyan-500"
-          Warning -> "text-amber-400 dark:text-amber-500"
-          Error -> "text-rose-400 dark:text-rose-500"
-        LogContext ctx = viraLog.context
-     in span_ [class_ textClass] $ do
-          toHtml emoji
-          toHtml (" " :: Text)
-          toHtml viraLog.message
-          unless (null ctx) $ do
-            toHtml (" " :: Text)
-            span_ [class_ "text-slate-500 dark:text-slate-600"] $ do
-              toHtml ("{" :: Text)
-              forM_ (intersperse Nothing $ map Just ctx) $ \case
-                Nothing -> toHtml (", " :: Text)
-                Just (k, v) -> toHtml $ k <> "=" <> v
-              toHtml ("}" :: Text)
+    -- The message field may contain NixNoise JSON when this is a noise entry
+    case decodeNixNoise viraLog.message of
+      Just noise -> renderNoiseBlock noise.noiseLines
+      Nothing -> renderRegularLog viraLog
+    where
+      renderNoiseBlock :: (Monad m) => Text -> HtmlT m ()
+      renderNoiseBlock noiseText =
+        let lineCount = length (lines noiseText)
+         in details_ [class_ "opacity-60 hover:opacity-100 transition-opacity"] $ do
+              summary_ [class_ "cursor-pointer text-slate-500 dark:text-slate-600 select-none"] $
+                toHtml ("○ Nix input details (" <> show lineCount <> " lines)" :: Text)
+              div_ [class_ "pl-4 text-sm opacity-70 whitespace-pre-wrap"] $
+                toHtml noiseText
+      renderRegularLog :: (Monad m) => ViraLog -> HtmlT m ()
+      renderRegularLog vlog =
+        let emoji = severityEmoji vlog.level
+            textClass = case vlog.level of
+              Debug -> "text-slate-400 dark:text-slate-500"
+              Info -> "text-cyan-400 dark:text-cyan-500"
+              Warning -> "text-amber-400 dark:text-amber-500"
+              Error -> "text-rose-400 dark:text-rose-500"
+            LogContext ctx = vlog.context
+         in span_ [class_ textClass] $ do
+              toHtml emoji
+              toHtml (" " :: Text)
+              toHtml vlog.message
+              unless (null ctx) $ do
+                toHtml (" " :: Text)
+                span_ [class_ "text-slate-500 dark:text-slate-600"] $ do
+                  toHtml ("{" :: Text)
+                  forM_ (intersperse Nothing $ map Just ctx) $ \case
+                    Nothing -> toHtml (", " :: Text)
+                    Just (k, v) -> toHtml $ k <> "=" <> v
+                  toHtml ("}" :: Text)
   toHtmlRaw = toHtml

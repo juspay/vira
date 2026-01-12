@@ -21,6 +21,7 @@ library
   exposed-modules:
       LogSink
       LogSink.Broadcast
+      LogSink.Contrib.NixNoise
       LogSink.File
       LogSink.Handle
   other-modules:
@@ -57,7 +58,8 @@ library
       ViewPatterns
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
-      async
+      aeson
+    , async
     , base ==4.*
     , relude >=1.0
     , stm
@@ -126,6 +128,7 @@ test-suite logsink-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      LogSink.Contrib.NixNoiseSpec
       Paths_logsink
   autogen-modules:
       Paths_logsink
