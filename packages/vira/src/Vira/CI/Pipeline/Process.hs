@@ -101,7 +101,7 @@ runProcess' workDir logSink process = do
               `CE.catch` \case
                 Terminated -> do
                   interruptProcessGroupOf ph `CE.catch` \(e :: SomeException) ->
-                    putTextLn $ "Failed to terminate process: " <> show e
+                    sink.sinkWrite $ "Failed to terminate process: " <> show e
                   _ <- waitForProcess ph -- Reap to prevent zombies
                   pure $ Left Terminated
           -- Wait for drains to complete (handles closed by waitForProcess)
