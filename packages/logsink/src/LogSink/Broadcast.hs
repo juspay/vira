@@ -95,7 +95,7 @@ other sinks (e.g., file sinks) via the 'Semigroup' instance.
 broadcastSink :: Broadcast a -> Sink a
 broadcastSink bc =
   Sink
-    { sinkWrite = atomically . bcWrite bc
+    { sinkWrite = atomically . bc.bcWrite
     , sinkFlush = pass
-    , sinkClose = bcClose bc
+    , sinkClose = bc.bcClose
     }

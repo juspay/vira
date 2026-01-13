@@ -127,7 +127,7 @@ runWorker workerId sink = do
 -- | Stream reader that consumes from broadcast
 streamReader :: Broadcast Text -> IO ()
 streamReader bc = do
-  queue <- bcSubscribe bc
+  queue <- bc.bcSubscribe
   putTextLn "[READER] Subscribed to broadcast, streaming..."
   let loop = do
         result <- atomically $ CB.drain queue

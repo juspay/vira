@@ -31,6 +31,7 @@ library
       src
   default-extensions:
       DataKinds
+      OverloadedRecordDot
       DeriveDataTypeable
       DeriveGeneric
       DeriveTraversable
@@ -82,6 +83,7 @@ test-suite devour-flake-test
       test
   default-extensions:
       DataKinds
+      OverloadedRecordDot
       DeriveDataTypeable
       DeriveGeneric
       DeriveTraversable

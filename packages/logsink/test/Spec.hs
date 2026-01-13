@@ -37,10 +37,10 @@ main = hspec $ do
     it "late subscribers get ring buffer history" $ do
       bc <- newBroadcast 10
       -- Write BEFORE subscribing (required - clone blocks on empty)
-      atomically $ bcWrite bc ("early1" :: Text)
-      atomically $ bcWrite bc "early2"
+      atomically $ bc.bcWrite ("early1" :: Text)
+      atomically $ bc.bcWrite "early2"
       -- Now subscribe - should get buffered items
-      queue <- bcSubscribe bc
+      queue <- bc.bcSubscribe
       -- Should have buffered lines - drain returns immediately
       result <- atomically $ CB.drain queue
       result `shouldBe` Just (pure "early1" <> pure "early2")
@@ -48,28 +48,28 @@ main = hspec $ do
     it "new writes reach subscribers" $ do
       bc <- newBroadcast 10
       -- Write one item to make subscribe work (clone needs non-empty buffer)
-      atomically $ bcWrite bc ("initial" :: Text)
-      queue <- bcSubscribe bc
+      atomically $ bc.bcWrite ("initial" :: Text)
+      queue <- bc.bcSubscribe
       -- Drain the initial item
       _ <- atomically $ CB.drain queue
 
       -- Write more and verify subscriber gets them
-      atomically $ bcWrite bc "after1"
-      atomically $ bcWrite bc "after2"
+      atomically $ bc.bcWrite "after1"
+      atomically $ bc.bcWrite "after2"
       result <- atomically $ CB.drain queue
       result `shouldBe` Just (pure "after1" <> pure "after2")
 
     it "close signals end to subscribers" $ do
       bc <- newBroadcast 10
       -- Write to allow subscribe
-      atomically $ bcWrite bc ("line" :: Text)
-      queue <- bcSubscribe bc
+      atomically $ bc.bcWrite ("line" :: Text)
+      queue <- bc.bcSubscribe
 
       -- Drain initial items
       _ <- atomically $ CB.drain queue
 
       -- Close the broadcast
-      bcClose bc
+      bc.bcClose
 
       -- Wait a moment for close to propagate
       threadDelay 10_000
@@ -82,7 +82,7 @@ main = hspec $ do
       bc <- newBroadcast 10
       -- Write before subscribe
       sinkWrite (broadcastSink bc) ("initial" :: Text)
-      queue <- bcSubscribe bc
+      queue <- bc.bcSubscribe
       -- Should have the initial write
       result <- atomically $ CB.drain queue
       result `shouldBe` Just (pure "initial")
@@ -96,12 +96,12 @@ main = hspec $ do
     it "handles multiple concurrent writers" $ do
       bc <- newBroadcast 100
       -- Write before subscribe
-      atomically $ bcWrite bc ("init" :: String)
-      queue <- bcSubscribe bc
+      atomically $ bc.bcWrite ("init" :: String)
+      queue <- bc.bcSubscribe
       _ <- atomically $ CB.drain queue -- drain init
 
       -- Spawn multiple writers
-      let writeItem i = atomically $ bcWrite bc (("writer-" <> show i) :: String)
+      let writeItem i = atomically $ bc.bcWrite (("writer-" <> show i) :: String)
       writers <- mapM (async . writeItem) [1 .. 10 :: Int]
       mapM_ wait writers
 
@@ -117,16 +117,16 @@ main = hspec $ do
     it "multiple subscribers receive same data" $ do
       bc <- newBroadcast 10
       -- Write before subscribing
-      atomically $ bcWrite bc ("init" :: Text)
-      queue1 <- bcSubscribe bc
-      queue2 <- bcSubscribe bc
+      atomically $ bc.bcWrite ("init" :: Text)
+      queue1 <- bc.bcSubscribe
+      queue2 <- bc.bcSubscribe
 
       -- Drain init from both
       _ <- atomically $ CB.drain queue1
       _ <- atomically $ CB.drain queue2
 
       -- Write new data
-      atomically $ bcWrite bc "shared"
+      atomically $ bc.bcWrite "shared"
 
       -- Both should receive it
       r1 <- atomically $ CB.drain queue1
