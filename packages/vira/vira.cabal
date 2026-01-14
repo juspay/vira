@@ -224,6 +224,7 @@ library
     , text
     , time
     , toml-reader
+    , unix
     , unliftio
     , vira-ci-types
     , wai
@@ -351,6 +352,7 @@ executable vira
     , text
     , time
     , toml-reader
+    , unix
     , unliftio
     , vira
     , vira-ci-types
@@ -483,6 +485,7 @@ executable vira-tests
     , text
     , time
     , toml-reader
+    , unix
     , unliftio
     , vira
     , vira-ci-types

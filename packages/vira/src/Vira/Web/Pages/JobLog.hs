@@ -2,11 +2,13 @@
 
 module Vira.Web.Pages.JobLog where
 
+import Data.ByteString qualified as BS
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Servant hiding (throwError)
 import Servant.Server.Generic (AsServer)
 import System.FilePath ((</>))
+import System.Posix.IO qualified as Posix
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.State.Acid qualified as St
@@ -35,8 +37,7 @@ handlers globalSettings viraRuntimeState webSettings jobId = do
 rawLogHandler :: JobId -> Eff Web.AppServantStack Text
 rawLogHandler jobId = do
   job <- App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
-  logText <-
-    liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
+  logText <- liftIO $ readLogFileShared $ job.jobWorkingDir </> "output.log"
   pure $ decodeUtf8 logText
 
 view :: Job -> AppHtml ()
@@ -54,6 +55,17 @@ viewStaticLog job = do
 
 readJobLogFull :: (MonadIO m) => Job -> m Text
 readJobLogFull job = do
-  logText <-
-    liftIO $ readFileBS $ job.jobWorkingDir </> "output.log"
+  logText <- liftIO $ readLogFileShared $ job.jobWorkingDir </> "output.log"
   pure $ decodeUtf8 logText
+
+{- | Read a file that might be open for writing by another process.
+Uses POSIX IO to bypass GHC's file locking mechanism.
+-}
+readLogFileShared :: FilePath -> IO ByteString
+readLogFileShared path = do
+  fd <- Posix.openFd path Posix.ReadOnly Posix.defaultFileFlags
+  h <- Posix.fdToHandle fd
+  content <- BS.hGetContents h
+  -- Force strict evaluation before returning
+  let !result = BS.copy content
+  pure result

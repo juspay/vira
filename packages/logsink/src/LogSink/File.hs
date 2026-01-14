@@ -17,12 +17,13 @@ module LogSink.File (
 
 import Data.Text.IO qualified as TextIO
 import LogSink (Sink (..))
-import System.IO (hClose, openFile)
+import System.IO (hClose)
 
 {- | Create a sink that appends 'Text' lines to a file
 
-Each call to 'sinkWrite' appends a line (with newline) to the file.
-The file is opened in append mode and closed when 'sinkClose' is called.
+Each call to 'sinkWrite' opens the file, appends a line (with newline),
+and closes the file. This allows other processes to read the file
+between writes without file locking issues.
 -}
 fileSink :: FilePath -> IO (Sink Text)
 fileSink = fileSinkWith id
@@ -31,11 +32,21 @@ fileSink = fileSinkWith id
 
 @fileSinkWith encoder path@ creates a sink that encodes values using
 @encoder@ before appending to the file.
+
+Each write opens/appends/closes to avoid holding file locks.
 -}
 fileSinkWith :: (a -> Text) -> FilePath -> IO (Sink a)
 fileSinkWith encoder path = do
-  h <- openFile path AppendMode
-  pure $ contramap encoder (handleSink h)
+  -- Touch the file to ensure it exists
+  writeFile path ""
+  pure $
+    Sink
+      { sinkWrite = \a -> withFile path AppendMode $ \h -> do
+          TextIO.hPutStrLn h (encoder a)
+          hFlush h
+      , sinkFlush = pass -- No-op since each write is self-contained
+      , sinkClose = pass -- No handle to close
+      }
 
 {- | Create a sink that writes to an existing 'Handle'
 

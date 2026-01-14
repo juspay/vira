@@ -111,6 +111,7 @@ dependencies:
   - warp-tls-simple
   - with-utf8
   - binary
+  - unix
 
 library:
   source-dirs: src
