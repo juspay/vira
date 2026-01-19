@@ -161,7 +161,7 @@ startJob job = do
   st <- ask @ViraRuntimeState
   tools <- Tool.refreshTools
   let ctx = ViraContext job.branch False branch.headCommit.id repo.cloneUrl job.jobWorkingDir
-  (logSink, broadcast, closeLogSink) <- Supervisor.createTaskLogSink job.jobWorkingDir
+  (logSink, broadcast, closeLogSink) <- Supervisor.createTaskLogSink job.jobWorkingDir "output.log"
   let logFn = Pipeline.logPipeline' Pipeline.workspaceContextKeys logSink
   Supervisor.startTask
     st.supervisor

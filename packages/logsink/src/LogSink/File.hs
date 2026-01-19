@@ -1,5 +1,5 @@
 {- |
-Module      : Control.Concurrent.Sink.File
+Module      : LogSink.File
 Description : File-backed sink with atomic line writes
 Copyright   : (c) Sridhar Ratnakumar, 2025
 License     : MIT
@@ -7,9 +7,18 @@ Maintainer  : srid@srid.ca
 
 File sinks append lines atomically to a file. Each write appends a single
 line (with newline) to the file.
+
+__Note__: 'fileSink' and 'fileSinkWith' create an empty file on initialization
+if it doesn't exist. This ensures the file path is valid before any writes.
 -}
 module LogSink.File (
   -- * File sinks
+
+  --
+
+  {- | File sinks create the target file (if missing) during initialization
+  and use open\/append\/close per write to avoid holding file locks.
+  -}
   fileSink,
   fileSinkWith,
   handleSink,

@@ -6,6 +6,7 @@ packages:
   packages/bb
   packages/cachix
   packages/logsink
+  packages/stm-circular-buffer
   packages/htmx-lucid-contrib
   packages/git-effectful
   packages/co-log-effectful-simple

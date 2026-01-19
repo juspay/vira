@@ -97,8 +97,7 @@ pipelineProgramWithClone repo branch workspacePath = do
   -- HACK: Update context with actual cloned directory
   ER.local @PipelineEnv
     ( \env ->
-        let oldCtx = env.viraContext
-            newCtx = ViraContext oldCtx.branch oldCtx.onlyBuild oldCtx.commitId oldCtx.cloneUrl clonedDir
-         in PipelineEnv env.outputLog env.tools newCtx env.logSink env.excludeContextKeys
+        let newCtx = env.viraContext {repoDir = clonedDir}
+         in env {viraContext = newCtx}
     )
     pipelineProgram

@@ -121,11 +121,15 @@ This is NOT a bracket because the sink must outlive the synchronous portion of s
 -}
 createTaskLogSink ::
   (IOE :> es, FileSystem :> es) =>
+  -- | Working directory (will be created if missing)
+  FilePath ->
+  -- | Log file path within working directory
   FilePath ->
   Eff es (Sink Text, Broadcast Text, IO ())
-createTaskLogSink workDir = do
+createTaskLogSink workDir logFileName = do
   createDirectoryIfMissing True workDir
-  fSink <- liftIO $ fileSink (outputLogFile workDir)
+  let logFilePath = workDir </> logFileName
+  fSink <- liftIO $ fileSink logFilePath
   broadcast <- liftIO $ newBroadcast 1000
   -- Combined sink: file (hPutStrLn adds \n) + broadcast (needs manual \n)
   let baseSink = fSink <> contramap (<> "\n") (broadcastSink broadcast)
@@ -135,11 +139,6 @@ createTaskLogSink workDir = do
   logSink <- liftIO $ noiseGroupingSink noiseEncoder baseSink
   let cleanup = sinkClose logSink >> sinkClose fSink >> bcClose broadcast
   pure (logSink, broadcast, cleanup)
-  where
-    -- Send all output to a file under working directory.
-    -- FIXME: Don't complect with Vira
-    outputLogFile :: FilePath -> FilePath
-    outputLogFile base = base </> "output.log"
 
 -- | Kill an active task
 killTask :: (Concurrent :> es, Log (RichMessage IO) :> es, IOE :> es, ER.Reader LogContext :> es) => TaskSupervisor -> TaskId -> Eff es ()

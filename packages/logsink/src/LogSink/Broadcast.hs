@@ -1,5 +1,5 @@
 {- |
-Module      : Control.Concurrent.Sink.Broadcast
+Module      : LogSink.Broadcast
 Description : Pub/sub pattern with catchup ring buffer
 Copyright   : (c) Sridhar Ratnakumar, 2025
 License     : MIT
@@ -55,7 +55,12 @@ data Broadcast a = Broadcast
   { bcWrite :: a -> STM ()
   -- ^ Write a value to all subscribers (STM action)
   , bcSubscribe :: IO (CircularBuffer a)
-  -- ^ Subscribe and get a queue with buffered history
+  {- ^ Subscribe and get a queue with buffered history.
+
+  __Important__: This function internally uses @CB.clone@ which blocks if
+  the ring buffer is empty (waiting for the first item). Ensure at least
+  one item has been written before calling @bcSubscribe@.
+  -}
   , bcClose :: IO ()
   -- ^ Close the broadcast, signaling end to all subscribers
   }

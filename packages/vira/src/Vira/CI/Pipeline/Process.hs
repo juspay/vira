@@ -81,9 +81,6 @@ runProcess' workDir logSink process = do
   where
     runProcWithSink :: Sink Text -> Eff es (Either Terminated ExitCode)
     runProcWithSink sink = do
-      -- No need to add newline - fileSink's hPutStrLn adds it automatically
-      let toTextLine :: Text -> Text
-          toTextLine = id
       let processSettings cp =
             cp {cwd = Just workDir, create_group = True, std_out = CreatePipe, std_err = CreatePipe}
       (_, mStdoutH, mStderrH, ph) <- createProcess $ process & processSettings
@@ -93,8 +90,8 @@ runProcess' workDir logSink process = do
 
       -- Spawn drain threads in IO to capture subprocess output
       -- They will naturally terminate when handles are closed at process exit
-      result <- liftIO $ withAsync (drainHandleWith toTextLine stdoutH sink) $ \stdoutAsync ->
-        withAsync (drainHandleWith toTextLine stderrH sink) $ \stderrAsync -> do
+      result <- liftIO $ withAsync (drainHandleWith id stdoutH sink) $ \stdoutAsync ->
+        withAsync (drainHandleWith id stderrH sink) $ \stderrAsync -> do
           -- Wait for process, handling interruption
           procResult <- CE.mask $ \restore ->
             restore (Right <$> waitForProcess ph)

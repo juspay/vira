@@ -20,7 +20,7 @@ dependencies:
   - stm
   - text
   - stm-chans
-  - tail
+  - stm-circular-buffer
 
 library:
   source-dirs: src

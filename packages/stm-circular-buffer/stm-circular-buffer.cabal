@@ -4,30 +4,26 @@ cabal-version: 2.0
 --
 -- see: https://github.com/sol/hpack
 
-name:           logsink
+name:           stm-circular-buffer
 version:        0.1.0.0
-synopsis:       Unified log sink with pub/sub streaming
-description:    A Haskell library providing a unified sink abstraction for concurrent
-                log writing with pub/sub streaming via STM-based broadcast channels.
+synopsis:       Circular buffer with drop-oldest semantics using STM
+description:    A circular buffer implementation using STM TBMQueue with drop-oldest semantics.
+                When the buffer is full, adding new items causes the oldest items to be dropped.
 category:       Concurrency
-homepage:       https://github.com/juspay/vira/tree/main/packages/logsink
+homepage:       https://github.com/juspay/vira/tree/main/packages/stm-circular-buffer
 author:         Sridhar Ratnakumar
 maintainer:     srid@srid.ca
-copyright:      2025 Sridhar Ratnakumar
+copyright:      2026 Sridhar Ratnakumar
 license:        MIT
 build-type:     Simple
 
 library
   exposed-modules:
-      LogSink
-      LogSink.Broadcast
-      LogSink.Contrib.NixNoise
-      LogSink.File
-      LogSink.Handle
+      Control.Concurrent.STM.CircularBuffer
   other-modules:
-      Paths_logsink
+      Paths_stm_circular_buffer
   autogen-modules:
-      Paths_logsink
+      Paths_stm_circular_buffer
   hs-source-dirs:
       src
   default-extensions:
@@ -59,81 +55,24 @@ library
       ViewPatterns
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
-      aeson
-    , async
-    , base ==4.*
+      base ==4.*
     , relude >=1.0
     , stm
     , stm-chans
-    , stm-circular-buffer
-    , text
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
     , relude 
   default-language: GHC2021
 
-executable logsink-example
-  main-is: Main.hs
-  other-modules:
-      Paths_logsink
-  autogen-modules:
-      Paths_logsink
-  hs-source-dirs:
-      example
-  default-extensions:
-      DataKinds
-      OverloadedRecordDot
-      DeriveDataTypeable
-      DeriveGeneric
-      DeriveTraversable
-      DerivingStrategies
-      DerivingVia
-      ExplicitForAll
-      FlexibleContexts
-      FlexibleInstances
-      GeneralizedNewtypeDeriving
-      ImportQualifiedPost
-      LambdaCase
-      MultiParamTypeClasses
-      MultiWayIf
-      NamedFieldPuns
-      NoStarIsType
-      NumericUnderscores
-      OverloadedStrings
-      ScopedTypeVariables
-      StrictData
-      TypeApplications
-      TypeFamilies
-      TypeOperators
-      TypeSynonymInstances
-      ViewPatterns
-  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -threaded -rtsopts -with-rtsopts=-N
-  build-depends:
-      aeson
-    , async
-    , base ==4.*
-    , logsink
-    , process
-    , relude >=1.0
-    , stm
-    , stm-chans
-    , stm-circular-buffer
-    , text
-  mixins:
-      base hiding (Prelude)
-    , relude (Relude as Prelude, Relude.Container.One)
-    , relude 
-  default-language: GHC2021
-
-test-suite logsink-test
+test-suite stm-circular-buffer-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      LogSink.Contrib.NixNoiseSpec
-      Paths_logsink
+      Control.Concurrent.STM.CircularBufferSpec
+      Paths_stm_circular_buffer
   autogen-modules:
-      Paths_logsink
+      Paths_stm_circular_buffer
   hs-source-dirs:
       test
   default-extensions:
@@ -165,15 +104,12 @@ test-suite logsink-test
       ViewPatterns
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      async
-    , base ==4.*
+      base ==4.*
     , hspec
-    , logsink
     , relude >=1.0
     , stm
     , stm-chans
     , stm-circular-buffer
-    , text
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)

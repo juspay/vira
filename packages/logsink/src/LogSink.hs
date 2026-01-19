@@ -1,7 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 
 {- |
-Module      : Control.Concurrent.Sink
+Module      : LogSink
 Description : Abstract sink for concurrent writes
 Copyright   : (c) Sridhar Ratnakumar, 2025
 License     : MIT

@@ -1,5 +1,5 @@
 {- |
-Module      : Control.Concurrent.Sink.Handle
+Module      : LogSink.Handle
 Description : Drain process handles into sinks
 Copyright   : (c) Sridhar Ratnakumar, 2025
 License     : MIT
