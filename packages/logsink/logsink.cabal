@@ -4,32 +4,35 @@ cabal-version: 2.0
 --
 -- see: https://github.com/sol/hpack
 
-name:           tail
+name:           logsink
 version:        0.1.0.0
-synopsis:       Haskell API for tail -f streaming
-description:    A Haskell library providing an API for tail -f style file streaming using STM, process, and async.
-category:       System
-homepage:       https://github.com/juspay/vira/tree/main/packages/tail
+synopsis:       Unified log sink with pub/sub streaming
+description:    A Haskell library providing a unified sink abstraction for concurrent
+                log writing with pub/sub streaming via STM-based broadcast channels.
+category:       Concurrency
+homepage:       https://github.com/juspay/vira/tree/main/packages/logsink
 author:         Sridhar Ratnakumar
 maintainer:     srid@srid.ca
 copyright:      2025 Sridhar Ratnakumar
 license:        MIT
 build-type:     Simple
-data-files:
-    test-fixture.txt
 
 library
   exposed-modules:
-      Control.Concurrent.STM.CircularBuffer
-      System.Tail
+      LogSink
+      LogSink.Broadcast
+      LogSink.Contrib.NixNoise
+      LogSink.File
+      LogSink.Handle
   other-modules:
-      Paths_tail
+      Paths_logsink
   autogen-modules:
-      Paths_tail
+      Paths_logsink
   hs-source-dirs:
       src
   default-extensions:
       DataKinds
+      OverloadedRecordDot
       DeriveDataTypeable
       DeriveGeneric
       DeriveTraversable
@@ -56,34 +59,86 @@ library
       ViewPatterns
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
-      async
+      aeson
+    , async
     , base ==4.*
-    , directory
-    , filepath
-    , process
     , relude >=1.0
     , stm
     , stm-chans
+    , stm-circular-buffer
     , text
-    , which
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
     , relude 
   default-language: GHC2021
 
-executable tail-test
+executable logsink-example
+  main-is: Main.hs
+  other-modules:
+      Paths_logsink
+  autogen-modules:
+      Paths_logsink
+  hs-source-dirs:
+      example
+  default-extensions:
+      DataKinds
+      OverloadedRecordDot
+      DeriveDataTypeable
+      DeriveGeneric
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      ExplicitForAll
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoStarIsType
+      NumericUnderscores
+      OverloadedStrings
+      ScopedTypeVariables
+      StrictData
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      TypeSynonymInstances
+      ViewPatterns
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson
+    , async
+    , base ==4.*
+    , logsink
+    , process
+    , relude >=1.0
+    , stm
+    , stm-chans
+    , stm-circular-buffer
+    , text
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2021
+
+test-suite logsink-test
+  type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Control.Concurrent.STM.CircularBufferSpec
-      System.TailSpec
-      Paths_tail
+      LogSink.Contrib.NixNoiseSpec
+      Paths_logsink
   autogen-modules:
-      Paths_tail
+      Paths_logsink
   hs-source-dirs:
       test
   default-extensions:
       DataKinds
+      OverloadedRecordDot
       DeriveDataTypeable
       DeriveGeneric
       DeriveTraversable
@@ -112,18 +167,13 @@ executable tail-test
   build-depends:
       async
     , base ==4.*
-    , directory
-    , filepath
     , hspec
-    , hspec-discover
-    , process
+    , logsink
     , relude >=1.0
     , stm
     , stm-chans
-    , tail
-    , temporary
+    , stm-circular-buffer
     , text
-    , which
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)

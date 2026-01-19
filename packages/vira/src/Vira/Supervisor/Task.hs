@@ -5,14 +5,17 @@ module Vira.Supervisor.Task (
   -- * Main supervisor operations
   startTask,
   killTask,
+
+  -- * Log sink management
+  createTaskLogSink,
 ) where
 
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
 import Data.Map.Strict qualified as Map
-import Effectful (Eff, IOE, (:>))
+import Effectful (Eff, IOE, type (:>))
 import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext (..), log, withLogContext, withoutLogContext)
+import Effectful.Colog.Simple (LogContext (..), log, withLogContext)
 import Effectful.Concurrent.Async
 import Effectful.Concurrent.MVar (modifyMVar_, readMVar)
 import Effectful.Environment (Environment)
@@ -20,10 +23,14 @@ import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem, createDirectoryIfMissing)
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
+import LogSink (Sink (..))
+import LogSink.Broadcast (Broadcast (..), bcClose, broadcastSink, newBroadcast)
+import LogSink.Contrib.NixNoise (noiseGroupingSink)
+import LogSink.File (fileSink)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
-import System.Tail qualified as Tail
 import Vira.CI.Log (ViraLog (..), encodeViraLog)
+
 import Vira.Supervisor.Type (Task (..), TaskId, TaskInfo (..), TaskState (..), TaskSupervisor (..), Terminated (Terminated))
 import Prelude hiding (readMVar)
 
@@ -56,6 +63,11 @@ startTask ::
   TaskId ->
   Severity ->
   FilePath ->
+  -- | Broadcast for SSE streaming
+  Broadcast Text ->
+  -- | Logging callback for supervisor-level messages (before/after pipeline)
+  (Severity -> Text -> Eff es ()) ->
+  -- | Orchestrator (closes over its own dependencies)
   ( forall es1.
     ( Concurrent :> es1
     , Process :> es1
@@ -66,69 +78,67 @@ startTask ::
     , Error err :> es1
     , Environment :> es1
     ) =>
-    (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ()) ->
     Eff es1 ()
   ) ->
-  -- Handler to call after the task finishes
+  -- | Handler to call after the task finishes
   ( -- Exit code
     Either err ExitCode ->
     Eff es ()
   ) ->
   Eff es ()
-startTask supervisor taskId minSeverity workDir orchestrator onFinish = do
-  -- Capture workspace-level context keys at entry (e.g., repo, branch, job)
-  -- These will be filtered out when writing to workspace-specific log
-  LogContext workspaceCtx <- ER.ask
-  let workspaceKeys = map fst workspaceCtx
-
+startTask supervisor taskId minSeverity workDir broadcast logFn orchestrator onFinish = do
   logSupervisorState supervisor
-  let msg = "Starting Vira pipeline in " <> toText workDir
   modifyMVar_ (tasks supervisor) $ \tasks -> do
     if Map.member taskId tasks
       then do
         log Error "Task already exists"
         die "Task already exists"
       else do
-        createDirectoryIfMissing True workDir
-        appendFileText (outputLogFile workDir) "" -- Create empty log file before tail starts
-        tailHandle <- liftIO $ Tail.tailFile 1000 (outputLogFile workDir)
-        let
-          logger :: (forall es2. (Log (RichMessage IO) :> es2, ER.Reader LogContext :> es2, IOE :> es2) => Severity -> Text -> Eff es2 ())
-          logger msgSeverity msgText = do
-            when (msgSeverity >= minSeverity) $ -- only write to file if severity is high enough
-              logToWorkspaceOutput workspaceKeys msgSeverity msgText
-        logger Info msg
+        -- Log starting message (filter out workspace-level context like repo/branch/job
+        -- since it's already encoded in the file path and would be redundant)
+        when (Info >= minSeverity) $
+          logFn Info ("Starting task " <> show taskId)
+
         asyncHandle <- async $ do
-          result <- runErrorNoCallStack $ orchestrator logger
+          result <- runErrorNoCallStack orchestrator
           -- Convert () to ExitSuccess
           let exitResult = result $> ExitSuccess
           -- Log the errors if any
           whenLeft_ exitResult $ \err -> do
-            logger Error $ show err
-          -- Stop the tail when task finishes for any reason
-          liftIO $ Tail.tailStop tailHandle
-          -- Then call the original handler
+            when (Error >= minSeverity) $
+              logFn Error (show err)
+
+          -- Call the original handler
           onFinish exitResult
         let info = TaskInfo {..}
         let task = Task {..}
         pure $ Map.insert taskId task tasks
-  where
-    -- TODO: In lieu of https://github.com/juspay/vira/issues/6
-    -- FIXME: Don't complect with Vira
-    logToWorkspaceOutput :: forall es'. (Log (RichMessage IO) :> es', ER.Reader LogContext :> es', IOE :> es') => [Text] -> Severity -> Text -> Eff es' ()
-    logToWorkspaceOutput excludeKeys severity msg = do
-      -- Filter out workspace-level context (repo, branch, job) since it's redundant
-      -- in workspace-scoped log file (already encoded in file path)
-      withoutLogContext excludeKeys $ do
-        ctx <- ER.ask
-        let viraLog = ViraLog {level = severity, message = msg, context = ctx}
-            jsonLog = encodeViraLog viraLog <> "\n"
-        appendFileText (outputLogFile workDir) jsonLog
 
-    -- Send all output to a file under working directory.
-    -- FIXME: Don't complect with Vira
-    outputLogFile :: FilePath -> FilePath
-    outputLogFile base = base </> "output.log"
+{- | Create task-specific log sink (file + broadcast)
+
+Returns the sink, broadcast, and a cleanup action that must be called when the task completes.
+This is NOT a bracket because the sink must outlive the synchronous portion of startTask.
+-}
+createTaskLogSink ::
+  (IOE :> es, FileSystem :> es) =>
+  -- | Working directory (will be created if missing)
+  FilePath ->
+  -- | Log file path within working directory
+  FilePath ->
+  Eff es (Sink Text, Broadcast Text, IO ())
+createTaskLogSink workDir logFileName = do
+  createDirectoryIfMissing True workDir
+  let logFilePath = workDir </> logFileName
+  fSink <- liftIO $ fileSink logFilePath
+  broadcast <- liftIO $ newBroadcast 1000
+  -- Combined sink: file (hPutStrLn adds \n) + broadcast (needs manual \n)
+  let baseSink = fSink <> contramap (<> "\n") (broadcastSink broadcast)
+  -- Wrap with noise grouping to collapse Nix input noise
+  -- The encoder wraps NixNoise JSON in ViraLog Debug format
+  let noiseEncoder noiseJson = encodeViraLog $ ViraLog Debug noiseJson (LogContext [])
+  logSink <- liftIO $ noiseGroupingSink noiseEncoder baseSink
+  let cleanup = sinkClose logSink >> sinkClose fSink >> bcClose broadcast
+  pure (logSink, broadcast, cleanup)
 
 -- | Kill an active task
 killTask :: (Concurrent :> es, Log (RichMessage IO) :> es, IOE :> es, ER.Reader LogContext :> es) => TaskSupervisor -> TaskId -> Eff es ()

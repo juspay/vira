@@ -14,6 +14,7 @@ ghc-options:
 
 default-extensions:
   - DataKinds
+  - OverloadedRecordDot
   - DeriveDataTypeable
   - DeriveGeneric
   - DeriveTraversable

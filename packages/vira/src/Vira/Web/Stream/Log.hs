@@ -14,20 +14,18 @@ module Vira.Web.Stream.Log (
 
 import Colog (Severity (..))
 import Control.Concurrent (threadDelay)
-import Control.Concurrent.STM.CircularBuffer (CircularBuffer)
-import Control.Concurrent.STM.CircularBuffer qualified as CB
 import Data.Map qualified as Map
 import Effectful (Eff)
 import Effectful.Reader.Dynamic (asks)
 import Htmx.Lucid.Core (hxSwap_, hxTarget_)
 import Htmx.Lucid.Extra (hxExt_)
+import LogSink.Broadcast (CircularBuffer, bcSubscribe, drain)
 import Lucid
 import Lucid.Htmx.Contrib (hxSseClose_, hxSseConnect_, hxSseSwap_, hyperscript_)
 import Servant.API.EventStream
 import Servant.API.Stream (SourceIO)
 import Servant.Types.SourceT (SourceT)
 import Servant.Types.SourceT qualified as S
-import System.Tail qualified as Tail
 import Vira.App qualified as App
 import Vira.App.Stack (AppStack)
 import Vira.App.Type (ViraRuntimeState (..))
@@ -35,7 +33,7 @@ import Vira.CI.Log (decodeViraLog)
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job, JobId)
 import Vira.State.Type qualified as St
-import Vira.Supervisor.Type (Task (..), TaskInfo (tailHandle), TaskSupervisor (..))
+import Vira.Supervisor.Type (Task (..), TaskInfo (broadcast), TaskSupervisor (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl)
 import Vira.Web.Stack (tagStreamThread)
@@ -72,19 +70,28 @@ logChunkMsg = \case
       Status.indicator False
       span_ [class_ "font-medium"] "Log streaming stopped"
 
--- | Render log lines with special styling for viralog lines (JSON format)
+{- | Render log lines with special styling for viralog lines (JSON format)
+Noise grouping is done at the sink level, so ViraLog entries with noise
+context are already grouped and will be rendered as collapsible blocks.
+-}
 renderLogLines :: (Monad m) => [Text] -> HtmlT m ()
 renderLogLines ls =
-  -- Use `lines . unlines` to normalize: each Text may contain embedded newlines,
-  -- so we flatten them into individual lines to check each for viralog prefix
-  let allLines = lines $ unlines ls
+  -- Each chunk already has a trailing newline from the sink, so use mconcat instead of unlines
+  -- to avoid adding extra newlines that would create empty lines between entries
+  let allLines = lines $ mconcat ls
    in mconcat $ map renderLine allLines
   where
+    -- Render individual line (ViraLog or raw text)
     renderLine :: (Monad m) => Text -> HtmlT m ()
-    renderLine line =
+    renderLine line = do
       case decodeViraLog line of
-        Right viraLog -> toHtml viraLog
-        Left _ -> toHtml line <> br_ []
+        Right viraLog -> do
+          -- ViraLog's ToHtml handles noise blocks with special context
+          toHtml viraLog
+          br_ []
+        Left _ -> do
+          toHtml line
+          br_ []
 
 -- | Render multiline lines for placing under a <pre> such that newlines are preserved & rendered
 rawMultiLine :: (Monad m) => [Text] -> HtmlT m ()
@@ -144,8 +151,8 @@ streamRouteHandler jobId = S.fromStepT $ S.Effect $ do
               App.log Error $ "Task not found in supervisor for job " <> show jobId
               pure $ S.Error "Task not found in supervisor"
             Just task -> do
-              -- Subscribe to the existing Tail handle
-              queue <- liftIO $ Tail.tailSubscribe task.info.tailHandle
+              -- Subscribe to the existing Broadcast handle for SSE streaming
+              queue <- liftIO $ bcSubscribe task.info.broadcast
               streamLog cfg queue
         Streaming queue -> do
           streamLog cfg queue
@@ -158,7 +165,7 @@ streamRouteHandler jobId = S.fromStepT $ S.Effect $ do
     streamLog cfg queue =
       pure $
         KeepAlive.withKeepAlive
-          (atomically $ CB.drain queue)
+          (atomically $ drain queue)
           ( \case
               Nothing -> do
                 -- Queue is closed, no more lines will come. End the stream.

@@ -35,6 +35,7 @@ library
       src
   default-extensions:
       DataKinds
+      OverloadedRecordDot
       DeriveDataTypeable
       DeriveGeneric
       DeriveTraversable
@@ -93,6 +94,7 @@ executable bb
       app
   default-extensions:
       DataKinds
+      OverloadedRecordDot
       DeriveDataTypeable
       DeriveGeneric
       DeriveTraversable
@@ -153,6 +155,7 @@ test-suite bb-test
       test
   default-extensions:
       DataKinds
+      OverloadedRecordDot
       DeriveDataTypeable
       DeriveGeneric
       DeriveTraversable

@@ -35,6 +35,7 @@ library
       src
   default-extensions:
       DataKinds
+      OverloadedRecordDot
       DeriveDataTypeable
       DeriveGeneric
       DeriveTraversable
@@ -107,6 +108,7 @@ executable git-effectful-test
       test
   default-extensions:
       DataKinds
+      OverloadedRecordDot
       DeriveDataTypeable
       DeriveGeneric
       DeriveTraversable

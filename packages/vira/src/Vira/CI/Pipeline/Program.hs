@@ -5,16 +5,46 @@ module Vira.CI.Pipeline.Program where
 
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
+import Data.List.NonEmpty qualified as NE
 import Effectful
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext)
 import Effectful.Error.Static (Error)
 import Effectful.Reader.Static qualified as ER
-import Shower qualified
+import Prettyprinter
+import Prettyprinter.Render.Text (renderStrict)
+import System.Nix.System (System (..))
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Error (PipelineError (..))
 import Vira.CI.Pipeline.Effect
+import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch, Repo)
+
+-- | Pretty-print pipeline configuration in a concise format
+prettyPipeline :: ViraPipeline -> Text
+prettyPipeline ViraPipeline {build = buildStage, cache = cacheStage, signoff = signoffStage} =
+  renderStrict $
+    layoutPretty defaultLayoutOptions $
+      vsep
+        [ "Build:"
+        , indent 2 $
+            vsep
+              [ "Flakes:" <+> pretty (NE.length buildStage.flakes) <+> "flake(s)"
+              , vsep (map prettyFlake (NE.toList buildStage.flakes))
+              , "Systems:" <+> hsep (punctuate comma (map (\(System s) -> pretty s) buildStage.systems))
+              ]
+        , "Cache:" <+> maybe "disabled" (\url -> "enabled" <+> parens (pretty url)) cacheStage.url
+        , "Signoff:" <+> if signoffStage.enable then "enabled" else "disabled"
+        ]
+  where
+    prettyFlake :: Flake -> Doc ann
+    prettyFlake f =
+      "-" <+> pretty (toText f.path) <> prettyOverrides f.overrideInputs
+
+    prettyOverrides :: [(Text, Text)] -> Doc ann
+    prettyOverrides [] = mempty
+    prettyOverrides ovs =
+      space <> parens ("overrides:" <+> hsep (punctuate comma (map (\(k, v) -> pretty k <> "=" <> pretty v) ovs)))
 
 -- | Pipeline program for CLI (uses existing local directory)
 pipelineProgram ::
@@ -31,7 +61,7 @@ pipelineProgram = do
 
   -- Step 1: Load configuration
   pipeline <- loadConfig
-  logPipeline Info $ toText $ "Pipeline configuration:\n" <> Shower.shower pipeline
+  logPipeline Info $ "Pipeline configuration:\n" <> prettyPipeline pipeline
 
   -- Step 2: Build
   buildResults <- build pipeline
@@ -67,8 +97,7 @@ pipelineProgramWithClone repo branch workspacePath = do
   -- HACK: Update context with actual cloned directory
   ER.local @PipelineEnv
     ( \env ->
-        let oldCtx = env.viraContext
-            newCtx = ViraContext oldCtx.branch oldCtx.onlyBuild oldCtx.commitId oldCtx.cloneUrl clonedDir
-         in PipelineEnv env.outputLog env.tools newCtx env.logger
+        let newCtx = env.viraContext {repoDir = clonedDir}
+         in env {viraContext = newCtx}
     )
     pipelineProgram

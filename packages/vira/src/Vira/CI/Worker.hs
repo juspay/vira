@@ -20,7 +20,7 @@ import Data.Set qualified as Set
 import Data.Time (getCurrentTime)
 import Effectful (Eff, IOE, type (:>))
 import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext, Severity (..), log, tagCurrentThread)
+import Effectful.Colog.Simple (LogContext (..), Severity (..), log, tagCurrentThread)
 import Effectful.Concurrent.Async (Concurrent, async)
 import Effectful.Concurrent.MVar (withMVar)
 import Effectful.Concurrent.STM (atomically)
@@ -127,7 +127,7 @@ selectJobsToStart maxConcurrent activeJobs =
     availableSlots = max 0 (maxConcurrent - length activeJobs.running)
     runningBranches = Set.fromList $ activeJobs.running <&> (\j -> (j.repo, j.branch))
 
-{- | Start a single job (extracted from JobPage.hs triggerNewBuild)
+{- | Start a single job
 
 Calls supervisor to run the job, sets up completion callback, marks as running.
 -}
@@ -161,17 +161,23 @@ startJob job = do
   st <- ask @ViraRuntimeState
   tools <- Tool.refreshTools
   let ctx = ViraContext job.branch False branch.headCommit.id repo.cloneUrl job.jobWorkingDir
+  (logSink, broadcast, closeLogSink) <- Supervisor.createTaskLogSink job.jobWorkingDir "output.log"
+  let logFn = Pipeline.logPipeline' Pipeline.workspaceContextKeys logSink
   Supervisor.startTask
     st.supervisor
     job.jobId
     st.jobWorker.minSeverity
     job.jobWorkingDir
-    ( \logger ->
-        Pipeline.runPipeline
-          (Pipeline.pipelineEnvFromRemote tools logger ctx)
-          (Program.pipelineProgramWithClone repo branch job.jobWorkingDir)
+    broadcast
+    logFn
+    ( do
+        let env = Pipeline.pipelineEnvFromRemote tools logSink Pipeline.workspaceContextKeys ctx
+        let program = Program.pipelineProgramWithClone repo branch job.jobWorkingDir
+        Pipeline.runPipeline env program
     )
     $ \result -> do
+      -- Close the log sink now that the task is complete
+      liftIO closeLogSink
       endTime <- liftIO getCurrentTime
       let status = case result of
             Right ExitSuccess -> JobFinished St.JobSuccess endTime

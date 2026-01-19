@@ -155,7 +155,7 @@ runVira = do
           commitId <- getCurrentCommit dir
           let ctx = ViraContext status.branch onlyBuild commitId remoteUrl dir
           tools <- Tool.getAllTools
-          let env = Pipeline.pipelineEnvFromCLI gs.logLevel tools ctx
+          let env = Pipeline.pipelineEnvFromCLI gs.logLevel Pipeline.workspaceContextKeys tools ctx
           runErrorNoCallStack (Pipeline.runPipeline env Program.pipelineProgram) >>= \case
             Left (err :: Pipeline.PipelineError) -> do
               log Error $ show err

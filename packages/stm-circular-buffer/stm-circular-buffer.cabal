@@ -4,29 +4,26 @@ cabal-version: 2.0
 --
 -- see: https://github.com/sol/hpack
 
-name:           devour-flake
+name:           stm-circular-buffer
 version:        0.1.0.0
-synopsis:       Nix systems flake output embedded at compile time
-description:    A Haskell library that embeds nix-systems flake output at compile time.
-category:       System
-homepage:       https://github.com/juspay/vira/tree/main/packages/devour-flake
+synopsis:       Circular buffer with drop-oldest semantics using STM
+description:    A circular buffer implementation using STM TBMQueue with drop-oldest semantics.
+                When the buffer is full, adding new items causes the oldest items to be dropped.
+category:       Concurrency
+homepage:       https://github.com/juspay/vira/tree/main/packages/stm-circular-buffer
 author:         Sridhar Ratnakumar
 maintainer:     srid@srid.ca
-copyright:      2025 Sridhar Ratnakumar
+copyright:      2026 Sridhar Ratnakumar
 license:        MIT
 build-type:     Simple
-extra-source-files:
-    README.md
 
 library
   exposed-modules:
-      DevourFlake
-      DevourFlake.NixSystems
-      DevourFlake.Result
+      Control.Concurrent.STM.CircularBuffer
   other-modules:
-      Paths_devour_flake
+      Paths_stm_circular_buffer
   autogen-modules:
-      Paths_devour_flake
+      Paths_stm_circular_buffer
   hs-source-dirs:
       src
   default-extensions:
@@ -58,27 +55,24 @@ library
       ViewPatterns
   ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
   build-depends:
-      aeson
-    , base ==4.*
-    , containers
-    , filepath
-    , include-env
-    , nix
+      base ==4.*
     , relude >=1.0
+    , stm
+    , stm-chans
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)
     , relude 
   default-language: GHC2021
 
-test-suite devour-flake-test
+test-suite stm-circular-buffer-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      DevourFlake.ResultSpec
-      Paths_devour_flake
+      Control.Concurrent.STM.CircularBufferSpec
+      Paths_stm_circular_buffer
   autogen-modules:
-      Paths_devour_flake
+      Paths_stm_circular_buffer
   hs-source-dirs:
       test
   default-extensions:
@@ -108,16 +102,14 @@ test-suite devour-flake-test
       TypeOperators
       TypeSynonymInstances
       ViewPatterns
-  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      aeson
-    , base ==4.*
-    , containers
-    , devour-flake
+      base ==4.*
     , hspec
-    , neat-interpolation
-    , nix
     , relude >=1.0
+    , stm
+    , stm-chans
+    , stm-circular-buffer
   mixins:
       base hiding (Prelude)
     , relude (Relude as Prelude, Relude.Container.One)

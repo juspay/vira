@@ -1,8 +1,8 @@
 module Vira.Supervisor.Type where
 
 import Effectful.Concurrent.Async (Async)
+import LogSink.Broadcast (Broadcast)
 import System.Exit (ExitCode)
-import System.Tail (Tail)
 import Vira.State.Type (JobId)
 
 type TaskId = JobId
@@ -40,8 +40,8 @@ data TaskInfo = TaskInfo
   -- ^ Unique 'TaskId' for the task
   , workDir :: FilePath
   -- ^ Working directory of this task
-  , tailHandle :: Tail
-  -- ^ The 'System.Tail.Tail' handle for log streaming
+  , broadcast :: Broadcast Text
+  -- ^ In-memory broadcast for SSE streaming
   }
   deriving stock (Generic)
 
