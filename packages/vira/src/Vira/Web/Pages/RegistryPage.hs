@@ -94,7 +94,7 @@ viewRepoList = do
         div_ [class_ "text-gray-500 dark:text-gray-400 mb-4"] $
           div_ [class_ "w-16 h-16 mx-auto flex items-center justify-center"] $
             toHtmlRaw Icon.book_2
-        h3_ [class_ "text-xl font-semibold text-gray-700 dark:text-gray-200 mb-2"] "No repositories yet"
+        h3_ [class_ "text-xl font-bold text-gray-700 dark:text-gray-200 mb-2"] "No repositories yet"
         p_ [class_ "text-gray-500 dark:text-gray-400 mb-6"] "Add your first repository to start building and monitoring your projects"
         newRepoForm
       else do
@@ -108,7 +108,7 @@ viewRepoList = do
 
         -- Add new repository section
         W.viraCard_ [class_ "p-6 bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-200 dark:border-indigo-800"] $ do
-          h3_ [class_ "text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center"] $ do
+          h3_ [class_ "text-xl font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center"] $ do
             div_ [class_ "w-5 h-5 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.plus
             "Add New Repository"
           newRepoForm

@@ -35,10 +35,81 @@ Clean, minimal CI/CD application design system emphasizing clarity and functiona
 
 ## Typography
 
+### Font Families
+
 - **Sans-serif**: Inter (variable font, 300-700 weights), system-ui fallbacks
 - **Monospace**: JetBrains Mono (for logs, code, and technical values)
-- **Scale**: `text-xs` (12px) → `text-3xl` (30px)
-- **Weights**: 400 (normal), 600 (semibold), 700 (bold)
+
+### Size Scale
+
+| Class       | Size | Usage                                                |
+| ----------- | ---- | ---------------------------------------------------- |
+| `text-xs`   | 12px | Badges, table headers (uppercase), tertiary metadata |
+| `text-sm`   | 14px | Body text, form labels, buttons, timestamps          |
+| `text-base` | 16px | Breadcrumbs, emphasized body content                 |
+| `text-lg`   | 18px | Card subheadings, section descriptions               |
+| `text-xl`   | 20px | Section headers (h2, h3)                             |
+| `text-2xl`  | 24px | Page headers (h1)                                    |
+
+### Weight Guidelines
+
+| Weight | Class           | Usage                                     |
+| ------ | --------------- | ----------------------------------------- |
+| 500    | `font-medium`   | Badges, subtle emphasis, secondary labels |
+| 600    | `font-semibold` | Buttons, tab labels, highlighted text     |
+| 700    | `font-bold`     | All headings (h1-h3), important values    |
+
+### Patterns
+
+```haskell
+-- Page headers (h1)
+h1_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100"]
+
+-- Section headers (h2)
+h2_ [class_ "text-xl font-bold text-gray-900 dark:text-gray-100 mb-4"]
+
+-- Buttons
+button_ [class_ "text-sm font-semibold"]
+
+-- Badges
+span_ [class_ "text-xs font-medium"]
+
+-- Table headers
+th_ [class_ "text-xs font-medium uppercase tracking-wider"]
+```
+
+## Spacing
+
+### Scale
+
+| Class | Size | Common Usage                       |
+| ----- | ---- | ---------------------------------- |
+| `1`   | 4px  | Icon margins, tight gaps           |
+| `2`   | 8px  | Badge padding, inline spacing      |
+| `3`   | 12px | Button padding (vertical)          |
+| `4`   | 16px | Card content margins, section gaps |
+| `6`   | 24px | Section spacing, card padding      |
+| `8`   | 32px | Page section dividers              |
+
+### Component Patterns
+
+| Component         | Pattern                                                   |
+| ----------------- | --------------------------------------------------------- |
+| **Cards**         | `p-6` (content), `mb-6` (between cards)                   |
+| **Buttons**       | `px-6 py-3` (primary), `px-4 py-2` (secondary)            |
+| **Badges**        | `px-2 py-1` or `px-3 py-1`                                |
+| **Form groups**   | `space-y-6` (between groups), `mb-2` (label to input)     |
+| **Page sections** | `space-y-6` or `mb-8`                                     |
+| **Inline items**  | `space-x-2` (tight), `space-x-4` (normal), `gap-4` (flex) |
+
+### Border Radius
+
+| Class          | Usage                                |
+| -------------- | ------------------------------------ |
+| `rounded`      | Small elements, code blocks          |
+| `rounded-lg`   | **Default** - buttons, cards, inputs |
+| `rounded-full` | Badges, pills, avatars               |
+| `rounded-xl`   | Large feature cards, modals          |
 
 ## Components
 

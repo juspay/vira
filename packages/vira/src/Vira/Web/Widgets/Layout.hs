@@ -150,7 +150,7 @@ layout crumbs content = do
           div_ [class_ "flex justify-between items-center text-sm text-gray-600 dark:text-gray-300"] $ do
             div_ [class_ "flex items-center space-x-4"] $ do
               User.viewUserInfo
-              span_ [class_ "text-gray-400"] "•"
+              span_ [class_ "text-gray-400 dark:text-gray-500"] "•"
               span_ [title_ "Hostname", class_ "cursor-help"] $ toHtml instanceInfo.hostname
               span_ [class_ "text-gray-400 dark:text-gray-500"] "•"
               span_ [title_ "Platform", class_ "cursor-help"] $ toHtml (platform instanceInfo)
@@ -161,7 +161,7 @@ layout crumbs content = do
               span_ [class_ "text-gray-400 dark:text-gray-500"] "•"
               uptimeLink startTime
             div_
-              [class_ "text-xs text-gray-500 dark:text-gray-400"]
+              [class_ "text-sm text-gray-500 dark:text-gray-400"]
               viraVersionLink
 
 -- | Build concurrency display linked to environment page
