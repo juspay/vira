@@ -42,6 +42,7 @@ import Data.Time (UTCTime)
 import Effectful.Git.Types (CommitID (..))
 import Effectful.Reader.Dynamic (asks)
 import Lucid
+import Lucid.Base (makeAttributes)
 import Vira.App.CLI (WebSettings (..))
 import Vira.App.InstanceInfo (InstanceInfo (..), platform)
 import Vira.App.Type (ViraRuntimeState (..))
@@ -89,10 +90,16 @@ layout crumbs content = do
         let baseTitle = linkTitle <$> viaNonEmpty last crumbs
         toHtml $ pageTitle instanceInfo baseTitle
       base_ [href_ basePath]
-      -- Google Fonts - Inter for modern, clean typography
+      -- Google Fonts - Inter (variable) for UI, JetBrains Mono for code/logs
+      -- Preconnect hints for faster font loading
       link_ [rel_ "preconnect", href_ "https://fonts.googleapis.com"]
       link_ [rel_ "preconnect", href_ "https://fonts.gstatic.com", crossorigin_ ""]
-      link_ [href_ "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap", rel_ "stylesheet"]
+      -- Preload the font stylesheets
+      link_ [rel_ "preload", href_ interFontUrl, makeAttributes "as" "style"]
+      link_ [rel_ "preload", href_ monoFontUrl, makeAttributes "as" "style"]
+      -- Load fonts: Inter variable (300-700) + JetBrains Mono (400,500,700)
+      link_ [href_ interFontUrl, rel_ "stylesheet"]
+      link_ [href_ monoFontUrl, rel_ "stylesheet"]
       link_ [rel_ "icon", type_ "image/svg+xml", href_ logoUrl]
       htmx
       link_ [rel_ "stylesheet", type_ "text/css", href_ "tailwind.css"]
@@ -101,6 +108,7 @@ layout crumbs content = do
         unlines
           [ "html { overflow-y: scroll; }" -- Scrollbar always visible, to prevent jankiness
           , "body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }"
+          , ":root { --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }"
           , ".transition-smooth { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }"
           ]
     body_ [class_ "bg-gray-50 dark:bg-gray-900 min-h-screen font-inter"] $ do
@@ -115,6 +123,9 @@ layout crumbs content = do
           content
         footer crumbs
   where
+    -- Font URLs
+    interFontUrl = "https://fonts.googleapis.com/css2?family=Inter:wght@300..700&display=swap"
+    monoFontUrl = "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap"
     -- Mobile friendly head tags
     mobileFriendly = do
       meta_ [charset_ "utf-8", name_ "viewport", content_ "width=device-width, initial-scale=1"]
