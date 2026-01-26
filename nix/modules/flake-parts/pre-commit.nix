@@ -31,6 +31,9 @@
           ];
           settings.config.default.extend-identifiers = {
             TypeLits = "TypeLits"; # `GHC.TypeLits` module
+            substituters = "substituters";
+            substitutersVal = "substitutersVal";
+            substitutersDesc = "substitutersDesc";
           };
         };
       };
