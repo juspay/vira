@@ -21,6 +21,7 @@ import Vira.Web.Pages.RegistryPage qualified as RegistryPage
 import Vira.Web.Servant ((//))
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Stream.ScopedRefresh qualified as Refresh
+import Vira.Web.Webhook.GitHub qualified as WebhookGitHub
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
 import Vira.Web.Widgets.Tabs (TabItem (..), viraTabs_)
@@ -35,6 +36,7 @@ data Routes mode = Routes
   , _cache :: mode :- "cache" Servant.API.:> NamedRoutes CachePage.Routes
   , _events :: mode :- "events" Servant.API.:> NamedRoutes EventsPage.Routes
   , _refresh :: mode :- "refresh" Servant.API.:> Refresh.StreamRoute
+  , _webhook :: mode :- "webhook" Servant.API.:> "github" Servant.API.:> NamedRoutes WebhookGitHub.Routes
   }
   deriving stock (Generic)
 
@@ -53,6 +55,7 @@ handlers globalSettings viraRuntimeState webSettings =
     , _events = EventsPage.handlers globalSettings viraRuntimeState webSettings
     , _refresh =
         Web.runStreamHandler globalSettings viraRuntimeState . Refresh.streamRouteHandler
+    , _webhook = WebhookGitHub.handlers globalSettings viraRuntimeState webSettings
     }
 
 activityLimit :: Natural
