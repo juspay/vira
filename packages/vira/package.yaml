@@ -32,6 +32,7 @@ dependencies:
   - acid-state
   - acid-state-events
   - aeson
+  - github-webhooks
   - ansi-terminal
   - async
   - attic
@@ -95,6 +96,7 @@ dependencies:
   - servant
   - servant-event-stream
   - servant-server
+  - servant-github-webhook
   - sqlite-simple
   - stm
   - streaming

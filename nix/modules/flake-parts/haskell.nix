@@ -48,6 +48,7 @@ in
         co-log-effectful.source = inputs.co-log-effectful;
         tabler-icons.source = inputs.tabler-icons-hs;
         servant-event-stream.source = inputs.servant-event-stream;
+        servant-github-webhook.source = inputs.servant-github-webhook;
         record-hasfield.source = inputs.record-hasfield;
         toml-reader.source = "0.3.0.0";
         filepattern.source = "0.1.3";

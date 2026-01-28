@@ -1,58 +1,38 @@
 -- | GitHub App webhook handler for receiving events
 module Vira.Web.Webhook.GitHub (
-  Routes (..),
-  handlers,
+  Route,
+  handler,
 ) where
 
 import Colog (Severity (..))
-import Data.Aeson (Value)
-import Effectful (Eff)
 import Effectful.Colog.Simple (log)
+import GitHub.Data.Webhooks.Events (PullRequestEvent)
 import Servant
-import Servant.Server.Generic (AsServer)
+import Servant.GitHub.Webhook (GitHubEvent, GitHubSignedReqBody, RepoWebhookEvent (..))
 import Vira.App qualified as App
-import Vira.App.CLI (WebSettings)
-import Vira.Web.Stack (AppServantStack)
+import Vira.App.CLI (WebSettings (..))
 import Vira.Web.Stack qualified as Web
 
--- | GitHub webhook routes
-newtype Routes mode = Routes
-  { _receive ::
-      mode
-        :- Header "X-GitHub-Event" Text
-          :> Header "X-Hub-Signature-256" Text
-          :> Header "X-GitHub-Delivery" Text
-          :> ReqBody '[JSON] Value
-          :> Post '[JSON] NoContent
-  }
-  deriving stock (Generic)
+-- TODO: Bind Github Event type to the Github ReqBody type in the type-system without having to rely on value-level dynamic dispatch of type-level (by defining a sum-type of all the supported events)
+type Route =
+  GitHubEvent '[ 'WebhookPullRequestEvent]
+    :> GitHubSignedReqBody '[JSON] PullRequestEvent
+    :> Post '[JSON] NoContent
 
 -- | Webhook route handlers
-handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> Routes AsServer
-handlers globalSettings viraRuntimeState webSettings =
-  Routes
-    { _receive = \mEvent mSig mDelivery payload ->
-        Web.runAppInServant globalSettings viraRuntimeState webSettings $
-          handleWebhook mEvent mSig mDelivery payload
-    }
+handler :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> Server Route
+handler globalSettings viraRuntimeState webSettings _eventInfo _payload =
+  Web.runAppInServant globalSettings viraRuntimeState webSettings $ do
+    log Info "Received pull_request event"
 
--- | Handle incoming GitHub webhook
-handleWebhook ::
-  Maybe Text ->
-  Maybe Text ->
-  Maybe Text ->
-  Value ->
-  Eff AppServantStack NoContent
-handleWebhook mEventType _mSignature mDeliveryId payload = do
-  log Info $ "GitHub webhook received: event=" <> fromMaybe "unknown" mEventType <> ", delivery=" <> fromMaybe "unknown" mDeliveryId
-  case mEventType of
-    Just "pull_request" -> handlePullRequest payload
-    Just other -> log Debug $ "Ignoring event type: " <> other
-    Nothing -> log Warning "Missing X-GitHub-Event header"
-  pure NoContent
+    pure NoContent
 
--- | Handle pull_request events
-handlePullRequest :: Value -> Eff AppServantStack ()
-handlePullRequest _payload = do
-  -- TODO: Parse payload to extract PR details (action, number, repo, etc.)
-  log Info "Received pull_request event"
+-- handleWebhook :: RepoWebhookEvent -> PullRequestEvent -> Eff AppServantStack NoContent
+-- handleWebhook _eventInfo _event = do
+--   log Info "Received pull_request event"
+
+--   pure NoContent
+
+-- handlePR :: Value -> Eff AppServantStack ()
+-- handlePR _payload = do
+--   log Info "Received pull_request event"

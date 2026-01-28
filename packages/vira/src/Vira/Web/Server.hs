@@ -11,6 +11,7 @@ import Effectful.Colog.Simple
 import Effectful.FileSystem (FileSystem, doesDirectoryExist)
 import Effectful.Reader.Dynamic qualified as Reader
 import Effectful.Reader.Static qualified as ER
+import GitHub.Data.Webhooks.Events (PullRequestEvent)
 import Network.HTTP.Types (status404)
 import Network.Wai (Application, Middleware, responseLBS, responseStatus)
 import Network.Wai.Handler.Warp qualified as Warp
@@ -22,7 +23,9 @@ import Network.Wai.Middleware.Static (
   (>->),
  )
 import Paths_vira qualified
-import Servant.Server.Generic (genericServe)
+import Servant (Context (..))
+import Servant.GitHub.Webhook (GitHubKey, gitHubKey)
+import Servant.Server.Generic (genericServeTWithContext)
 import System.Nix.Cache.Server qualified as Cache
 import System.Nix.Flake.Develop qualified as Nix
 import Vira.App (AppStack, ViraRuntimeState (..))
@@ -41,7 +44,14 @@ runServer globalSettings webSettings cacheApp = do
   where
     buildApplication = do
       viraRuntimeState <- Reader.ask @ViraRuntimeState
-      let servantApp = genericServe $ IndexPage.handlers globalSettings viraRuntimeState webSettings
+      let key = maybe mempty encodeUtf8 webSettings.githubWebhookSecret
+          githubKey :: GitHubKey PullRequestEvent
+          githubKey = gitHubKey $ pure key
+      let servantApp =
+            genericServeTWithContext
+              id
+              (IndexPage.handlers globalSettings viraRuntimeState webSettings)
+              (githubKey :. EmptyContext)
       staticDir <- getDataDirMultiHome
       log Debug $ "Static dir = " <> toText staticDir
 

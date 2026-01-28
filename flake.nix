@@ -24,6 +24,8 @@
     # https://github.com/bflyblue/servant-event-stream/pull/13
     servant-event-stream.url = "github:bflyblue/servant-event-stream";
     servant-event-stream.flake = false;
+    servant-github-webhook.url = "github:tsani/servant-github-webhook/pull/18/head";
+    servant-github-webhook.flake = false;
     hint-nix.url = "github:srid/hint-nix";
     hint-nix.flake = false;
     warp-tls-simple.url = "github:srid/warp-tls-simple";
