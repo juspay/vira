@@ -1,0 +1,24 @@
+defaults:
+  - local: ../../hpack-common.yaml
+  - local: ../../hpack-relude.yaml
+
+name: servant-github-webhook-simple
+version: 0.1.0.0
+license: MIT
+copyright: 2024 Juspay
+maintainer: me@shivaraj-bh.in
+author: Shivaraj B H
+category: Web
+synopsis: Servant combinator for GitHub webhooks
+description: Type-safe GitHub webhook handling for Servant with signature verification
+
+dependencies:
+  - aeson
+  - bytestring
+  - github-webhooks
+  - servant
+  - servant-server
+  - wai
+
+library:
+  source-dirs: src

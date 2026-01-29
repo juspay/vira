@@ -95,6 +95,7 @@ dependencies:
   - safecopy
   - servant
   - servant-event-stream
+  - servant-github-webhook-simple
   - servant-server
   - sqlite-simple
   - stm

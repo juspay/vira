@@ -23,6 +23,7 @@ import Network.Wai.Middleware.Static (
  )
 import Paths_vira qualified
 import Servant (Context (..))
+import Servant.GitHub.Webhook (GitHubKey (..))
 import Servant.Server.Generic (genericServeTWithContext)
 import System.Nix.Cache.Server qualified as Cache
 import System.Nix.Flake.Develop qualified as Nix
@@ -30,7 +31,6 @@ import Vira.App (AppStack, ViraRuntimeState (..))
 import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
 import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
-import Vira.Web.Webhook.GitHub (GitHubKey (..))
 
 -- | Run the Vira server with the given 'GlobalSettings' and 'WebSettings'
 runServer :: (HasCallStack) => GlobalSettings -> WebSettings -> Application -> Eff AppStack ()
