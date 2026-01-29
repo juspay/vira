@@ -96,7 +96,6 @@ dependencies:
   - servant
   - servant-event-stream
   - servant-server
-  - servant-github-webhook
   - sqlite-simple
   - stm
   - streaming

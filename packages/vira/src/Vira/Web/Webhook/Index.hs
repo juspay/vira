@@ -7,12 +7,12 @@ import Vira.App.CLI (WebSettings (..))
 import Vira.Web.Webhook.GitHub qualified as WebhookGitHub
 
 newtype Routes mode = Routes
-  { _github :: mode :- "github" :> WebhookGitHub.Route
+  { _github :: mode :- "github" :> NamedRoutes WebhookGitHub.Routes
   }
   deriving stock (Generic)
 
 handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> Routes AsServer
 handlers globalSettings viraRuntimeState webSettings =
   Routes
-    { _github = WebhookGitHub.handler globalSettings viraRuntimeState webSettings
+    { _github = WebhookGitHub.handlers globalSettings viraRuntimeState webSettings
     }

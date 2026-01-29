@@ -258,7 +258,6 @@
         "process-compose-flake": "process-compose-flake",
         "record-hasfield": "record-hasfield",
         "servant-event-stream": "servant-event-stream",
-        "servant-github-webhook": "servant-github-webhook",
         "tabler-icons-hs": "tabler-icons-hs",
         "warp-tls-simple": "warp-tls-simple"
       }
@@ -276,23 +275,6 @@
       "original": {
         "owner": "bflyblue",
         "repo": "servant-event-stream",
-        "type": "github"
-      }
-    },
-    "servant-github-webhook": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1649061110,
-        "narHash": "sha256-ELWqC0fnF6bHqtnMDNbUqgmY0HaJhBRNATDcIokKfmI=",
-        "owner": "tsani",
-        "repo": "servant-github-webhook",
-        "rev": "f8cb8bc10d3e9d275fa995b0d01ba2d1eeaa700b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "tsani",
-        "ref": "pull/18/head",
-        "repo": "servant-github-webhook",
         "type": "github"
       }
     },

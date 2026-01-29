@@ -219,7 +219,6 @@ library
     , safecopy
     , servant
     , servant-event-stream
-    , servant-github-webhook
     , servant-server
     , sqlite-simple
     , stm
@@ -349,7 +348,6 @@ executable vira
     , safecopy
     , servant
     , servant-event-stream
-    , servant-github-webhook
     , servant-server
     , sqlite-simple
     , stm
@@ -484,7 +482,6 @@ executable vira-tests
     , safecopy
     , servant
     , servant-event-stream
-    , servant-github-webhook
     , servant-server
     , sqlite-simple
     , stm

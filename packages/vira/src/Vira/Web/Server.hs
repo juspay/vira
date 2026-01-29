@@ -11,7 +11,6 @@ import Effectful.Colog.Simple
 import Effectful.FileSystem (FileSystem, doesDirectoryExist)
 import Effectful.Reader.Dynamic qualified as Reader
 import Effectful.Reader.Static qualified as ER
-import GitHub.Data.Webhooks.Events (PullRequestEvent)
 import Network.HTTP.Types (status404)
 import Network.Wai (Application, Middleware, responseLBS, responseStatus)
 import Network.Wai.Handler.Warp qualified as Warp
@@ -24,7 +23,6 @@ import Network.Wai.Middleware.Static (
  )
 import Paths_vira qualified
 import Servant (Context (..))
-import Servant.GitHub.Webhook (GitHubKey, gitHubKey)
 import Servant.Server.Generic (genericServeTWithContext)
 import System.Nix.Cache.Server qualified as Cache
 import System.Nix.Flake.Develop qualified as Nix
@@ -32,6 +30,7 @@ import Vira.App (AppStack, ViraRuntimeState (..))
 import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
 import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
+import Vira.Web.Webhook.GitHub (GitHubKey (..))
 
 -- | Run the Vira server with the given 'GlobalSettings' and 'WebSettings'
 runServer :: (HasCallStack) => GlobalSettings -> WebSettings -> Application -> Eff AppStack ()
@@ -45,8 +44,7 @@ runServer globalSettings webSettings cacheApp = do
     buildApplication = do
       viraRuntimeState <- Reader.ask @ViraRuntimeState
       let key = maybe mempty encodeUtf8 webSettings.githubWebhookSecret
-          githubKey :: GitHubKey PullRequestEvent
-          githubKey = gitHubKey $ pure key
+          githubKey = GitHubKey $ pure key
       let servantApp =
             genericServeTWithContext
               id
