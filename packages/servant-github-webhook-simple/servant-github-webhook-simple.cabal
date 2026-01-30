@@ -1,0 +1,68 @@
+cabal-version: 2.0
+
+-- This file has been generated from package.yaml by hpack version 0.38.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           servant-github-webhook-simple
+version:        0.1.0.0
+synopsis:       Servant combinator for GitHub webhooks
+description:    Type-safe GitHub webhook handling for Servant with signature verification
+category:       Web
+author:         Shivaraj B H
+maintainer:     me@shivaraj-bh.in
+copyright:      2024 Juspay
+license:        MIT
+build-type:     Simple
+
+library
+  exposed-modules:
+      Servant.GitHub.Webhook
+  other-modules:
+      Paths_servant_github_webhook_simple
+  autogen-modules:
+      Paths_servant_github_webhook_simple
+  hs-source-dirs:
+      src
+  default-extensions:
+      DataKinds
+      OverloadedRecordDot
+      DeriveDataTypeable
+      DeriveGeneric
+      DeriveTraversable
+      DerivingStrategies
+      DerivingVia
+      ExplicitForAll
+      FlexibleContexts
+      FlexibleInstances
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      MultiParamTypeClasses
+      MultiWayIf
+      NamedFieldPuns
+      NoStarIsType
+      NumericUnderscores
+      OverloadedStrings
+      ScopedTypeVariables
+      StrictData
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      TypeSynonymInstances
+      ViewPatterns
+  ghc-options: -Wall -optP-Wno-nonportable-include-path -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-deriving-strategies -Wunused-foralls -fprint-explicit-foralls -fprint-explicit-kinds
+  build-depends:
+      aeson
+    , base ==4.*
+    , bytestring
+    , github-webhooks
+    , relude >=1.0
+    , servant
+    , servant-server
+    , wai
+  mixins:
+      base hiding (Prelude)
+    , relude (Relude as Prelude, Relude.Container.One)
+    , relude 
+  default-language: GHC2021
