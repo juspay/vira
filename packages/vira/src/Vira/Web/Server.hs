@@ -22,15 +22,14 @@ import Network.Wai.Middleware.Static (
   (>->),
  )
 import Paths_vira qualified
-import Servant (Context (..))
-import Servant.GitHub.Webhook (GitHubKey (..))
-import Servant.Server.Generic (genericServeTWithContext)
+import Servant.Server.Generic (genericServe)
 import System.Nix.Cache.Server qualified as Cache
 import System.Nix.Flake.Develop qualified as Nix
 import Vira.App (AppStack, ViraRuntimeState (..))
 import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
 import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
+import Vira.Webhook.GitHub qualified as WebhookGitHub
 
 -- | Run the Vira server with the given 'GlobalSettings' and 'WebSettings'
 runServer :: (HasCallStack) => GlobalSettings -> WebSettings -> Application -> Eff AppStack ()
@@ -43,13 +42,9 @@ runServer globalSettings webSettings cacheApp = do
   where
     buildApplication = do
       viraRuntimeState <- Reader.ask @ViraRuntimeState
-      let key = maybe mempty encodeUtf8 webSettings.githubWebhookSecret
-          githubKey = GitHubKey $ pure key
       let servantApp =
-            genericServeTWithContext
-              id
+            genericServe
               (IndexPage.handlers globalSettings viraRuntimeState webSettings)
-              (githubKey :. EmptyContext)
       staticDir <- getDataDirMultiHome
       log Debug $ "Static dir = " <> toText staticDir
 
@@ -60,6 +55,8 @@ runServer globalSettings webSettings cacheApp = do
               staticPolicy $ noDots >-> addBase staticDir
             , -- Cache server middleware
               Cache.cacheMiddleware "cache" cacheApp
+            , -- GitHub webhook sub-app (initializes its own context)
+              WebhookGitHub.webhookMiddleware globalSettings viraRuntimeState webSettings
             ]
           app = foldl' (&) servantApp middlewares
       pure app

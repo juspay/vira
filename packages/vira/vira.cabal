@@ -102,8 +102,6 @@ library
       Vira.Web.Stream.KeepAlive
       Vira.Web.Stream.Log
       Vira.Web.Stream.ScopedRefresh
-      Vira.Web.Webhook.GitHub
-      Vira.Web.Webhook.Index
       Vira.Web.Widgets.Alert
       Vira.Web.Widgets.Button
       Vira.Web.Widgets.Card
@@ -116,6 +114,7 @@ library
       Vira.Web.Widgets.Status
       Vira.Web.Widgets.Tabs
       Vira.Web.Widgets.Time
+      Vira.Webhook.GitHub
   other-modules:
       Paths_vira
   autogen-modules:
