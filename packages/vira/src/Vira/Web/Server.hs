@@ -42,9 +42,7 @@ runServer globalSettings webSettings cacheApp = do
   where
     buildApplication = do
       viraRuntimeState <- Reader.ask @ViraRuntimeState
-      let servantApp =
-            genericServe
-              (IndexPage.handlers globalSettings viraRuntimeState webSettings)
+      let servantApp = genericServe $ IndexPage.handlers globalSettings viraRuntimeState webSettings
       staticDir <- getDataDirMultiHome
       log Debug $ "Static dir = " <> toText staticDir
 
