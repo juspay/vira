@@ -55,3 +55,21 @@ spec = describe "Vira.CI.Configuration" $ do
           rootFlake.path `shouldBe` "."
           rootFlake.overrideInputs `shouldBe` [("local", "github:boolean-option/false")]
         Left err -> expectationFailure $ "Config application failed: " <> show err
+
+    it "parses multi-flake config with overrideInputs correctly" $ do
+      configPath <- getDataFileName "test/sample-configs/multi-flake-overrides.hs"
+      configCode <- decodeUtf8 <$> readFileBS configPath
+      result <- applyConfig configCode testContextStaging defaultPipeline
+      case result of
+        Right pipeline -> do
+          let flakes = toList pipeline.build.flakes
+          length flakes `shouldBe` 3
+          -- Check that the second and third flakes have the correct overrideInputs
+          case flakes of
+            [_, secondFlake, thirdFlake] -> do
+              secondFlake.path `shouldBe` "./examples/claude-sandboxed"
+              secondFlake.overrideInputs `shouldBe` [("landrun-nix", ".")]
+              thirdFlake.path `shouldBe` "./examples/standalone"
+              thirdFlake.overrideInputs `shouldBe` [("landrun-nix", ".")]
+            _ -> expectationFailure "Expected exactly 3 flakes"
+        Left err -> expectationFailure $ "Config application failed: " <> show err

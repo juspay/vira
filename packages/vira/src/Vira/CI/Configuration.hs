@@ -35,22 +35,26 @@ applyConfig configContent ctx pipeline = do
       ]
 
     -- Import necessary modules
-    Hint.setImports
+    -- GHC.Exts must be qualified to allow `fromList = E.fromList` binding
+    -- for RebindableSyntax + OverloadedLists interaction
+    Hint.setImportsQ
       [ -- Provide the user with relude functions
-        -- Thus, we don't need to import gazillion others (like Data.Text)
-        "Relude"
+        ("Relude", Nothing)
+      , -- For fromList (required by RebindableSyntax + OverloadedLists)
+        ("GHC.Exts", Just "E")
       , -- For record update syntax
-        "GHC.Records.Compat"
+        ("GHC.Records.Compat", Nothing)
       , -- Vira CI types
-        "Vira.CI.Context"
-      , "Vira.CI.Pipeline.Type"
+        ("Vira.CI.Context", Nothing)
+      , ("Vira.CI.Pipeline.Type", Nothing)
       , -- Git types, used by CI types
-        "Effectful.Git"
+        ("Effectful.Git", Nothing)
       ]
 
-    -- Wrap the config content with ifThenElse definition for RebindableSyntax
-    -- RebindableSyntax requires ifThenElse to be in scope
-    let wrappedContent = "let ifThenElse :: Bool -> a -> a -> a; ifThenElse True t _ = t; ifThenElse False _ f = f in " <> configContent
+    -- Wrap the config content with definitions required by RebindableSyntax:
+    -- - ifThenElse: for MultiWayIf syntax
+    -- - fromList: for OverloadedLists syntax (uses qualified E.fromList)
+    let wrappedContent = "let ifThenElse :: Bool -> a -> a -> a; ifThenElse True t _ = t; ifThenElse False _ f = f; fromList :: E.IsList l => [E.Item l] -> l; fromList = E.fromList in " <> configContent
 
     -- Interpret the configuration code directly as a function
     configFn <- Hint.interpret (toString wrappedContent) (Hint.as :: ViraContext -> ViraPipeline -> ViraPipeline)

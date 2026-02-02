@@ -26,6 +26,7 @@ data-files:
     vira-logo-apple.svg
     vira-logo-penguin.svg
     test/sample-configs/simple-example.hs
+    test/sample-configs/multi-flake-overrides.hs
 data-dir:       static
 
 library

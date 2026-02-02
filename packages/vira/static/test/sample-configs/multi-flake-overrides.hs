@@ -1,0 +1,20 @@
+-- Test case for multiple flakes with overrideInputs
+-- Reproduces: type error with tuples in overrideInputs list
+
+\ctx pipeline ->
+  let
+    isMain = ctx.branch == "master"
+  in
+  pipeline
+    { build.systems =
+        [ "x86_64-linux"
+        ]
+    , build.flakes =
+        [ "."
+        , "./examples/claude-sandboxed" { overrideInputs = [("landrun-nix", ".")] }
+        , "./examples/standalone" { overrideInputs = [("landrun-nix", ".")] }
+        ]
+    , cache.url = if
+        | isMain -> Just "https://cache.nixos.asia/oss"
+        | otherwise -> Nothing
+    }
