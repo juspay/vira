@@ -114,6 +114,7 @@ library
       Vira.Web.Widgets.Status
       Vira.Web.Widgets.Tabs
       Vira.Web.Widgets.Time
+      Vira.Webhook.GitHub
   other-modules:
       Paths_vira
   autogen-modules:
@@ -185,6 +186,7 @@ library
     , filepattern
     , gh
     , git-effectful
+    , github-webhooks
     , hint
     , hint-nix
     , hostname
@@ -216,6 +218,7 @@ library
     , safecopy
     , servant
     , servant-event-stream
+    , servant-github-webhook-simple
     , servant-server
     , sqlite-simple
     , stm
@@ -313,6 +316,7 @@ executable vira
     , filepattern
     , gh
     , git-effectful
+    , github-webhooks
     , hint
     , hint-nix
     , hostname
@@ -344,6 +348,7 @@ executable vira
     , safecopy
     , servant
     , servant-event-stream
+    , servant-github-webhook-simple
     , servant-server
     , sqlite-simple
     , stm
@@ -446,6 +451,7 @@ executable vira-tests
     , filepattern
     , gh
     , git-effectful
+    , github-webhooks
     , hint
     , hint-nix
     , hostname
@@ -477,6 +483,7 @@ executable vira-tests
     , safecopy
     , servant
     , servant-event-stream
+    , servant-github-webhook-simple
     , servant-server
     , sqlite-simple
     , stm

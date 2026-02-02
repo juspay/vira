@@ -60,6 +60,8 @@ data WebSettings = WebSettings
   -- ^ Optional JSON file to import on startup
   , ciSettings :: CISettings
   -- ^ CI configuration settings
+  , githubWebhookSecret :: Maybe Text
+  -- ^ Secret for verifying GitHub webhook signatures
   }
   deriving stock (Show)
 
@@ -174,6 +176,13 @@ webSettingsParser = do
           <> value 14
           <> showDefault
       )
+  githubWebhookSecret <-
+    optional $
+      strOption
+        ( long "github-webhook-secret"
+            <> metavar "SECRET"
+            <> help "Secret for verifying GitHub webhook signatures"
+        )
   pure
     WebSettings
       { port
@@ -187,6 +196,7 @@ webSettingsParser = do
             , autoBuildNewBranches = AutoBuildNewBranches autoBuildNewBranchesBool
             , jobRetentionDays
             }
+      , githubWebhookSecret
       }
 
 -- | Parser for CI command
