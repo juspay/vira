@@ -33,6 +33,11 @@ dependencies:
   - acid-state-events
   - aeson
   - github-webhooks
+  - jose
+  - req
+  - lens
+  - crypton-x509
+  - crypton-x509-store
   - ansi-terminal
   - async
   - attic

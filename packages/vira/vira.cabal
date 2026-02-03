@@ -115,6 +115,7 @@ library
       Vira.Web.Widgets.Tabs
       Vira.Web.Widgets.Time
       Vira.Webhook.GitHub
+      Vira.Webhook.GitHub.ChecksAPI
   other-modules:
       Paths_vira
   autogen-modules:
@@ -170,6 +171,8 @@ library
     , co-log-effectful
     , co-log-effectful-simple
     , containers
+    , crypton-x509
+    , crypton-x509-store
     , dani-servant-lucid2
     , data-default
     , dependent-map
@@ -200,6 +203,8 @@ library
     , http-media
     , http-types
     , ixset-typed
+    , jose
+    , lens
     , logsink
     , lucid2
     , modern-uri
@@ -215,6 +220,7 @@ library
     , profunctors
     , record-hasfield
     , relude >=1.0
+    , req
     , safecopy
     , servant
     , servant-event-stream
@@ -300,6 +306,8 @@ executable vira
     , co-log-effectful
     , co-log-effectful-simple
     , containers
+    , crypton-x509
+    , crypton-x509-store
     , dani-servant-lucid2
     , data-default
     , dependent-map
@@ -330,6 +338,8 @@ executable vira
     , http-media
     , http-types
     , ixset-typed
+    , jose
+    , lens
     , logsink
     , lucid2
     , modern-uri
@@ -345,6 +355,7 @@ executable vira
     , profunctors
     , record-hasfield
     , relude >=1.0
+    , req
     , safecopy
     , servant
     , servant-event-stream
@@ -435,6 +446,8 @@ executable vira-tests
     , co-log-effectful
     , co-log-effectful-simple
     , containers
+    , crypton-x509
+    , crypton-x509-store
     , dani-servant-lucid2
     , data-default
     , dependent-map
@@ -465,6 +478,8 @@ executable vira-tests
     , http-media
     , http-types
     , ixset-typed
+    , jose
+    , lens
     , logsink
     , lucid2
     , modern-uri
@@ -480,6 +495,7 @@ executable vira-tests
     , profunctors
     , record-hasfield
     , relude >=1.0
+    , req
     , safecopy
     , servant
     , servant-event-stream
