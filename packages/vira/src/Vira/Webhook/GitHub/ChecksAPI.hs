@@ -1,36 +1,13 @@
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-{- | GitHub Checks API client
+{- | GitHub Checks API - Authentication helpers
 
-Implements GitHub App authentication and Checks API for reporting build status.
-
-= Authentication Flow
-
-1. Create JWT from App ID + Private Key (valid for 10 minutes)
-2. Exchange JWT for Installation Access Token (valid for 1 hour)
-3. Use Installation Access Token for Checks API calls
-
-= Usage
-
-@
-result <- createCheckRun appSettings installationId repoOwner repoName headSha "Vira CI"
-case result of
-  Left err -> log Error $ "Failed to create check run: " <> show err
-  Right checkRunId -> log Info $ "Created check run: " <> show checkRunId
-@
+This module provides GitHub App authentication functionality for the Checks API.
+The types and request builders are re-exported from the @github@ package.
 -}
 module Vira.Webhook.GitHub.ChecksAPI (
-  -- * Types
-  CheckRunStatus (..),
-  CheckRunConclusion (..),
-  CreateCheckRunRequest (..),
-  CreateCheckRunResponse (..),
   InstallationToken (..),
   ChecksAPIError (..),
-
-  -- * Functions
-  createCheckRun,
   createJWT,
   getInstallationToken,
 ) where
@@ -51,7 +28,7 @@ import Crypto.JWT (
   runJOSE,
   signClaims,
  )
-import Data.Aeson (FromJSON (..), ToJSON (..), (.:), (.=))
+import Data.Aeson (FromJSON (..), (.:))
 import Data.Aeson qualified as Aeson
 import Data.ByteString.Lazy qualified as LBS
 import Data.Time (addUTCTime, getCurrentTime)
@@ -74,80 +51,10 @@ import Network.HTTP.Req (
  )
 import Vira.App.CLI (GitHubAppSettings (..))
 
--- | Status of a check run
-data CheckRunStatus
-  = Queued
-  | InProgress
-  | Completed
-  deriving stock (Show, Eq)
-
-instance ToJSON CheckRunStatus where
-  toJSON = \case
-    Queued -> "queued"
-    InProgress -> "in_progress"
-    Completed -> "completed"
-
--- | Conclusion of a completed check run
-data CheckRunConclusion
-  = ActionRequired
-  | Cancelled
-  | Failure
-  | Neutral
-  | Success
-  | Skipped
-  | Stale
-  | TimedOut
-  deriving stock (Show, Eq)
-
-instance ToJSON CheckRunConclusion where
-  toJSON = \case
-    ActionRequired -> "action_required"
-    Cancelled -> "cancelled"
-    Failure -> "failure"
-    Neutral -> "neutral"
-    Success -> "success"
-    Skipped -> "skipped"
-    Stale -> "stale"
-    TimedOut -> "timed_out"
-
--- | Request body for creating a check run
-data CreateCheckRunRequest = CreateCheckRunRequest
-  { name :: Text
-  -- ^ Name of the check
-  , headSha :: Text
-  -- ^ SHA of the commit to attach the check to
-  , status :: CheckRunStatus
-  -- ^ Status of the check run
-  , externalId :: Maybe Text
-  -- ^ Optional reference for external system
-  , detailsUrl :: Maybe Text
-  -- ^ URL with details about the check run
-  }
-  deriving stock (Show, Eq, Generic)
-
-instance ToJSON CreateCheckRunRequest where
-  toJSON r =
-    Aeson.object $
-      catMaybes
-        [ Just $ "name" .= r.name
-        , Just $ "head_sha" .= r.headSha
-        , Just $ "status" .= r.status
-        , ("external_id" .=) <$> r.externalId
-        , ("details_url" .=) <$> r.detailsUrl
-        ]
-
--- | Response from creating a check run
-newtype CreateCheckRunResponse = CreateCheckRunResponse
-  { id :: Int
-  -- ^ ID of the created check run
-  }
-  deriving stock (Show, Eq, Generic)
-  deriving anyclass (FromJSON)
-
 -- | Installation access token from GitHub
 data InstallationToken = InstallationToken
-  { token :: Text
-  , expiresAt :: Text
+  { installationTokenToken :: Text
+  , installationTokenExpiresAt :: Text
   }
   deriving stock (Show, Eq, Generic)
 
@@ -219,31 +126,6 @@ getInstallationToken jwt installationId = do
         POST
         url
         (ReqBodyJson (Aeson.object []))
-        jsonResponse
-        ( header "Authorization" authHeader
-            <> header "Accept" "application/vnd.github+json"
-            <> header "User-Agent" "Vira-CI"
-        )
-    pure $ responseBody resp
-  pure $ first HttpError result
-
--- | Create a check run on a pull request
-createCheckRun ::
-  (IOE :> es) =>
-  Text ->
-  Text ->
-  Text ->
-  CreateCheckRunRequest ->
-  Eff es (Either ChecksAPIError CreateCheckRunResponse)
-createCheckRun accessToken owner repo checkRunReq = do
-  result <- liftIO $ try @HttpException $ runReq defaultHttpConfig $ do
-    let url = https "api.github.com" /: "repos" /: owner /: repo /: "check-runs"
-        authHeader = "Bearer " <> encodeUtf8 accessToken
-    resp <-
-      req
-        POST
-        url
-        (ReqBodyJson checkRunReq)
         jsonResponse
         ( header "Authorization" authHeader
             <> header "Accept" "application/vnd.github+json"

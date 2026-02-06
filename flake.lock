@@ -83,6 +83,23 @@
         "type": "github"
       }
     },
+    "github": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1770356723,
+        "narHash": "sha256-8PYHv2fsCX1anZva0bfH/zHP8OUy5MxxyrxAi8m7QFg=",
+        "owner": "shivaraj-bh",
+        "repo": "github",
+        "rev": "0ce2d64504acaa49c9aefce945b4fe6f431faaf8",
+        "type": "github"
+      },
+      "original": {
+        "owner": "shivaraj-bh",
+        "ref": "checks",
+        "repo": "github",
+        "type": "github"
+      }
+    },
     "haskell-flake": {
       "locked": {
         "lastModified": 1765673601,
@@ -247,6 +264,7 @@
         "flake-parts": "flake-parts",
         "fourmolu-nix": "fourmolu-nix",
         "git-hooks": "git-hooks",
+        "github": "github",
         "haskell-flake": "haskell-flake",
         "hint-nix": "hint-nix",
         "htmx": "htmx",

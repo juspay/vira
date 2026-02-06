@@ -13,6 +13,11 @@ module Vira.Webhook.GitHub (
 import Colog (Severity (..))
 import Effectful (Eff)
 import Effectful.Colog.Simple (log)
+import GitHub (executeRequest)
+import GitHub.Auth (Auth (..))
+import GitHub.Data.Definitions (Owner)
+import GitHub.Data.Name (mkName)
+import GitHub.Data.Repos (Repo)
 import GitHub.Data.Webhooks.Events (
   PullRequestEvent (..),
   PushEvent,
@@ -24,6 +29,11 @@ import GitHub.Data.Webhooks.Payload (
   HookUser (..),
   PullRequestTarget (..),
  )
+import GitHub.Endpoints.Checks (
+  CheckRunStatus (..),
+  NewCheckRun (..),
+  createCheckRunR,
+ )
 import Network.Wai (Middleware, pathInfo)
 import Servant
 import Servant.GitHub.Webhook (GitHubEvent, GitHubKey (..))
@@ -32,11 +42,8 @@ import Vira.App (GlobalSettings, ViraRuntimeState)
 import Vira.App.CLI (GitHubAppSettings (..), WebSettings (..))
 import Vira.Web.Stack (AppServantStack, runAppInServant)
 import Vira.Webhook.GitHub.ChecksAPI (
-  CheckRunStatus (..),
-  ChecksAPIError,
-  CreateCheckRunRequest (..),
+  ChecksAPIError (..),
   InstallationToken (..),
-  createCheckRun,
   createJWT,
   getInstallationToken,
  )
@@ -109,15 +116,22 @@ createCheckRunForPR appSettings installationId owner repo headSha = do
         Right installationToken -> do
           -- Create check run with "in_progress" status
           let checkReq =
-                CreateCheckRunRequest
-                  { name = "Vira CI"
-                  , headSha = headSha
-                  , status = InProgress
-                  , externalId = Nothing
-                  , detailsUrl = Nothing -- TODO: Add URL to Vira job page
+                NewCheckRun
+                  { newCheckRunName = "Vira CI"
+                  , newCheckRunHeadSha = headSha
+                  , newCheckRunStatus = Just CheckRunInProgress
+                  , newCheckRunExternalId = Nothing
+                  , newCheckRunDetailsUrl = Nothing -- TODO: Add URL to Vira job page
+                  , newCheckRunStartedAt = Nothing
+                  , newCheckRunConclusion = Nothing
+                  , newCheckRunCompletedAt = Nothing
+                  , newCheckRunOutput = Nothing
+                  , newCheckRunActions = Nothing
                   }
-          checkResult <- createCheckRun installationToken.token owner repo checkReq
-          pure $ void checkResult
+              req = createCheckRunR (mkName (Proxy @Owner) owner) (mkName (Proxy @Repo) repo) checkReq
+              auth = OAuth $ encodeUtf8 installationToken.installationTokenToken
+          checkResult <- liftIO $ executeRequest auth req
+          pure $ first (CheckRunCreationError . show) $ void checkResult
 
 pushHandler :: PushEvent -> Eff AppServantStack NoContent
 pushHandler _ = do

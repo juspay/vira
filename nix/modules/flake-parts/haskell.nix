@@ -45,6 +45,7 @@ in
         htmx-servant.source = inputs.htmx + /htmx-servant;
 
         # external libs
+        github.source = inputs.github;
         co-log-effectful.source = inputs.co-log-effectful;
         tabler-icons.source = inputs.tabler-icons-hs;
         servant-event-stream.source = inputs.servant-event-stream;
