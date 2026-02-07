@@ -11,13 +11,11 @@ module Vira.Webhook.GitHub (
 ) where
 
 import Colog (Severity (..))
-import Effectful (Eff)
+import Effectful (Eff, IOE)
+import Effectful qualified as Eff
 import Effectful.Colog.Simple (log)
-import GitHub (executeRequest)
-import GitHub.Auth (Auth (..))
-import GitHub.Data.Definitions (Owner)
-import GitHub.Data.Name (mkName)
-import GitHub.Data.Repos (Repo)
+import GitHub (executeRequest, mkOwnerName, mkRepoName)
+import GitHub.Data.Id qualified as GH
 import GitHub.Data.Webhooks.Events (
   PullRequestEvent (..),
   PushEvent,
@@ -43,9 +41,7 @@ import Vira.App.CLI (GitHubAppSettings (..), WebSettings (..))
 import Vira.Web.Stack (AppServantStack, runAppInServant)
 import Vira.Webhook.GitHub.ChecksAPI (
   ChecksAPIError (..),
-  InstallationToken (..),
-  createJWT,
-  getInstallationToken,
+  withAppAuth,
  )
 
 -- | API type for GitHub webhook events
@@ -66,72 +62,56 @@ handlers globalSettings viraRuntimeState webSettings =
 -- | Handle pull request events by creating a GitHub Check run
 prHandler :: WebSettings -> PullRequestEvent -> Eff AppServantStack NoContent
 prHandler webSettings event = do
-  -- Extract repo owner and name
-  let repo = evPullReqRepo event
-      repoName = whRepoName repo
-      repoOwner = getOwnerLogin $ whRepoOwner repo
+  log Info $ "Received PR on github:" <> show event
 
-      -- Extract head SHA from the pull request
-      pr = evPullReqPayload event
-      headSha = whPullReqTargetSha $ whPullReqHead pr
-
-      -- Get installation ID from the event
-      maybeInstallationId = evPullReqInstallationId event
-
-  log Info $ "Received PR on github:" <> repoOwner <> "/" <> repoName <> " at " <> headSha
-
-  -- Create check run if GitHub App is configured
-  case (webSettings.githubApp, maybeInstallationId) of
-    (Just appSettings, Just installationId) -> do
-      result <- createCheckRunForPR appSettings installationId repoOwner repoName headSha
-      case result of
-        Left err -> log Error $ "Failed to create check run: " <> show err
-        Right _ -> log Info "Created check run successfully"
-    (Nothing, _) -> log Warning "GitHub App not configured, skipping check run creation"
-    (_, Nothing) -> log Warning "No installation ID in event, skipping check run creation"
-
+  case webSettings.githubApp of
+    Just ghAppSettings -> do
+      res <- createCheckRun ghAppSettings event
+      case res of
+        Left err -> log Warning (show err) -- TODO: for which event?
+        Right _ -> log Info "Check run created successfully" -- TODO: for which event?
+    Nothing -> log Warning "GitHub App settings not configured in CLI, skipping check run creation" -- TODO: for which event? use logging with context?
   pure NoContent
   where
     getOwnerLogin :: Either HookSimpleUser HookUser -> Text
     getOwnerLogin = either (fromMaybe "" . whSimplUserLogin) whUserLogin
 
--- | Create a check run for a pull request
-createCheckRunForPR ::
-  GitHubAppSettings ->
-  Int ->
-  Text ->
-  Text ->
-  Text ->
-  Eff AppServantStack (Either ChecksAPIError ())
-createCheckRunForPR appSettings installationId owner repo headSha = do
-  -- Create JWT for GitHub App authentication
-  jwtResult <- liftIO $ createJWT appSettings
-  case jwtResult of
-    Left err -> pure $ Left err
-    Right jwt -> do
-      -- Exchange JWT for installation access token
-      tokenResult <- getInstallationToken jwt installationId
-      case tokenResult of
-        Left err -> pure $ Left err
-        Right installationToken -> do
-          -- Create check run with "in_progress" status
-          let checkReq =
-                NewCheckRun
-                  { newCheckRunName = "Vira CI"
-                  , newCheckRunHeadSha = headSha
-                  , newCheckRunStatus = Just CheckRunInProgress
-                  , newCheckRunExternalId = Nothing
-                  , newCheckRunDetailsUrl = Nothing -- TODO: Add URL to Vira job page
-                  , newCheckRunStartedAt = Nothing
-                  , newCheckRunConclusion = Nothing
-                  , newCheckRunCompletedAt = Nothing
-                  , newCheckRunOutput = Nothing
-                  , newCheckRunActions = Nothing
-                  }
-              req = createCheckRunR (mkName (Proxy @Owner) owner) (mkName (Proxy @Repo) repo) checkReq
-              auth = OAuth $ encodeUtf8 installationToken.installationTokenToken
-          checkResult <- liftIO $ executeRequest auth req
-          pure $ first (CheckRunCreationError . show) $ void checkResult
+    mkNewCheckRun :: PullRequestTarget -> NewCheckRun
+    mkNewCheckRun prTarget =
+      NewCheckRun
+        { newCheckRunName = "Vira CI"
+        , newCheckRunHeadSha = whPullReqTargetSha prTarget
+        , newCheckRunStatus = Just CheckRunInProgress
+        , newCheckRunExternalId = Nothing
+        , newCheckRunDetailsUrl = Nothing
+        , newCheckRunStartedAt = Nothing
+        , newCheckRunConclusion = Nothing
+        , newCheckRunCompletedAt = Nothing
+        , newCheckRunOutput = Nothing
+        , newCheckRunActions = Nothing
+        }
+    createCheckRun :: (IOE Eff.:> es) => GitHubAppSettings -> PullRequestEvent -> Eff es (Either ChecksAPIError ())
+    createCheckRun ghAppSettings prEvent = do
+      let repo = evPullReqRepo prEvent
+          repoName = whRepoName $ evPullReqRepo prEvent
+          repoOwner = getOwnerLogin $ whRepoOwner repo
+          prTarget = whPullReqHead $ evPullReqPayload prEvent
+
+      case evPullReqInstallationId prEvent of
+        Just installationId -> do
+          result <- withAppAuth
+            (GH.Id ghAppSettings.appId)
+            (GH.Id installationId)
+            ghAppSettings.privateKeyPath
+            $ \auth -> do
+              let
+                req = createCheckRunR (mkOwnerName repoOwner) (mkRepoName repoName) (mkNewCheckRun prTarget)
+              checkResult <- liftIO $ executeRequest auth req
+              pure $ first (CheckRunCreationError . show) $ void checkResult
+          case result of
+            Left err -> pure $ Left $ CheckRunCreationError (show err)
+            Right _ -> pure $ Right ()
+        Nothing -> pure $ Left NoInstallationId
 
 pushHandler :: PushEvent -> Eff AppServantStack NoContent
 pushHandler _ = do

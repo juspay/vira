@@ -201,6 +201,7 @@ library
     , htmx-lucid-contrib
     , htmx-servant
     , http-api-data
+    , http-client
     , http-media
     , http-types
     , ixset-typed
@@ -337,6 +338,7 @@ executable vira
     , htmx-lucid-contrib
     , htmx-servant
     , http-api-data
+    , http-client
     , http-media
     , http-types
     , ixset-typed
@@ -478,6 +480,7 @@ executable vira-tests
     , htmx-lucid-contrib
     , htmx-servant
     , http-api-data
+    , http-client
     , http-media
     , http-types
     , ixset-typed

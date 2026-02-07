@@ -86,11 +86,11 @@
     "github": {
       "flake": false,
       "locked": {
-        "lastModified": 1770356723,
-        "narHash": "sha256-8PYHv2fsCX1anZva0bfH/zHP8OUy5MxxyrxAi8m7QFg=",
+        "lastModified": 1770495936,
+        "narHash": "sha256-LiMQZE69XzzhActTf7hZiAQRft3mvl+XiFd27CWVcO0=",
         "owner": "shivaraj-bh",
         "repo": "github",
-        "rev": "0ce2d64504acaa49c9aefce945b4fe6f431faaf8",
+        "rev": "047ad5e172d875b26a55ed0a9d2bc20424e1635e",
         "type": "github"
       },
       "original": {

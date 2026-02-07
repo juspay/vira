@@ -6,13 +6,10 @@ This module provides GitHub App authentication functionality for the Checks API.
 The types and request builders are re-exported from the @github@ package.
 -}
 module Vira.Webhook.GitHub.ChecksAPI (
-  InstallationToken (..),
   ChecksAPIError (..),
-  createJWT,
-  getInstallationToken,
+  withAppAuth,
 ) where
 
-import Control.Exception (try)
 import Control.Lens ((?~))
 import Crypto.JOSE (Error, JWK, fromRSA)
 import Crypto.JOSE.Compact (encodeCompact)
@@ -28,41 +25,33 @@ import Crypto.JWT (
   runJOSE,
   signClaims,
  )
-import Data.Aeson (FromJSON (..), (.:))
-import Data.Aeson qualified as Aeson
 import Data.ByteString.Lazy qualified as LBS
 import Data.Time (addUTCTime, getCurrentTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime, utcTimeToPOSIXSeconds)
 import Data.X509 (PrivKey (..))
 import Data.X509.Memory (readKeyFileFromMemory)
 import Effectful (Eff, IOE, (:>))
+import GitHub qualified as GH
+import GitHub.Auth (Auth (..))
+import GitHub.Data (App, Id, Installation)
+import GitHub.Endpoints.Apps (createAccessTokenR)
+import GitHub.Request (github)
 import Network.HTTP.Req (
   HttpException,
-  POST (POST),
-  ReqBodyJson (ReqBodyJson),
-  defaultHttpConfig,
-  header,
-  https,
-  jsonResponse,
-  req,
-  responseBody,
-  runReq,
-  (/:),
  )
-import Vira.App.CLI (GitHubAppSettings (..))
 
--- | Installation access token from GitHub
-data InstallationToken = InstallationToken
-  { installationTokenToken :: Text
-  , installationTokenExpiresAt :: Text
-  }
-  deriving stock (Show, Eq, Generic)
+type PrivateKeyPath = FilePath
 
-instance FromJSON InstallationToken where
-  parseJSON = Aeson.withObject "InstallationToken" $ \v ->
-    InstallationToken
-      <$> v .: "token"
-      <*> v .: "expires_at"
+withAppAuth :: (IOE :> es) => Id App -> Id Installation -> PrivateKeyPath -> (Auth -> Eff es a) -> Eff es (Either ChecksAPIError a)
+withAppAuth appId installationId privateKey action = do
+  jwt <- liftIO $ createJWT appId privateKey
+  case jwt of
+    Left err -> pure $ Left err
+    Right jwt' -> do
+      accessToken <- liftIO $ github (JWT (decodeUtf8 @Text jwt')) (createAccessTokenR installationId)
+      case accessToken of
+        Left err -> pure $ Left $ TokenExchangeError (show err)
+        Right accessToken' -> Right <$> action (OAuth $ encodeUtf8 accessToken'.accessTokenToken)
 
 -- | Errors that can occur when using the Checks API
 data ChecksAPIError
@@ -70,6 +59,7 @@ data ChecksAPIError
   | TokenExchangeError Text
   | CheckRunCreationError Text
   | PrivateKeyError Text
+  | NoInstallationId
   | HttpError HttpException
   deriving stock (Show)
 
@@ -83,10 +73,10 @@ readPrivateKey path = do
     _ -> pure $ Left $ PrivateKeyError "Multiple keys or non-RSA key in PEM file"
 
 -- | Create a JWT for GitHub App authentication
-createJWT :: GitHubAppSettings -> IO (Either ChecksAPIError LBS.ByteString)
-createJWT settings = do
+createJWT :: Id App -> PrivateKeyPath -> IO (Either ChecksAPIError LBS.ByteString)
+createJWT appId privateKeyPath = do
   now <- getCurrentTime
-  keyResult <- readPrivateKey settings.privateKeyPath
+  keyResult <- readPrivateKey privateKeyPath
   case keyResult of
     Left err -> pure $ Left err
     Right jwk -> do
@@ -101,7 +91,7 @@ createJWT settings = do
                 & claimExp
               ?~ NumericDate expSeconds
                 & claimIss
-              ?~ fromString (show settings.appId)
+              ?~ fromString (show appId)
       result :: Either Error SignedJWT <- runJOSE $ signClaims jwk (newJWSHeader ((), RS256)) claims
       case result of
         Left err -> pure $ Left $ JWTCreationError $ show err
@@ -110,26 +100,3 @@ createJWT settings = do
     -- Truncate UTCTime to whole seconds (removes fractional seconds)
     truncateToSeconds t =
       posixSecondsToUTCTime $ fromIntegral (floor (utcTimeToPOSIXSeconds t) :: Integer)
-
--- | Exchange JWT for an installation access token
-getInstallationToken ::
-  (IOE :> es) =>
-  LBS.ByteString ->
-  Int ->
-  Eff es (Either ChecksAPIError InstallationToken)
-getInstallationToken jwt installationId = do
-  result <- liftIO $ try @HttpException $ runReq defaultHttpConfig $ do
-    let url = https "api.github.com" /: "app" /: "installations" /: show installationId /: "access_tokens"
-        authHeader = "Bearer " <> toStrict jwt
-    resp <-
-      req
-        POST
-        url
-        (ReqBodyJson (Aeson.object []))
-        jsonResponse
-        ( header "Authorization" authHeader
-            <> header "Accept" "application/vnd.github+json"
-            <> header "User-Agent" "Vira-CI"
-        )
-    pure $ responseBody resp
-  pure $ first HttpError result
