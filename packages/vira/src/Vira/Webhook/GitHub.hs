@@ -11,10 +11,12 @@ module Vira.Webhook.GitHub (
 ) where
 
 import Colog (Severity (..))
+import Crypto.PubKey.RSA.Read (ReadRsaKeyError, readRsaPem)
 import Effectful (Eff, IOE)
 import Effectful qualified as Eff
 import Effectful.Colog.Simple (log)
 import GitHub (executeRequest, mkOwnerName, mkRepoName)
+import GitHub.Auth.App (AppAuthError, fetchAccessToken, withAppAuth)
 import GitHub.Data.Id qualified as GH
 import GitHub.Data.Webhooks.Events (
   PullRequestEvent (..),
@@ -39,10 +41,14 @@ import Servant.Server.Generic (AsServer, genericServeTWithContext)
 import Vira.App (GlobalSettings, ViraRuntimeState)
 import Vira.App.CLI (GitHubAppSettings (..), WebSettings (..))
 import Vira.Web.Stack (AppServantStack, runAppInServant)
-import Vira.Webhook.GitHub.ChecksAPI (
-  ChecksAPIError (..),
-  withAppAuth,
- )
+
+-- | Errors that can occur when creating a check run
+data CheckRunError
+  = NoInstallationId
+  | AuthError AppAuthError
+  | CheckRunCreationError Text
+  | InvalidPrivateKey ReadRsaKeyError
+  deriving stock (Show)
 
 -- | API type for GitHub webhook events
 data Routes mode = Routes
@@ -90,7 +96,7 @@ prHandler webSettings event = do
         , newCheckRunOutput = Nothing
         , newCheckRunActions = Nothing
         }
-    createCheckRun :: (IOE Eff.:> es) => GitHubAppSettings -> PullRequestEvent -> Eff es (Either ChecksAPIError ())
+    createCheckRun :: (IOE Eff.:> es) => GitHubAppSettings -> PullRequestEvent -> Eff es (Either CheckRunError ())
     createCheckRun ghAppSettings prEvent = do
       let repo = evPullReqRepo prEvent
           repoName = whRepoName $ evPullReqRepo prEvent
@@ -99,18 +105,20 @@ prHandler webSettings event = do
 
       case evPullReqInstallationId prEvent of
         Just installationId -> do
-          result <- withAppAuth
-            (GH.Id ghAppSettings.appId)
-            (GH.Id installationId)
-            ghAppSettings.privateKeyPath
-            $ \auth -> do
-              let
-                req = createCheckRunR (mkOwnerName repoOwner) (mkRepoName repoName) (mkNewCheckRun prTarget)
-              checkResult <- liftIO $ executeRequest auth req
-              pure $ first (CheckRunCreationError . show) $ void checkResult
-          case result of
-            Left err -> pure $ Left $ CheckRunCreationError (show err)
-            Right _ -> pure $ Right ()
+          rsaPem <- liftIO $ readFileBS ghAppSettings.privateKeyPath
+          case readRsaPem rsaPem of
+            Left e -> pure $ Left (InvalidPrivateKey e)
+            Right privateKey -> do
+              result <- liftIO
+                $ withAppAuth
+                  (fetchAccessToken (GH.Id ghAppSettings.appId) privateKey (GH.Id installationId))
+                $ \auth -> do
+                  let req = createCheckRunR (mkOwnerName repoOwner) (mkRepoName repoName) (mkNewCheckRun prTarget)
+                  first (CheckRunCreationError . show) . void <$> executeRequest auth req
+              pure $ case result of
+                Left authErr -> Left $ AuthError authErr
+                Right (Left checkErr) -> Left checkErr
+                Right (Right ()) -> Right ()
         Nothing -> pure $ Left NoInstallationId
 
 pushHandler :: PushEvent -> Eff AppServantStack NoContent

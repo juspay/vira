@@ -115,7 +115,6 @@ library
       Vira.Web.Widgets.Tabs
       Vira.Web.Widgets.Time
       Vira.Webhook.GitHub
-      Vira.Webhook.GitHub.ChecksAPI
   other-modules:
       Paths_vira
   autogen-modules:
@@ -190,6 +189,7 @@ library
     , gh
     , git-effectful
     , github
+    , github-app-auth
     , github-webhooks
     , hint
     , hint-nix
@@ -327,6 +327,7 @@ executable vira
     , gh
     , git-effectful
     , github
+    , github-app-auth
     , github-webhooks
     , hint
     , hint-nix
@@ -469,6 +470,7 @@ executable vira-tests
     , gh
     , git-effectful
     , github
+    , github-app-auth
     , github-webhooks
     , hint
     , hint-nix

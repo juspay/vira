@@ -15,6 +15,7 @@ packages:
   packages/nix-cache-server
   packages/devour-flake
   packages/servant-github-webhook-simple
+  packages/github-app-auth
 
 multi-repl: true
 tests: True

@@ -33,6 +33,7 @@ dependencies:
   - acid-state-events
   - aeson
   - github
+  - github-app-auth
   - github-webhooks
   - http-client
   - jose
