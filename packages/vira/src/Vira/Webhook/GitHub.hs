@@ -147,7 +147,7 @@ webhookMiddleware globalSettings viraRuntimeState webSettings app req sendRespon
       webhookApp req' sendResponse
     _ -> app req sendResponse
   where
-    key = maybe mempty encodeUtf8 webSettings.githubWebhookSecret
+    key = maybe mempty encodeUtf8 webSettings.ghWebhookSecret
     githubKey = GitHubKey $ pure key
     webhookApp =
       genericServeTWithContext
