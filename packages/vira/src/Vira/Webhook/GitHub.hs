@@ -39,7 +39,7 @@ import Servant
 import Servant.GitHub.Webhook (GitHubEvent, GitHubKey (..))
 import Servant.Server.Generic (AsServer, genericServeTWithContext)
 import Vira.App (GlobalSettings, ViraRuntimeState)
-import Vira.App.CLI (GitHubAppSettings (..), WebSettings (..))
+import Vira.App.CLI (GHAppAuthSettings (..), WebSettings (..))
 import Vira.Web.Stack (AppServantStack, runAppInServant)
 
 -- | Errors that can occur when creating a check run
@@ -70,7 +70,7 @@ prHandler :: WebSettings -> PullRequestEvent -> Eff AppServantStack NoContent
 prHandler webSettings event = do
   log Info $ "Received PR on github:" <> show event
 
-  case webSettings.githubApp of
+  case webSettings.ghAppAuthSettings of
     Just ghAppSettings -> do
       res <- createCheckRun ghAppSettings event
       case res of
@@ -96,7 +96,7 @@ prHandler webSettings event = do
         , newCheckRunOutput = Nothing
         , newCheckRunActions = Nothing
         }
-    createCheckRun :: (IOE Eff.:> es) => GitHubAppSettings -> PullRequestEvent -> Eff es (Either CheckRunError ())
+    createCheckRun :: (IOE Eff.:> es) => GHAppAuthSettings -> PullRequestEvent -> Eff es (Either CheckRunError ())
     createCheckRun ghAppSettings prEvent = do
       let repo = evPullReqRepo prEvent
           repoName = whRepoName $ evPullReqRepo prEvent

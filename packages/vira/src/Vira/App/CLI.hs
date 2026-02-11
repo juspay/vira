@@ -7,7 +7,7 @@ module Vira.App.CLI (
   GlobalSettings (..),
   WebSettings (..),
   CISettings (..),
-  GitHubAppSettings (..),
+  GHAppAuthSettings (..),
   Command (..),
 
   -- * Functions
@@ -47,8 +47,8 @@ data CISettings = CISettings
   }
   deriving stock (Show)
 
--- | GitHub App authentication settings for Checks API
-data GitHubAppSettings = GitHubAppSettings
+-- | Settings for authenticating as a GitHub App
+data GHAppAuthSettings = GHAppAuthSettings
   { appId :: Int
   -- ^ GitHub App ID
   , privateKeyPath :: FilePath
@@ -72,8 +72,8 @@ data WebSettings = WebSettings
   -- ^ CI configuration settings
   , githubWebhookSecret :: Maybe Text
   -- ^ Secret for verifying GitHub webhook signatures
-  , githubApp :: Maybe GitHubAppSettings
-  -- ^ GitHub App settings for Checks API integration
+  , ghAppAuthSettings :: Maybe GHAppAuthSettings
+  -- ^ Settings for authenticating as a GitHub App
   }
   deriving stock (Show)
 
@@ -195,7 +195,7 @@ webSettingsParser = do
             <> metavar "SECRET"
             <> help "Secret for verifying GitHub webhook signatures"
         )
-  githubApp <- githubAppParser
+  ghAppAuthSettings <- githubAppParser
   pure
     WebSettings
       { port
@@ -210,11 +210,11 @@ webSettingsParser = do
             , jobRetentionDays
             }
       , githubWebhookSecret
-      , githubApp
+      , ghAppAuthSettings
       }
 
 -- | Parser for GitHub App settings (optional, requires both app ID and key)
-githubAppParser :: Parser (Maybe GitHubAppSettings)
+githubAppParser :: Parser (Maybe GHAppAuthSettings)
 githubAppParser = optional $ do
   appId <-
     option
@@ -229,7 +229,7 @@ githubAppParser = optional $ do
           <> metavar "PATH"
           <> help "Path to GitHub App private key PEM file"
       )
-  pure GitHubAppSettings {..}
+  pure GHAppAuthSettings {..}
 
 -- | Parser for CI command
 ciCommandParser :: Parser Command
