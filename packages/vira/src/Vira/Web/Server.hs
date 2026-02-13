@@ -45,6 +45,7 @@ runServer globalSettings webSettings cacheApp = do
       let servantApp = genericServe $ IndexPage.handlers globalSettings viraRuntimeState webSettings
       staticDir <- getDataDirMultiHome
       log Debug $ "Static dir = " <> toText staticDir
+      ghInstallationAccessTokens <- newTVarIO mempty
 
       let middlewares =
             [ -- 404 handler (innermost, applied last)
@@ -54,7 +55,7 @@ runServer globalSettings webSettings cacheApp = do
             , -- Cache server middleware
               Cache.cacheMiddleware "cache" cacheApp
             , -- GitHub webhook sub-app (initializes its own context)
-              WebhookGitHub.webhookMiddleware globalSettings viraRuntimeState webSettings
+              WebhookGitHub.webhookMiddleware ghInstallationAccessTokens globalSettings viraRuntimeState webSettings
             ]
           app = foldl' (&) servantApp middlewares
       pure app

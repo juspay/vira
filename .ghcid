@@ -13,4 +13,3 @@
 --restart=packages/nix/nix.cabal
 --restart=packages/nix-cache-server/nix-cache-server.cabal
 --restart=packages/servant-github-webhook-simple/servant-github-webhook-simple.cabal
---restart=packages/github-app-auth/github-app-auth.cabal

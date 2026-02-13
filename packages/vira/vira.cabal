@@ -66,6 +66,8 @@ library
       Vira.Environment.Tool.Tools.Nix
       Vira.Environment.Tool.Type.ToolData
       Vira.Environment.Tool.Type.Tools
+      Vira.Lib.Crypto
+      Vira.Lib.GitHub
       Vira.Lib.STM
       Vira.Lib.TimeExtra
       Vira.Refresh
@@ -170,6 +172,7 @@ library
     , co-log-effectful
     , co-log-effectful-simple
     , containers
+    , crypton
     , crypton-x509
     , crypton-x509-store
     , dani-servant-lucid2
@@ -189,7 +192,7 @@ library
     , gh
     , git-effectful
     , github
-    , github-app-auth
+    , github-rest
     , github-webhooks
     , hint
     , hint-nix
@@ -308,6 +311,7 @@ executable vira
     , co-log-effectful
     , co-log-effectful-simple
     , containers
+    , crypton
     , crypton-x509
     , crypton-x509-store
     , dani-servant-lucid2
@@ -327,7 +331,7 @@ executable vira
     , gh
     , git-effectful
     , github
-    , github-app-auth
+    , github-rest
     , github-webhooks
     , hint
     , hint-nix
@@ -451,6 +455,7 @@ executable vira-tests
     , co-log-effectful
     , co-log-effectful-simple
     , containers
+    , crypton
     , crypton-x509
     , crypton-x509-store
     , dani-servant-lucid2
@@ -470,7 +475,7 @@ executable vira-tests
     , gh
     , git-effectful
     , github
-    , github-app-auth
+    , github-rest
     , github-webhooks
     , hint
     , hint-nix
