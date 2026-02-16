@@ -11,8 +11,8 @@ import Effectful.Colog.Simple
 import Effectful.FileSystem (FileSystem, doesDirectoryExist)
 import Effectful.Reader.Dynamic qualified as Reader
 import Effectful.Reader.Static qualified as ER
-import Network.HTTP.Types (status404)
-import Network.Wai (Application, Middleware, responseLBS, responseStatus)
+import Network.HTTP.Types (status404, status503)
+import Network.Wai (Application, Middleware, Request (pathInfo), responseLBS, responseStatus)
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Handler.WarpTLS.Simple (TLSConfig (..), startWarpServer)
 import Network.Wai.Middleware.Static (
@@ -54,7 +54,15 @@ runServer globalSettings webSettings cacheApp = do
           rsaPem <- liftIO $ readFileBS settings.privateKeyPath
           privateKey <- readRsaPem rsaPem
           pure $ WebhookGitHub.webhookMiddleware ghInstallationAccessTokens globalSettings viraRuntimeState webSettings settings privateKey
-        Nothing -> pure WebhookGitHub.notConfiguredMiddleware
+        Nothing -> pure $ \app req sendResponse ->
+          case pathInfo req of
+            ("webhook" : "github" : _) ->
+              sendResponse $
+                responseLBS
+                  status503
+                  [("Content-Type", "text/plain")]
+                  "GitHub webhook not configured. Set --github-app-id and --github-app-private-key to enable."
+            _ -> app req sendResponse
       -- GitHub Webhook Middleware init end
 
       let middlewares =

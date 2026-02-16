@@ -5,7 +5,6 @@ It is decoupled from the main Vira web server and can be mounted as middleware.
 -}
 module Vira.Webhook.GitHub (
   webhookMiddleware,
-  notConfiguredMiddleware,
 ) where
 
 import Colog (Severity (..))
@@ -20,8 +19,7 @@ import GitHub.Data.Webhooks.Events (
   PushEvent,
  )
 import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookSimpleUser (..), HookUser (..), PullRequestTarget (..))
-import Network.HTTP.Types (status503)
-import Network.Wai (Middleware, pathInfo, responseLBS)
+import Network.Wai (Middleware, pathInfo)
 import Servant
 import Servant.GitHub.Webhook (GitHubEvent, GitHubKey (..))
 import Servant.Server.Generic (AsServer, genericServeTWithContext)
@@ -71,12 +69,12 @@ prHandler event = do
       queryGitHub_
         instId
         ( createCheckRunE
-            (Owner $ getLogin (whRepoOwner repo))
+            (Owner $ getUserName (whRepoOwner repo))
             (Repo $ whRepoName repo)
             (mkNewCheckRun prTarget)
         )
       where
-        getLogin = either (fromMaybe "" . whSimplUserLogin) whUserLogin
+        getUserName = either (fromMaybe "" . whSimplUserLogin) whUserLogin
         mkNewCheckRun prTarget =
           NewCheckRun
             { name = "Vira CI"
@@ -92,7 +90,9 @@ pushHandler _ = do
 type WebhookStack = GitHub : Error GitHubError : Error ServerError : Eff.Reader WebSettings : AppStack
 
 {- | Run webhook stack into Servant Handler.
-Any GitHubError is logged and swallowed (webhook returns 200 regardless).
+
+Any GitHubError is logged and swallowed
+([webhook responds with a 200 response](https://docs.github.com/en/webhooks/using-webhooks/best-practices-for-using-webhooks#respond-within-10-seconds) regardless).
 -}
 runWebhookInServant ::
   GlobalSettings ->
@@ -128,6 +128,7 @@ runWebhookInServant globalSettings viraRuntimeState webSettings appSettings priv
 
 {- | WAI middleware that mounts the GitHub webhook at @\/webhook\/github@
 TODO: appropriate doc comment
+TODO: encapsulate github related parameters into one type
 -}
 webhookMiddleware ::
   InstallationAccessTokens ->
@@ -151,18 +152,3 @@ webhookMiddleware iats globalSettings viraRuntimeState webSettings appSettings p
         id
         (handlers globalSettings viraRuntimeState webSettings appSettings privateKey iats)
         (githubKey :. EmptyContext)
-
-{- | WAI middleware that returns 503 with an appropriate message when required Vira CLI args are not configured
-TODO: appropriate function name and doc comment
-On a second thought, this can be inlined in Server.hs because this module needn't have to be concerned about the server's problems
--}
-notConfiguredMiddleware :: Middleware
-notConfiguredMiddleware app req sendResponse =
-  case pathInfo req of
-    ("webhook" : "github" : _) ->
-      sendResponse $
-        responseLBS
-          status503
-          [("Content-Type", "text/plain")]
-          "GitHub webhook not configured. Set --github-app-id and --github-app-private-key to enable."
-    _ -> app req sendResponse
