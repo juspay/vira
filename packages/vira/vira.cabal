@@ -55,6 +55,7 @@ library
       Vira.CI.Worker
       Vira.CI.Worker.Type
       Vira.CI.Workspace
+      Vira.Effect.GitHub
       Vira.Environment.Tool.Core
       Vira.Environment.Tool.Status
       Vira.Environment.Tool.Tools.Attic

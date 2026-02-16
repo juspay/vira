@@ -26,7 +26,8 @@ import Servant.Server.Generic (genericServe)
 import System.Nix.Cache.Server qualified as Cache
 import System.Nix.Flake.Develop qualified as Nix
 import Vira.App (AppStack, ViraRuntimeState (..))
-import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
+import Vira.App.CLI (GHAppAuthSettings (..), GlobalSettings (..), WebSettings (..))
+import Vira.Lib.Crypto (readRsaPem)
 import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
 import Vira.Webhook.GitHub qualified as WebhookGitHub
@@ -45,7 +46,16 @@ runServer globalSettings webSettings cacheApp = do
       let servantApp = genericServe $ IndexPage.handlers globalSettings viraRuntimeState webSettings
       staticDir <- getDataDirMultiHome
       log Debug $ "Static dir = " <> toText staticDir
+
+      -- GitHub Webhook Middleware init start
       ghInstallationAccessTokens <- newTVarIO mempty
+      ghwebhookMW <- case webSettings.ghAppAuthSettings of
+        Just settings -> do
+          rsaPem <- liftIO $ readFileBS settings.privateKeyPath
+          privateKey <- readRsaPem rsaPem
+          pure $ WebhookGitHub.webhookMiddleware ghInstallationAccessTokens globalSettings viraRuntimeState webSettings settings privateKey
+        Nothing -> pure WebhookGitHub.notConfiguredMiddleware
+      -- GitHub Webhook Middleware init end
 
       let middlewares =
             [ -- 404 handler (innermost, applied last)
@@ -55,7 +65,7 @@ runServer globalSettings webSettings cacheApp = do
             , -- Cache server middleware
               Cache.cacheMiddleware "cache" cacheApp
             , -- GitHub webhook sub-app (initializes its own context)
-              WebhookGitHub.webhookMiddleware ghInstallationAccessTokens globalSettings viraRuntimeState webSettings
+              ghwebhookMW
             ]
           app = foldl' (&) servantApp middlewares
       pure app
