@@ -20,7 +20,8 @@ module Vira.Lib.GitHub (
   createInstallationAccessTokenE,
 ) where
 
-import Data.Aeson (ToJSON (..))
+import Data.Aeson (FromJSON (..), ToJSON (..), withObject, (.:))
+import Data.Time (UTCTime, defaultTimeLocale, parseTimeM)
 import GitHub.REST (GHEndpoint (..), KeyValue (..))
 import Network.HTTP.Types (StdMethod (..))
 
@@ -32,8 +33,22 @@ newtype AppId = AppId {unAppId :: Int}
 newtype InstallationId = InstallationId Int
   deriving newtype (Show, Eq, Ord)
 
-newtype InstallationAccessToken = InstallationAccessToken ByteString
-  deriving newtype (Show, Eq)
+data InstallationAccessToken = InstallationAccessToken
+  { iatToken :: ByteString
+  , iatExpiresAt :: UTCTime
+  }
+  deriving stock (Show, Eq)
+
+instance FromJSON InstallationAccessToken where
+  parseJSON = withObject "InstallationAccessToken" $ \o -> do
+    token <- o .: "token"
+    expiresAt <- o .: "expires_at"
+    utcTime <- parseTimeM True defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" expiresAt
+    pure
+      InstallationAccessToken
+        { iatToken = encodeUtf8 @Text token
+        , iatExpiresAt = utcTime
+        }
 
 -- | Repository owner
 newtype Owner = Owner Text

@@ -19,12 +19,9 @@ module Vira.Effect.GitHub (
 
 import Control.Exception (try)
 import Crypto.PubKey.RSA (PrivateKey)
-import Data.Aeson (FromJSON, Value)
-import Data.Aeson qualified as Aeson
-import Data.Aeson.KeyMap qualified as AesonKM
+import Data.Aeson (FromJSON)
 import Data.Map.Strict qualified as Map
-import Data.Time (NominalDiffTime, UTCTime, addUTCTime, defaultTimeLocale, getCurrentTime)
-import Data.Time.Format (parseTimeM)
+import Data.Time (NominalDiffTime, addUTCTime, getCurrentTime)
 import Effectful (Dispatch (..), DispatchOf, Eff, Effect, IOE, (:>))
 import Effectful.Dispatch.Dynamic (interpret)
 import Effectful.Error.Static (Error, throwError)
@@ -49,7 +46,7 @@ data GitHubError
     APICallFailed Text
   deriving stock (Show, Eq)
 
-type InstallationAccessTokens = TVar (Map InstallationId (InstallationAccessToken, UTCTime))
+type InstallationAccessTokens = TVar (Map InstallationId InstallationAccessToken)
 
 data AppAuth = AppAuth
   { authPrivateKey :: PrivateKey
@@ -96,7 +93,7 @@ runGitHubAsApp auth = interpret $ \_ -> \case
         Left err -> throwError $ APICallFailed (show err)
         Right val -> pure val
 
-    toToken (InstallationAccessToken iat) = AccessToken iat
+    toToken iat = AccessToken iat.iatToken
 
 -- | Get valid github app installation access token, fetching if needed
 getValidToken ::
@@ -109,22 +106,19 @@ getValidToken AppAuth {..} instId = do
   tokens <- liftIO $ readTVarIO authTokens
 
   case Map.lookup instId tokens of
-    Just (token, expiry)
-      | addUTCTime tokenBuffer now < expiry -> pure token
-    _ -> fetchAndCache tokens
-  where
-    fetchAndCache tokens = do
+    Just iat | addUTCTime tokenBuffer now < iat.iatExpiresAt -> pure iat
+    _ -> do
       jwt <- liftIO $ getJWTToken authPrivateKey (unAppId authAppId)
-      (token, expiry) <- fetch jwt instId
-      let tokens' = Map.insert instId (token, expiry) tokens
+      iat <- fetch jwt instId
+      let tokens' = Map.insert instId iat tokens
       liftIO $ atomically $ writeTVar authTokens tokens'
-      pure token
-
+      pure iat
+  where
     fetch ::
       (IOE :> es, Error GitHubError :> es) =>
       Token ->
       InstallationId ->
-      Eff es (InstallationAccessToken, UTCTime)
+      Eff es InstallationAccessToken
     fetch jwt inst = do
       let settings = GitHubSettings (Just jwt) "vira" ""
       result <-
@@ -134,23 +128,4 @@ getValidToken AppAuth {..} instId = do
               GH.queryGitHub (createInstallationAccessTokenE inst)
       case result of
         Left err -> throwError $ TokenFetchFailed (show err)
-        Right value -> case parseTokenResponse value of
-          Nothing -> throwError $ TokenFetchFailed "Failed to parse token response"
-          Just tokenExpiry -> pure tokenExpiry
-
-{- | Parse token response
-TODO: offload to a library
--}
-parseTokenResponse :: Value -> Maybe (InstallationAccessToken, UTCTime)
-parseTokenResponse value = do
-  obj <- case value of
-    Aeson.Object o -> Just o
-    _ -> Nothing
-  tokenText <- case AesonKM.lookup "token" obj of
-    Just (Aeson.String t) -> Just t
-    _ -> Nothing
-  expiryText <- case AesonKM.lookup "expires_at" obj of
-    Just (Aeson.String t) -> Just t
-    _ -> Nothing
-  expiry <- parseTimeM True defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" (toString expiryText)
-  pure (InstallationAccessToken (encodeUtf8 tokenText), expiry)
+        Right iat -> pure iat
