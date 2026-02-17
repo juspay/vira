@@ -8,7 +8,6 @@ module Vira.Webhook.GitHub (
 ) where
 
 import Colog (Severity (..))
-import Crypto.PubKey.RSA (PrivateKey)
 import Effectful (Eff)
 import Effectful qualified as Eff
 import Effectful.Colog.Simple (log, tagCurrentThread)
@@ -24,7 +23,7 @@ import Servant
 import Servant.GitHub.Webhook (GitHubEvent, GitHubKey (..))
 import Servant.Server.Generic (AsServer, genericServeTWithContext)
 import Vira.App (AppStack, GlobalSettings, ViraRuntimeState, runApp)
-import Vira.App.CLI (GHAppAuthSettings (..), WebSettings (..))
+import Vira.App.CLI (WebSettings (..))
 import Vira.Effect.GitHub
 import Vira.Lib.GitHub
 
@@ -40,14 +39,12 @@ handlers ::
   GlobalSettings ->
   ViraRuntimeState ->
   WebSettings ->
-  GHAppAuthSettings ->
-  PrivateKey ->
-  InstallationAccessTokens ->
+  AppAuth ->
   Routes AsServer
-handlers globalSettings viraRuntimeState webSettings appSettings privateKey iats =
+handlers globalSettings viraRuntimeState webSettings appAuth =
   Routes
-    { _pr = runWebhookInServant globalSettings viraRuntimeState webSettings appSettings privateKey iats . prHandler
-    , _push = runWebhookInServant globalSettings viraRuntimeState webSettings appSettings privateKey iats . pushHandler
+    { _pr = runWebhookInServant globalSettings viraRuntimeState webSettings appAuth . prHandler
+    , _push = runWebhookInServant globalSettings viraRuntimeState webSettings appAuth . pushHandler
     }
 
 -- | Handle pull request events and create a GitHub Check run
@@ -98,19 +95,17 @@ runWebhookInServant ::
   GlobalSettings ->
   ViraRuntimeState ->
   WebSettings ->
-  GHAppAuthSettings ->
-  PrivateKey ->
-  InstallationAccessTokens ->
+  AppAuth ->
   Eff WebhookStack NoContent ->
   Handler NoContent
-runWebhookInServant globalSettings viraRuntimeState webSettings appSettings privateKey iats action =
+runWebhookInServant globalSettings viraRuntimeState webSettings appAuth action =
   Handler
     . ExceptT
     . runApp globalSettings viraRuntimeState
     . Eff.runReader webSettings
     . runErrorNoCallStack @ServerError
     . logAndSwallowGitHubError
-    . runGitHub privateKey (AppId appSettings.appId) iats
+    . runGitHub appAuth
     $ do
       tagCurrentThread "🪝"
       action
@@ -131,14 +126,12 @@ TODO: appropriate doc comment
 TODO: encapsulate github related parameters into one type
 -}
 webhookMiddleware ::
-  InstallationAccessTokens ->
   GlobalSettings ->
   ViraRuntimeState ->
   WebSettings ->
-  GHAppAuthSettings ->
-  PrivateKey ->
+  AppAuth ->
   Middleware
-webhookMiddleware iats globalSettings viraRuntimeState webSettings appSettings privateKey = \app req sendResponse ->
+webhookMiddleware globalSettings viraRuntimeState webSettings appAuth = \app req sendResponse ->
   case pathInfo req of
     ("webhook" : "github" : rest) -> do
       let req' = req {pathInfo = rest}
@@ -150,5 +143,5 @@ webhookMiddleware iats globalSettings viraRuntimeState webSettings appSettings p
     webhookApp =
       genericServeTWithContext
         id
-        (handlers globalSettings viraRuntimeState webSettings appSettings privateKey iats)
+        (handlers globalSettings viraRuntimeState webSettings appAuth)
         (githubKey :. EmptyContext)

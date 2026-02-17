@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Vira.Web.Server (
   runServer,
@@ -27,6 +28,7 @@ import System.Nix.Cache.Server qualified as Cache
 import System.Nix.Flake.Develop qualified as Nix
 import Vira.App (AppStack, ViraRuntimeState (..))
 import Vira.App.CLI (GHAppAuthSettings (..), GlobalSettings (..), WebSettings (..))
+import Vira.Effect.GitHub (AppAuth (..))
 import Vira.Lib.Crypto (readRsaPem)
 import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
@@ -48,12 +50,13 @@ runServer globalSettings webSettings cacheApp = do
       log Debug $ "Static dir = " <> toText staticDir
 
       -- GitHub Webhook Middleware init start
-      ghInstallationAccessTokens <- newTVarIO mempty
+      authTokens <- newTVarIO mempty
       ghwebhookMW <- case webSettings.ghAppAuthSettings of
         Just settings -> do
           rsaPem <- liftIO $ readFileBS settings.privateKeyPath
-          privateKey <- readRsaPem rsaPem
-          pure $ WebhookGitHub.webhookMiddleware ghInstallationAccessTokens globalSettings viraRuntimeState webSettings settings privateKey
+          let authAppId = settings.appId
+          authPrivateKey <- readRsaPem rsaPem
+          pure $ WebhookGitHub.webhookMiddleware globalSettings viraRuntimeState webSettings AppAuth {..}
         Nothing -> pure $ \app req sendResponse ->
           case pathInfo req of
             ("webhook" : "github" : _) ->

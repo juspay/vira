@@ -1,19 +1,23 @@
 {- | GitHub API Types and Endpoints
 
 Pure types and endpoint definitions for GitHub REST API.
-Use with 'Vira.GitHub.Effect' for effectful operations.
+Use with 'Vira.Effect.GitHub' for effectful operations.
 -}
 module Vira.Lib.GitHub (
   -- * Identifiers
   AppId (..),
   InstallationId (..),
+  InstallationAccessToken (..),
   Owner (..),
   Repo (..),
 
   -- * Check Run
   NewCheckRun (..),
   CheckRunStatus (..),
+
+  -- * Endpoints
   createCheckRunE,
+  createInstallationAccessTokenE,
 ) where
 
 import Data.Aeson (ToJSON (..))
@@ -21,12 +25,15 @@ import GitHub.REST (GHEndpoint (..), KeyValue (..))
 import Network.HTTP.Types (StdMethod (..))
 
 -- | GitHub App ID
-newtype AppId = AppId Int
-  deriving newtype (Show, Eq, Ord)
+newtype AppId = AppId {unAppId :: Int}
+  deriving newtype (Show, Eq, Ord, Read)
 
 -- | GitHub App Installation ID
 newtype InstallationId = InstallationId Int
   deriving newtype (Show, Eq, Ord)
+
+newtype InstallationAccessToken = InstallationAccessToken ByteString
+  deriving newtype (Show, Eq)
 
 -- | Repository owner
 newtype Owner = Owner Text
@@ -51,7 +58,10 @@ data NewCheckRun = NewCheckRun
   }
   deriving stock (Show, Eq)
 
--- | Create a check run
+---------------
+-- Endpoints
+---------------
+
 createCheckRunE :: Owner -> Repo -> NewCheckRun -> GHEndpoint
 createCheckRunE (Owner owner) (Repo repo) cr =
   GHEndpoint
@@ -67,3 +77,12 @@ createCheckRunE (Owner owner) (Repo repo) cr =
       Queued -> "queued" :: Text
       InProgress -> "in_progress"
       Completed -> "completed"
+
+createInstallationAccessTokenE :: InstallationId -> GHEndpoint
+createInstallationAccessTokenE (InstallationId instId) =
+  GHEndpoint
+    { method = POST
+    , endpoint = "/app/installations/:installation_id/access_tokens"
+    , endpointVals = ["installation_id" := instId]
+    , ghData = []
+    }

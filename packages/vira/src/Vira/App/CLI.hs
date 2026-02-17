@@ -23,6 +23,7 @@ import Options.Applicative hiding (command)
 import Options.Applicative qualified as OA
 import Paths_vira qualified
 import Vira.CI.AutoBuild.Type (AutoBuildNewBranches (..))
+import Vira.Lib.GitHub (AppId)
 import Prelude hiding (Reader, reader, runReader)
 
 -- | Global CLI Settings
@@ -49,7 +50,7 @@ data CISettings = CISettings
 
 -- | Settings for authenticating as a GitHub App
 data GHAppAuthSettings = GHAppAuthSettings
-  { appId :: Int
+  { appId :: AppId
   -- ^ GitHub App ID
   , privateKeyPath :: FilePath
   -- ^ Path to the GitHub App private key PEM file
