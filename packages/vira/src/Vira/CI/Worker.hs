@@ -38,6 +38,7 @@ import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Worker.Type (JobWorkerState (..))
+import Vira.CI.Worker.Type qualified as WorkerType
 import Vira.Environment.Tool.Core qualified as Tool
 import Vira.State.Acid
 import Vira.State.Acid qualified as Acid
@@ -179,13 +180,16 @@ startJob job = do
       -- Close the log sink now that the task is complete
       liftIO closeLogSink
       endTime <- liftIO getCurrentTime
-      let status = case result of
-            Right ExitSuccess -> JobFinished St.JobSuccess endTime
-            Right (ExitFailure _code) -> JobFinished St.JobFailure endTime
-            Left (Pipeline.PipelineTerminated Terminated) -> JobFinished St.JobKilled endTime
-            Left _ -> JobFinished St.JobFailure endTime
+      let (jobResult, status) = case result of
+            Right ExitSuccess -> (St.JobSuccess, JobFinished St.JobSuccess endTime)
+            Right (ExitFailure _code) -> (St.JobFailure, JobFinished St.JobFailure endTime)
+            Left (Pipeline.PipelineTerminated Terminated) -> (St.JobKilled, JobFinished St.JobKilled endTime)
+            Left _ -> (St.JobFailure, JobFinished St.JobFailure endTime)
       -- Update status
       void $ App.update $ JobUpdateStatusA job.jobId status
+      -- Invoke registered callback (if any)
+      mCallback <- liftIO $ WorkerType.takeJobCallback st.jobWorker job.jobId
+      liftIO $ whenJust mCallback $ \callback -> callback jobResult
 
   -- Mark as running
   void $ App.update $ JobUpdateStatusA job.jobId JobRunning

@@ -1,3 +1,5 @@
+{-# LANGUAGE DuplicateRecordFields #-}
+
 {- | GitHub API Types and Endpoints
 
 Pure types and endpoint definitions for GitHub REST API.
@@ -12,11 +14,16 @@ module Vira.Lib.GitHub (
   Repo (..),
 
   -- * Check Run
+  CheckRunId (..),
+  CheckRunResponse (..),
   NewCheckRun (..),
+  UpdateCheckRun (..),
   CheckRunStatus (..),
+  CheckRunConclusion (..),
 
   -- * Endpoints
   createCheckRunE,
+  updateCheckRunE,
   createInstallationAccessTokenE,
 ) where
 
@@ -58,6 +65,20 @@ newtype Owner = Owner Text
 newtype Repo = Repo Text
   deriving newtype (Show, Eq, ToJSON)
 
+-- | Check run ID returned by GitHub
+newtype CheckRunId = CheckRunId {unCheckRunId :: Int}
+  deriving newtype (Show, Eq, Ord, FromJSON, ToJSON)
+
+-- | Response from creating a check run
+newtype CheckRunResponse = CheckRunResponse
+  { checkRunId :: CheckRunId
+  }
+  deriving stock (Show, Eq)
+
+instance FromJSON CheckRunResponse where
+  parseJSON = withObject "CheckRunResponse" $ \o ->
+    CheckRunResponse <$> o .: "id"
+
 -- | Check run status
 data CheckRunStatus
   = Queued
@@ -65,11 +86,29 @@ data CheckRunStatus
   | Completed
   deriving stock (Show, Eq)
 
+-- | Check run conclusion (required when status is 'Completed')
+data CheckRunConclusion
+  = Success
+  | Failure
+  | Cancelled
+  | TimedOut
+  | ActionRequired
+  | Skipped
+  deriving stock (Show, Eq)
+
 -- | Request body for creating a check run
 data NewCheckRun = NewCheckRun
   { name :: Text
   , headSha :: Text
   , status :: Maybe CheckRunStatus
+  }
+  deriving stock (Show, Eq)
+
+-- | Request body for updating a check run
+data UpdateCheckRun = UpdateCheckRun
+  { status :: CheckRunStatus
+  , conclusion :: Maybe CheckRunConclusion
+  -- ^ Required when status is 'Completed'
   }
   deriving stock (Show, Eq)
 
@@ -87,11 +126,32 @@ createCheckRunE (Owner owner) (Repo repo) cr =
         ["name" := cr.name, "head_sha" := cr.headSha]
           <> maybe [] (\s -> ["status" := statusText s]) cr.status
     }
-  where
-    statusText = \case
-      Queued -> "queued" :: Text
-      InProgress -> "in_progress"
-      Completed -> "completed"
+
+updateCheckRunE :: Owner -> Repo -> CheckRunId -> UpdateCheckRun -> GHEndpoint
+updateCheckRunE (Owner owner) (Repo repo) (CheckRunId checkRunId) upd =
+  GHEndpoint
+    { method = PATCH
+    , endpoint = "/repos/:owner/:repo/check-runs/:check_run_id"
+    , endpointVals = ["owner" := owner, "repo" := repo, "check_run_id" := checkRunId]
+    , ghData =
+        ["status" := statusText upd.status]
+          <> maybe [] (\c -> ["conclusion" := conclusionText c]) upd.conclusion
+    }
+
+statusText :: CheckRunStatus -> Text
+statusText = \case
+  Queued -> "queued"
+  InProgress -> "in_progress"
+  Completed -> "completed"
+
+conclusionText :: CheckRunConclusion -> Text
+conclusionText = \case
+  Success -> "success"
+  Failure -> "failure"
+  Cancelled -> "cancelled"
+  TimedOut -> "timed_out"
+  ActionRequired -> "action_required"
+  Skipped -> "skipped"
 
 createInstallationAccessTokenE :: InstallationId -> GHEndpoint
 createInstallationAccessTokenE (InstallationId instId) =

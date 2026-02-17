@@ -59,7 +59,7 @@ buildHandler :: RepoName -> BranchName -> Eff Web.AppServantStack (Headers '[HXR
 buildHandler repoName branchName =
   withLogContext [("repo", show repoName), ("branch", show branchName)] $ do
     branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
-    Client.enqueueJob repoName branchName branch.headCommit.id
+    void $ Client.enqueueJob repoName branchName branch.headCommit.id
     pure $ addHeader True "Ok"
 
 viewHandler :: JobId -> AppHtml ()

@@ -111,7 +111,7 @@ handleBranchUpdates autoBuildNewBranches repo updates = do
             <> toText upd.newCommit.id
             <> if upd.neverBuilt then " (new branch)" else ""
         void $ App.update $ CancelPendingJobsInBranchA repo upd.branch now
-        Client.enqueueJob repo upd.branch upd.newCommit.id
+        void $ Client.enqueueJob repo upd.branch upd.newCommit.id
   where
     skipReasonText :: SkipReason -> Text
     skipReasonText = \case
