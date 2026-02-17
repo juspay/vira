@@ -192,7 +192,6 @@ library
     , filepattern
     , gh
     , git-effectful
-    , github
     , github-rest
     , github-webhooks
     , hint
@@ -331,7 +330,6 @@ executable vira
     , filepattern
     , gh
     , git-effectful
-    , github
     , github-rest
     , github-webhooks
     , hint
@@ -475,7 +473,6 @@ executable vira-tests
     , filepattern
     , gh
     , git-effectful
-    , github
     , github-rest
     , github-webhooks
     , hint

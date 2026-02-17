@@ -123,7 +123,6 @@ runWebhookInServant globalSettings viraRuntimeState webSettings appAuth action =
 
 {- | WAI middleware that mounts the GitHub webhook at @\/webhook\/github@
 TODO: appropriate doc comment
-TODO: encapsulate github related parameters into one type
 -}
 webhookMiddleware ::
   GlobalSettings ->
