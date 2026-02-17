@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Vira.Web.Server (
   runServer,
@@ -28,7 +27,7 @@ import System.Nix.Cache.Server qualified as Cache
 import System.Nix.Flake.Develop qualified as Nix
 import Vira.App (AppStack, ViraRuntimeState (..))
 import Vira.App.CLI (GHAppAuthSettings (..), GlobalSettings (..), WebSettings (..))
-import Vira.Effect.GitHub (AppAuth (..))
+import Vira.Effect.GitHub (newAppAuth)
 import Vira.Lib.Crypto (readRsaPem)
 import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
@@ -49,14 +48,13 @@ runServer globalSettings webSettings cacheApp = do
       staticDir <- getDataDirMultiHome
       log Debug $ "Static dir = " <> toText staticDir
 
-      -- GitHub Webhook Middleware init start
-      authTokens <- newTVarIO mempty
+      -- Start: GitHub Webhook Middleware init
       ghwebhookMW <- case webSettings.ghAppAuthSettings of
         Just settings -> do
           rsaPem <- liftIO $ readFileBS settings.privateKeyPath
-          let authAppId = settings.appId
-          authPrivateKey <- readRsaPem rsaPem
-          pure $ WebhookGitHub.webhookMiddleware globalSettings viraRuntimeState webSettings AppAuth {..}
+          privateKey <- readRsaPem rsaPem
+          appAuth <- liftIO $ newAppAuth privateKey settings.appId
+          pure $ WebhookGitHub.webhookMiddleware globalSettings viraRuntimeState webSettings appAuth
         Nothing -> pure $ \app req sendResponse ->
           case pathInfo req of
             ("webhook" : "github" : _) ->
@@ -66,7 +64,7 @@ runServer globalSettings webSettings cacheApp = do
                   [("Content-Type", "text/plain")]
                   "GitHub webhook not configured. Set --github-app-id and --github-app-private-key to enable."
             _ -> app req sendResponse
-      -- GitHub Webhook Middleware init end
+      -- End: GitHub Webhook Middleware init
 
       let middlewares =
             [ -- 404 handler (innermost, applied last)

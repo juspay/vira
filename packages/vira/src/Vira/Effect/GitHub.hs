@@ -10,7 +10,7 @@ module Vira.Effect.GitHub (
   GitHub (..),
   queryGitHub,
   queryGitHub_,
-  runGitHub,
+  runGitHubAsApp,
   newAppAuth,
   InstallationAccessTokens,
   GitHubError (..),
@@ -34,10 +34,19 @@ import GitHub.REST qualified as GH
 import GitHub.REST.Auth (getJWTToken)
 import Vira.Lib.GitHub (AppId (..), InstallationAccessToken (..), InstallationId (..), createInstallationAccessTokenE)
 
--- | Errors during GitHub operations
+data GitHub :: Effect where
+  QueryGitHub :: (FromJSON a) => InstallationId -> GHEndpoint -> GitHub m a
+  QueryGitHub_ :: InstallationId -> GHEndpoint -> GitHub m ()
+
+type instance DispatchOf GitHub = 'Dynamic
+
+makeEffect ''GitHub
+
 data GitHubError
-  = TokenFetchFailed Text
-  | APICallFailed Text
+  = -- | Failed to fetch installation access token
+    TokenFetchFailed Text
+  | -- | HTTP request to GitHub failed
+    APICallFailed Text
   deriving stock (Show, Eq)
 
 type InstallationAccessTokens = TVar (Map InstallationId (InstallationAccessToken, UTCTime))
@@ -58,28 +67,21 @@ newAppAuth key appId = do
       , authTokens = tokens
       }
 
--- | Buffer time before expiry to refresh token (5 minutes)
+-- | Buffer time before expiry to refresh token
 tokenBuffer :: NominalDiffTime
-tokenBuffer = 5 * 60
-
-data GitHub :: Effect where
-  QueryGitHub :: (FromJSON a) => InstallationId -> GHEndpoint -> GitHub m a
-  QueryGitHub_ :: InstallationId -> GHEndpoint -> GitHub m ()
-
-type instance DispatchOf GitHub = 'Dynamic
-
-makeEffect ''GitHub
+tokenBuffer = 5 * 60 -- 5 minutes
 
 {- | Run the GitHub effect as a GitHub App
+
 Interprets the effect by authenticating as a GitHub App Installation.
 Handles JWT signing and Installation Token rotation automatically.
 -}
-runGitHub ::
+runGitHubAsApp ::
   (IOE :> es, Error GitHubError :> es) =>
   AppAuth ->
   Eff (GitHub : es) a ->
   Eff es a
-runGitHub auth = interpret $ \_ -> \case
+runGitHubAsApp auth = interpret $ \_ -> \case
   QueryGitHub instId endpoint -> do
     token <- getValidToken auth instId
     executeRequest token (GH.queryGitHub endpoint)

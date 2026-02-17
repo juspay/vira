@@ -105,7 +105,7 @@ runWebhookInServant globalSettings viraRuntimeState webSettings appAuth action =
     . Eff.runReader webSettings
     . runErrorNoCallStack @ServerError
     . logAndSwallowGitHubError
-    . runGitHub appAuth
+    . runGitHubAsApp appAuth
     $ do
       tagCurrentThread "🪝"
       action
