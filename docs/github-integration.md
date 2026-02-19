@@ -38,8 +38,6 @@ Follow GitHub's official guide: [Creating a GitHub App](https://docs.github.com/
 
 - ✅ Pull request
 - ✅ Push (optional, currently not used but planned)
-- ✅ Installation
-- ✅ Installation repositories
 
 After creating the app, note the **App ID** (shown on the app's settings page).
 
