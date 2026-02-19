@@ -184,7 +184,7 @@ startJob job = do
             Right (ExitFailure _code) -> JobFinished St.JobFailure endTime
             Left (Pipeline.PipelineTerminated Terminated) -> JobFinished St.JobKilled endTime
             Left _ -> JobFinished St.JobFailure endTime
-      -- Update status (event bus subscribers will observe this)
+      -- Update status
       void $ App.update $ JobUpdateStatusA job.jobId status
 
   -- Mark as running

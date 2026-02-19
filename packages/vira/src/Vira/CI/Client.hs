@@ -21,7 +21,7 @@ import Effectful.Process (Process)
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful.Reader.Static qualified as ER
 import Vira.App.AcidState qualified as App
-import Vira.App.Type (ViraRuntimeState (..))
+import Vira.App.Type (ViraRuntimeState (supervisor))
 import Vira.CI.Worker qualified as Worker
 import Vira.CI.Workspace qualified as Workspace
 import Vira.State.Acid (AddNewJobA (..))
@@ -50,7 +50,7 @@ enqueueJob ::
   CommitID ->
   Eff es Job
 enqueueJob repoName branchName commitId = do
-  sup <- asks (.supervisor)
+  sup <- asks supervisor
   creationTime <- liftIO getCurrentTime
   let baseDir = Workspace.repoJobsDir sup repoName
 
@@ -58,7 +58,7 @@ enqueueJob repoName branchName commitId = do
   job <- App.update $ AddNewJobA repoName branchName commitId baseDir creationTime
   log Info $ "Queued job #" <> show job.jobId
 
-  -- Try to schedule (with lock)
+  -- Immediately try to schedule it (with lock)
   Worker.tryStartPendingJobs
 
   pure job

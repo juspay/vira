@@ -20,9 +20,4 @@ data JobWorkerState = JobWorkerState
 newJobWorkerState :: Int -> Severity -> IO JobWorkerState
 newJobWorkerState maxConcurrent minSev = do
   lock <- newMVar () -- Create mutex in unlocked state
-  pure $
-    JobWorkerState
-      { maxConcurrent
-      , minSeverity = minSev
-      , schedulerLock = lock
-      }
+  pure $ JobWorkerState {maxConcurrent, minSeverity = minSev, schedulerLock = lock}
