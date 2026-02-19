@@ -86,3 +86,9 @@ instance GitHubEvent PullRequestEvent where
 
 instance GitHubEvent PushEvent where
   eventName = "push"
+
+instance GitHubEvent InstallationEvent where
+  eventName = "installation"
+
+instance GitHubEvent InstallationRepositoriesEvent where
+  eventName = "installation_repositories"

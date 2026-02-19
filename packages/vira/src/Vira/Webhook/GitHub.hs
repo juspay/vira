@@ -23,11 +23,15 @@ import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.Git (BranchName (..), CommitID (..), RepoName (..))
 import Effectful.Reader.Dynamic qualified as Eff
 import GitHub.Data.Webhooks.Events (
+  InstallationEvent (..),
+  InstallationEventAction (..),
+  InstallationRepoEventAction (..),
+  InstallationRepositoriesEvent (..),
   PullRequestEvent (..),
   PullRequestEventAction (..),
   PushEvent,
  )
-import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookSimpleUser (..), HookUser (..), PullRequestTarget (..))
+import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookRepositorySimple (..), HookSimpleUser (..), HookUser (..), PullRequestTarget (..))
 import Network.Wai (Middleware, pathInfo)
 import Servant
 import Servant.GitHub.Webhook (GitHubEvent, GitHubKey (..))
@@ -38,14 +42,20 @@ import Vira.App.CLI (WebSettings (..))
 import Vira.CI.Client qualified as Client
 import Vira.Effect.GitHub
 import Vira.Lib.GitHub
+import Vira.Refresh qualified as Refresh
+import Vira.Refresh.Type (RefreshPriority (..))
 import Vira.State.Acid (JobUpdateStatusA (..))
+import Vira.State.Acid qualified as St
 import Vira.State.Type (Job (..), JobResult (..), JobStatus (..))
+import Vira.State.Type qualified as State
 import Prelude hiding (Reader, asks)
 
 -- | API type for GitHub webhook events
 data Routes mode = Routes
   { _pr :: mode :- GitHubEvent PullRequestEvent :> Post '[JSON] NoContent
   , _push :: mode :- GitHubEvent PushEvent :> Post '[JSON] NoContent
+  , _installation :: mode :- GitHubEvent InstallationEvent :> Post '[JSON] NoContent
+  , _installationRepos :: mode :- GitHubEvent InstallationRepositoriesEvent :> Post '[JSON] NoContent
   }
   deriving stock (Generic)
 
@@ -60,6 +70,8 @@ handlers globalSettings viraRuntimeState webSettings appAuth =
   Routes
     { _pr = runWebhookInServant globalSettings viraRuntimeState webSettings appAuth . prHandler appAuth
     , _push = runWebhookInServant globalSettings viraRuntimeState webSettings appAuth . pushHandler
+    , _installation = runWebhookInServant globalSettings viraRuntimeState webSettings appAuth . installationHandler
+    , _installationRepos = runWebhookInServant globalSettings viraRuntimeState webSettings appAuth . installationReposHandler
     }
 
 {- | Handle pull request events
@@ -106,7 +118,9 @@ prHandler appAuth event = do
       log Info $ "Created check run " <> show checkRunId <> " for " <> show commitSha
 
       -- Enqueue job
-      let viraRepoName = RepoName $ whRepoName ghRepo
+      let ownerName = getUserName (whRepoOwner ghRepo)
+          repoName = whRepoName ghRepo
+          viraRepoName = RepoName $ ownerName <> "/" <> repoName
           viraBranchName = BranchName branchRef
           viraCommitId = CommitID commitSha
       job <- Client.enqueueJob viraRepoName viraBranchName viraCommitId
@@ -167,6 +181,91 @@ pushHandler :: PushEvent -> Eff WebhookStack NoContent
 pushHandler _ = do
   log Info "Received Push"
   pure NoContent
+
+{- | Handle installation events (created/deleted)
+
+On installation created: automatically add all repositories to Vira registry
+On installation deleted: remove all repositories from Vira (unless they have running jobs)
+-}
+installationHandler :: InstallationEvent -> Eff WebhookStack NoContent
+installationHandler event = do
+  log Info $ "Received installation event: " <> show (evInstallationAction event)
+  case evInstallationAction event of
+    InstallationCreatedAction -> do
+      let repos = toList $ evInstallationRepos event
+      addRepositories repos
+    InstallationDeletedAction -> do
+      let repoNames = toList $ fmap (RepoName . whSimplRepoFullName) (evInstallationRepos event)
+      log Warning "Installation deleted, removing repositories from Vira"
+      deleteRepositories repoNames
+    _ -> log Debug "Ignoring non-create/delete installation action"
+  pure NoContent
+
+{- | Handle installation_repositories events (added/removed)
+
+On repositories added: automatically add them to Vira registry
+On repositories removed: remove them from Vira (unless they have running jobs)
+-}
+installationReposHandler :: InstallationRepositoriesEvent -> Eff WebhookStack NoContent
+installationReposHandler event = do
+  log Info $ "Received installation_repositories event: " <> show (evInstallationRepoAction event)
+  case evInstallationRepoAction event of
+    InstallationRepoAddedAction -> do
+      let repos = toList $ evInstallationReposAdd event
+      addRepositories repos
+    InstallationRepoRemovedAction -> do
+      let repoNames = toList $ fmap (RepoName . whSimplRepoFullName) (evInstallationReposRemove event)
+      log Warning "Repositories removed from installation, deleting from Vira"
+      deleteRepositories repoNames
+    _ -> log Debug "Ignoring unknown installation_repositories action"
+  pure NoContent
+
+{- | Add repositories from webhook event
+
+For each repository:
+1. Check if it already exists (idempotent)
+2. Add to Vira registry with constructed clone URL
+3. Schedule immediate refresh to fetch branches
+-}
+addRepositories :: [HookRepositorySimple] -> Eff WebhookStack ()
+addRepositories repos = do
+  forM_ repos $ \repoSimple -> do
+    let fullName = whSimplRepoFullName repoSimple
+        repoName = RepoName fullName
+        cloneUrl = "https://github.com/" <> fullName <> ".git"
+
+    log Info $ "Processing repository: " <> fullName
+
+    -- Check for duplicates
+    App.query (St.GetRepoByNameA repoName) >>= \case
+      Just _ -> log Info $ "Repository already exists, skipping: " <> toText repoName
+      Nothing -> do
+        -- Add repository
+        let newRepo =
+              State.Repo
+                { name = repoName
+                , cloneUrl = cloneUrl
+                , lastRefresh = Nothing
+                }
+        App.update $ St.AddNewRepoA newRepo
+        log Info $ "Added repository: " <> toText repoName
+
+        -- Schedule immediate refresh (matches pattern from RegistryPage.hs)
+        Refresh.scheduleRepoRefresh (one repoName) Now
+
+{- | Delete repositories from Vira
+
+For each repository:
+1. Attempt deletion (fails if running jobs exist)
+2. Log success or failure
+-}
+deleteRepositories :: [RepoName] -> Eff WebhookStack ()
+deleteRepositories repoNames = do
+  forM_ repoNames $ \repoName -> do
+    log Info $ "Deleting repository: " <> toText repoName
+    App.update (St.DeleteRepoByNameA repoName) >>= \case
+      Left errMsg -> log Error $ "Failed to delete " <> toText repoName <> ": " <> errMsg
+      Right () -> log Info $ "Deleted repository: " <> toText repoName
 
 type WebhookStack = GitHub : Error GitHubError : Error ServerError : Eff.Reader WebSettings : AppStack
 
