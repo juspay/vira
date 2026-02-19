@@ -5,14 +5,20 @@
 
 This module provides a standalone WAI application for handling GitHub webhook events.
 It is decoupled from the main Vira web server and can be mounted as middleware.
+
+Uses an event-driven approach for check run updates: subscribes to the acid-state
+event bus and watches for job status changes, posting GitHub check run updates
+as the job transitions through pending, running, and finished states.
 -}
 module Vira.Webhook.GitHub (
   webhookMiddleware,
 ) where
 
 import Colog (Severity (..))
+import Data.Acid.Events qualified as Events
 import Effectful (Eff, runEff)
 import Effectful.Colog.Simple (log, tagCurrentThread)
+import Effectful.Concurrent.Async (async)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.Git (BranchName (..), CommitID (..), RepoName (..))
 import Effectful.Reader.Dynamic qualified as Eff
@@ -26,12 +32,14 @@ import Network.Wai (Middleware, pathInfo)
 import Servant
 import Servant.GitHub.Webhook (GitHubEvent, GitHubKey (..))
 import Servant.Server.Generic (AsServer, genericServeTWithContext)
-import Vira.App (AppStack, GlobalSettings, ViraRuntimeState, runApp)
+import Vira.App (AppStack, GlobalSettings, ViraRuntimeState (..), runApp)
+import Vira.App.AcidState qualified as App
 import Vira.App.CLI (WebSettings (..))
 import Vira.CI.Client qualified as Client
 import Vira.Effect.GitHub
 import Vira.Lib.GitHub
-import Vira.State.Type (JobResult (..))
+import Vira.State.Acid (JobUpdateStatusA (..))
+import Vira.State.Type (Job (..), JobResult (..), JobStatus (..))
 import Prelude hiding (Reader, asks)
 
 -- | API type for GitHub webhook events
@@ -56,8 +64,9 @@ handlers globalSettings viraRuntimeState webSettings appAuth =
 
 {- | Handle pull request events
 
-On PR open/synchronize: creates a GitHub Check run, enqueues a Vira job,
-and registers a callback to update the check run when the job completes.
+On PR open/synchronize: subscribes to the event bus, creates a GitHub check run
+with Queued status, enqueues a Vira job, and spawns an async watcher that updates
+the check run as the job progresses through pending, running, and finished states.
 -}
 prHandler :: AppAuth -> PullRequestEvent -> Eff WebhookStack NoContent
 prHandler appAuth event = do
@@ -80,69 +89,79 @@ prHandler appAuth event = do
           commitSha = whPullReqTargetSha prTarget
           branchRef = whPullReqTargetRef prTarget
 
-      -- Create check run and capture the ID
+      -- Subscribe to event bus BEFORE enqueueing to avoid missing events
+      chan <- App.subscribe
+
+      -- Create check run with Queued status
       checkRunResp <-
         queryGitHub @CheckRunResponse instId $
           createCheckRunE owner repo $
             NewCheckRun
               { name = "Vira CI"
               , headSha = commitSha
-              , status = Just InProgress
+              , status = Just Queued
               }
 
       let checkRunId = checkRunResp.checkRunId
-
       log Info $ "Created check run " <> show checkRunId <> " for " <> show commitSha
 
-      -- Enqueue job (matching repo by name convention)
+      -- Enqueue job
       let viraRepoName = RepoName $ whRepoName ghRepo
           viraBranchName = BranchName branchRef
           viraCommitId = CommitID commitSha
+      job <- Client.enqueueJob viraRepoName viraBranchName viraCommitId
 
-      jobId <- Client.enqueueJob viraRepoName viraBranchName viraCommitId
+      -- Spawn async watcher to update check run as job progresses
+      let updateCheckRun_ upd = do
+            result <-
+              liftIO $
+                runEff $
+                  runErrorNoCallStack @GitHubError $
+                    runGitHubAsApp appAuth $
+                      queryGitHub_ instId $
+                        updateCheckRunE owner repo checkRunId upd
+            case result of
+              Left err -> log Warning $ "Failed to update check run " <> show checkRunId <> ": " <> show err
+              Right () -> pass
 
-      log Info $ "Enqueued job #" <> show jobId <> " for check run " <> show checkRunId
+          postCheckRunUpdate = \case
+            JobRunning ->
+              updateCheckRun_ $ UpdateCheckRun {status = InProgress, conclusion = Nothing}
+            JobFinished jobResult _ -> do
+              let conclusion = case jobResult of
+                    JobSuccess -> Success
+                    JobFailure -> Failure
+                    JobKilled -> Cancelled
+              updateCheckRun_ $ UpdateCheckRun {status = Completed, conclusion = Just conclusion}
+            JobStale ->
+              updateCheckRun_ $ UpdateCheckRun {status = Completed, conclusion = Just Cancelled}
+            JobPending -> pass
 
-      -- Register callback to update check run on job completion
-      let callback = mkCheckRunCallback appAuth instId owner repo checkRunId
-      Client.registerJobCallback jobId callback
+          watchLoop chan' targetJobId = do
+            updates <- liftIO $ Events.awaitBatched chan' (matchesJob targetJobId) 500_000
+            let latestStatus = lastStatus updates
+            postCheckRunUpdate latestStatus
+            unless (isTerminal latestStatus) $ watchLoop chan' targetJobId
+
+      void $ async $ watchLoop chan job.jobId
 
     getUserName = either (fromMaybe "" . whSimplUserLogin) whUserLogin
 
-{- | Create a callback that updates a GitHub check run when a job completes
+    matchesJob targetJobId update =
+      case Events.matchUpdate @JobUpdateStatusA update of
+        Just (JobUpdateStatusA jid _, _) -> jid == targetJobId
+        Nothing -> False
 
-Runs the GitHub effect in IO by creating a minimal effect stack.
-Errors are logged but don't propagate (fire-and-forget).
--}
-mkCheckRunCallback ::
-  AppAuth ->
-  InstallationId ->
-  Owner ->
-  Repo ->
-  CheckRunId ->
-  Client.JobCallback
-mkCheckRunCallback appAuth instId owner repo checkRunId jobResult = do
-  let conclusion = case jobResult of
-        JobSuccess -> Success
-        JobFailure -> Failure
-        JobKilled -> Cancelled
+    lastStatus updates =
+      let extractStatus u = case Events.matchUpdate @JobUpdateStatusA u of
+            Just (JobUpdateStatusA _ s, _) -> Just s
+            Nothing -> Nothing
+       in fromMaybe JobPending $ viaNonEmpty last $ mapMaybe extractStatus (toList updates)
 
-      update =
-        UpdateCheckRun
-          { status = Completed
-          , conclusion = Just conclusion
-          }
-
-  result <-
-    runEff $
-      runErrorNoCallStack @GitHubError $
-        runGitHubAsApp appAuth $
-          queryGitHub_ instId $
-            updateCheckRunE owner repo checkRunId update
-
-  case result of
-    Left err -> putStrLn $ "Failed to update check run: " <> show err
-    Right () -> putStrLn $ "Updated check run " <> show checkRunId <> " with " <> show conclusion
+    isTerminal = \case
+      JobFinished {} -> True
+      JobStale -> True
+      _ -> False
 
 pushHandler :: PushEvent -> Eff WebhookStack NoContent
 pushHandler _ = do
@@ -151,7 +170,7 @@ pushHandler _ = do
 
 type WebhookStack = GitHub : Error GitHubError : Error ServerError : Eff.Reader WebSettings : AppStack
 
-{- | Run webhook stack into Servant Handler.
+{- | Run webhook stack into Servant Handler
 
 Any GitHubError is logged and swallowed
 ([webhook responds with a 200 response](https://docs.github.com/en/webhooks/using-webhooks/best-practices-for-using-webhooks#respond-within-10-seconds) regardless).
