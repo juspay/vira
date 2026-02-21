@@ -21,7 +21,6 @@ import Effectful.Colog.Simple (log, tagCurrentThread)
 import Effectful.Concurrent.Async (async)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.Git (BranchName (..), CommitID (..), RepoName (..))
-import Effectful.Reader.Dynamic qualified as Eff
 import GitHub.Data.Webhooks.Events (
   InstallationEvent (..),
   InstallationEventAction (..),
@@ -48,7 +47,6 @@ import Vira.State.Acid (JobUpdateStatusA (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Type (Job (..), JobResult (..), JobStatus (..))
 import Vira.State.Type qualified as State
-import Prelude hiding (Reader, asks)
 
 -- | API type for GitHub webhook events
 data Routes mode = Routes
@@ -63,15 +61,17 @@ data Routes mode = Routes
 handlers ::
   GlobalSettings ->
   ViraRuntimeState ->
-  WebSettings ->
   AppAuth ->
   Routes AsServer
-handlers globalSettings viraRuntimeState webSettings appAuth =
+handlers globalSettings viraRuntimeState appAuth =
   Routes
-    { _pr = runWebhookInServant globalSettings viraRuntimeState webSettings appAuth . prHandler appAuth
-    , _push = runWebhookInServant globalSettings viraRuntimeState webSettings appAuth . pushHandler
-    , _installation = runWebhookInServant globalSettings viraRuntimeState webSettings appAuth . installationHandler
-    , _installationRepos = runWebhookInServant globalSettings viraRuntimeState webSettings appAuth . installationReposHandler
+    { _pr =
+        runWebhookInServant globalSettings viraRuntimeState
+          . logAndSwallowGitHubError appAuth
+          . prHandler appAuth
+    , _push = runWebhookInServant globalSettings viraRuntimeState . pushHandler
+    , _installation = runWebhookInServant globalSettings viraRuntimeState . installationHandler
+    , _installationRepos = runWebhookInServant globalSettings viraRuntimeState . installationReposHandler
     }
 
 {- | Handle pull request events
@@ -80,7 +80,7 @@ On PR open/synchronize: subscribes to the event bus, creates a GitHub check run
 with Queued status, enqueues a Vira job, and spawns an async watcher that updates
 the check run as the job progresses through pending, running, and finished states.
 -}
-prHandler :: AppAuth -> PullRequestEvent -> Eff WebhookStack NoContent
+prHandler :: AppAuth -> PullRequestEvent -> Eff (GitHub : Error GitHubError : AppStack) NoContent
 prHandler appAuth event = do
   log Info $ "Received PR event: " <> show (evPullReqAction event)
   case evPullReqAction event of
@@ -90,7 +90,7 @@ prHandler appAuth event = do
     _ -> log Debug "Ignoring non-build PR action"
   pure NoContent
   where
-    handlePrBuild :: Eff WebhookStack ()
+    handlePrBuild :: Eff (GitHub : Error GitHubError : AppStack) ()
     handlePrBuild = do
       let ghRepo = evPullReqRepo event
           prPayload = evPullReqPayload event
@@ -177,7 +177,7 @@ prHandler appAuth event = do
       JobStale -> True
       _ -> False
 
-pushHandler :: PushEvent -> Eff WebhookStack NoContent
+pushHandler :: PushEvent -> Eff AppStack NoContent
 pushHandler _ = do
   log Info "Received Push"
   pure NoContent
@@ -187,7 +187,7 @@ pushHandler _ = do
 On installation created: automatically add all repositories to Vira registry
 On installation deleted: remove all repositories from Vira (unless they have running jobs)
 -}
-installationHandler :: InstallationEvent -> Eff WebhookStack NoContent
+installationHandler :: InstallationEvent -> Eff AppStack NoContent
 installationHandler event = do
   log Info $ "Received installation event: " <> show (evInstallationAction event)
   case evInstallationAction event of
@@ -206,7 +206,7 @@ installationHandler event = do
 On repositories added: automatically add them to Vira registry
 On repositories removed: remove them from Vira (unless they have running jobs)
 -}
-installationReposHandler :: InstallationRepositoriesEvent -> Eff WebhookStack NoContent
+installationReposHandler :: InstallationRepositoriesEvent -> Eff AppStack NoContent
 installationReposHandler event = do
   log Info $ "Received installation_repositories event: " <> show (evInstallationRepoAction event)
   case evInstallationRepoAction event of
@@ -227,7 +227,7 @@ For each repository:
 2. Add to Vira registry with constructed clone URL
 3. Schedule immediate refresh to fetch branches
 -}
-addRepositories :: [HookRepositorySimple] -> Eff WebhookStack ()
+addRepositories :: [HookRepositorySimple] -> Eff AppStack ()
 addRepositories repos = do
   forM_ repos $ \repoSimple -> do
     let fullName = whSimplRepoFullName repoSimple
@@ -259,7 +259,7 @@ For each repository:
 1. Attempt deletion (fails if running jobs exist)
 2. Log success or failure
 -}
-deleteRepositories :: [RepoName] -> Eff WebhookStack ()
+deleteRepositories :: [RepoName] -> Eff AppStack ()
 deleteRepositories repoNames = do
   forM_ repoNames $ \repoName -> do
     log Info $ "Deleting repository: " <> toText repoName
@@ -267,42 +267,30 @@ deleteRepositories repoNames = do
       Left errMsg -> log Error $ "Failed to delete " <> toText repoName <> ": " <> errMsg
       Right () -> log Info $ "Deleted repository: " <> toText repoName
 
-type WebhookStack = GitHub : Error GitHubError : Error ServerError : Eff.Reader WebSettings : AppStack
-
-{- | Run webhook stack into Servant Handler
-
-Any GitHubError is logged and swallowed
-([webhook responds with a 200 response](https://docs.github.com/en/webhooks/using-webhooks/best-practices-for-using-webhooks#respond-within-10-seconds) regardless).
--}
-runWebhookInServant ::
-  GlobalSettings ->
-  ViraRuntimeState ->
-  WebSettings ->
-  AppAuth ->
-  Eff WebhookStack NoContent ->
-  Handler NoContent
-runWebhookInServant globalSettings viraRuntimeState webSettings appAuth action =
+-- | Run an 'AppStack' action into Servant 'Handler'
+runWebhookInServant :: GlobalSettings -> ViraRuntimeState -> Eff AppStack NoContent -> Handler NoContent
+runWebhookInServant globalSettings viraRuntimeState action =
   Handler
     . ExceptT
+    . fmap Right
     . runApp globalSettings viraRuntimeState
-    . Eff.runReader webSettings
-    . runErrorNoCallStack @ServerError
-    . logAndSwallowGitHubError
-    . runGitHubAsApp appAuth
     $ do
       tagCurrentThread "🪝"
       action
-  where
-    logAndSwallowGitHubError ::
-      Eff (Error GitHubError : Error ServerError : Eff.Reader WebSettings : AppStack) NoContent ->
-      Eff (Error ServerError : Eff.Reader WebSettings : AppStack) NoContent
-    logAndSwallowGitHubError m = do
-      result <- runErrorNoCallStack @GitHubError m
-      case result of
-        Left err -> do
-          log Warning $ "GitHub API error: " <> show err
-          pure NoContent
-        Right a -> pure a
+
+{- | Interpret @GitHub : Error GitHubError@ down to 'AppStack'
+
+Any 'GitHubError' is logged and swallowed
+([webhook responds with a 200 response](https://docs.github.com/en/webhooks/using-webhooks/best-practices-for-using-webhooks#respond-within-10-seconds) regardless).
+-}
+logAndSwallowGitHubError :: AppAuth -> Eff (GitHub : Error GitHubError : AppStack) NoContent -> Eff AppStack NoContent
+logAndSwallowGitHubError appAuth m = do
+  result <- runErrorNoCallStack @GitHubError $ runGitHubAsApp appAuth m
+  case result of
+    Left err -> do
+      log Warning $ "GitHub API error: " <> show err
+      pure NoContent
+    Right a -> pure a
 
 {- | WAI middleware that mounts the GitHub webhook at @\/webhook\/github@
 TODO: appropriate doc comment
@@ -325,5 +313,5 @@ webhookMiddleware globalSettings viraRuntimeState webSettings appAuth = \app req
     webhookApp =
       genericServeTWithContext
         id
-        (handlers globalSettings viraRuntimeState webSettings appAuth)
+        (handlers globalSettings viraRuntimeState appAuth)
         (githubKey :. EmptyContext)
