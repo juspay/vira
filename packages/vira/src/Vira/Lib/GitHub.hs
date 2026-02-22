@@ -86,6 +86,12 @@ data CheckRunStatus
   | Completed
   deriving stock (Show, Eq)
 
+instance ToText CheckRunStatus where
+  toText = \case
+    Queued -> "queued"
+    InProgress -> "in_progress"
+    Completed -> "completed"
+
 -- | Check run conclusion (required when status is 'Completed')
 data CheckRunConclusion
   = Success
@@ -95,6 +101,15 @@ data CheckRunConclusion
   | ActionRequired
   | Skipped
   deriving stock (Show, Eq)
+
+instance ToText CheckRunConclusion where
+  toText = \case
+    Success -> "success"
+    Failure -> "failure"
+    Cancelled -> "cancelled"
+    TimedOut -> "timed_out"
+    ActionRequired -> "action_required"
+    Skipped -> "skipped"
 
 -- | Request body for creating a check run
 data NewCheckRun = NewCheckRun
@@ -124,7 +139,7 @@ createCheckRunE (Owner owner) (Repo repo) cr =
     , endpointVals = ["owner" := owner, "repo" := repo]
     , ghData =
         ["name" := cr.name, "head_sha" := cr.headSha]
-          <> maybe [] (\s -> ["status" := statusText s]) cr.status
+          <> maybe [] (\s -> ["status" := toText s]) cr.status
     }
 
 updateCheckRunE :: Owner -> Repo -> CheckRunId -> UpdateCheckRun -> GHEndpoint
@@ -134,24 +149,9 @@ updateCheckRunE (Owner owner) (Repo repo) (CheckRunId checkRunId) upd =
     , endpoint = "/repos/:owner/:repo/check-runs/:check_run_id"
     , endpointVals = ["owner" := owner, "repo" := repo, "check_run_id" := checkRunId]
     , ghData =
-        ["status" := statusText upd.status]
-          <> maybe [] (\c -> ["conclusion" := conclusionText c]) upd.conclusion
+        ["status" := toText upd.status]
+          <> maybe [] (\c -> ["conclusion" := toText c]) upd.conclusion
     }
-
-statusText :: CheckRunStatus -> Text
-statusText = \case
-  Queued -> "queued"
-  InProgress -> "in_progress"
-  Completed -> "completed"
-
-conclusionText :: CheckRunConclusion -> Text
-conclusionText = \case
-  Success -> "success"
-  Failure -> "failure"
-  Cancelled -> "cancelled"
-  TimedOut -> "timed_out"
-  ActionRequired -> "action_required"
-  Skipped -> "skipped"
 
 createInstallationAccessTokenE :: InstallationId -> GHEndpoint
 createInstallationAccessTokenE (InstallationId instId) =

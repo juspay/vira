@@ -16,7 +16,7 @@ module Vira.Webhook.GitHub (
 
 import Colog (Severity (..))
 import Data.Acid.Events qualified as Events
-import Effectful (Eff, runEff)
+import Effectful (Eff)
 import Effectful.Colog.Simple (log, tagCurrentThread)
 import Effectful.Concurrent.Async (async)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
@@ -68,7 +68,7 @@ handlers globalSettings viraRuntimeState appAuth =
     { _pr =
         runWebhookInServant globalSettings viraRuntimeState
           . logAndSwallowGitHubError appAuth
-          . prHandler appAuth
+          . prHandler
     , _push = runWebhookInServant globalSettings viraRuntimeState . pushHandler
     , _installation = runWebhookInServant globalSettings viraRuntimeState . installationHandler
     , _installationRepos = runWebhookInServant globalSettings viraRuntimeState . installationReposHandler
@@ -80,8 +80,8 @@ On PR open/synchronize: subscribes to the event bus, creates a GitHub check run
 with Queued status, enqueues a Vira job, and spawns an async watcher that updates
 the check run as the job progresses through pending, running, and finished states.
 -}
-prHandler :: AppAuth -> PullRequestEvent -> Eff (GitHub : Error GitHubError : AppStack) NoContent
-prHandler appAuth event = do
+prHandler :: PullRequestEvent -> Eff (GitHub : Error GitHubError : AppStack) NoContent
+prHandler event = do
   log Info $ "Received PR event: " <> show (evPullReqAction event)
   case evPullReqAction event of
     PullRequestOpenedAction -> handlePrBuild
@@ -126,38 +126,22 @@ prHandler appAuth event = do
       job <- Client.enqueueJob viraRepoName viraBranchName viraCommitId
 
       -- Spawn async watcher to update check run as job progresses
-      let updateCheckRun_ upd = do
+      let jobStatusLoop chan' targetJobId = do
+            updates <- liftIO $ Events.awaitBatched chan' (matchesJob targetJobId) 500_000
+            let latestStatus = lastStatus updates
+            -- Catch errors within loop to avoid killing the async task
+            -- TODO: verify the LLM's claim
             result <-
-              liftIO $
-                runEff $
-                  runErrorNoCallStack @GitHubError $
-                    runGitHubAsApp appAuth $
-                      queryGitHub_ instId $
-                        updateCheckRunE owner repo checkRunId upd
+              runErrorNoCallStack @GitHubError $
+                queryGitHub_ instId $
+                  updateCheckRunE owner repo checkRunId $
+                    fromJobStatus latestStatus
             case result of
               Left err -> log Warning $ "Failed to update check run " <> show checkRunId <> ": " <> show err
               Right () -> pass
+            unless (isTerminal latestStatus) $ jobStatusLoop chan' targetJobId
 
-          postCheckRunUpdate = \case
-            JobRunning ->
-              updateCheckRun_ $ UpdateCheckRun {status = InProgress, conclusion = Nothing}
-            JobFinished jobResult _ -> do
-              let conclusion = case jobResult of
-                    JobSuccess -> Success
-                    JobFailure -> Failure
-                    JobKilled -> Cancelled
-              updateCheckRun_ $ UpdateCheckRun {status = Completed, conclusion = Just conclusion}
-            JobStale ->
-              updateCheckRun_ $ UpdateCheckRun {status = Completed, conclusion = Just Cancelled}
-            JobPending -> pass
-
-          watchLoop chan' targetJobId = do
-            updates <- liftIO $ Events.awaitBatched chan' (matchesJob targetJobId) 500_000
-            let latestStatus = lastStatus updates
-            postCheckRunUpdate latestStatus
-            unless (isTerminal latestStatus) $ watchLoop chan' targetJobId
-
-      void $ async $ watchLoop chan job.jobId
+      void $ async $ jobStatusLoop chan job.jobId
 
     getUserName = either (fromMaybe "" . whSimplUserLogin) whUserLogin
 
@@ -315,3 +299,18 @@ webhookMiddleware globalSettings viraRuntimeState webSettings appAuth = \app req
         id
         (handlers globalSettings viraRuntimeState appAuth)
         (githubKey :. EmptyContext)
+
+-- Helpers
+fromJobStatus :: JobStatus -> UpdateCheckRun
+fromJobStatus = \case
+  JobRunning ->
+    UpdateCheckRun {status = InProgress, conclusion = Nothing}
+  JobFinished jobResult _ -> do
+    let conclusion = case jobResult of
+          JobSuccess -> Success
+          JobFailure -> Failure
+          JobKilled -> Cancelled
+    UpdateCheckRun {status = Completed, conclusion = Just conclusion}
+  JobStale ->
+    UpdateCheckRun {status = Completed, conclusion = Just Cancelled}
+  JobPending -> UpdateCheckRun {status = Queued, conclusion = Nothing}
