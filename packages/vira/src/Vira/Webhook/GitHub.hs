@@ -86,14 +86,14 @@ prHandler :: PullRequestEvent -> Eff (GitHub : Error GitHubError : AppStack) NoC
 prHandler event = do
   log Info $ "Received PR event: " <> show (evPullReqAction event)
   case evPullReqAction event of
-    PullRequestOpenedAction -> handlePrBuild
-    PullRequestReopenedAction -> handlePrBuild
-    PullRequestActionOther "synchronize" -> handlePrBuild
+    PullRequestOpenedAction -> prBuild
+    PullRequestReopenedAction -> prBuild
+    PullRequestActionOther "synchronize" -> prBuild
     _ -> log Debug "Ignoring non-build PR action"
   pure NoContent
   where
-    handlePrBuild :: Eff (GitHub : Error GitHubError : AppStack) ()
-    handlePrBuild = do
+    prBuild :: Eff (GitHub : Error GitHubError : AppStack) ()
+    prBuild = do
       let prRepo = evPullReqRepo event
           prHead = whPullReqHead $ evPullReqPayload event
           instId = InstallationId $ fromMaybe 0 $ evPullReqInstallationId event
@@ -105,16 +105,14 @@ prHandler event = do
       chan <- App.subscribe
 
       -- Create check run with Queued status
-      checkRunResp <-
-        queryGitHub @CheckRunResponse instId $
+      checkRun <-
+        queryGitHub @CheckRun instId $
           createCheckRunE (Owner owner) (Repo repo) $
             NewCheckRun
               { name = "Vira CI"
               , headSha = commit
               , status = Just Queued
               }
-
-      let checkRunId = checkRunResp.checkRunId
       log Info $ "Created check run for " <> show commit
 
       -- Enqueue job
@@ -125,7 +123,7 @@ prHandler event = do
           (CommitID commit)
 
       -- Spawn async watcher to update check run as job progresses
-      void $ async $ jobStatusLoop chan instId (Owner owner) (Repo repo) checkRunId job.jobId
+      void $ async $ jobStatusLoop chan instId (Owner owner) (Repo repo) checkRun.checkRunId job.jobId
 
 -- \| Watch event bus for job status changes, updating the GitHub check run accordingly
 jobStatusLoop ::

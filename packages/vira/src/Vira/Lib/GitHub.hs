@@ -15,7 +15,7 @@ module Vira.Lib.GitHub (
 
   -- * Check Run
   CheckRunId (..),
-  CheckRunResponse (..),
+  CheckRun (..),
   NewCheckRun (..),
   UpdateCheckRun (..),
   CheckRunStatus (..),
@@ -74,14 +74,14 @@ newtype CheckRunId = CheckRunId {unCheckRunId :: Int}
   deriving newtype (Show, Eq, Ord, FromJSON, ToJSON)
 
 -- | Response from creating a check run
-newtype CheckRunResponse = CheckRunResponse
+newtype CheckRun = CheckRun
   { checkRunId :: CheckRunId
   }
   deriving stock (Show, Eq)
 
-instance FromJSON CheckRunResponse where
-  parseJSON = withObject "CheckRunResponse" $ \o ->
-    CheckRunResponse <$> o .: "id"
+instance FromJSON CheckRun where
+  parseJSON = withObject "CheckRun" $ \o ->
+    CheckRun <$> o .: "id"
 
 -- | Check run status
 data CheckRunStatus
