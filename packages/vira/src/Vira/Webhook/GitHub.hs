@@ -95,18 +95,11 @@ prHandler event = do
     handlePrBuild :: Eff (GitHub : Error GitHubError : AppStack) ()
     handlePrBuild = do
       let prRepo = evPullReqRepo event
-          prPayload = evPullReqPayload event
-          prTarget = whPullReqHead prPayload
+          prHead = whPullReqHead $ evPullReqPayload event
           instId = InstallationId $ fromMaybe 0 $ evPullReqInstallationId event
           owner = hookUserLoginAny (whRepoOwner prRepo)
           repo = whRepoName prRepo
-          ghOwner = Owner owner
-          ghRepo = Repo repo
-          viraRepoName = RepoName $ owner <> "/" <> repo
-          commitSha = whPullReqTargetSha prTarget
-          branchRef = whPullReqTargetRef prTarget
-          viraBranchName = BranchName branchRef
-          viraCommitId = CommitID commitSha
+          commit = whPullReqTargetSha prHead
 
       -- Subscribe to event bus BEFORE enqueueing to avoid missing events
       chan <- App.subscribe
@@ -114,21 +107,25 @@ prHandler event = do
       -- Create check run with Queued status
       checkRunResp <-
         queryGitHub @CheckRunResponse instId $
-          createCheckRunE ghOwner ghRepo $
+          createCheckRunE (Owner owner) (Repo repo) $
             NewCheckRun
               { name = "Vira CI"
-              , headSha = commitSha
+              , headSha = commit
               , status = Just Queued
               }
 
       let checkRunId = checkRunResp.checkRunId
-      log Info $ "Created check run " <> show checkRunId <> " for " <> show commitSha
+      log Info $ "Created check run for " <> show commit
 
       -- Enqueue job
-      job <- Client.enqueueJob viraRepoName viraBranchName viraCommitId
+      job <-
+        Client.enqueueJob
+          (RepoName $ owner <> "/" <> repo)
+          (BranchName $ whPullReqTargetRef prHead)
+          (CommitID commit)
 
       -- Spawn async watcher to update check run as job progresses
-      void $ async $ jobStatusLoop chan instId ghOwner ghRepo checkRunId job.jobId
+      void $ async $ jobStatusLoop chan instId (Owner owner) (Repo repo) checkRunId job.jobId
 
 -- \| Watch event bus for job status changes, updating the GitHub check run accordingly
 jobStatusLoop ::
