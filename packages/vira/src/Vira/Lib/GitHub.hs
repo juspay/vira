@@ -25,10 +25,14 @@ module Vira.Lib.GitHub (
   createCheckRunE,
   updateCheckRunE,
   createInstallationAccessTokenE,
+
+  -- * Helpers,
+  hookUserLoginAny, -- requires github-webhooks
 ) where
 
 import Data.Aeson (FromJSON (..), ToJSON (..), withObject, (.:))
 import Data.Time (UTCTime, defaultTimeLocale, parseTimeM)
+import GitHub.Data.Webhooks.Payload (HookSimpleUser (whSimplUserLogin), HookUser (whUserLogin))
 import GitHub.REST (GHEndpoint (..), KeyValue (..))
 import Network.HTTP.Types (StdMethod (..))
 
@@ -161,3 +165,9 @@ createInstallationAccessTokenE (InstallationId instId) =
     , endpointVals = ["installation_id" := instId]
     , ghData = []
     }
+
+-- Helpers
+
+-- | Return the user login as `Text`. Empty text if `whSimplUserLogin` is `Nothing`
+hookUserLoginAny :: Either HookSimpleUser HookUser -> Text
+hookUserLoginAny = either (fromMaybe "" . whSimplUserLogin) whUserLogin

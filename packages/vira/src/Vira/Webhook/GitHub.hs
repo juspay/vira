@@ -15,6 +15,8 @@ module Vira.Webhook.GitHub (
 ) where
 
 import Colog (Severity (..))
+import Control.Concurrent.STM (TChan)
+import Data.Acid.Events (SomeUpdate)
 import Data.Acid.Events qualified as Events
 import Effectful (Eff)
 import Effectful.Colog.Simple (log, tagCurrentThread)
@@ -30,7 +32,7 @@ import GitHub.Data.Webhooks.Events (
   PullRequestEventAction (..),
   PushEvent,
  )
-import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookRepositorySimple (..), HookSimpleUser (..), HookUser (..), PullRequestTarget (..))
+import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookRepositorySimple (..), PullRequestTarget (..))
 import Network.Wai (Middleware, pathInfo)
 import Servant
 import Servant.GitHub.Webhook (GitHubEvent, GitHubKey (..))
@@ -45,8 +47,8 @@ import Vira.Refresh qualified as Refresh
 import Vira.Refresh.Type (RefreshPriority (..))
 import Vira.State.Acid (JobUpdateStatusA (..))
 import Vira.State.Acid qualified as St
-import Vira.State.Type (Job (..), JobResult (..), JobStatus (..))
-import Vira.State.Type qualified as State
+import Vira.State.Type (Job (..), JobId, JobResult (..), JobStatus (..), ViraState)
+import Vira.State.Type qualified as St
 
 -- | API type for GitHub webhook events
 data Routes mode = Routes
@@ -92,14 +94,19 @@ prHandler event = do
   where
     handlePrBuild :: Eff (GitHub : Error GitHubError : AppStack) ()
     handlePrBuild = do
-      let ghRepo = evPullReqRepo event
+      let prRepo = evPullReqRepo event
           prPayload = evPullReqPayload event
           prTarget = whPullReqHead prPayload
           instId = InstallationId $ fromMaybe 0 $ evPullReqInstallationId event
-          owner = Owner $ getUserName (whRepoOwner ghRepo)
-          repo = Repo $ whRepoName ghRepo
+          owner = hookUserLoginAny (whRepoOwner prRepo)
+          repo = whRepoName prRepo
+          ghOwner = Owner owner
+          ghRepo = Repo repo
+          viraRepoName = RepoName $ owner <> "/" <> repo
           commitSha = whPullReqTargetSha prTarget
           branchRef = whPullReqTargetRef prTarget
+          viraBranchName = BranchName branchRef
+          viraCommitId = CommitID commitSha
 
       -- Subscribe to event bus BEFORE enqueueing to avoid missing events
       chan <- App.subscribe
@@ -107,7 +114,7 @@ prHandler event = do
       -- Create check run with Queued status
       checkRunResp <-
         queryGitHub @CheckRunResponse instId $
-          createCheckRunE owner repo $
+          createCheckRunE ghOwner ghRepo $
             NewCheckRun
               { name = "Vira CI"
               , headSha = commitSha
@@ -118,33 +125,35 @@ prHandler event = do
       log Info $ "Created check run " <> show checkRunId <> " for " <> show commitSha
 
       -- Enqueue job
-      let ownerName = getUserName (whRepoOwner ghRepo)
-          repoName = whRepoName ghRepo
-          viraRepoName = RepoName $ ownerName <> "/" <> repoName
-          viraBranchName = BranchName branchRef
-          viraCommitId = CommitID commitSha
       job <- Client.enqueueJob viraRepoName viraBranchName viraCommitId
 
       -- Spawn async watcher to update check run as job progresses
-      let jobStatusLoop chan' targetJobId = do
-            updates <- liftIO $ Events.awaitBatched chan' (matchesJob targetJobId) 500_000
-            let latestStatus = lastStatus updates
-            -- Catch errors within loop to avoid killing the async task
-            -- TODO: verify the LLM's claim
-            result <-
-              runErrorNoCallStack @GitHubError $
-                queryGitHub_ instId $
-                  updateCheckRunE owner repo checkRunId $
-                    fromJobStatus latestStatus
-            case result of
-              Left err -> log Warning $ "Failed to update check run " <> show checkRunId <> ": " <> show err
-              Right () -> pass
-            unless (isTerminal latestStatus) $ jobStatusLoop chan' targetJobId
+      void $ async $ jobStatusLoop chan instId ghOwner ghRepo checkRunId job.jobId
 
-      void $ async $ jobStatusLoop chan job.jobId
-
-    getUserName = either (fromMaybe "" . whSimplUserLogin) whUserLogin
-
+-- \| Watch event bus for job status changes, updating the GitHub check run accordingly
+jobStatusLoop ::
+  TChan (SomeUpdate ViraState) ->
+  InstallationId ->
+  Owner ->
+  Repo ->
+  CheckRunId ->
+  JobId ->
+  Eff (GitHub : Error GitHubError : AppStack) ()
+jobStatusLoop chan instId owner repo checkRunId jobId = do
+  updates <- liftIO $ Events.awaitBatched chan (matchesJob jobId) 500_000
+  let latestStatus = lastStatus updates
+  -- Catch errors within loop to avoid killing the async task
+  -- TODO: verify the LLM's claim
+  result <-
+    runErrorNoCallStack @GitHubError $
+      queryGitHub_ instId $
+        updateCheckRunE owner repo checkRunId $
+          fromJobStatus latestStatus
+  case result of
+    Left err -> log Warning $ "Failed to update check run " <> show checkRunId <> ": " <> show err
+    Right () -> pass
+  unless (isTerminal latestStatus) $ jobStatusLoop chan instId owner repo checkRunId jobId
+  where
     matchesJob targetJobId update =
       case Events.matchUpdate @JobUpdateStatusA update of
         Just (JobUpdateStatusA jid _, _) -> jid == targetJobId
@@ -226,7 +235,7 @@ addRepositories repos = do
       Nothing -> do
         -- Add repository
         let newRepo =
-              State.Repo
+              St.Repo
                 { name = repoName
                 , cloneUrl = cloneUrl
                 , lastRefresh = Nothing
