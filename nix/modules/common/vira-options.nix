@@ -92,6 +92,33 @@ in
       };
     };
 
+    github = mkOption {
+      description = "GitHub integration configuration";
+      default = { };
+      type = types.submodule {
+        options = {
+          appId = mkOption {
+            type = types.nullOr types.ints.positive;
+            default = null;
+            description = "GitHub App ID for Checks API integration";
+          };
+
+          privateKeyFile = mkOption {
+            type = types.nullOr types.path;
+            default = null;
+            description = "Path to the GitHub App private key PEM file";
+          };
+
+          webhookSecret = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            description = "Secret for verifying GitHub webhook signatures";
+          };
+        };
+      };
+    };
+
+
     systemd = mkOption {
       description = "Systemd service configuration overrides";
       default = { };
@@ -155,7 +182,16 @@ in
                 ++ optionals hasInitialState [ "--import" initialStateJson ]
                 ++ optionals (cfg.maxConcurrentBuilds != null) [ "--max-concurrent-builds" (toString cfg.maxConcurrentBuilds) ]
                 ++ optionals cfg.autoBuildNewBranches [ "--auto-build-new-branches" ]
-                ++ [ "--job-retention-days" (toString cfg.jobRetentionDays) ];
+                ++ [ "--job-retention-days" (toString cfg.jobRetentionDays) ]
+                # GitHub integratoin args
+                ++ optionals (cfg.github.appId != null && cfg.github.privateKeyFile != null) [
+                  "--github-app-id"
+                  (toString cfg.github.appId)
+                  "--github-app-private-key"
+                  (toString cfg.github.privateKeyFile)
+                ]
+                ++ optionals (cfg.github.webhookSecret != null) [ "--github-webhook-secret" cfg.github.webhookSecret ];
+
               in
               "${cfg.package}/bin/vira ${concatStringsSep " " globalArgs} web ${concatStringsSep " " webArgs}";
           };
@@ -164,4 +200,11 @@ in
       default = { };
     };
   };
+  config.assertions = [
+    {
+      assertion = (cfg.github.appId == null) == (cfg.github.privateKeyFile == null);
+      message = "services.vira.github.appId and services.vira.github.privateKeyFile must both be set or both be null";
+    }
+  ];
+
 }
