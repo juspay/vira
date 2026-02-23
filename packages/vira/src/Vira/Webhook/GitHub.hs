@@ -39,7 +39,6 @@ import Servant.GitHub.Webhook (GitHubEvent, GitHubKey (..))
 import Servant.Server.Generic (AsServer, genericServeTWithContext)
 import Vira.App (AppStack, GlobalSettings, ViraRuntimeState (..), runApp)
 import Vira.App.AcidState qualified as App
-import Vira.App.CLI (WebSettings (..))
 import Vira.CI.Client qualified as Client
 import Vira.Effect.GitHub
 import Vira.Lib.GitHub
@@ -286,17 +285,17 @@ TODO: appropriate doc comment
 webhookMiddleware ::
   GlobalSettings ->
   ViraRuntimeState ->
-  WebSettings ->
   AppAuth ->
+  Text -> -- webhook secret
   Middleware
-webhookMiddleware globalSettings viraRuntimeState webSettings appAuth = \app req sendResponse ->
+webhookMiddleware globalSettings viraRuntimeState appAuth webhookSecret = \app req sendResponse ->
   case pathInfo req of
     ("webhook" : "github" : rest) -> do
       let req' = req {pathInfo = rest}
       webhookApp req' sendResponse
     _ -> app req sendResponse
   where
-    key = maybe mempty encodeUtf8 webSettings.ghWebhookSecret
+    key = encodeUtf8 webhookSecret
     githubKey = GitHubKey $ pure key
     webhookApp =
       genericServeTWithContext

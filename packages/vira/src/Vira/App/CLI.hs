@@ -71,8 +71,8 @@ data WebSettings = WebSettings
   -- ^ Optional JSON file to import on startup
   , ciSettings :: CISettings
   -- ^ CI configuration settings
-  , ghWebhookSecret :: Maybe Text
-  -- ^ Secret for verifying GitHub webhook signatures
+  , ghWebhookSecretFile :: Maybe FilePath
+  -- ^ Path to file containing secret for verifying GitHub webhook signatures
   , ghAppAuthSettings :: Maybe GHAppAuthSettings
   -- ^ Settings for authenticating as a GitHub App
   }
@@ -189,12 +189,12 @@ webSettingsParser = do
           <> value 14
           <> showDefault
       )
-  ghWebhookSecret <-
+  ghWebhookSecretFile <-
     optional $
       strOption
-        ( long "github-webhook-secret"
-            <> metavar "SECRET"
-            <> help "Secret for verifying GitHub webhook signatures"
+        ( long "github-webhook-secret-file"
+            <> metavar "PATH"
+            <> help "Path to file containing secret for verifying GitHub webhook signatures"
         )
   ghAppAuthSettings <- githubAppParser
   pure
@@ -210,7 +210,7 @@ webSettingsParser = do
             , autoBuildNewBranches = AutoBuildNewBranches autoBuildNewBranchesBool
             , jobRetentionDays
             }
-      , ghWebhookSecret
+      , ghWebhookSecretFile
       , ghAppAuthSettings
       }
 

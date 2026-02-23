@@ -54,7 +54,10 @@ runServer globalSettings webSettings cacheApp = do
           rsaPem <- liftIO $ readFileBS settings.privateKeyPath
           privateKey <- readRsaPem rsaPem
           appAuth <- liftIO $ newAppAuth privateKey settings.appId
-          pure $ WebhookGitHub.webhookMiddleware globalSettings viraRuntimeState webSettings appAuth
+          webhookSecret <- case webSettings.ghWebhookSecretFile of
+            Just secretPath -> liftIO $ decodeUtf8 <$> readFileBS secretPath
+            Nothing -> pure ""
+          pure $ WebhookGitHub.webhookMiddleware globalSettings viraRuntimeState appAuth webhookSecret
         Nothing -> pure $ \app req sendResponse ->
           case pathInfo req of
             ("webhook" : "github" : _) ->

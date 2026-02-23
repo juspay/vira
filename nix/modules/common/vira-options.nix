@@ -109,10 +109,10 @@ in
             description = "Path to the GitHub App private key PEM file";
           };
 
-          webhookSecret = mkOption {
-            type = types.nullOr types.str;
+          webhookSecretFile = mkOption {
+            type = types.nullOr types.path;
             default = null;
-            description = "Secret for verifying GitHub webhook signatures";
+            description = "Path to file containing secret for verifying GitHub webhook signatures";
           };
         };
       };
@@ -190,7 +190,7 @@ in
                   "--github-app-private-key"
                   (toString cfg.github.privateKeyFile)
                 ]
-                ++ optionals (cfg.github.webhookSecret != null) [ "--github-webhook-secret" cfg.github.webhookSecret ];
+                ++ optionals (cfg.github.webhookSecretFile != null) [ "--github-webhook-secret-file" cfg.github.webhookSecretFile ];
 
               in
               "${cfg.package}/bin/vira ${concatStringsSep " " globalArgs} web ${concatStringsSep " " webArgs}";

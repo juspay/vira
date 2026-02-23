@@ -25,7 +25,7 @@ Follow GitHub's official guide: [Creating a GitHub App](https://docs.github.com/
 - **Webhook URL**: Your Vira webhook endpoint: `https://<your-vira-host>/webhook/github`
   - For local development/testing, use [smee.io](https://smee.io/) to forward webhooks to localhost
   - Example: `https://smee.io/your-unique-channel` (then run the smee client locally: `nix run nixpkgs#gosmee -- client https://smee.io/your-unique-channel https://localhost:5005/webhook/github`)
-- **Webhook secret**: Generate a secure random string (you'll use this with `--github-webhook-secret`)
+- **Webhook secret**: Generate a secure random string and save it to a file (you'll use this with `--github-webhook-secret-file`)
 
 **Required permissions:**
 
@@ -59,10 +59,10 @@ Run Vira with the following required flags:
 vira web \
   --github-app-id <APP_ID> \
   --github-app-private-key <PATH_TO_PEM_FILE> \
-  --github-webhook-secret <WEBHOOK_SECRET>
+  --github-webhook-secret-file <PATH_TO_SECRET_FILE>
 ```
 
-All three GitHub flags must be provided together for the integration to work.
+All three GitHub flags must be provided together for the integration to work. The webhook secret should be stored in a file and the path provided via `--github-webhook-secret-file`.
 
 ### 4. Install the GitHub App
 
