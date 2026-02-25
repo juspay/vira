@@ -30,6 +30,8 @@ data ViraPipeline = ViraPipeline
 data BuildStage = BuildStage
   { flakes :: NonEmpty Flake
   , systems :: [System]
+  , nixOptions :: [(Text, Text)]
+  -- ^ Arbitrary @--option key value@ flags passed to Nix commands
   }
   deriving stock (Generic, Show)
 
@@ -71,10 +73,13 @@ instance HasField "overrideInputs" Flake [(Text, Text)] where
   hasField (Flake path overrideInputs) = (Flake path, overrideInputs)
 
 instance HasField "flakes" BuildStage (NonEmpty Flake) where
-  hasField (BuildStage flakes systems) = (\x -> BuildStage x systems, flakes)
+  hasField (BuildStage flakes systems nixOptions) = (\x -> BuildStage x systems nixOptions, flakes)
 
 instance HasField "systems" BuildStage [System] where
-  hasField (BuildStage flakes systems) = (BuildStage flakes, systems)
+  hasField (BuildStage flakes systems nixOptions) = (\x -> BuildStage flakes x nixOptions, systems)
+
+instance HasField "nixOptions" BuildStage [(Text, Text)] where
+  hasField (BuildStage flakes systems nixOptions) = (BuildStage flakes systems, nixOptions)
 
 instance HasField "enable" SignoffStage Bool where
   hasField (SignoffStage enable) = (SignoffStage, enable)

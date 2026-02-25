@@ -45,7 +45,7 @@ run-vira ARGS='web --host 0.0.0.0 --base-path ${BASE_PATH:-/} --import ./sample.
 # Run `vira ci` on itself.
 ci:
     @just pc
-    nix run . -- ci
+    nix run . -- ci -b
 
 # Run cabal tests (Pass, for example, `tail-test` to run for different component)
 [group('2. haskell')]
