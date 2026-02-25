@@ -85,6 +85,7 @@ prHandler :: PullRequestEvent -> Eff (GitHub : Error GitHubError : AppStack) NoC
 prHandler event = do
   log Info $ "Received PR event: " <> show (evPullReqAction event)
   case evPullReqAction event of
+    -- TODO: Use https://downloads.haskell.org/ghc/latest/docs/users_guide/exts/or_patterns.html
     PullRequestOpenedAction -> prBuild
     PullRequestReopenedAction -> prBuild
     PullRequestActionOther "synchronize" -> prBuild
@@ -115,6 +116,7 @@ prHandler event = do
       log Info $ "Created check run for " <> show commit
 
       -- Enqueue job
+      -- TODO: Handle forks
       job <-
         Client.enqueueJob
           (RepoName $ owner <> "/" <> repo)
