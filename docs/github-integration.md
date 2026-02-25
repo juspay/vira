@@ -64,6 +64,21 @@ vira web \
 
 All three GitHub flags must be provided together for the integration to work. The webhook secret should be stored in a file and the path provided via `--github-webhook-secret-file`.
 
+#### Using the home-manager module
+
+```nix
+services.vira = {
+  enable = true;
+  # ...
+
+  github = {
+    appId = 123456;
+    privateKeyFile = "/path/to/github-app.pem";
+    webhookSecretFile = "/path/to/webhook-secret";
+  };
+};
+```
+
 ### 4. Install the GitHub App
 
 Install your GitHub App on the repositories you want Vira to build:

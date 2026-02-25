@@ -183,7 +183,7 @@ in
                 ++ optionals (cfg.maxConcurrentBuilds != null) [ "--max-concurrent-builds" (toString cfg.maxConcurrentBuilds) ]
                 ++ optionals cfg.autoBuildNewBranches [ "--auto-build-new-branches" ]
                 ++ [ "--job-retention-days" (toString cfg.jobRetentionDays) ]
-                # GitHub integratoin args
+                # GitHub integration args
                 ++ optionals (cfg.github.appId != null && cfg.github.privateKeyFile != null) [
                   "--github-app-id"
                   (toString cfg.github.appId)
