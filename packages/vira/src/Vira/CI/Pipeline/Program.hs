@@ -17,7 +17,7 @@ import System.Nix.System (System (..))
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Error (PipelineError (..))
 import Vira.CI.Pipeline.Effect
-import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
+import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), NixOptions, SignoffStage (..), ViraPipeline (..), nixOptionsToList)
 import Vira.State.Type (Branch, Repo)
 
 -- | Pretty-print pipeline configuration in a concise format
@@ -47,10 +47,11 @@ prettyPipeline ViraPipeline {build = buildStage, cache = cacheStage, signoff = s
     prettyOverrides ovs =
       space <> parens ("overrides:" <+> hsep (punctuate comma (map (\(k, v) -> pretty k <> "=" <> pretty v) ovs)))
 
-    prettyNixOptions :: [(Text, Text)] -> Doc ann
-    prettyNixOptions [] = mempty
+    prettyNixOptions :: NixOptions -> Doc ann
     prettyNixOptions opts =
-      "Nix options:" <+> hsep (punctuate comma (map (\(k, v) -> pretty k <> "=" <> pretty v) opts))
+      case nixOptionsToList opts of
+        [] -> mempty
+        kvs -> "Nix options:" <+> hsep (punctuate comma (map (\(k, v) -> pretty k <> "=" <> pretty v) kvs))
 
 -- | Pipeline program for CLI (uses existing local directory)
 pipelineProgram ::

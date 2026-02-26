@@ -16,7 +16,7 @@ module Vira.CI.Pipeline.Type where
 
 import Data.String (IsString (..))
 import GHC.Records.Compat
-import Relude (Bool (..), FilePath, Generic, Maybe, NonEmpty, Show, Text)
+import Relude (Bool (..), FilePath, Generic, Int, Maybe (..), NonEmpty, Show, Text, bool, maybe, show, (++))
 import System.Nix.System (System)
 
 -- | CI Pipeline configuration types
@@ -30,10 +30,39 @@ data ViraPipeline = ViraPipeline
 data BuildStage = BuildStage
   { flakes :: NonEmpty Flake
   , systems :: [System]
-  , nixOptions :: [(Text, Text)]
-  -- ^ Arbitrary @--option key value@ flags passed to Nix commands
+  , nixOptions :: NixOptions
+  -- ^ Typed Nix @--option@ flags passed to Nix commands
   }
   deriving stock (Generic, Show)
+
+{- | Typed Nix options that can be configured per-project in @vira.hs@
+
+Only safe, non-secret options should be added here.
+Secrets (like access tokens) belong in @nix.conf@ on the CI machine.
+-}
+data NixOptions = NixOptions
+  { sandbox :: Maybe Text
+  -- ^ Nix sandbox mode: @Nothing@ (default), @Just "relaxed"@, or @Just "false"@
+  , cores :: Maybe Int
+  -- ^ Number of CPU cores per build job (@--option cores N@)
+  , maxJobs :: Maybe Int
+  -- ^ Maximum number of parallel build jobs (@--option max-jobs N@)
+  , allowIFD :: Maybe Bool
+  -- ^ Allow import-from-derivation (@--option allow-import-from-derivation true/false@)
+  }
+  deriving stock (Generic, Show)
+
+-- | Default 'NixOptions' with no overrides
+defaultNixOptions :: NixOptions
+defaultNixOptions = NixOptions {sandbox = Nothing, cores = Nothing, maxJobs = Nothing, allowIFD = Nothing}
+
+-- | Convert typed 'NixOptions' to @--option key value@ pairs for CLI
+nixOptionsToList :: NixOptions -> [(Text, Text)]
+nixOptionsToList opts =
+  maybe [] (\v -> [("sandbox", v)]) opts.sandbox
+    ++ maybe [] (\v -> [("cores", show v)]) opts.cores
+    ++ maybe [] (\v -> [("max-jobs", show v)]) opts.maxJobs
+    ++ maybe [] (\v -> [("allow-import-from-derivation", bool "false" "true" v)]) opts.allowIFD
 
 -- | Configuration for building a flake at a specific path
 data Flake = Flake
@@ -78,8 +107,20 @@ instance HasField "flakes" BuildStage (NonEmpty Flake) where
 instance HasField "systems" BuildStage [System] where
   hasField (BuildStage flakes systems nixOptions) = (\x -> BuildStage flakes x nixOptions, systems)
 
-instance HasField "nixOptions" BuildStage [(Text, Text)] where
+instance HasField "nixOptions" BuildStage NixOptions where
   hasField (BuildStage flakes systems nixOptions) = (BuildStage flakes systems, nixOptions)
+
+instance HasField "sandbox" NixOptions (Maybe Text) where
+  hasField (NixOptions sandbox cores maxJobs allowIFD) = (\x -> NixOptions x cores maxJobs allowIFD, sandbox)
+
+instance HasField "cores" NixOptions (Maybe Int) where
+  hasField (NixOptions sandbox cores maxJobs allowIFD) = (\x -> NixOptions sandbox x maxJobs allowIFD, cores)
+
+instance HasField "maxJobs" NixOptions (Maybe Int) where
+  hasField (NixOptions sandbox cores maxJobs allowIFD) = (\x -> NixOptions sandbox cores x allowIFD, maxJobs)
+
+instance HasField "allowIFD" NixOptions (Maybe Bool) where
+  hasField (NixOptions sandbox cores maxJobs allowIFD) = (NixOptions sandbox cores maxJobs, allowIFD)
 
 instance HasField "enable" SignoffStage Bool where
   hasField (SignoffStage enable) = (SignoffStage, enable)
