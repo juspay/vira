@@ -16,7 +16,7 @@ module Vira.CI.Pipeline.Type where
 
 import Data.String (IsString (..))
 import GHC.Records.Compat
-import Relude (Bool (..), FilePath, Generic, Int, Maybe (..), NonEmpty, Show, Text, bool, maybe, show, (++))
+import Relude (Bool (..), FilePath, Generic, Maybe, NonEmpty, Show, Text, notElem)
 import System.Nix.System (System)
 
 -- | CI Pipeline configuration types
@@ -30,39 +30,32 @@ data ViraPipeline = ViraPipeline
 data BuildStage = BuildStage
   { flakes :: NonEmpty Flake
   , systems :: [System]
-  , nixOptions :: NixOptions
-  -- ^ Typed Nix @--option@ flags passed to Nix commands
+  , nixOptions :: [(Text, Text)]
+  {- ^ Nix @--option key value@ flags. Only whitelisted keys are allowed;
+    see 'allowedNixOptions'.
+  -}
   }
   deriving stock (Generic, Show)
 
-{- | Typed Nix options that can be configured per-project in @vira.hs@
+{- | Whitelist of Nix option keys that are safe to set per-project.
 
-Only safe, non-secret options should be added here.
-Secrets (like access tokens) belong in @nix.conf@ on the CI machine.
+Secrets (like @access-tokens@) must NOT be added here — they belong
+in @nix.conf@ on the CI machine, not in @vira.hs@.
 -}
-data NixOptions = NixOptions
-  { sandbox :: Maybe Text
-  -- ^ Nix sandbox mode: @Nothing@ (default), @Just "relaxed"@, or @Just "false"@
-  , cores :: Maybe Int
-  -- ^ Number of CPU cores per build job (@--option cores N@)
-  , maxJobs :: Maybe Int
-  -- ^ Maximum number of parallel build jobs (@--option max-jobs N@)
-  , allowIFD :: Maybe Bool
-  -- ^ Allow import-from-derivation (@--option allow-import-from-derivation true/false@)
-  }
-  deriving stock (Generic, Show)
+allowedNixOptions :: [Text]
+allowedNixOptions =
+  [ "sandbox" -- e.g. "relaxed" or "false"
+  , "cores" -- CPU cores per build
+  , "max-jobs" -- parallel build jobs
+  , "allow-import-from-derivation" -- IFD control
+  ]
 
--- | Default 'NixOptions' with no overrides
-defaultNixOptions :: NixOptions
-defaultNixOptions = NixOptions {sandbox = Nothing, cores = Nothing, maxJobs = Nothing, allowIFD = Nothing}
-
--- | Convert typed 'NixOptions' to @--option key value@ pairs for CLI
-nixOptionsToList :: NixOptions -> [(Text, Text)]
-nixOptionsToList opts =
-  maybe [] (\v -> [("sandbox", v)]) opts.sandbox
-    ++ maybe [] (\v -> [("cores", show v)]) opts.cores
-    ++ maybe [] (\v -> [("max-jobs", show v)]) opts.maxJobs
-    ++ maybe [] (\v -> [("allow-import-from-derivation", bool "false" "true" v)]) opts.allowIFD
+{- | Validate that all nix option keys are in the whitelist.
+Returns a list of disallowed keys.
+-}
+validateNixOptions :: [(Text, Text)] -> [Text]
+validateNixOptions opts =
+  [k | (k, _) <- opts, k `notElem` allowedNixOptions]
 
 -- | Configuration for building a flake at a specific path
 data Flake = Flake
@@ -107,20 +100,8 @@ instance HasField "flakes" BuildStage (NonEmpty Flake) where
 instance HasField "systems" BuildStage [System] where
   hasField (BuildStage flakes systems nixOptions) = (\x -> BuildStage flakes x nixOptions, systems)
 
-instance HasField "nixOptions" BuildStage NixOptions where
+instance HasField "nixOptions" BuildStage [(Text, Text)] where
   hasField (BuildStage flakes systems nixOptions) = (BuildStage flakes systems, nixOptions)
-
-instance HasField "sandbox" NixOptions (Maybe Text) where
-  hasField (NixOptions sandbox cores maxJobs allowIFD) = (\x -> NixOptions x cores maxJobs allowIFD, sandbox)
-
-instance HasField "cores" NixOptions (Maybe Int) where
-  hasField (NixOptions sandbox cores maxJobs allowIFD) = (\x -> NixOptions sandbox x maxJobs allowIFD, cores)
-
-instance HasField "maxJobs" NixOptions (Maybe Int) where
-  hasField (NixOptions sandbox cores maxJobs allowIFD) = (\x -> NixOptions sandbox cores x allowIFD, maxJobs)
-
-instance HasField "allowIFD" NixOptions (Maybe Bool) where
-  hasField (NixOptions sandbox cores maxJobs allowIFD) = (NixOptions sandbox cores maxJobs, allowIFD)
 
 instance HasField "enable" SignoffStage Bool where
   hasField (SignoffStage enable) = (SignoffStage, enable)

@@ -46,7 +46,7 @@ import Vira.CI.Error (ConfigurationError (..), PipelineError (..), pipelineToolE
 import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Process (runProcess)
 import Vira.CI.Pipeline.Signoff qualified as Signoff
-import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..), defaultNixOptions, nixOptionsToList)
+import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..), validateNixOptions)
 import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
 import Vira.Environment.Tool.Type.ToolData (status)
 import Vira.Environment.Tool.Type.Tools (attic)
@@ -166,9 +166,13 @@ buildImpl ::
   Eff es (NonEmpty BuildResult)
 buildImpl pipeline = do
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
+  -- Validate nix options against whitelist
+  case validateNixOptions pipeline.build.nixOptions of
+    [] -> pass
+    bad -> throwError $ PipelineConfigurationError $ MalformedConfig $ "Disallowed nix options in vira.hs: " <> show bad <> ". Only sandbox, cores, max-jobs, allow-import-from-derivation are permitted."
   -- Build each flake sequentially and return BuildResult for each
   forM pipeline.build.flakes $ \flake ->
-    buildFlake pipeline.build.systems (nixOptionsToList pipeline.build.nixOptions) flake
+    buildFlake pipeline.build.systems pipeline.build.nixOptions flake
 
 -- | Pretty-print DevourFlakeResult in a concise format
 prettyDevourResult :: FilePath -> DevourFlakeResult -> Text
@@ -339,7 +343,7 @@ signoffImpl pipeline buildResults = do
 defaultPipeline :: ViraPipeline
 defaultPipeline =
   ViraPipeline
-    { build = BuildStage {flakes = one defaultFlake, systems = [], nixOptions = defaultNixOptions}
+    { build = BuildStage {flakes = one defaultFlake, systems = [], nixOptions = []}
     , cache = CacheStage Nothing
     , signoff = SignoffStage False
     }

@@ -10,7 +10,7 @@ import Test.Hspec
 import Vira.CI.Configuration
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline.Implementation (defaultPipeline)
-import Vira.CI.Pipeline.Type (BuildStage (..), Flake (..), NixOptions (..), SignoffStage (..), ViraPipeline (..))
+import Vira.CI.Pipeline.Type (BuildStage (..), Flake (..), SignoffStage (..), ViraPipeline (..), validateNixOptions)
 import Vira.State.Type (Branch (..))
 import Prelude hiding (id)
 
@@ -62,9 +62,22 @@ spec = describe "Vira.CI.Configuration" $ do
       result <- applyConfig configCode testContextStaging defaultPipeline
       case result of
         Right pipeline -> do
-          let opts = pipeline.build.nixOptions
-          opts.sandbox `shouldBe` Just "relaxed"
-          opts.cores `shouldBe` Just 4
-          opts.maxJobs `shouldBe` Just 2
-          opts.allowIFD `shouldBe` Just True
+          pipeline.build.nixOptions
+            `shouldBe` [ ("sandbox", "relaxed")
+                       , ("cores", "4")
+                       , ("max-jobs", "2")
+                       , ("allow-import-from-derivation", "true")
+                       ]
         Left err -> expectationFailure $ "Config application failed: " <> show err
+
+  describe "validateNixOptions" $ do
+    it "accepts all whitelisted options" $ do
+      let opts = [("sandbox", "relaxed"), ("cores", "4"), ("max-jobs", "2"), ("allow-import-from-derivation", "true")]
+      validateNixOptions opts `shouldBe` []
+
+    it "rejects disallowed options" $ do
+      let opts = [("sandbox", "relaxed"), ("access-tokens", "secret")]
+      validateNixOptions opts `shouldBe` ["access-tokens"]
+
+    it "returns empty for empty options" $ do
+      validateNixOptions [] `shouldBe` []
