@@ -76,15 +76,15 @@ The `systems` field controls which Nix systems to build for. When set to an empt
 
 ##### Nix Options
 
-Configure Nix `--option` flags for all build commands via `build.nixOptions`:
+Configure Nix `--option` flags for all build commands via `nix.options`:
 
 ```haskell
 -- Use relaxed sandbox for builds that need network access
-pipeline { build.nixOptions = [("sandbox", "relaxed")] }
+pipeline { nix.options = [("sandbox", "relaxed")] }
 
 -- Set multiple options
 pipeline
-  { build.nixOptions =
+  { nix.options =
       [ ("sandbox", "relaxed")
       , ("cores", "4")
       , ("max-jobs", "2")
@@ -103,6 +103,16 @@ Only the following option keys are allowed:
 | `allow-import-from-derivation` | IFD control         | `"true"`      |
 
 Using any other key will cause the pipeline to fail with an error.
+
+##### Experimental Features
+
+Enable Nix experimental features via `nix.experimentalFeatures`:
+
+```haskell
+pipeline { nix.experimentalFeatures = ["impure-derivations"] }
+```
+
+Allowed features: `impure-derivations`, `ca-derivations`.
 
 > [!WARNING]
 > Only safe, non-secret options are allowed. Secrets (like `access-tokens`) belong in `nix.conf` on the CI machine, not in `vira.hs`.

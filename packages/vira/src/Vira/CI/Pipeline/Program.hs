@@ -17,12 +17,12 @@ import System.Nix.System (System (..))
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Error (PipelineError (..))
 import Vira.CI.Pipeline.Effect
-import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..))
+import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), NixConfig (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch, Repo)
 
 -- | Pretty-print pipeline configuration in a concise format
 prettyPipeline :: ViraPipeline -> Text
-prettyPipeline ViraPipeline {build = buildStage, cache = cacheStage, signoff = signoffStage} =
+prettyPipeline ViraPipeline {build = buildStage, nix = nixCfg, cache = cacheStage, signoff = signoffStage} =
   renderStrict $
     layoutPretty defaultLayoutOptions $
       vsep
@@ -32,7 +32,8 @@ prettyPipeline ViraPipeline {build = buildStage, cache = cacheStage, signoff = s
               [ "Flakes:" <+> pretty (NE.length buildStage.flakes) <+> "flake(s)"
               , vsep (map prettyFlake (NE.toList buildStage.flakes))
               , "Systems:" <+> hsep (punctuate comma (map (\(System s) -> pretty s) buildStage.systems))
-              , prettyNixOptions buildStage.nixOptions
+              , prettyNixOptions nixCfg.options
+              , prettyExperimentalFeatures nixCfg.experimentalFeatures
               ]
         , "Cache:" <+> maybe "disabled" (\url -> "enabled" <+> parens (pretty url)) cacheStage.url
         , "Signoff:" <+> if signoffStage.enable then "enabled" else "disabled"
@@ -51,6 +52,11 @@ prettyPipeline ViraPipeline {build = buildStage, cache = cacheStage, signoff = s
     prettyNixOptions [] = mempty
     prettyNixOptions opts =
       "Nix options:" <+> hsep (punctuate comma (map (\(k, v) -> pretty k <> "=" <> pretty v) opts))
+
+    prettyExperimentalFeatures :: [Text] -> Doc ann
+    prettyExperimentalFeatures [] = mempty
+    prettyExperimentalFeatures features =
+      "Experimental features:" <+> hsep (punctuate comma (map pretty features))
 
 -- | Pipeline program for CLI (uses existing local directory)
 pipelineProgram ::

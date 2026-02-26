@@ -46,7 +46,7 @@ import Vira.CI.Error (ConfigurationError (..), PipelineError (..), pipelineToolE
 import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Process (runProcess)
 import Vira.CI.Pipeline.Signoff qualified as Signoff
-import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), SignoffStage (..), ViraPipeline (..), allowedNixOptions, validateNixOptions)
+import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), NixConfig (..), SignoffStage (..), ViraPipeline (..), allowedExperimentalFeatures, allowedNixOptions, validateExperimentalFeatures, validateNixOptions)
 import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
 import Vira.Environment.Tool.Type.ToolData (status)
 import Vira.Environment.Tool.Type.Tools (attic)
@@ -147,7 +147,7 @@ loadConfigImpl = do
             , -- Don't push to cache when only building
               cache = pipeline.cache {url = Nothing}
             , -- Only build for current system when only building
-              build = BuildStage {flakes = pipeline.build.flakes, systems = [], nixOptions = pipeline.build.nixOptions}
+              build = BuildStage {flakes = pipeline.build.flakes, systems = []}
             }
       | otherwise = pipeline
 
@@ -167,12 +167,15 @@ buildImpl ::
 buildImpl pipeline = do
   logPipeline Info $ "Building " <> show (length pipeline.build.flakes) <> " flakes"
   -- Validate nix options against whitelist
-  case validateNixOptions pipeline.build.nixOptions of
+  case validateNixOptions pipeline.nix.options of
     [] -> pass
     bad -> throwError $ PipelineConfigurationError $ MalformedConfig $ "Disallowed nix options: " <> show bad <> ". Allowed: " <> show allowedNixOptions
+  case validateExperimentalFeatures pipeline.nix.experimentalFeatures of
+    [] -> pass
+    bad -> throwError $ PipelineConfigurationError $ MalformedConfig $ "Disallowed experimental features: " <> show bad <> ". Allowed: " <> show allowedExperimentalFeatures
   -- Build each flake sequentially and return BuildResult for each
   forM pipeline.build.flakes $ \flake ->
-    buildFlake pipeline.build.systems pipeline.build.nixOptions flake
+    buildFlake pipeline.build.systems pipeline.nix flake
 
 -- | Pretty-print DevourFlakeResult in a concise format
 prettyDevourResult :: FilePath -> DevourFlakeResult -> Text
@@ -205,10 +208,10 @@ buildFlake ::
   , Error PipelineError :> es
   ) =>
   [System] ->
-  [(Text, Text)] ->
+  NixConfig ->
   Flake ->
   Eff es BuildResult
-buildFlake systems nixOpts (Flake flakePath overrideInputs) = do
+buildFlake systems nixCfg (Flake flakePath overrideInputs) = do
   env <- ER.ask @PipelineEnv
   let repoDir = env.viraContext.repoDir
   let args =
@@ -217,7 +220,8 @@ buildFlake systems nixOpts (Flake flakePath overrideInputs) = do
           , systems
           , outLink = Just (flakePath </> "result")
           , overrideInputs = overrideInputs
-          , nixOptions = nixOpts
+          , nixOptions = nixCfg.options
+          , experimentalFeatures = nixCfg.experimentalFeatures
           }
 
   -- Prefetch flake inputs before building (for devourFlakePath and target flake)
@@ -343,7 +347,8 @@ signoffImpl pipeline buildResults = do
 defaultPipeline :: ViraPipeline
 defaultPipeline =
   ViraPipeline
-    { build = BuildStage {flakes = one defaultFlake, systems = [], nixOptions = []}
+    { build = BuildStage {flakes = one defaultFlake, systems = []}
+    , nix = NixConfig {options = [], experimentalFeatures = []}
     , cache = CacheStage Nothing
     , signoff = SignoffStage False
     }
