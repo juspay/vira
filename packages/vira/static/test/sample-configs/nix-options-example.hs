@@ -5,5 +5,5 @@
         , ("cores", "4")
         , ("max-jobs", "2")
         , ("allow-import-from-derivation", "true")
-        ] :: [(Text, Text)]
+        ]
     }

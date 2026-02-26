@@ -89,13 +89,9 @@ pipeline
       , ("cores", "4")
       , ("max-jobs", "2")
       , ("allow-import-from-derivation", "true")
-      ] :: [(Text, Text)]
+      ]
   }
 ```
-
-> [!NOTE]
-> The `:: [(Text, Text)]` type annotation is needed when `OverloadedLists` is
-> active (as in `vira.hs`) so that GHC can resolve the list type unambiguously.
 
 Only the following option keys are allowed:
 
