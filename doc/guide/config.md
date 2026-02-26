@@ -80,29 +80,36 @@ Configure Nix `--option` flags for all build commands via `build.nixOptions`:
 
 ```haskell
 -- Use relaxed sandbox for builds that need network access
-pipeline { build.nixOptions.sandbox = Just "relaxed" }
+pipeline { build.nixOptions = [("sandbox", "relaxed")] }
 
--- Configure parallel builds
+-- Set multiple options
 pipeline
-  { build.nixOptions.cores = Just 4
-  , build.nixOptions.maxJobs = Just 2
+  { build.nixOptions =
+      [ ("sandbox", "relaxed")
+      , ("cores", "4")
+      , ("max-jobs", "2")
+      , ("allow-import-from-derivation", "true")
+      ] :: [(Text, Text)]
   }
-
--- Allow import-from-derivation
-pipeline { build.nixOptions.allowIFD = Just True }
 ```
 
-Available options:
-
-| Field      | Type         | Nix option                                     |
-| ---------- | ------------ | ---------------------------------------------- |
-| `sandbox`  | `Maybe Text` | `--option sandbox <value>`                     |
-| `cores`    | `Maybe Int`  | `--option cores <N>`                           |
-| `maxJobs`  | `Maybe Int`  | `--option max-jobs <N>`                        |
-| `allowIFD` | `Maybe Bool` | `--option allow-import-from-derivation <bool>` |
-
 > [!NOTE]
-> Only safe, non-secret options are exposed here. Secrets (like `access-tokens`) belong in `nix.conf` on the CI machine, not in `vira.hs`.
+> The `:: [(Text, Text)]` type annotation is needed when `OverloadedLists` is
+> active (as in `vira.hs`) so that GHC can resolve the list type unambiguously.
+
+Only the following option keys are allowed:
+
+| Key                            | Description         | Example value |
+| ------------------------------ | ------------------- | ------------- |
+| `sandbox`                      | Nix sandbox mode    | `"relaxed"`   |
+| `cores`                        | CPU cores per build | `"4"`         |
+| `max-jobs`                     | Parallel build jobs | `"2"`         |
+| `allow-import-from-derivation` | IFD control         | `"true"`      |
+
+Using any other key will cause the pipeline to fail with an error.
+
+> [!CAUTION]
+> Only safe, non-secret options are allowed. Secrets (like `access-tokens`) belong in `nix.conf` on the CI machine, not in `vira.hs`.
 
 #### Cache Stage
 
