@@ -104,7 +104,7 @@ Only the following option keys are allowed:
 
 Using any other key will cause the pipeline to fail with an error.
 
-> [!CAUTION]
+> [!WARNING]
 > Only safe, non-secret options are allowed. Secrets (like `access-tokens`) belong in `nix.conf` on the CI machine, not in `vira.hs`.
 
 #### Cache Stage
