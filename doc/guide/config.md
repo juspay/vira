@@ -74,6 +74,39 @@ The `systems` field controls which Nix systems to build for. When set to an empt
 > [!TIP]
 > Building for multiple systems requires [[remote-builds]] to be configured. See the [[remote-builds]] guide for details.
 
+##### Nix Options
+
+Configure Nix `--option` flags for all build commands via `build.nixOptions`:
+
+```haskell
+-- Use relaxed sandbox for builds that need network access
+pipeline { build.nixOptions = [("sandbox", "relaxed")] }
+
+-- Set multiple options
+pipeline
+  { build.nixOptions =
+      [ ("sandbox", "relaxed")
+      , ("cores", "4")
+      , ("max-jobs", "2")
+      , ("allow-import-from-derivation", "true")
+      ]
+  }
+```
+
+Only the following option keys are allowed:
+
+| Key                            | Description         | Example value |
+| ------------------------------ | ------------------- | ------------- |
+| `sandbox`                      | Nix sandbox mode    | `"relaxed"`   |
+| `cores`                        | CPU cores per build | `"4"`         |
+| `max-jobs`                     | Parallel build jobs | `"2"`         |
+| `allow-import-from-derivation` | IFD control         | `"true"`      |
+
+Using any other key will cause the pipeline to fail with an error.
+
+> [!WARNING]
+> Only safe, non-secret options are allowed. Secrets (like `access-tokens`) belong in `nix.conf` on the CI machine, not in `vira.hs`.
+
 #### Cache Stage
 
 Configure binary cache pushing to an Attic server:

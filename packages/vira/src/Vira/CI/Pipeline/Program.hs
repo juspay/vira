@@ -32,6 +32,7 @@ prettyPipeline ViraPipeline {build = buildStage, cache = cacheStage, signoff = s
               [ "Flakes:" <+> pretty (NE.length buildStage.flakes) <+> "flake(s)"
               , vsep (map prettyFlake (NE.toList buildStage.flakes))
               , "Systems:" <+> hsep (punctuate comma (map (\(System s) -> pretty s) buildStage.systems))
+              , prettyNixOptions buildStage.nixOptions
               ]
         , "Cache:" <+> maybe "disabled" (\url -> "enabled" <+> parens (pretty url)) cacheStage.url
         , "Signoff:" <+> if signoffStage.enable then "enabled" else "disabled"
@@ -45,6 +46,11 @@ prettyPipeline ViraPipeline {build = buildStage, cache = cacheStage, signoff = s
     prettyOverrides [] = mempty
     prettyOverrides ovs =
       space <> parens ("overrides:" <+> hsep (punctuate comma (map (\(k, v) -> pretty k <> "=" <> pretty v) ovs)))
+
+    prettyNixOptions :: [(Text, Text)] -> Doc ann
+    prettyNixOptions [] = mempty
+    prettyNixOptions opts =
+      "Nix options:" <+> hsep (punctuate comma (map (\(k, v) -> pretty k <> "=" <> pretty v) opts))
 
 -- | Pipeline program for CLI (uses existing local directory)
 pipelineProgram ::

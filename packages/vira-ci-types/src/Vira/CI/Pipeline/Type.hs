@@ -16,7 +16,7 @@ module Vira.CI.Pipeline.Type where
 
 import Data.String (IsString (..))
 import GHC.Records.Compat
-import Relude (Bool (..), FilePath, Generic, Maybe, NonEmpty, Show, Text)
+import Relude (Bool (..), FilePath, Generic, Maybe, NonEmpty, Show, Text, notElem)
 import System.Nix.System (System)
 
 -- | CI Pipeline configuration types
@@ -30,8 +30,32 @@ data ViraPipeline = ViraPipeline
 data BuildStage = BuildStage
   { flakes :: NonEmpty Flake
   , systems :: [System]
+  , nixOptions :: [(Text, Text)]
+  {- ^ Nix @--option key value@ flags. Only whitelisted keys are allowed;
+    see 'allowedNixOptions'.
+  -}
   }
   deriving stock (Generic, Show)
+
+{- | Whitelist of Nix option keys that are safe to set per-project.
+
+Secrets (like @access-tokens@) must NOT be added here — they belong
+in @nix.conf@ on the CI machine, not in @vira.hs@.
+-}
+allowedNixOptions :: [Text]
+allowedNixOptions =
+  [ "sandbox" -- e.g. "relaxed" or "false"
+  , "cores" -- CPU cores per build
+  , "max-jobs" -- parallel build jobs
+  , "allow-import-from-derivation" -- IFD control
+  ]
+
+{- | Validate that all nix option keys are in the whitelist.
+Returns a list of disallowed keys.
+-}
+validateNixOptions :: [(Text, Text)] -> [Text]
+validateNixOptions opts =
+  [k | (k, _) <- opts, k `notElem` allowedNixOptions]
 
 -- | Configuration for building a flake at a specific path
 data Flake = Flake
@@ -71,10 +95,13 @@ instance HasField "overrideInputs" Flake [(Text, Text)] where
   hasField (Flake path overrideInputs) = (Flake path, overrideInputs)
 
 instance HasField "flakes" BuildStage (NonEmpty Flake) where
-  hasField (BuildStage flakes systems) = (\x -> BuildStage x systems, flakes)
+  hasField (BuildStage flakes systems nixOptions) = (\x -> BuildStage x systems nixOptions, flakes)
 
 instance HasField "systems" BuildStage [System] where
-  hasField (BuildStage flakes systems) = (BuildStage flakes, systems)
+  hasField (BuildStage flakes systems nixOptions) = (\x -> BuildStage flakes x nixOptions, systems)
+
+instance HasField "nixOptions" BuildStage [(Text, Text)] where
+  hasField (BuildStage flakes systems nixOptions) = (BuildStage flakes systems, nixOptions)
 
 instance HasField "enable" SignoffStage Bool where
   hasField (SignoffStage enable) = (SignoffStage, enable)
