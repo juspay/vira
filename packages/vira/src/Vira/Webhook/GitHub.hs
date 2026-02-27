@@ -104,7 +104,7 @@ prHandler event = do
       -- Subscribe to event bus BEFORE enqueueing to avoid missing events
       chan <- App.subscribe
 
-      -- Create check run with Queued status
+      -- Acknowledge queued status to GitHub
       checkRun <-
         queryGitHub @CheckRun instId $
           createCheckRunE (Owner owner) (Repo repo) $
@@ -115,7 +115,6 @@ prHandler event = do
               }
       log Info $ "Created check run for " <> show commit
 
-      -- Enqueue job
       -- TODO: Handle forks
       job <-
         Client.enqueueJob
@@ -123,7 +122,7 @@ prHandler event = do
           (BranchName $ whPullReqTargetRef prHead)
           (CommitID commit)
 
-      -- Spawn async watcher to update check run as job progresses
+      -- Spawn async watcher to notify GitHub of the status as job progresses
       void $ async $ jobStatusLoop chan instId (Owner owner) (Repo repo) checkRun.checkRunId job.jobId
 
 -- \| Watch event bus for job status changes, updating the GitHub check run accordingly
@@ -305,7 +304,10 @@ webhookMiddleware globalSettings viraRuntimeState appAuth webhookSecret = \app r
         (handlers globalSettings viraRuntimeState appAuth)
         (githubKey :. EmptyContext)
 
+----------
 -- Helpers
+----------
+
 fromJobStatus :: JobStatus -> UpdateCheckRun
 fromJobStatus = \case
   JobRunning ->
