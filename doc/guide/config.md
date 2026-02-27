@@ -76,15 +76,15 @@ The `systems` field controls which Nix systems to build for. When set to an empt
 
 ##### Nix Options
 
-Configure Nix `--option` flags for all build commands via `build.nixOptions`:
+Configure Nix `--option` flags for all build commands via `nix.options`:
 
 ```haskell
 -- Use relaxed sandbox for builds that need network access
-pipeline { build.nixOptions = [("sandbox", "relaxed")] }
+pipeline { nix.options = [("sandbox", "relaxed")] }
 
 -- Set multiple options
 pipeline
-  { build.nixOptions =
+  { nix.options =
       [ ("sandbox", "relaxed")
       , ("cores", "4")
       , ("max-jobs", "2")

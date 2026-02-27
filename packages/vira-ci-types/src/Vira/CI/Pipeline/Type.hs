@@ -22,6 +22,7 @@ import System.Nix.System (System)
 -- | CI Pipeline configuration types
 data ViraPipeline = ViraPipeline
   { build :: BuildStage
+  , nix :: NixConfig
   , cache :: CacheStage
   , signoff :: SignoffStage
   }
@@ -30,7 +31,12 @@ data ViraPipeline = ViraPipeline
 data BuildStage = BuildStage
   { flakes :: NonEmpty Flake
   , systems :: [System]
-  , nixOptions :: [(Text, Text)]
+  }
+  deriving stock (Generic, Show)
+
+-- | Nix-level configuration (options and experimental features)
+newtype NixConfig = NixConfig
+  { options :: [(Text, Text)]
   {- ^ Nix @--option key value@ flags. Only whitelisted keys are allowed;
     see 'allowedNixOptions'.
   -}
@@ -95,13 +101,13 @@ instance HasField "overrideInputs" Flake [(Text, Text)] where
   hasField (Flake path overrideInputs) = (Flake path, overrideInputs)
 
 instance HasField "flakes" BuildStage (NonEmpty Flake) where
-  hasField (BuildStage flakes systems nixOptions) = (\x -> BuildStage x systems nixOptions, flakes)
+  hasField (BuildStage flakes systems) = (\x -> BuildStage x systems, flakes)
 
 instance HasField "systems" BuildStage [System] where
-  hasField (BuildStage flakes systems nixOptions) = (\x -> BuildStage flakes x nixOptions, systems)
+  hasField (BuildStage flakes systems) = (BuildStage flakes, systems)
 
-instance HasField "nixOptions" BuildStage [(Text, Text)] where
-  hasField (BuildStage flakes systems nixOptions) = (BuildStage flakes systems, nixOptions)
+instance HasField "options" NixConfig [(Text, Text)] where
+  hasField (NixConfig options) = (NixConfig, options)
 
 instance HasField "enable" SignoffStage Bool where
   hasField (SignoffStage enable) = (SignoffStage, enable)
@@ -110,10 +116,13 @@ instance HasField "url" CacheStage (Maybe Text) where
   hasField (CacheStage url) = (CacheStage, url)
 
 instance HasField "build" ViraPipeline BuildStage where
-  hasField (ViraPipeline build cache signoff) = (\x -> ViraPipeline x cache signoff, build)
+  hasField (ViraPipeline build nix cache signoff) = (\x -> ViraPipeline x nix cache signoff, build)
+
+instance HasField "nix" ViraPipeline NixConfig where
+  hasField (ViraPipeline build nix cache signoff) = (\x -> ViraPipeline build x cache signoff, nix)
 
 instance HasField "cache" ViraPipeline CacheStage where
-  hasField (ViraPipeline build cache signoff) = (\x -> ViraPipeline build x signoff, cache)
+  hasField (ViraPipeline build nix cache signoff) = (\x -> ViraPipeline build nix x signoff, cache)
 
 instance HasField "signoff" ViraPipeline SignoffStage where
-  hasField (ViraPipeline build cache signoff) = (ViraPipeline build cache, signoff)
+  hasField (ViraPipeline build nix cache signoff) = (ViraPipeline build nix cache, signoff)

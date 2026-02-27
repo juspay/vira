@@ -5,7 +5,7 @@
     isMain = ctx.branch == "main"
   in
   pipeline
-    { build.nixOptions = [("sandbox", "relaxed")]
+    { nix.options = [("sandbox", "relaxed")]
     , build.systems = 
         [ "x86_64-linux"
         , "aarch64-darwin"

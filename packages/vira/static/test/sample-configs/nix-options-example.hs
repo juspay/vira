@@ -1,6 +1,6 @@
 \ctx pipeline ->
   pipeline
-    { build.nixOptions =
+    { nix.options =
         [ ("sandbox", "relaxed")
         , ("cores", "4")
         , ("max-jobs", "2")

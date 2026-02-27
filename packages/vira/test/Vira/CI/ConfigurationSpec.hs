@@ -10,7 +10,7 @@ import Test.Hspec
 import Vira.CI.Configuration
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline.Implementation (defaultPipeline)
-import Vira.CI.Pipeline.Type (BuildStage (..), Flake (..), SignoffStage (..), ViraPipeline (..), validateNixOptions)
+import Vira.CI.Pipeline.Type (BuildStage (..), Flake (..), NixConfig (..), SignoffStage (..), ViraPipeline (..), validateNixOptions)
 import Vira.State.Type (Branch (..))
 import Prelude hiding (id)
 
@@ -56,18 +56,20 @@ spec = describe "Vira.CI.Configuration" $ do
           rootFlake.overrideInputs `shouldBe` [("local", "github:boolean-option/false")]
         Left err -> expectationFailure $ "Config application failed: " <> show err
 
-    it "applies nixOptions correctly" $ do
+    it "applies nix options correctly" $ do
       configPath <- getDataFileName "test/sample-configs/nix-options-example.hs"
       configCode <- decodeUtf8 <$> readFileBS configPath
       result <- applyConfig configCode testContextStaging defaultPipeline
       case result of
         Right pipeline -> do
-          pipeline.build.nixOptions
-            `shouldBe` [ ("sandbox", "relaxed")
-                       , ("cores", "4")
-                       , ("max-jobs", "2")
-                       , ("allow-import-from-derivation", "true")
-                       ]
+          pipeline.nix.options
+            `shouldBe` ( [ ("sandbox", "relaxed")
+                         , ("cores", "4")
+                         , ("max-jobs", "2")
+                         , ("allow-import-from-derivation", "true")
+                         ] ::
+                           [(Text, Text)]
+                       )
         Left err -> expectationFailure $ "Config application failed: " <> show err
 
   describe "validateNixOptions" $ do
