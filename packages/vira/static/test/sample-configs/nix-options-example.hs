@@ -6,7 +6,4 @@
         , ("max-jobs", "2")
         , ("allow-import-from-derivation", "true")
         ]
-    , nix.experimentalFeatures =
-        [ "impure-derivations"
-        ]
     }

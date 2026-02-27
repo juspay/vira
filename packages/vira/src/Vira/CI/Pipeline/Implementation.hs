@@ -46,7 +46,7 @@ import Vira.CI.Error (ConfigurationError (..), PipelineError (..), pipelineToolE
 import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Process (runProcess)
 import Vira.CI.Pipeline.Signoff qualified as Signoff
-import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), NixConfig (..), SignoffStage (..), ViraPipeline (..), allowedExperimentalFeatures, allowedNixOptions, validateExperimentalFeatures, validateNixOptions)
+import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), NixConfig (..), SignoffStage (..), ViraPipeline (..), allowedNixOptions, validateNixOptions)
 import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
 import Vira.Environment.Tool.Type.ToolData (status)
 import Vira.Environment.Tool.Type.Tools (attic)
@@ -170,9 +170,6 @@ buildImpl pipeline = do
   case validateNixOptions pipeline.nix.options of
     [] -> pass
     bad -> throwError $ PipelineConfigurationError $ MalformedConfig $ "Disallowed nix options: " <> show bad <> ". Allowed: " <> show allowedNixOptions
-  case validateExperimentalFeatures pipeline.nix.experimentalFeatures of
-    [] -> pass
-    bad -> throwError $ PipelineConfigurationError $ MalformedConfig $ "Disallowed experimental features: " <> show bad <> ". Allowed: " <> show allowedExperimentalFeatures
   -- Build each flake sequentially and return BuildResult for each
   forM pipeline.build.flakes $ \flake ->
     buildFlake pipeline.build.systems pipeline.nix flake
@@ -221,7 +218,6 @@ buildFlake systems nixCfg (Flake flakePath overrideInputs) = do
           , outLink = Just (flakePath </> "result")
           , overrideInputs = overrideInputs
           , nixOptions = nixCfg.options
-          , experimentalFeatures = nixCfg.experimentalFeatures
           }
 
   -- Prefetch flake inputs before building (for devourFlakePath and target flake)
@@ -348,7 +344,7 @@ defaultPipeline :: ViraPipeline
 defaultPipeline =
   ViraPipeline
     { build = BuildStage {flakes = one defaultFlake, systems = []}
-    , nix = NixConfig {options = [], experimentalFeatures = []}
+    , nix = NixConfig {options = []}
     , cache = CacheStage Nothing
     , signoff = SignoffStage False
     }

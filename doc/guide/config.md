@@ -104,16 +104,6 @@ Only the following option keys are allowed:
 
 Using any other key will cause the pipeline to fail with an error.
 
-##### Experimental Features
-
-Enable Nix experimental features via `nix.experimentalFeatures`:
-
-```haskell
-pipeline { nix.experimentalFeatures = ["impure-derivations"] }
-```
-
-Allowed features: `impure-derivations`, `ca-derivations`.
-
 > [!WARNING]
 > Only safe, non-secret options are allowed. Secrets (like `access-tokens`) belong in `nix.conf` on the CI machine, not in `vira.hs`.
 

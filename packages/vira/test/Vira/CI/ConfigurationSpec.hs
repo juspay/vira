@@ -10,7 +10,7 @@ import Test.Hspec
 import Vira.CI.Configuration
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Pipeline.Implementation (defaultPipeline)
-import Vira.CI.Pipeline.Type (BuildStage (..), Flake (..), NixConfig (..), SignoffStage (..), ViraPipeline (..), validateExperimentalFeatures, validateNixOptions)
+import Vira.CI.Pipeline.Type (BuildStage (..), Flake (..), NixConfig (..), SignoffStage (..), ViraPipeline (..), validateNixOptions)
 import Vira.State.Type (Branch (..))
 import Prelude hiding (id)
 
@@ -56,7 +56,7 @@ spec = describe "Vira.CI.Configuration" $ do
           rootFlake.overrideInputs `shouldBe` [("local", "github:boolean-option/false")]
         Left err -> expectationFailure $ "Config application failed: " <> show err
 
-    it "applies nix config correctly" $ do
+    it "applies nix options correctly" $ do
       configPath <- getDataFileName "test/sample-configs/nix-options-example.hs"
       configCode <- decodeUtf8 <$> readFileBS configPath
       result <- applyConfig configCode testContextStaging defaultPipeline
@@ -70,8 +70,6 @@ spec = describe "Vira.CI.Configuration" $ do
                          ] ::
                            [(Text, Text)]
                        )
-          pipeline.nix.experimentalFeatures
-            `shouldBe` (["impure-derivations"] :: [Text])
         Left err -> expectationFailure $ "Config application failed: " <> show err
 
   describe "validateNixOptions" $ do
@@ -85,13 +83,3 @@ spec = describe "Vira.CI.Configuration" $ do
 
     it "returns empty for empty options" $ do
       validateNixOptions [] `shouldBe` []
-
-  describe "validateExperimentalFeatures" $ do
-    it "accepts whitelisted features" $ do
-      validateExperimentalFeatures ["impure-derivations", "ca-derivations"] `shouldBe` []
-
-    it "rejects unknown features" $ do
-      validateExperimentalFeatures ["impure-derivations", "flakes"] `shouldBe` ["flakes"]
-
-    it "returns empty for empty list" $ do
-      validateExperimentalFeatures [] `shouldBe` []

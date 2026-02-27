@@ -37,7 +37,6 @@ prefetchFlakeInputs args =
   ["flake", "prefetch-inputs", devourFlakePath]
     ++ overrideInputArgs args
     ++ nixOptionArgs args
-    ++ experimentalFeaturesArgs args
 
 data DevourFlakeArgs = DevourFlakeArgs
   { flakePath :: FilePath
@@ -46,8 +45,6 @@ data DevourFlakeArgs = DevourFlakeArgs
   , overrideInputs :: [(Text, Text)]
   , nixOptions :: [(Text, Text)]
   -- ^ @--option key value@ flags passed to the Nix command
-  , experimentalFeatures :: [Text]
-  -- ^ @--extra-experimental-features@ flags passed to the Nix command
   }
   deriving stock (Eq, Show)
 
@@ -67,14 +64,8 @@ nixOptionArgs :: DevourFlakeArgs -> [String]
 nixOptionArgs args =
   concatMap (\(k, v) -> ["--option", toString k, toString v]) args.nixOptions
 
--- | Generate @--extra-experimental-features@ arguments
-experimentalFeaturesArgs :: DevourFlakeArgs -> [String]
-experimentalFeaturesArgs args =
-  concatMap (\f -> ["--extra-experimental-features", toString f]) args.experimentalFeatures
-
 toCliArgs :: DevourFlakeArgs -> [String]
 toCliArgs args =
   overrideInputArgs args
     ++ nixOptionArgs args
-    ++ experimentalFeaturesArgs args
     ++ maybe ["--no-link"] (\link -> ["--out-link", link]) args.outLink
