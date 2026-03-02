@@ -200,11 +200,4 @@ in
       default = { };
     };
   };
-  config.assertions = [
-    {
-      assertion = (cfg.github.appId == null) == (cfg.github.privateKeyFile == null);
-      message = "services.vira.github.appId and services.vira.github.privateKeyFile must both be set or both be null";
-    }
-  ];
-
 }
