@@ -97,6 +97,7 @@ library
       Vira.Web.Pages.JobLog
       Vira.Web.Pages.JobPage
       Vira.Web.Pages.NotFoundPage
+      Vira.Web.Pages.PullPage
       Vira.Web.Pages.RegistryPage
       Vira.Web.Pages.RepoPage
       Vira.Web.Servant
@@ -118,6 +119,7 @@ library
       Vira.Web.Widgets.Tabs
       Vira.Web.Widgets.Time
       Vira.Webhook.GitHub
+      Vira.Webhook.GitHub.CheckRun
   other-modules:
       Paths_vira
   autogen-modules:

@@ -1,3 +1,5 @@
+{-# LANGUAGE DuplicateRecordFields #-}
+
 module Vira.State.Core (
   -- * Types
   ViraState (..),
@@ -8,6 +10,9 @@ module Vira.State.Core (
   JobResult (..),
   jobIsActive,
   jobEndTime,
+  PRState (..),
+  PullRequest (..),
+  PRCommit (..),
 
   -- * App initialization
   openViraState,
@@ -38,7 +43,7 @@ import Vira.State.Type
 -- | Open 'ViraState' database
 openViraState :: (HasCallStack) => FilePath -> Bool -> IO (AcidState ViraState)
 openViraState stateDir autoResetState = do
-  let initialState = ViraState mempty mempty mempty mempty (JobId 1)
+  let initialState = ViraState mempty mempty mempty mempty mempty mempty (JobId 1)
   -- Manually construct the path that openLocalState would use: stateDir </> show (typeOf initialState)
   -- This is just for backwards compat.
   let acidStateDir = stateDir </> show (typeOf initialState)

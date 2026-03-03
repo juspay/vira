@@ -16,6 +16,67 @@ import Servant.API (FromHttpApiData, ToHttpApiData)
 import Vira.Refresh.Type (RefreshResult)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
 
+-- * Pull Request types
+
+-- | Pull request lifecycle state
+data PRState = PROpen | PRClosed | PRMerged
+  deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
+
+-- | A pull request tracked by Vira
+data PullRequest = PullRequest
+  { repoName :: RepoName
+  -- ^ Repository this PR targets
+  , prNumber :: Int
+  -- ^ PR number (unique per repo)
+  , title :: Text
+  -- ^ PR title
+  , headBranch :: BranchName
+  -- ^ Source branch name
+  , baseBranch :: BranchName
+  -- ^ Target branch in origin
+  , forkRepo :: Maybe Text
+  -- ^ Nothing = same-repo PR, Just "owner/repo" = fork PR
+  , prState :: PRState
+  -- ^ Current lifecycle state
+  , installationId :: Int
+  -- ^ GitHub App installation ID (needed for check run API)
+  }
+  deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
+
+type PullRequestIxs = '[RepoName, Int]
+type IxPullRequest = IxSet PullRequestIxs PullRequest
+
+instance Indexable PullRequestIxs PullRequest where
+  indices =
+    ixList
+      (ixFun $ \PullRequest {repoName} -> [repoName])
+      (ixFun $ \PullRequest {prNumber} -> [prNumber])
+
+-- | A commit pushed to a PR (tracks history of syncs)
+data PRCommit = PRCommit
+  { repoName :: RepoName
+  -- ^ Repository this commit belongs to
+  , prNumber :: Int
+  -- ^ PR number
+  , sha :: CommitID
+  -- ^ Commit SHA
+  , approved :: Bool
+  -- ^ Fork PRs require approval; same-repo PRs are always True
+  , receivedAt :: UTCTime
+  -- ^ When this commit was received
+  }
+  deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
+
+type PRCommitIxs = '[RepoName, Int, CommitID]
+type IxPRCommit = IxSet PRCommitIxs PRCommit
+
+instance Indexable PRCommitIxs PRCommit where
+  indices =
+    ixList
+      (ixFun $ \PRCommit {repoName} -> [repoName])
+      (ixFun $ \PRCommit {prNumber} -> [prNumber])
+      (ixFun $ \PRCommit {sha} -> [sha])
+
 -- | A project's git repository
 data Repo = Repo
   { name :: RepoName
@@ -134,9 +195,11 @@ data Job = Job
   { repo :: RepoName
   -- ^ The name of the repository this job belongs to
   , branch :: BranchName
-  -- ^ The name of the branch this job is running on
+  -- ^ For branch jobs: branch name; For PR jobs: @refs\/pull\/:n\/head@
   , commit :: CommitID
   -- ^ The commit this job is running on
+  , prNumber :: Maybe Int
+  -- ^ Just for PR jobs, Nothing for branch jobs
   , jobId :: JobId
   -- ^ The unique identifier of the job
   , jobWorkingDir :: FilePath
@@ -198,15 +261,20 @@ data ViraState = ViraState
   , branches :: IxBranch
   , commits :: IxCommit
   , jobs :: IxJob
+  , pullRequests :: IxPullRequest
+  , prCommits :: IxPRCommit
   , nextJobId :: JobId
   -- ^ The next job ID to assign (monotonically increasing)
   }
   deriving stock (Generic, Typeable)
 
+$(deriveSafeCopy 0 'base ''PRState)
+$(deriveSafeCopy 0 'base ''PullRequest)
+$(deriveSafeCopy 0 'base ''PRCommit)
 $(deriveSafeCopy 0 'base ''JobResult)
 $(deriveSafeCopy 0 'base ''JobStatus)
 $(deriveSafeCopy 0 'base ''JobId)
-$(deriveSafeCopy 0 'base ''Job)
+$(deriveSafeCopy 1 'base ''Job)
 $(deriveSafeCopy 1 'base ''Branch)
 $(deriveSafeCopy 0 'base ''BuildFreshness)
 $(deriveSafeCopy 0 'base ''BranchBuildState)
@@ -219,4 +287,4 @@ The version is automatically used by the @--auto-reset-state@ feature to detect 
 When enabled, auto-reset will remove @ViraState/@ and @workspace/*/jobs@ directories on mismatch.
 Run @vira info@ to see the current schema version.
 -}
-$(deriveSafeCopy 8 'base ''ViraState)
+$(deriveSafeCopy 9 'base ''ViraState)

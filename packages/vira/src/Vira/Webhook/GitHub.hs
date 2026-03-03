@@ -1,4 +1,4 @@
-{-# LANGUAGE DisambiguateRecordFields #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 {- | GitHub App webhook handler as WAI sub-app
@@ -15,14 +15,12 @@ module Vira.Webhook.GitHub (
 ) where
 
 import Colog (Severity (..))
-import Control.Concurrent.STM (TChan)
-import Data.Acid.Events (SomeUpdate)
-import Data.Acid.Events qualified as Events
+import Data.Time (getCurrentTime)
 import Effectful (Eff)
 import Effectful.Colog.Simple (log, tagCurrentThread)
 import Effectful.Concurrent.Async (async)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
-import Effectful.Git (BranchName (..), CommitID (..), RepoName (..))
+import Effectful.Git (BranchName (..), Commit (..), CommitID (..), RepoName (..))
 import GitHub.Data.Webhooks.Events (
   InstallationEvent (..),
   InstallationEventAction (..),
@@ -44,10 +42,10 @@ import Vira.Effect.GitHub
 import Vira.Lib.GitHub
 import Vira.Refresh qualified as Refresh
 import Vira.Refresh.Type (RefreshPriority (..))
-import Vira.State.Acid (JobUpdateStatusA (..))
 import Vira.State.Acid qualified as St
-import Vira.State.Type (Job (..), JobId, JobResult (..), JobStatus (..), ViraState)
+import Vira.State.Type (Job (..), PRCommit (..), PRState (..), PullRequest (..))
 import Vira.State.Type qualified as St
+import Vira.Webhook.GitHub.CheckRun qualified as CheckRun
 
 -- | API type for GitHub webhook events
 data Routes mode = Routes
@@ -77,93 +75,121 @@ handlers globalSettings viraRuntimeState appAuth =
 
 {- | Handle pull request events
 
-On PR open/synchronize: subscribes to the event bus, creates a GitHub check run
-with Queued status, enqueues a Vira job, and spawns an async watcher that updates
-the check run as the job progresses through pending, running, and finished states.
+On PR open/reopen/synchronize: creates PullRequest and PRCommit records.
+Same-repo PRs auto-build. Fork PRs require per-commit approval before building.
+On PR close/merge: updates PR state.
 -}
 prHandler :: PullRequestEvent -> Eff (GitHub : Error GitHubError : AppStack) NoContent
 prHandler event = do
   log Info $ "Received PR event: " <> show (evPullReqAction event)
   case evPullReqAction event of
-    -- TODO: Use https://downloads.haskell.org/ghc/latest/docs/users_guide/exts/or_patterns.html
-    PullRequestOpenedAction -> prBuild
-    PullRequestReopenedAction -> prBuild
-    PullRequestActionOther "synchronize" -> prBuild
+    PullRequestOpenedAction -> handlePROpened
+    PullRequestReopenedAction -> handlePROpened
+    PullRequestActionOther "synchronize" -> handlePROpened
+    PullRequestActionOther "closed" -> handlePRClosed
     _ -> log Debug "Ignoring non-build PR action"
   pure NoContent
   where
-    prBuild :: Eff (GitHub : Error GitHubError : AppStack) ()
-    prBuild = do
+    handlePROpened :: Eff (GitHub : Error GitHubError : AppStack) ()
+    handlePROpened = do
       let prRepo = evPullReqRepo event
-          prHead = whPullReqHead $ evPullReqPayload event
-          instId = InstallationId $ fromMaybe 0 $ evPullReqInstallationId event
+          prPayload = evPullReqPayload event
+          prHead = whPullReqHead prPayload
+          prBase = whPullReqBase prPayload
           owner = hookUserLoginAny (whRepoOwner prRepo)
           repo = whRepoName prRepo
-          commit = whPullReqTargetSha prHead
+          instId = fromMaybe 0 $ evPullReqInstallationId event
 
-      -- Subscribe to event bus BEFORE enqueueing to avoid missing events
-      chan <- App.subscribe
+          -- Detect fork: head repo differs from base repo
+          headRepoFullName = whRepoFullName <$> whPullReqTargetRepo prHead
+          baseRepoFullName = whRepoFullName <$> whPullReqTargetRepo prBase
+          isFork = headRepoFullName /= baseRepoFullName
+          forkRepo = if isFork then headRepoFullName else Nothing
 
-      -- Acknowledge queued status to GitHub
-      checkRun <-
-        queryGitHub @CheckRun instId $
-          createCheckRunE (Owner owner) (Repo repo) $
-            NewCheckRun
-              { name = "Vira CI"
-              , headSha = commit
-              , status = Just Queued
+      -- Create/update PullRequest record
+      let pr =
+            PullRequest
+              { repoName = RepoName $ owner <> "/" <> repo
+              , prNumber = whPullReqNumber prPayload
+              , title = whPullReqTitle prPayload
+              , headBranch = BranchName $ whPullReqTargetRef prHead
+              , baseBranch = BranchName $ whPullReqTargetRef prBase
+              , forkRepo = forkRepo
+              , prState = PROpen
+              , installationId = instId
               }
-      log Info $ "Created check run for " <> show commit
+      App.update $ St.UpsertPullRequestA pr
 
-      -- TODO: Handle forks
-      job <-
-        Client.enqueueJob
-          (RepoName $ owner <> "/" <> repo)
-          (BranchName $ whPullReqTargetRef prHead)
-          (CommitID commit)
+      -- Create PRCommit
+      now <- liftIO getCurrentTime
+      let prCommit =
+            PRCommit
+              { repoName = pr.repoName
+              , prNumber = pr.prNumber
+              , sha = CommitID $ whPullReqTargetSha prHead
+              , approved = not isFork
+              , receivedAt = now
+              }
+      App.update $ St.AddPRCommitA prCommit
 
-      -- Spawn async watcher to notify GitHub of the status as job progresses
-      void $ async $ jobStatusLoop chan instId (Owner owner) (Repo repo) checkRun.checkRunId job.jobId
+      -- Store commit so job rows can display at least the SHA
+      App.update $
+        St.StoreCommitA $
+          Commit
+            { id = prCommit.sha
+            , message = whPullReqTitle prPayload
+            , date = now
+            , author = ""
+            , authorEmail = ""
+            }
 
--- \| Watch event bus for job status changes, updating the GitHub check run accordingly
-jobStatusLoop ::
-  TChan (SomeUpdate ViraState) ->
+      -- Auto-build if approved (same-repo PRs)
+      unless isFork $
+        enqueuePRJob (InstallationId instId) (Owner owner) (Repo repo) pr prCommit
+
+    handlePRClosed :: Eff (GitHub : Error GitHubError : AppStack) ()
+    handlePRClosed = do
+      let prRepo = evPullReqRepo event
+          owner = hookUserLoginAny (whRepoOwner prRepo)
+          repo = whRepoName prRepo
+          repoName = RepoName $ owner <> "/" <> repo
+          prPayload = evPullReqPayload event
+          prNum = whPullReqNumber prPayload
+          newState = if isJust (whPullReqMergedAt prPayload) then PRMerged else PRClosed
+      App.update $ St.UpdatePullRequestStateA repoName prNum newState
+      log Info $ "PR #" <> show prNum <> " " <> show newState
+
+-- | Enqueue a job for a PR commit, creating a GitHub check run
+enqueuePRJob ::
   InstallationId ->
   Owner ->
   Repo ->
-  CheckRunId ->
-  JobId ->
+  PullRequest ->
+  PRCommit ->
   Eff (GitHub : Error GitHubError : AppStack) ()
-jobStatusLoop chan instId owner repo checkRunId jobId = do
-  updates <- liftIO $ Events.awaitBatched chan (matchesJob jobId) 500_000
-  let latestStatus = lastStatus updates
-  -- Catch errors within loop to avoid killing the async task
-  -- TODO: verify the LLM's claim
-  result <-
-    runErrorNoCallStack @GitHubError $
-      queryGitHub_ instId $
-        updateCheckRunE owner repo checkRunId $
-          fromJobStatus latestStatus
-  case result of
-    Left err -> log Warning $ "Failed to update check run " <> show checkRunId <> ": " <> show err
-    Right () -> pass
-  unless (isTerminal latestStatus) $ jobStatusLoop chan instId owner repo checkRunId jobId
-  where
-    matchesJob targetJobId update =
-      case Events.matchUpdate @JobUpdateStatusA update of
-        Just (JobUpdateStatusA jid _, _) -> jid == targetJobId
-        Nothing -> False
+enqueuePRJob instId owner repo pr commit = do
+  -- For PRs, GitHub provides refs/pull/:number/head in the origin repo
+  let branchRef = BranchName $ "refs/pull/" <> show pr.prNumber <> "/head"
 
-    lastStatus updates =
-      let extractStatus u = case Events.matchUpdate @JobUpdateStatusA u of
-            Just (JobUpdateStatusA _ s, _) -> Just s
-            Nothing -> Nothing
-       in fromMaybe JobPending $ viaNonEmpty last $ mapMaybe extractStatus (toList updates)
+  -- Subscribe to event bus BEFORE enqueueing to avoid missing events
+  chan <- App.subscribe
 
-    isTerminal = \case
-      JobFinished {} -> True
-      JobStale -> True
-      _ -> False
+  -- Acknowledge queued status to GitHub
+  checkRun <-
+    queryGitHub @CheckRun instId $
+      createCheckRunE owner repo $
+        NewCheckRun
+          { name = "Vira CI"
+          , headSha = unCommitID commit.sha
+          , status = Just Queued
+          }
+  log Info $ "Created check run for PR #" <> show pr.prNumber <> " commit " <> show commit.sha
+
+  -- Enqueue the job
+  job <- Client.enqueueJob pr.repoName branchRef commit.sha (Just pr.prNumber)
+
+  -- Spawn async watcher to notify GitHub of the status as job progresses
+  void $ async $ CheckRun.jobStatusLoop chan instId owner repo checkRun.checkRunId job.jobId
 
 pushHandler :: PushEvent -> Eff AppStack NoContent
 pushHandler _ = do
@@ -300,24 +326,6 @@ webhookMiddleware globalSettings viraRuntimeState appAuth webhookSecret = \app r
     githubKey = GitHubKey $ pure key
     webhookApp =
       genericServeTWithContext
-        id
+        Prelude.id
         (handlers globalSettings viraRuntimeState appAuth)
         (githubKey :. EmptyContext)
-
-----------
--- Helpers
-----------
-
-fromJobStatus :: JobStatus -> UpdateCheckRun
-fromJobStatus = \case
-  JobRunning ->
-    UpdateCheckRun {status = InProgress, conclusion = Nothing}
-  JobFinished jobResult _ -> do
-    let conclusion = case jobResult of
-          JobSuccess -> Success
-          JobFailure -> Failure
-          JobKilled -> Cancelled
-    UpdateCheckRun {status = Completed, conclusion = Just conclusion}
-  JobStale ->
-    UpdateCheckRun {status = Completed, conclusion = Just Cancelled}
-  JobPending -> UpdateCheckRun {status = Queued, conclusion = Nothing}

@@ -10,6 +10,7 @@ import Vira.Web.Pages.EventsPage qualified as EventsPage
 import Vira.Web.Pages.IndexPage
 import Vira.Web.Pages.JobLog qualified as JobLog
 import Vira.Web.Pages.JobPage qualified as JobPage
+import Vira.Web.Pages.PullPage qualified as PullPage
 import Vira.Web.Pages.RegistryPage qualified as RegistryPage
 import Vira.Web.Pages.RepoPage qualified as RepoPage
 import Vira.Web.Servant ((//), (/:))
@@ -34,3 +35,6 @@ linkTo = \case
   Cache -> fieldLink _cache // CachePage._view
   Events -> fieldLink _events // EventsPage._view
   Refresh mPatterns -> fieldLink _refresh mPatterns
+  RepoPRFilter repo -> fieldLink _repos // RegistryPage._repo /: repo // RepoPage._filterPRs /: (Nothing :: Maybe Text)
+  RepoPull repo n -> fieldLink _repos // RegistryPage._pull /: repo // PullPage._detail /: n
+  RepoPullApprove repo n sha -> fieldLink _repos // RegistryPage._pull /: repo // PullPage._approve /: n /: sha

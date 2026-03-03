@@ -48,14 +48,15 @@ enqueueJob ::
   RepoName ->
   BranchName ->
   CommitID ->
+  Maybe Int ->
   Eff es Job
-enqueueJob repoName branchName commitId = do
+enqueueJob repoName branchName commitId prNumber = do
   sup <- asks supervisor
   creationTime <- liftIO getCurrentTime
   let baseDir = Workspace.repoJobsDir sup repoName
 
   -- Create job as Pending
-  job <- App.update $ AddNewJobA repoName branchName commitId baseDir creationTime
+  job <- App.update $ AddNewJobA repoName branchName commitId prNumber baseDir creationTime
   log Info $ "Queued job #" <> show job.jobId
 
   -- Immediately try to schedule it (with lock)

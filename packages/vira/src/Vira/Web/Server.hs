@@ -43,13 +43,12 @@ runServer globalSettings webSettings cacheApp = do
   liftIO $ startWarpServer (warpSettings webSettings) globalSettings.stateDir webSettings.tlsConfig app
   where
     buildApplication = do
-      viraRuntimeState <- Reader.ask @ViraRuntimeState
-      let servantApp = genericServe $ IndexPage.handlers globalSettings viraRuntimeState webSettings
+      viraRuntimeState0 <- Reader.ask @ViraRuntimeState
       staticDir <- getDataDirMultiHome
       log Debug $ "Static dir = " <> toText staticDir
 
       -- Start: GitHub Webhook Middleware init
-      ghwebhookMW <- case webSettings.ghAppAuthSettings of
+      (mAppAuth, ghwebhookMW) <- case webSettings.ghAppAuthSettings of
         Just settings -> do
           rsaPem <- liftIO $ readFileBS settings.privateKeyPath
           privateKey <- readRsaPem rsaPem
@@ -57,17 +56,25 @@ runServer globalSettings webSettings cacheApp = do
           webhookSecret <- case webSettings.ghWebhookSecretFile of
             Just secretPath -> liftIO $ decodeUtf8 <$> readFileBS secretPath
             Nothing -> pure ""
-          pure $ WebhookGitHub.webhookMiddleware globalSettings viraRuntimeState appAuth webhookSecret
-        Nothing -> pure $ \app req sendResponse ->
-          case pathInfo req of
-            ("webhook" : "github" : _) ->
-              sendResponse $
-                responseLBS
-                  status503
-                  [("Content-Type", "text/plain")]
-                  "GitHub webhook not configured. Set --github-app-id and --github-app-private-key to enable."
-            _ -> app req sendResponse
+          pure (Just appAuth, WebhookGitHub.webhookMiddleware globalSettings viraRuntimeState0 appAuth webhookSecret)
+        Nothing ->
+          pure
+            ( Nothing
+            , \app req sendResponse ->
+                case pathInfo req of
+                  ("webhook" : "github" : _) ->
+                    sendResponse $
+                      responseLBS
+                        status503
+                        [("Content-Type", "text/plain")]
+                        "GitHub webhook not configured. Set --github-app-id and --github-app-private-key to enable."
+                  _ -> app req sendResponse
+            )
       -- End: GitHub Webhook Middleware init
+
+      -- Make AppAuth available to web handlers via ViraRuntimeState
+      let viraRuntimeState = viraRuntimeState0 {ghAppAuth = mAppAuth}
+          servantApp = genericServe $ IndexPage.handlers globalSettings viraRuntimeState webSettings
 
       let middlewares =
             [ -- 404 handler (innermost, applied last)
