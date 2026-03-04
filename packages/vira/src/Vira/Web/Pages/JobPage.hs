@@ -59,7 +59,7 @@ buildHandler :: RepoName -> BranchName -> Eff Web.AppServantStack (Headers '[HXR
 buildHandler repoName branchName =
   withLogContext [("repo", show repoName), ("branch", show branchName)] $ do
     branch <- App.query (St.GetBranchByNameA repoName branchName) >>= maybe (throwError $ err404 {errBody = "No such branch"}) pure
-    Client.enqueueJob repoName branchName branch.headCommit.id
+    void $ Client.enqueueJob repoName branchName branch.headCommit.id Nothing
     pure $ addHeader True "Ok"
 
 viewHandler :: JobId -> AppHtml ()
@@ -68,9 +68,11 @@ viewHandler jobId = do
   let crumbs =
         [ LinkTo.RepoListing
         , LinkTo.Repo job.repo
-        , LinkTo.RepoBranch job.repo job.branch
-        , LinkTo.Job jobId
         ]
+          <> case job.prNumber of
+            Just prNum -> [LinkTo.RepoPull job.repo prNum]
+            Nothing -> [LinkTo.RepoBranch job.repo job.branch]
+          <> [LinkTo.Job jobId]
   W.layout crumbs $ viewJob job
 
 killHandler :: JobId -> Eff Web.AppServantStack (Headers '[HXRefresh] Text)

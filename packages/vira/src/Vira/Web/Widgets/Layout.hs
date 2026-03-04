@@ -206,6 +206,7 @@ linkToIcon = \case
   RepoListing -> toHtmlRaw Icon.folder
   Repo _ -> toHtmlRaw Icon.book_2
   RepoBranch _ _ -> toHtmlRaw Icon.git_branch
+  RepoPull _ _ -> toHtmlRaw Icon.git_pull_request
   Job _ -> toHtmlRaw Icon.player_play
   Environment -> toHtmlRaw Icon.cpu
   Events -> toHtmlRaw Icon.bell

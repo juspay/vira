@@ -41,7 +41,8 @@ import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Worker qualified as Worker
 import Vira.CI.Worker.Type qualified as Worker
 import Vira.Environment.Tool.Core qualified as Tool
-import Vira.Refresh.Daemon qualified as Daemon
+
+-- import Vira.Refresh.Daemon qualified as Daemon
 import Vira.Refresh.Type qualified as Refresh
 import Vira.State.Core (closeViraState, openViraState, startPeriodicArchival, viraDbVersion)
 import Vira.State.JSON (getExportData, importViraState)
@@ -107,7 +108,8 @@ runVira = do
             viraRuntimeState = App.ViraRuntimeState {linkTo, ..}
             appServer = do
               startPeriodicArchival acid
-              Daemon.startRefreshDaemon
+              -- Disable refresh daemon temporarily to avoid confusing its effect with that of GitHub integration
+              -- Daemon.startRefreshDaemon
               Worker.startJobWorkerDaemon
               AutoBuild.startAutoBuildDaemon autoBuildSettings
               CleanupDaemon.startCleanupDaemon webSettings.ciSettings.jobRetentionDays

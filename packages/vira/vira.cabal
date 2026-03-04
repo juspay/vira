@@ -56,6 +56,7 @@ library
       Vira.CI.Worker
       Vira.CI.Worker.Type
       Vira.CI.Workspace
+      Vira.Effect.GitHub
       Vira.Environment.Tool.Core
       Vira.Environment.Tool.Status
       Vira.Environment.Tool.Tools.Attic
@@ -67,6 +68,11 @@ library
       Vira.Environment.Tool.Tools.Nix
       Vira.Environment.Tool.Type.ToolData
       Vira.Environment.Tool.Type.Tools
+      Vira.GitHub.CheckRun
+      Vira.GitHub.Middleware
+      Vira.GitHub.Webhook
+      Vira.Lib.Crypto
+      Vira.Lib.GitHub
       Vira.Lib.STM
       Vira.Lib.TimeExtra
       Vira.Refresh
@@ -95,6 +101,7 @@ library
       Vira.Web.Pages.JobLog
       Vira.Web.Pages.JobPage
       Vira.Web.Pages.NotFoundPage
+      Vira.Web.Pages.PullPage
       Vira.Web.Pages.RegistryPage
       Vira.Web.Pages.RepoPage
       Vira.Web.Servant
@@ -170,6 +177,9 @@ library
     , co-log-effectful
     , co-log-effectful-simple
     , containers
+    , crypton
+    , crypton-x509
+    , crypton-x509-store
     , dani-servant-lucid2
     , data-default
     , dependent-map
@@ -186,6 +196,8 @@ library
     , filepattern
     , gh
     , git-effectful
+    , github-rest
+    , github-webhooks
     , hint
     , hint-nix
     , hostname
@@ -196,9 +208,12 @@ library
     , htmx-lucid-contrib
     , htmx-servant
     , http-api-data
+    , http-client
     , http-media
     , http-types
     , ixset-typed
+    , jose
+    , lens
     , logsink
     , lucid2
     , modern-uri
@@ -214,9 +229,11 @@ library
     , profunctors
     , record-hasfield
     , relude >=1.0
+    , req
     , safecopy
     , servant
     , servant-event-stream
+    , servant-github-webhook-simple
     , servant-server
     , sqlite-simple
     , stm
@@ -298,6 +315,9 @@ executable vira
     , co-log-effectful
     , co-log-effectful-simple
     , containers
+    , crypton
+    , crypton-x509
+    , crypton-x509-store
     , dani-servant-lucid2
     , data-default
     , dependent-map
@@ -314,6 +334,8 @@ executable vira
     , filepattern
     , gh
     , git-effectful
+    , github-rest
+    , github-webhooks
     , hint
     , hint-nix
     , hostname
@@ -324,9 +346,12 @@ executable vira
     , htmx-lucid-contrib
     , htmx-servant
     , http-api-data
+    , http-client
     , http-media
     , http-types
     , ixset-typed
+    , jose
+    , lens
     , logsink
     , lucid2
     , modern-uri
@@ -342,9 +367,11 @@ executable vira
     , profunctors
     , record-hasfield
     , relude >=1.0
+    , req
     , safecopy
     , servant
     , servant-event-stream
+    , servant-github-webhook-simple
     , servant-server
     , sqlite-simple
     , stm
@@ -431,6 +458,9 @@ executable vira-tests
     , co-log-effectful
     , co-log-effectful-simple
     , containers
+    , crypton
+    , crypton-x509
+    , crypton-x509-store
     , dani-servant-lucid2
     , data-default
     , dependent-map
@@ -447,6 +477,8 @@ executable vira-tests
     , filepattern
     , gh
     , git-effectful
+    , github-rest
+    , github-webhooks
     , hint
     , hint-nix
     , hostname
@@ -457,9 +489,12 @@ executable vira-tests
     , htmx-lucid-contrib
     , htmx-servant
     , http-api-data
+    , http-client
     , http-media
     , http-types
     , ixset-typed
+    , jose
+    , lens
     , logsink
     , lucid2
     , modern-uri
@@ -475,9 +510,11 @@ executable vira-tests
     , profunctors
     , record-hasfield
     , relude >=1.0
+    , req
     , safecopy
     , servant
     , servant-event-stream
+    , servant-github-webhook-simple
     , servant-server
     , sqlite-simple
     , stm

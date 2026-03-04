@@ -33,6 +33,15 @@ dependencies:
   - acid-state
   - acid-state-events
   - aeson
+  - crypton
+  - github-rest
+  - github-webhooks
+  - http-client
+  - jose
+  - req
+  - lens
+  - crypton-x509
+  - crypton-x509-store
   - ansi-terminal
   - async
   - attic
@@ -95,6 +104,7 @@ dependencies:
   - safecopy
   - servant
   - servant-event-stream
+  - servant-github-webhook-simple
   - servant-server
   - sqlite-simple
   - stm

@@ -11,8 +11,8 @@ import Effectful.Colog.Simple
 import Effectful.FileSystem (FileSystem, doesDirectoryExist)
 import Effectful.Reader.Dynamic qualified as Reader
 import Effectful.Reader.Static qualified as ER
-import Network.HTTP.Types (status404)
-import Network.Wai (Application, Middleware, responseLBS, responseStatus)
+import Network.HTTP.Types (status404, status503)
+import Network.Wai (Application, Middleware, Request (pathInfo), responseLBS, responseStatus)
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai.Handler.WarpTLS.Simple (TLSConfig (..), startWarpServer)
 import Network.Wai.Middleware.Static (
@@ -26,7 +26,10 @@ import Servant.Server.Generic (genericServe)
 import System.Nix.Cache.Server qualified as Cache
 import System.Nix.Flake.Develop qualified as Nix
 import Vira.App (AppStack, ViraRuntimeState (..))
-import Vira.App.CLI (GlobalSettings (..), WebSettings (..))
+import Vira.App.CLI (GHAppAuthSettings (..), GlobalSettings (..), WebSettings (..))
+import Vira.Effect.GitHub (newAppAuth)
+import Vira.GitHub.Middleware qualified as GitHub
+import Vira.Lib.Crypto (readRsaPem)
 import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
 
@@ -41,9 +44,31 @@ runServer globalSettings webSettings cacheApp = do
   where
     buildApplication = do
       viraRuntimeState <- Reader.ask @ViraRuntimeState
-      let servantApp = genericServe $ IndexPage.handlers globalSettings viraRuntimeState webSettings
       staticDir <- getDataDirMultiHome
       log Debug $ "Static dir = " <> toText staticDir
+
+      -- GitHub middleware (webhook + approval routes)
+      ghMiddleware <- case webSettings.ghAppAuthSettings of
+        Just settings -> do
+          rsaPem <- liftIO $ readFileBS settings.privateKeyPath
+          privateKey <- readRsaPem rsaPem
+          appAuth <- liftIO $ newAppAuth privateKey settings.appId
+          webhookSecret <- case webSettings.ghWebhookSecretFile of
+            Just secretPath -> liftIO $ decodeUtf8 <$> readFileBS secretPath
+            Nothing -> pure ""
+          pure $ GitHub.githubMiddleware globalSettings viraRuntimeState appAuth webhookSecret
+        Nothing ->
+          pure $ \app req sendResponse ->
+            case pathInfo req of
+              ("github" : _) ->
+                sendResponse $
+                  responseLBS
+                    status503
+                    [("Content-Type", "text/plain")]
+                    "GitHub integration not configured. Set --github-app-id and --github-app-private-key to enable."
+              _ -> app req sendResponse
+
+      let servantApp = genericServe $ IndexPage.handlers globalSettings viraRuntimeState webSettings
 
       let middlewares =
             [ -- 404 handler (innermost, applied last)
@@ -52,6 +77,8 @@ runServer globalSettings webSettings cacheApp = do
               staticPolicy $ noDots >-> addBase staticDir
             , -- Cache server middleware
               Cache.cacheMiddleware "cache" cacheApp
+            , -- GitHub routes (webhook + approval)
+              ghMiddleware
             ]
           app = foldl' (&) servantApp middlewares
       pure app
@@ -68,7 +95,7 @@ runServer globalSettings webSettings cacheApp = do
         & Warp.setPort ws.port
         & Warp.setTimeout 600 -- 10 minutes (for long builds with SSE heartbeats)
 
--- Like Paths_vira.getDataDir but GHC multi-home friendly
+-- Like Paths_viraDir but GHC multi-home friendly
 getDataDirMultiHome :: (IOE :> es, FileSystem :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es) => Eff es FilePath
 getDataDirMultiHome = do
   p <- liftIO Paths_vira.getDataDir

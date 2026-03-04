@@ -12,7 +12,7 @@ Avoids cyclic imports by providing a type-level hint instead of direct route ref
 Used with 'Vira.Web.Lucid.getLink' to generate 'Servant.Links.Link' values.
 -}
 data LinkTo
-  = Home (Maybe Bool) -- Nothing = all, Just True = unbuilt, Just False = built
+  = Home (Maybe Text) -- Nothing = all, Just "builds" / "unbuilt" / "prs"
   | RepoListing
   | Repo RepoName
   | RepoUpdate RepoName
@@ -29,6 +29,8 @@ data LinkTo
   | Cache
   | Events
   | Refresh (Maybe Text) -- Query parameter for event patterns
+  | RepoPRFilter RepoName
+  | RepoPull RepoName Int
 
 linkShortTitle :: LinkTo -> Text
 linkShortTitle = \case
@@ -49,6 +51,8 @@ linkShortTitle = \case
   Cache -> "Binary Cache"
   Events -> "Events"
   Refresh _ -> "Refresh"
+  RepoPRFilter _ -> "Filter PRs" -- unused
+  RepoPull _ n -> "PR " <> show n
 
 linkTitle :: LinkTo -> Text
 linkTitle = \case

@@ -267,8 +267,8 @@ getOldJobsA cutoffTime = do
         | otherwise -> Nothing
 
 -- | Create a new job returning it.
-addNewJobA :: RepoName -> BranchName -> CommitID -> FilePath -> UTCTime -> Update ViraState Job
-addNewJobA repo branch commit baseDir jobCreatedTime = state $ \s ->
+addNewJobA :: RepoName -> BranchName -> CommitID -> Maybe Int -> FilePath -> UTCTime -> Update ViraState Job
+addNewJobA repo branch commit prNumber baseDir jobCreatedTime = state $ \s ->
   let
     jobId = s.nextJobId
     jobStatus = JobPending
@@ -304,6 +304,73 @@ cancelPendingJobsInBranchA repo branch endTime = state $ \s ->
       pendingJobs = filter (\j -> j.jobStatus == JobPending) jobs
       updatedState = flipfoldl' (\job st -> st {jobs = Ix.updateIx job.jobId (job {jobStatus = JobFinished JobKilled endTime}) st.jobs}) s pendingJobs
    in (fromIntegral $ length pendingJobs, updatedState)
+
+-- * PullRequest operations
+
+-- | Get a pull request by repo and PR number
+getPullRequestA :: RepoName -> Int -> Query ViraState (Maybe PullRequest)
+getPullRequestA repo prNum = do
+  ViraState {pullRequests} <- ask
+  pure $ Ix.getOne $ pullRequests @= repo @= prNum
+
+-- | Get all pull requests for a repo
+getPullRequestsByRepoA :: RepoName -> Query ViraState [PullRequest]
+getPullRequestsByRepoA repo = do
+  ViraState {pullRequests} <- ask
+  pure $ Ix.toList $ pullRequests @= repo
+
+-- | Upsert a pull request (create or update)
+upsertPullRequestA :: PullRequest -> Update ViraState ()
+upsertPullRequestA pr = do
+  modify $ \s ->
+    s {pullRequests = Ix.updateIx pr.prNumber pr s.pullRequests}
+
+-- | Update a pull request's state (on close/merge)
+updatePullRequestStateA :: RepoName -> Int -> PRState -> Update ViraState ()
+updatePullRequestStateA repo prNum newState = do
+  modify $ \s ->
+    case Ix.getOne $ s.pullRequests @= repo @= prNum of
+      Nothing -> s
+      Just pr ->
+        let updated = pr {prState = newState}
+         in s {pullRequests = Ix.updateIx prNum updated s.pullRequests}
+
+-- * PRCommit operations
+
+-- | Get a specific PR commit
+getPRCommitA :: RepoName -> Int -> CommitID -> Query ViraState (Maybe PRCommit)
+getPRCommitA repo prNum sha = do
+  ViraState {prCommits} <- ask
+  pure $ Ix.getOne $ prCommits @= repo @= prNum @= sha
+
+-- | Get all commits for a PR
+getPRCommitsByPRA :: RepoName -> Int -> Query ViraState [PRCommit]
+getPRCommitsByPRA repo prNum = do
+  ViraState {prCommits} <- ask
+  pure $ Ix.toList $ prCommits @= repo @= prNum
+
+-- | Get unapproved commits for a PR
+getUnapprovedPRCommitsA :: RepoName -> Int -> Query ViraState [PRCommit]
+getUnapprovedPRCommitsA repo prNum = do
+  ViraState {prCommits} <- ask
+  pure $ filter (not . (.approved)) $ Ix.toList $ prCommits @= repo @= prNum
+
+-- | Add a new PR commit (upserts by SHA to avoid duplicates from repeated webhook events)
+addPRCommitA :: PRCommit -> Update ViraState ()
+addPRCommitA pc = do
+  modify $ \s ->
+    s {prCommits = Ix.updateIx pc.sha pc s.prCommits}
+
+-- | Approve a PR commit, returning Left if not found
+approvePRCommitA :: RepoName -> Int -> CommitID -> Update ViraState (Either Text ())
+approvePRCommitA repo prNum sha = do
+  s <- get
+  case Ix.getOne $ s.prCommits @= repo @= prNum @= sha of
+    Nothing -> pure $ Left "PR commit not found"
+    Just pc -> do
+      let updated = pc {approved = True}
+      modify $ \st -> st {prCommits = Ix.updateIx sha updated st.prCommits}
+      pure $ Right ()
 
 -- | Like `Ix.updateIx`, but works for multiple items.
 updateIxMulti ::
@@ -354,6 +421,17 @@ $( makeAcidic
      , 'cancelPendingJobsInBranchA
      , 'addNewRepoA
      , 'deleteRepoByNameA
+     , -- PullRequest operations
+       'getPullRequestA
+     , 'getPullRequestsByRepoA
+     , 'upsertPullRequestA
+     , 'updatePullRequestStateA
+     , -- PRCommit operations
+       'getPRCommitA
+     , 'getPRCommitsByPRA
+     , 'getUnapprovedPRCommitsA
+     , 'addPRCommitA
+     , 'approvePRCommitA
      ]
  )
 
@@ -367,6 +445,8 @@ deriving stock instance Show SetRefreshStatusA
 
 deriving stock instance Show SetRepoBranchesA
 
+deriving stock instance Show StoreCommitA
+
 deriving stock instance Show AddNewJobA
 
 deriving stock instance Show JobUpdateStatusA
@@ -374,3 +454,11 @@ deriving stock instance Show JobUpdateStatusA
 deriving stock instance Show DeleteJobA
 
 deriving stock instance Show CancelPendingJobsInBranchA
+
+deriving stock instance Show UpsertPullRequestA
+
+deriving stock instance Show UpdatePullRequestStateA
+
+deriving stock instance Show AddPRCommitA
+
+deriving stock instance Show ApprovePRCommitA
