@@ -19,7 +19,7 @@ import Web.TablerIcons.Outline qualified as Icon
 viewBuilders :: Either Text NixStatus -> AppHtml ()
 viewBuilders nixStatusResult = do
   -- Builders Section
-  h2_ [class_ "text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center"] $ do
+  h2_ [class_ "text-xl font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center"] $ do
     div_ [class_ "w-5 h-5 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.server
     "Remote Builders"
   p_ [class_ "text-gray-600 dark:text-gray-300 mb-4"] "Distributed build infrastructure from Nix configuration"

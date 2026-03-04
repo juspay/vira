@@ -244,7 +244,7 @@ logViewerWidget job w = do
       $ do
         pre_
           [ id_ sseTarget
-          , class_ "text-gray-100 p-4 text-sm h-full whitespace-pre-wrap break-all m-0 font-mono leading-relaxed"
+          , class_ "text-gray-100 p-4 text-sm h-full whitespace-pre-wrap break-all m-0 font-mono leading-normal"
           ]
           $ do
             code_ w

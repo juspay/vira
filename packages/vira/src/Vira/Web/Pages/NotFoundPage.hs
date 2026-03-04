@@ -31,7 +31,7 @@ notFoundView = do
     -- Simple error message with red background
     div_ [class_ "bg-red-50 border-2 border-red-200 rounded-xl p-8 mb-8"] $ do
       h1_ [class_ "text-6xl font-bold text-red-900 mb-4"] "404"
-      h2_ [class_ "text-2xl font-semibold text-red-800 mb-4"] "Page Not Found"
+      h2_ [class_ "text-2xl font-bold text-red-800 mb-4"] "Page Not Found"
       p_ [class_ "text-red-700 text-lg mb-8"] $ do
         "The page you're looking for doesn't exist."
 

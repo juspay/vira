@@ -34,13 +34,17 @@ devourFlake args =
 -- | Generate arguments to @nix@ for prefetching flake inputs before build
 prefetchFlakeInputs :: (HasCallStack) => DevourFlakeArgs -> [String]
 prefetchFlakeInputs args =
-  ["flake", "prefetch-inputs", devourFlakePath] ++ overrideInputArgs args
+  ["flake", "prefetch-inputs", devourFlakePath]
+    ++ overrideInputArgs args
+    ++ nixOptionArgs args
 
 data DevourFlakeArgs = DevourFlakeArgs
   { flakePath :: FilePath
   , systems :: [System]
   , outLink :: Maybe FilePath
   , overrideInputs :: [(Text, Text)]
+  , nixOptions :: [(Text, Text)]
+  -- ^ @--option key value@ flags passed to the Nix command
   }
   deriving stock (Eq, Show)
 
@@ -55,7 +59,13 @@ overrideInputArgs args =
         Just systemsFlake -> ["--override-input", "systems", systemsFlake]
     ]
 
+-- | Generate @--option key value@ arguments
+nixOptionArgs :: DevourFlakeArgs -> [String]
+nixOptionArgs args =
+  concatMap (\(k, v) -> ["--option", toString k, toString v]) args.nixOptions
+
 toCliArgs :: DevourFlakeArgs -> [String]
 toCliArgs args =
   overrideInputArgs args
+    ++ nixOptionArgs args
     ++ maybe ["--no-link"] (\link -> ["--out-link", link]) args.outLink
