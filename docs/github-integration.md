@@ -22,9 +22,9 @@ Follow GitHub's official guide: [Creating a GitHub App](https://docs.github.com/
 
 - **GitHub App name**: Choose a name (e.g., "Vira CI")
 - **Homepage URL**: Your Vira instance URL (e.g., `https://vira.example.com`)
-- **Webhook URL**: Your Vira webhook endpoint: `https://<your-vira-host>/webhook/github`
+- **Webhook URL**: Your Vira webhook endpoint: `https://<your-vira-host>/github/webhook`
   - For local development/testing, use [smee.io](https://smee.io/) to forward webhooks to localhost
-  - Example: `https://smee.io/your-unique-channel` (then run the smee client locally: `nix run nixpkgs#gosmee -- client https://smee.io/your-unique-channel https://localhost:5005/webhook/github`)
+  - Example: `https://smee.io/your-unique-channel` (then run the smee client locally: `nix run nixpkgs#gosmee -- client https://smee.io/your-unique-channel https://localhost:5005/github/webhook`)
 - **Webhook secret**: Generate a secure random string and save it to a file (you'll use this with `--github-webhook-secret-file`)
 
 **Required permissions:**
@@ -107,8 +107,8 @@ When you install the GitHub App, Vira automatically:
 
 Create a pull request in an installed repository:
 
-- The PR must be from a **branch in the same repository** (fork PRs are not currently supported)
-- Vira will automatically create a Check Run and start building
+- **Same-repo PRs** are automatically built when opened, reopened, or updated
+- **Fork PRs** require per-commit approval in the Vira web UI before building (security measure to prevent untrusted code execution)
 - Check the "Checks" tab on your PR to see the build status
 
 ## Webhook Endpoint
@@ -116,12 +116,11 @@ Create a pull request in an installed repository:
 The webhook endpoint is available at:
 
 ```
-https://<your-vira-host>/webhook/github
+https://<your-vira-host>/github/webhook
 ```
 
 ## Current Limitations
 
-- **Fork PRs not supported**: Only PRs from branches in the same repository are currently supported
 - **Push events**: Push events are received but not yet processed (planned feature)
 - **Check Run details**: Build logs/output are not yet linked in the Check Run (access via Vira web UI)
 

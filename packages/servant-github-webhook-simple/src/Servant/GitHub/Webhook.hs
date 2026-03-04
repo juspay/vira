@@ -10,8 +10,13 @@ module Servant.GitHub.Webhook (
 )
 where
 
+import Crypto.Hash (SHA256)
+import Crypto.MAC.HMAC (hmac)
 import Data.Aeson (FromJSON)
 import Data.Aeson.Decoding (eitherDecodeStrict)
+import Data.ByteArray (constEq, convert)
+import Data.ByteString qualified as BS
+import Data.ByteString.Base16 qualified as Base16
 import Data.List (lookup)
 import GitHub.Data.Webhooks.Events
 import Network.Wai (requestHeaders, strictRequestBody)
@@ -72,12 +77,22 @@ instance
           Left e -> delayedFailFatal err400 {errBody = encodeUtf8 e}
           Right v -> pure v
 
-      -- \| Verify the GitHub webhook signature.
+      -- \| Verify the GitHub webhook HMAC-SHA256 signature.
       --
-      --      TODO: Implement actual HMAC-SHA256 verification using crypton
-      --
+      -- The @X-Hub-Signature-256@ header contains @sha256=\<hex-encoded HMAC-SHA256\>@.
+      -- Uses constant-time comparison to prevent timing attacks.
       verifySignature :: ByteString -> ByteString -> Maybe ByteString -> Bool
-      verifySignature _ _ _ = True
+      verifySignature _ _ Nothing = False
+      verifySignature key msg (Just sig) =
+        case BS.stripPrefix "sha256=" sig of
+          Nothing -> False
+          Just hexSig ->
+            case Base16.decode hexSig of
+              Left _ -> False
+              Right decoded ->
+                let expected :: ByteString
+                    expected = convert (hmac @ByteString @ByteString @SHA256 key msg)
+                 in constEq expected decoded
 
 -- Instances for github-webhooks event types
 

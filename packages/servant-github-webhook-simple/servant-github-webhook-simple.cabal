@@ -55,8 +55,11 @@ library
   build-depends:
       aeson
     , base ==4.*
+    , base16-bytestring
     , bytestring
+    , crypton
     , github-webhooks
+    , memory
     , relude >=1.0
     , servant
     , servant-server

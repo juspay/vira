@@ -14,8 +14,11 @@ description: Type-safe GitHub webhook handling for Servant with signature verifi
 
 dependencies:
   - aeson
+  - base16-bytestring
   - bytestring
+  - crypton
   - github-webhooks
+  - memory
   - servant
   - servant-server
   - wai

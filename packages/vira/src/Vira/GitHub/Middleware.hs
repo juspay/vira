@@ -37,7 +37,7 @@ githubMiddleware globalSettings viraRuntimeState appAuth webhookSecret app req s
     ("github" : "webhook" : rest) -> do
       let req' = req {pathInfo = rest}
       webhookApp req' sendResponse
-    ("github" : "r" : owner : repo : "pull" : prNumStr : "approve" : shaStr : _) -> do
+    ["github", "r", owner, repo, "pull", prNumStr, "approve", shaStr] -> do
       handleApproval (owner <> "/" <> repo) prNumStr shaStr
     _ -> app req sendResponse
   where
@@ -46,7 +46,7 @@ githubMiddleware globalSettings viraRuntimeState appAuth webhookSecret app req s
     githubKey = GitHubKey $ pure key
     webhookApp =
       genericServeTWithContext
-        Prelude.id
+        id
         (Webhook.handlers globalSettings viraRuntimeState appAuth)
         (githubKey :. EmptyContext)
 

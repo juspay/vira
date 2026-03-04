@@ -129,7 +129,7 @@ viraPRJobRow_ job unapproved = do
                 W.viraCommitHash_ pc.sha
                 whenJust maybeCommit $ \commit ->
                   unless (T.null commit.message) $ do
-                    span_ [class_ "text-gray-400 dark:text-gray-500"] "·"
+                    span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
                     span_
                       [ class_ "text-gray-700 dark:text-gray-300 truncate max-w-md"
                       , title_ commit.message
@@ -154,18 +154,18 @@ viraPRJobRow_ job unapproved = do
                 W.viraCommitHash_ job.commit
                 whenJust maybeCommit $ \commit ->
                   unless (T.null commit.message) $ do
-                    span_ [class_ "text-gray-400 dark:text-gray-500"] "·"
+                    span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
                     span_
                       [ class_ "text-gray-700 dark:text-gray-300 truncate max-w-md"
                       , title_ commit.message
                       ]
                       $ toHtml commit.message
-                span_ [class_ "text-gray-400 dark:text-gray-500"] "·"
+                span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
                 div_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $
                   Time.viraRelativeTime_ job.jobCreatedTime
               div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
                 span_ [class_ "text-sm text-gray-600 dark:text-gray-400"] $ "#" <> toHtml (show @Text job.jobId)
-                span_ [class_ "text-gray-400 dark:text-gray-500"] "·"
+                span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
                 case jobEndTime job of
                   Just endTime -> Time.viraDuration_ $ diffUTCTime endTime job.jobCreatedTime
                   Nothing -> mempty

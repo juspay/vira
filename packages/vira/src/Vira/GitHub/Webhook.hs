@@ -26,6 +26,7 @@ import Effectful (Eff)
 import Effectful.Colog.Simple (log, tagCurrentThread)
 import Effectful.Concurrent.Async (async)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
+import Effectful.Error.Static qualified as Error
 import Effectful.Git (BranchName (..), Commit (..), CommitID (..), RepoName (..))
 import GitHub.Data.Webhooks.Events (
   InstallationEvent (..),
@@ -103,10 +104,15 @@ prHandler event = do
           prBase = whPullReqBase prPayload
           owner = hookUserLoginAny (whRepoOwner prRepo)
           repo = whRepoName prRepo
-          instId = fromMaybe 0 $ evPullReqInstallationId event
 
-          -- Detect fork: head repo differs from base repo
-          headRepoFullName = whRepoFullName <$> whPullReqTargetRepo prHead
+      instId <- case evPullReqInstallationId event of
+        Just i -> pure i
+        Nothing -> do
+          log Error $ "PR event for " <> owner <> "/" <> repo <> " missing installation ID"
+          Error.throwError $ TokenFetchFailed "Missing installation ID in PR event"
+
+      -- Detect fork: head repo differs from base repo
+      let headRepoFullName = whRepoFullName <$> whPullReqTargetRepo prHead
           baseRepoFullName = whRepoFullName <$> whPullReqTargetRepo prBase
           isFork = headRepoFullName /= baseRepoFullName
           forkRepo = if isFork then headRepoFullName else Nothing
