@@ -7,20 +7,20 @@ import Data.Default (def)
 import Data.Text qualified as T
 import Data.Time (UTCTime, diffUTCTime)
 import Effectful.Git (Commit (..))
-import Htmx.Lucid.Core (hxSwapS_)
+import Htmx.Lucid.Core (hxPost_, hxSwapS_)
 import Htmx.Swap (Swap (..))
 import Lucid
-import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant.API (Get, NamedRoutes, QueryParam, (:>))
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.API.Generic (GenericMode (type (:-)))
 import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
+import Vira.GitHub.CheckRun qualified as CheckRun
 import Vira.State.Acid qualified as St
 import Vira.State.Type (BranchDetails, BranchQuery (..), Job (..), PRCommit (..), branchActivityTime, jobEndTime)
 import Vira.Web.LinkTo.Type qualified as LinkTo
-import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
+import Vira.Web.Lucid (AppHtml, getLinkUrl, runAppHtml)
 import Vira.Web.Pages.CachePage qualified as CachePage
 import Vira.Web.Pages.EnvironmentPage qualified as EnvironmentPage
 import Vira.Web.Pages.EventsPage qualified as EventsPage
@@ -136,10 +136,10 @@ viraPRJobRow_ job unapproved = do
                       ]
                       $ toHtml commit.message
               div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
-                approveLink <- lift $ getLink $ LinkTo.RepoPullApprove job.repo prNum pc.sha
+                let approveLink = CheckRun.approvalUrl job.repo prNum pc.sha
                 W.viraButton_
                   W.ButtonSuccess
-                  [ hxPostSafe_ approveLink
+                  [ hxPost_ approveLink
                   , hxSwapS_ AfterEnd
                   , onclick_ "event.preventDefault(); event.stopPropagation();"
                   , class_ "!px-3 !py-1.5 !text-xs"

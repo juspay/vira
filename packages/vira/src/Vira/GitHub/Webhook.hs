@@ -1,17 +1,23 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
-{- | GitHub App webhook handler as WAI sub-app
+{- | GitHub App webhook event handlers
 
-This module provides a standalone WAI application for handling GitHub webhook events.
-It is decoupled from the main Vira web server and can be mounted as middleware.
+Pure handlers for GitHub webhook events. WAI/middleware concerns are in
+"Vira.GitHub.Middleware".
 
 Uses an event-driven approach for check run updates: subscribes to the acid-state
 event bus and watches for job status changes, posting GitHub check run updates
 as the job transitions through pending, running, and finished states.
 -}
-module Vira.Webhook.GitHub (
-  webhookMiddleware,
+module Vira.GitHub.Webhook (
+  -- * Servant routes
+  Routes (..),
+  handlers,
+
+  -- * Webhook helpers
+  runWebhookInServant,
+  logAndSwallowGitHubError,
 ) where
 
 import Colog (Severity (..))
@@ -31,21 +37,20 @@ import GitHub.Data.Webhooks.Events (
   PushEvent,
  )
 import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookRepositorySimple (..), PullRequestTarget (..))
-import Network.Wai (Middleware, pathInfo)
 import Servant
-import Servant.GitHub.Webhook (GitHubEvent, GitHubKey (..))
-import Servant.Server.Generic (AsServer, genericServeTWithContext)
-import Vira.App (AppStack, GlobalSettings, ViraRuntimeState (..), runApp)
+import Servant.GitHub.Webhook (GitHubEvent)
+import Servant.Server.Generic (AsServer)
+import Vira.App (AppStack, GlobalSettings, ViraRuntimeState, runApp)
 import Vira.App.AcidState qualified as App
 import Vira.CI.Client qualified as Client
 import Vira.Effect.GitHub
+import Vira.GitHub.CheckRun qualified as CheckRun
 import Vira.Lib.GitHub
 import Vira.Refresh qualified as Refresh
 import Vira.Refresh.Type (RefreshPriority (..))
 import Vira.State.Acid qualified as St
-import Vira.State.Type (Job (..), PRCommit (..), PRState (..), PullRequest (..))
+import Vira.State.Type (PRCommit (..), PRState (..), PullRequest (..))
 import Vira.State.Type qualified as St
-import Vira.Webhook.GitHub.CheckRun qualified as CheckRun
 
 -- | API type for GitHub webhook events
 data Routes mode = Routes
@@ -305,27 +310,3 @@ logAndSwallowGitHubError appAuth m = do
       log Warning $ "GitHub API error: " <> show err
       pure NoContent
     Right a -> pure a
-
-{- | WAI middleware that mounts the GitHub webhook at @\/webhook\/github@
-TODO: appropriate doc comment
--}
-webhookMiddleware ::
-  GlobalSettings ->
-  ViraRuntimeState ->
-  AppAuth ->
-  Text -> -- webhook secret
-  Middleware
-webhookMiddleware globalSettings viraRuntimeState appAuth webhookSecret = \app req sendResponse ->
-  case pathInfo req of
-    ("webhook" : "github" : rest) -> do
-      let req' = req {pathInfo = rest}
-      webhookApp req' sendResponse
-    _ -> app req sendResponse
-  where
-    key = encodeUtf8 webhookSecret
-    githubKey = GitHubKey $ pure key
-    webhookApp =
-      genericServeTWithContext
-        Prelude.id
-        (handlers globalSettings viraRuntimeState appAuth)
-        (githubKey :. EmptyContext)

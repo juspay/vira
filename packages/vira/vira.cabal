@@ -68,6 +68,9 @@ library
       Vira.Environment.Tool.Tools.Nix
       Vira.Environment.Tool.Type.ToolData
       Vira.Environment.Tool.Type.Tools
+      Vira.GitHub.CheckRun
+      Vira.GitHub.Middleware
+      Vira.GitHub.Webhook
       Vira.Lib.Crypto
       Vira.Lib.GitHub
       Vira.Lib.STM
@@ -119,8 +122,6 @@ library
       Vira.Web.Widgets.Status
       Vira.Web.Widgets.Tabs
       Vira.Web.Widgets.Time
-      Vira.Webhook.GitHub
-      Vira.Webhook.GitHub.CheckRun
   other-modules:
       Paths_vira
   autogen-modules:

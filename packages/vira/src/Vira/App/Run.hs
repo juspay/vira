@@ -105,7 +105,6 @@ runVira = do
         cacheKeys <- runEff . runLogActionStdout (logLevel globalSettings) $ do
           CacheKeys.ensureCacheKeys $ stateDir globalSettings <> "/cache-keys"
         let cachePublicKey = cacheKeys.publicKey
-            ghAppAuth = Nothing
             viraRuntimeState = App.ViraRuntimeState {linkTo, ..}
             appServer = do
               startPeriodicArchival acid

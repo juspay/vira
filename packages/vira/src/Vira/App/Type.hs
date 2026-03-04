@@ -13,7 +13,6 @@ import System.Nix.Cache.Keys (PublicKey)
 import Vira.App.InstanceInfo (InstanceInfo)
 import Vira.CI.AutoBuild.Type (AutoBuildSettings)
 import Vira.CI.Worker.Type (JobWorkerState)
-import Vira.Effect.GitHub (AppAuth)
 import Vira.Environment.Tool.Type.Tools (Tools)
 import Vira.Refresh.Type (RefreshState)
 import Vira.State.Core (ViraState)
@@ -47,6 +46,4 @@ data ViraRuntimeState = ViraRuntimeState
   -- ^ Server start time for uptime tracking
   , cachePublicKey :: PublicKey
   -- ^ Cache 'PublicKey' (for UI display)
-  , ghAppAuth :: Maybe AppAuth
-  -- ^ GitHub App credentials (Nothing if GitHub integration not configured)
   }

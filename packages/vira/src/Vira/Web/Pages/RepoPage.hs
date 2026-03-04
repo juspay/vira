@@ -12,7 +12,7 @@ import Effectful (Eff)
 import Effectful.Colog.Simple (withLogContext)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName (..), Commit (..), RepoName (..))
-import Htmx.Lucid.Core (hxGet_, hxSwapS_, hxTarget_, hxTrigger_)
+import Htmx.Lucid.Core (hxGet_, hxPost_, hxSwapS_, hxTarget_, hxTrigger_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (..))
 import Lucid
@@ -22,6 +22,7 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
+import Vira.GitHub.CheckRun qualified as CheckRun
 import Vira.Refresh qualified as Refresh
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (Now), RefreshResult (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
@@ -314,10 +315,10 @@ viewPRRow pr unapproved mJob = do
                       ]
                       $ toHtml commit.message
               div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
-                approveLink <- lift $ getLink $ LinkTo.RepoPullApprove pr.repoName pr.prNumber pc.sha
+                let approveLink = CheckRun.approvalUrl pr.repoName pr.prNumber pc.sha
                 W.viraButton_
                   W.ButtonSuccess
-                  [ hxPostSafe_ approveLink
+                  [ hxPost_ approveLink
                   , hxSwapS_ AfterEnd
                   , onclick_ "event.preventDefault(); event.stopPropagation();"
                   , class_ "!px-3 !py-1.5 !text-xs"

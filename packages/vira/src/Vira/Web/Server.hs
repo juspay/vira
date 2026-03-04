@@ -28,10 +28,10 @@ import System.Nix.Flake.Develop qualified as Nix
 import Vira.App (AppStack, ViraRuntimeState (..))
 import Vira.App.CLI (GHAppAuthSettings (..), GlobalSettings (..), WebSettings (..))
 import Vira.Effect.GitHub (newAppAuth)
+import Vira.GitHub.Middleware qualified as GitHub
 import Vira.Lib.Crypto (readRsaPem)
 import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
-import Vira.Webhook.GitHub qualified as WebhookGitHub
 
 -- | Run the Vira server with the given 'GlobalSettings' and 'WebSettings'
 runServer :: (HasCallStack) => GlobalSettings -> WebSettings -> Application -> Eff AppStack ()
@@ -43,12 +43,12 @@ runServer globalSettings webSettings cacheApp = do
   liftIO $ startWarpServer (warpSettings webSettings) globalSettings.stateDir webSettings.tlsConfig app
   where
     buildApplication = do
-      viraRuntimeState0 <- Reader.ask @ViraRuntimeState
+      viraRuntimeState <- Reader.ask @ViraRuntimeState
       staticDir <- getDataDirMultiHome
       log Debug $ "Static dir = " <> toText staticDir
 
-      -- Start: GitHub Webhook Middleware init
-      (mAppAuth, ghwebhookMW) <- case webSettings.ghAppAuthSettings of
+      -- GitHub middleware (webhook + approval routes)
+      ghMiddleware <- case webSettings.ghAppAuthSettings of
         Just settings -> do
           rsaPem <- liftIO $ readFileBS settings.privateKeyPath
           privateKey <- readRsaPem rsaPem
@@ -56,25 +56,19 @@ runServer globalSettings webSettings cacheApp = do
           webhookSecret <- case webSettings.ghWebhookSecretFile of
             Just secretPath -> liftIO $ decodeUtf8 <$> readFileBS secretPath
             Nothing -> pure ""
-          pure (Just appAuth, WebhookGitHub.webhookMiddleware globalSettings viraRuntimeState0 appAuth webhookSecret)
+          pure $ GitHub.githubMiddleware globalSettings viraRuntimeState appAuth webhookSecret
         Nothing ->
-          pure
-            ( Nothing
-            , \app req sendResponse ->
-                case pathInfo req of
-                  ("webhook" : "github" : _) ->
-                    sendResponse $
-                      responseLBS
-                        status503
-                        [("Content-Type", "text/plain")]
-                        "GitHub webhook not configured. Set --github-app-id and --github-app-private-key to enable."
-                  _ -> app req sendResponse
-            )
-      -- End: GitHub Webhook Middleware init
+          pure $ \app req sendResponse ->
+            case pathInfo req of
+              ("github" : _) ->
+                sendResponse $
+                  responseLBS
+                    status503
+                    [("Content-Type", "text/plain")]
+                    "GitHub integration not configured. Set --github-app-id and --github-app-private-key to enable."
+              _ -> app req sendResponse
 
-      -- Make AppAuth available to web handlers via ViraRuntimeState
-      let viraRuntimeState = viraRuntimeState0 {ghAppAuth = mAppAuth}
-          servantApp = genericServe $ IndexPage.handlers globalSettings viraRuntimeState webSettings
+      let servantApp = genericServe $ IndexPage.handlers globalSettings viraRuntimeState webSettings
 
       let middlewares =
             [ -- 404 handler (innermost, applied last)
@@ -83,8 +77,8 @@ runServer globalSettings webSettings cacheApp = do
               staticPolicy $ noDots >-> addBase staticDir
             , -- Cache server middleware
               Cache.cacheMiddleware "cache" cacheApp
-            , -- GitHub webhook sub-app (initializes its own context)
-              ghwebhookMW
+            , -- GitHub routes (webhook + approval)
+              ghMiddleware
             ]
           app = foldl' (&) servantApp middlewares
       pure app
@@ -101,7 +95,7 @@ runServer globalSettings webSettings cacheApp = do
         & Warp.setPort ws.port
         & Warp.setTimeout 600 -- 10 minutes (for long builds with SSE heartbeats)
 
--- Like Paths_vira.getDataDir but GHC multi-home friendly
+-- Like Paths_viraDir but GHC multi-home friendly
 getDataDirMultiHome :: (IOE :> es, FileSystem :> es, Log (RichMessage IO) :> es, ER.Reader LogContext :> es) => Eff es FilePath
 getDataDirMultiHome = do
   p <- liftIO Paths_vira.getDataDir
