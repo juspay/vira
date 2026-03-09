@@ -5,6 +5,7 @@ module Vira.Web.Server (
 ) where
 
 import Colog.Message (RichMessage)
+import Data.Text (strip)
 import Effectful (Eff, IOE, (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple
@@ -54,7 +55,7 @@ runServer globalSettings webSettings cacheApp = do
           privateKey <- readRsaPem rsaPem
           appAuth <- liftIO $ newAppAuth privateKey settings.appId
           webhookSecret <- case webSettings.ghWebhookSecretFile of
-            Just secretPath -> liftIO $ decodeUtf8 <$> readFileBS secretPath
+            Just secretPath -> liftIO $ strip . decodeUtf8 <$> readFileBS secretPath
             Nothing -> pure ""
           pure $ GitHub.githubMiddleware globalSettings viraRuntimeState appAuth webhookSecret
         Nothing ->
