@@ -184,17 +184,26 @@ viewRecentActivity mTab = do
 
   -- Build activity list based on selected tab
   limited <- case mTab of
-    Just "prs" ->
-      take (fromIntegral activityLimit) . sortWith (Down . activityTime)
-        <$> fetchPRActivities
     Just "unbuilt" -> do
       let query = def {neverBuilt = Just True}
       branchActivities <- lift $ App.query (St.QueryBranchDetailsA query activityLimit)
-      pure $ map BranchActivity branchActivities
+      -- PRs that are unbuilt (unapproved commits OR job still active)
+      prActivities <- fetchPRActivities
+      let prsUnbuilt = filter isPRUnbuilt prActivities
+      pure $
+        take (fromIntegral activityLimit) $
+          sortWith (Down . activityTime) $
+            map BranchActivity branchActivities <> prsUnbuilt
     Just "builds" -> do
       let query = def {neverBuilt = Just False}
       branchActivities <- lift $ App.query (St.QueryBranchDetailsA query activityLimit)
-      pure $ map BranchActivity branchActivities
+      -- PRs that are built (finished job with all commits approved)
+      prActivities <- fetchPRActivities
+      let prsBuilt = filter isPRBuilt prActivities
+      pure $
+        take (fromIntegral activityLimit) $
+          sortWith (Down . activityTime) $
+            map BranchActivity branchActivities <> prsBuilt
     _ -> do
       -- "All" tab: merge branches + PR jobs
       branchActivities <- lift $ App.query (St.QueryBranchDetailsA def activityLimit)
@@ -206,10 +215,10 @@ viewRecentActivity mTab = do
 
   -- Counts for badges
   let unbuiltQuery = def {neverBuilt = Just True}
-  unbuiltCount <- length <$> lift (App.query (St.QueryBranchDetailsA unbuiltQuery activityLimit))
-  prCount <- do
-    recentJobs <- lift $ App.query (St.GetRecentJobsA activityLimit)
-    pure $ length $ filter (isJust . (.prNumber)) recentJobs
+  unbuiltBranchCount <- length <$> lift (App.query (St.QueryBranchDetailsA unbuiltQuery activityLimit))
+  prActivities <- fetchPRActivities
+  let prsUnbuiltCount = length $ filter isPRUnbuilt prActivities
+  let unbuiltCount = unbuiltBranchCount + prsUnbuiltCount
 
   W.viraSection_ [] $ do
     h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100"] "Recent Activity"
@@ -218,13 +227,11 @@ viewRecentActivity mTab = do
     allUrl <- lift $ getLinkUrl (LinkTo.Home Nothing)
     buildsUrl <- lift $ getLinkUrl (LinkTo.Home (Just "builds"))
     unbuiltUrl <- lift $ getLinkUrl (LinkTo.Home (Just "unbuilt"))
-    prsUrl <- lift $ getLinkUrl (LinkTo.Home (Just "prs"))
     viraTabs_
       []
       [ TabItem "All" allUrl (isNothing mTab) Nothing
       , TabItem "Builds" buildsUrl (mTab == Just "builds") Nothing
       , TabItem "Unbuilt" unbuiltUrl (mTab == Just "unbuilt") (Just unbuiltCount)
-      , TabItem "PRs" prsUrl (mTab == Just "prs") (Just prCount)
       ]
 
     -- Activity list
@@ -234,6 +241,16 @@ viewRecentActivity mTab = do
           W.viraBranchDetailsRow_ True details
         PRJobActivity job unapproved ->
           viraPRJobRow_ job unapproved
+  where
+    -- PR is unbuilt if it has unapproved commits (no job triggered yet)
+    -- This matches branch behavior where NeverBuilt = no job exists
+    isPRUnbuilt (PRJobActivity _ unapproved) = not (null unapproved)
+    isPRUnbuilt (BranchActivity _) = False
+
+    -- PR is built if it has a job (triggered, regardless of status)
+    -- This matches branch behavior where Built = job exists (running or finished)
+    isPRBuilt (PRJobActivity _ unapproved) = null unapproved
+    isPRBuilt (BranchActivity _) = False
 
 heroWelcome :: (Monad m) => Text -> Text -> Text -> Text -> HtmlT m ()
 heroWelcome logoUrl reposLink envLink cacheLink = do
