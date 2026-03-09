@@ -111,7 +111,7 @@ runVira = do
               -- Disable refresh daemon temporarily to avoid confusing its effect with that of GitHub integration
               -- Daemon.startRefreshDaemon
               Worker.startJobWorkerDaemon
-              AutoBuild.startAutoBuildDaemon autoBuildSettings
+              -- AutoBuild.startAutoBuildDaemon autoBuildSettings
               CleanupDaemon.startCleanupDaemon webSettings.ciSettings.jobRetentionDays
               cacheApp <- liftIO $ Cache.makeCacheServer cacheKeys.secretKey
               Server.runServer globalSettings webSettings cacheApp
