@@ -26,7 +26,7 @@ import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.GitHub.CheckRun qualified as CheckRun
 import Vira.State.Acid qualified as St
-import Vira.State.Type (PRCommit (..), PRState (..), PullRequest (..))
+import Vira.State.Type (OwnerName (..), PRCommit (..), PRState (..), PullRequest (..))
 import Vira.State.Type qualified as St
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, runAppHtml)
@@ -65,7 +65,7 @@ detailHandler repoName prNum = do
 
 viewPRDetail :: PullRequest -> [PRCommit] -> [St.Job] -> AppHtml ()
 viewPRDetail pr commits jobs = do
-  let ghPrUrl = "https://github.com/" <> unRepoName pr.repoName <> "/pull/" <> show pr.prNumber
+  let ghPrUrl = "https://github.com/" <> unOwnerName pr.ownerName <> "/" <> unRepoName pr.repoName <> "/pull/" <> show pr.prNumber
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.git_pull_request)
     (pr.title <> " #" <> show pr.prNumber)
@@ -101,7 +101,7 @@ viewUnapprovedCommitRow pr pc =
         div_ [class_ "w-5 h-5 flex items-center justify-center shrink-0 text-yellow-500 dark:text-yellow-400"] $
           toHtmlRaw Icon.shield_check
         W.viraCommitInfo_ pc.sha
-      approveButton_ pr.repoName pr.prNumber pc.sha
+      approveButton_ pr.ownerName pr.repoName pr.prNumber pc.sha
 
 -- * UI Helpers
 
@@ -117,9 +117,9 @@ forkBadge_ (Just repo) =
 
 Posts to GitHub approval route at @/github/r/:owner/:repo/pull/:num/approve/:sha@
 -}
-approveButton_ :: RepoName -> Int -> CommitID -> AppHtml ()
-approveButton_ repoName prNum sha = do
-  let approveLink = CheckRun.approvalUrl repoName prNum sha
+approveButton_ :: OwnerName -> RepoName -> Int -> CommitID -> AppHtml ()
+approveButton_ ownerName repoName prNum sha = do
+  let approveLink = CheckRun.approvalUrl ownerName repoName prNum sha
   W.viraButton_
     W.ButtonSuccess
     [hxPost_ approveLink, class_ "text-xs px-3 py-1"]

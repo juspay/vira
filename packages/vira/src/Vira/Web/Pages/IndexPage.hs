@@ -18,7 +18,7 @@ import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.GitHub.CheckRun qualified as CheckRun
 import Vira.State.Acid qualified as St
-import Vira.State.Type (BranchDetails, BranchQuery (..), Job (..), PRCommit (..), branchActivityTime, jobEndTime)
+import Vira.State.Type (BranchDetails, BranchQuery (..), Job (..), PRCommit (..), PullRequest (..), branchActivityTime, jobEndTime)
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl, runAppHtml)
 import Vira.Web.Pages.CachePage qualified as CachePage
@@ -136,17 +136,19 @@ viraPRJobRow_ job unapproved = do
                       ]
                       $ toHtml commit.message
               div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
-                let approveLink = CheckRun.approvalUrl job.repo prNum pc.sha
-                W.viraButton_
-                  W.ButtonSuccess
-                  [ hxPost_ approveLink
-                  , hxSwapS_ AfterEnd
-                  , onclick_ "event.preventDefault(); event.stopPropagation();"
-                  , class_ "!px-3 !py-1.5 !text-xs"
-                  ]
-                  $ do
-                    W.viraButtonIcon_ $ toHtmlRaw Icon.shield_check
-                    "Approve"
+                mPR <- lift $ App.query (St.GetPullRequestA job.repo prNum)
+                whenJust mPR $ \pr -> do
+                  let approveLink = CheckRun.approvalUrl pr.ownerName job.repo prNum pc.sha
+                  W.viraButton_
+                    W.ButtonSuccess
+                    [ hxPost_ approveLink
+                    , hxSwapS_ AfterEnd
+                    , onclick_ "event.preventDefault(); event.stopPropagation();"
+                    , class_ "!px-3 !py-1.5 !text-xs"
+                    ]
+                    $ do
+                      W.viraButtonIcon_ $ toHtmlRaw Icon.shield_check
+                      "Approve"
             [] -> do
               -- All approved: show job info + status
               maybeCommit <- lift $ App.query $ St.GetCommitByIdA job.commit

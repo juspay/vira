@@ -315,7 +315,7 @@ viewPRRow pr unapproved mJob = do
                       ]
                       $ toHtml commit.message
               div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
-                let approveLink = CheckRun.approvalUrl pr.repoName pr.prNumber pc.sha
+                let approveLink = CheckRun.approvalUrl pr.ownerName pr.repoName pr.prNumber pc.sha
                 W.viraButton_
                   W.ButtonSuccess
                   [ hxPost_ approveLink

@@ -26,6 +26,8 @@ data PRState = PROpen | PRClosed | PRMerged
 data PullRequest = PullRequest
   { repoName :: RepoName
   -- ^ Repository this PR targets
+  , ownerName :: OwnerName
+  -- ^ Owner (user or org) of the repository
   , prNumber :: Int
   -- ^ PR number (unique per repo)
   , title :: Text
@@ -178,6 +180,10 @@ branchActivityTime details = case details.buildState of
 instance Ord BranchDetails where
   compare a b = compare (Down $ branchActivityTime a) (Down $ branchActivityTime b)
 
+newtype OwnerName = OwnerName {unOwnerName :: Text}
+  deriving stock (Generic, Data)
+  deriving newtype (Show, Eq, Ord, IsString, ToHttpApiData, FromHttpApiData, ToJSON, FromJSON)
+
 newtype JobId = JobId {unJobId :: Natural}
   deriving stock (Generic, Data)
   deriving newtype
@@ -268,6 +274,7 @@ data ViraState = ViraState
   }
   deriving stock (Generic, Typeable)
 
+$(deriveSafeCopy 0 'base ''OwnerName)
 $(deriveSafeCopy 0 'base ''PRState)
 $(deriveSafeCopy 0 'base ''PullRequest)
 $(deriveSafeCopy 0 'base ''PRCommit)

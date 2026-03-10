@@ -50,7 +50,7 @@ import Vira.Lib.GitHub
 import Vira.Refresh qualified as Refresh
 import Vira.Refresh.Type (RefreshPriority (..))
 import Vira.State.Acid qualified as St
-import Vira.State.Type (PRCommit (..), PRState (..), PullRequest (..))
+import Vira.State.Type (OwnerName (..), PRCommit (..), PRState (..), PullRequest (..))
 import Vira.State.Type qualified as St
 
 -- | API type for GitHub webhook events
@@ -120,7 +120,8 @@ prHandler event = do
       -- Create/update PullRequest record
       let pr =
             PullRequest
-              { repoName = RepoName $ owner <> "/" <> repo
+              { repoName = RepoName repo
+              , ownerName = OwnerName owner
               , prNumber = whPullReqNumber prPayload
               , title = whPullReqTitle prPayload
               , headBranch = BranchName $ whPullReqTargetRef prHead
@@ -161,9 +162,8 @@ prHandler event = do
     handlePRClosed :: Eff (GitHub : Error GitHubError : AppStack) ()
     handlePRClosed = do
       let prRepo = evPullReqRepo event
-          owner = hookUserLoginAny (whRepoOwner prRepo)
           repo = whRepoName prRepo
-          repoName = RepoName $ owner <> "/" <> repo
+          repoName = RepoName repo
           prPayload = evPullReqPayload event
           prNum = whPullReqNumber prPayload
           newState = if isJust (whPullReqMergedAt prPayload) then PRMerged else PRClosed
@@ -220,7 +220,7 @@ installationHandler event = do
       let repos = toList $ evInstallationRepos event
       addRepositories repos
     InstallationDeletedAction -> do
-      let repoNames = toList $ fmap (RepoName . whSimplRepoFullName) (evInstallationRepos event)
+      let repoNames = toList $ fmap (RepoName . whSimplRepoName) (evInstallationRepos event)
       log Warning "Installation deleted, removing repositories from Vira"
       deleteRepositories repoNames
     _ -> log Debug "Ignoring non-create/delete installation action"
@@ -239,7 +239,7 @@ installationReposHandler event = do
       let repos = toList $ evInstallationReposAdd event
       addRepositories repos
     InstallationRepoRemovedAction -> do
-      let repoNames = toList $ fmap (RepoName . whSimplRepoFullName) (evInstallationReposRemove event)
+      let repoNames = toList $ fmap (RepoName . whSimplRepoName) (evInstallationReposRemove event)
       log Warning "Repositories removed from installation, deleting from Vira"
       deleteRepositories repoNames
     _ -> log Debug "Ignoring unknown installation_repositories action"
@@ -256,7 +256,7 @@ addRepositories :: [HookRepositorySimple] -> Eff AppStack ()
 addRepositories repos = do
   forM_ repos $ \repoSimple -> do
     let fullName = whSimplRepoFullName repoSimple
-        repoName = RepoName fullName
+        repoName = RepoName $ whSimplRepoName repoSimple
         cloneUrl = "https://github.com/" <> fullName <> ".git"
 
     log Info $ "Processing repository: " <> fullName

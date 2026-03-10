@@ -22,8 +22,8 @@ import Vira.Effect.GitHub (AppAuth)
 import Vira.GitHub.CheckRun (ApprovalError (..))
 import Vira.GitHub.CheckRun qualified as CheckRun
 import Vira.GitHub.Webhook qualified as Webhook
-import Vira.Lib.GitHub (InstallationId (..))
-import Vira.State.Type (PullRequest (..))
+import Vira.Lib.GitHub (InstallationId (..), Owner (..), Repo (..))
+import Vira.State.Type (OwnerName (..), PullRequest (..))
 
 -- | WAI middleware that mounts GitHub routes under @/github@
 githubMiddleware ::
@@ -38,7 +38,7 @@ githubMiddleware globalSettings viraRuntimeState appAuth webhookSecret app req s
       let req' = req {pathInfo = rest}
       webhookApp req' sendResponse
     ["github", "r", owner, repo, "pull", prNumStr, "approve", shaStr] -> do
-      handleApproval (owner <> "/" <> repo) prNumStr shaStr
+      handleApproval owner repo prNumStr shaStr
     _ -> app req sendResponse
   where
     -- Webhook sub-app
@@ -51,30 +51,31 @@ githubMiddleware globalSettings viraRuntimeState appAuth webhookSecret app req s
         (githubKey :. EmptyContext)
 
     -- Approval handler
-    handleApproval repoParts prNumStr shaStr =
-      case parseApprovalParams repoParts prNumStr shaStr of
+    handleApproval ownerText repoText prNumStr shaStr =
+      case parseApprovalParams repoText prNumStr shaStr of
         Nothing ->
           sendResponse $ responseLBS status400 [("Content-Type", "text/plain")] "Invalid approval URL"
         Just (repoName, prNum, sha) -> do
-          result <- runApprovalHandler repoName prNum sha
+          result <- runApprovalHandler ownerText repoName prNum sha
           case result of
             Left err -> sendResponse $ approvalErrorResponse err
             Right () -> sendResponse approvalSuccessResponse
 
-    runApprovalHandler :: RepoName -> Int -> CommitID -> IO (Either ApprovalError ())
-    runApprovalHandler repoName prNum sha =
+    runApprovalHandler :: Text -> RepoName -> Int -> CommitID -> IO (Either ApprovalError ())
+    runApprovalHandler _ownerText repoName prNum sha =
       runApp globalSettings viraRuntimeState $ do
         CheckRun.approvalHandler repoName prNum sha >>= \case
           Left err -> pure $ Left err
           Right (pr, jobId) -> do
             let instId = InstallationId pr.installationId
-                (owner, repo) = CheckRun.splitRepoName pr.repoName
+                owner = Owner (unOwnerName pr.ownerName)
+                repo = Repo (unRepoName pr.repoName)
             void $ async $ CheckRun.createCheckRunAndWatch appAuth instId owner repo sha jobId
             pure $ Right ()
 
     parseApprovalParams :: Text -> Text -> Text -> Maybe (RepoName, Int, CommitID)
-    parseApprovalParams repoParts prNumStr shaStr = do
-      repoName <- Just $ RepoName repoParts
+    parseApprovalParams repoText prNumStr shaStr = do
+      repoName <- Just $ RepoName repoText
       prNum <- readMaybe (toString prNumStr)
       let sha = CommitID shaStr
       Just (repoName, prNum, sha)

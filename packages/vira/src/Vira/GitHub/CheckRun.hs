@@ -15,16 +15,12 @@ module Vira.GitHub.CheckRun (
   ApprovalError (..),
   approvalHandler,
   approvalUrl,
-
-  -- * Utilities
-  splitRepoName,
 ) where
 
 import Colog.Message (RichMessage)
 import Control.Concurrent.STM (TChan)
 import Data.Acid.Events (SomeUpdate)
 import Data.Acid.Events qualified as Events
-import Data.Text qualified as T
 import Effectful (Eff, IOE, type (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..), Severity (..), log)
@@ -42,7 +38,7 @@ import Vira.Lib.GitHub
 import Vira.State.Acid (JobUpdateStatusA (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Core (ViraState)
-import Vira.State.Type (Job (..), JobId, JobResult (..), JobStatus (..), PRCommit (..), PullRequest (..))
+import Vira.State.Type (Job (..), JobId, JobResult (..), JobStatus (..), OwnerName (..), PRCommit (..), PullRequest (..))
 import Prelude hiding (Reader)
 
 {- | Create a GitHub check run for a PR job and watch for status updates
@@ -140,12 +136,6 @@ fromJobStatus = \case
     UpdateCheckRun {status = Completed, conclusion = Just Cancelled}
   JobPending -> UpdateCheckRun {status = Queued, conclusion = Nothing}
 
--- | Split a 'RepoName' like @\"owner\/repo\"@ into 'Owner' and 'Repo'
-splitRepoName :: RepoName -> (Owner, Repo)
-splitRepoName (RepoName name) =
-  case T.breakOn "/" name of
-    (owner, rest) -> (Owner owner, Repo $ T.drop 1 rest)
-
 -- * Approval
 
 -- | Errors that can occur during approval
@@ -178,6 +168,6 @@ approvalHandler repoName prNum sha = do
           pure $ Right (pr, job.jobId)
 
 -- | Build the approval URL for the GitHub middleware route
-approvalUrl :: RepoName -> Int -> CommitID -> Text
-approvalUrl (RepoName repo) prNum (CommitID sha) =
-  "/github/r/" <> repo <> "/pull/" <> show prNum <> "/approve/" <> sha
+approvalUrl :: OwnerName -> RepoName -> Int -> CommitID -> Text
+approvalUrl (OwnerName owner) (RepoName repo) prNum (CommitID sha) =
+  "/github/r/" <> owner <> "/" <> repo <> "/pull/" <> show prNum <> "/approve/" <> sha
