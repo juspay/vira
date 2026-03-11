@@ -71,7 +71,7 @@ activityLimit :: Natural
 activityLimit = 15
 
 indexView :: Maybe Bool -> AppHtml ()
-indexView mNeverBuilt = do
+indexView mUnbuilt = do
   logoUrl <- W.appLogoUrl
   let linkText = show . linkURI
       reposLink = linkText $ fieldLink _repos // RegistryPage._listing
@@ -79,7 +79,7 @@ indexView mNeverBuilt = do
       cacheLink = linkText $ fieldLink _cache // CachePage._view
   W.layout mempty $ do
     heroWelcome logoUrl reposLink envLink cacheLink
-    viewRecentActivity mNeverBuilt
+    viewRecentActivity mUnbuilt
 
 -- | A unified activity item for interleaving branch and PR activity
 data ActivityItem
