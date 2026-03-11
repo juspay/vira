@@ -40,7 +40,7 @@ import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (Reader, ask, runReader)
 
 data Routes mode = Routes
-  { _home :: mode :- QueryParam "tab" Text :> Get '[HTML] (Html ())
+  { _home :: mode :- QueryParam "neverBuilt" Bool :> Get '[HTML] (Html ())
   , _repos :: mode :- "r" Servant.API.:> NamedRoutes RegistryPage.Routes
   , _jobs :: mode :- "j" Servant.API.:> NamedRoutes JobPage.Routes
   , _environment :: mode :- "env" Servant.API.:> NamedRoutes EnvironmentPage.Routes
@@ -70,8 +70,8 @@ handlers globalSettings viraRuntimeState webSettings =
 activityLimit :: Natural
 activityLimit = 15
 
-indexView :: Maybe Text -> AppHtml ()
-indexView mTab = do
+indexView :: Maybe Bool -> AppHtml ()
+indexView mNeverBuilt = do
   logoUrl <- W.appLogoUrl
   let linkText = show . linkURI
       reposLink = linkText $ fieldLink _repos // RegistryPage._listing
@@ -79,7 +79,7 @@ indexView mTab = do
       cacheLink = linkText $ fieldLink _cache // CachePage._view
   W.layout mempty $ do
     heroWelcome logoUrl reposLink envLink cacheLink
-    viewRecentActivity mTab
+    viewRecentActivity mNeverBuilt
 
 -- | A unified activity item for interleaving branch and PR activity
 data ActivityItem
@@ -173,8 +173,8 @@ viraPRJobRow_ job unapproved = do
                   Nothing -> mempty
                 Status.viraStatusBadge_ job.jobStatus
 
-viewRecentActivity :: Maybe Text -> AppHtml ()
-viewRecentActivity mTab = do
+viewRecentActivity :: Maybe Bool -> AppHtml ()
+viewRecentActivity mNeverBuilt = do
   -- Fetch PR activities
   let fetchPRActivities = do
         recentJobs <- lift $ App.query (St.GetRecentJobsA activityLimit)
@@ -185,8 +185,8 @@ viewRecentActivity mTab = do
           pure $ PRJobActivity job unapproved
 
   -- Build activity list based on selected tab
-  limited <- case mTab of
-    Just "unbuilt" -> do
+  limited <- case mNeverBuilt of
+    Just True -> do
       let query = def {neverBuilt = Just True}
       branchActivities <- lift $ App.query (St.QueryBranchDetailsA query activityLimit)
       -- PRs that are unbuilt (unapproved commits OR job still active)
@@ -196,7 +196,7 @@ viewRecentActivity mTab = do
         take (fromIntegral activityLimit) $
           sortWith (Down . activityTime) $
             map BranchActivity branchActivities <> prsUnbuilt
-    Just "builds" -> do
+    Just False -> do
       let query = def {neverBuilt = Just False}
       branchActivities <- lift $ App.query (St.QueryBranchDetailsA query activityLimit)
       -- PRs that are built (finished job with all commits approved)
@@ -206,7 +206,7 @@ viewRecentActivity mTab = do
         take (fromIntegral activityLimit) $
           sortWith (Down . activityTime) $
             map BranchActivity branchActivities <> prsBuilt
-    _ -> do
+    Nothing -> do
       -- "All" tab: merge branches + PR jobs
       branchActivities <- lift $ App.query (St.QueryBranchDetailsA def activityLimit)
       prActivities <- fetchPRActivities
@@ -227,13 +227,13 @@ viewRecentActivity mTab = do
 
     -- Tab bar
     allUrl <- lift $ getLinkUrl (LinkTo.Home Nothing)
-    buildsUrl <- lift $ getLinkUrl (LinkTo.Home (Just "builds"))
-    unbuiltUrl <- lift $ getLinkUrl (LinkTo.Home (Just "unbuilt"))
+    buildsUrl <- lift $ getLinkUrl (LinkTo.Home (Just False))
+    unbuiltUrl <- lift $ getLinkUrl (LinkTo.Home (Just True))
     viraTabs_
       []
-      [ TabItem "All" allUrl (isNothing mTab) Nothing
-      , TabItem "Builds" buildsUrl (mTab == Just "builds") Nothing
-      , TabItem "Unbuilt" unbuiltUrl (mTab == Just "unbuilt") (Just unbuiltCount)
+      [ TabItem "All" allUrl (isNothing mNeverBuilt) Nothing
+      , TabItem "Builds" buildsUrl (mNeverBuilt == Just False) Nothing
+      , TabItem "Unbuilt" unbuiltUrl (mNeverBuilt == Just True) (Just unbuiltCount)
       ]
 
     -- Activity list
