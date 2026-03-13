@@ -16,7 +16,7 @@ module Vira.Web.Pages.PullPage (
 ) where
 
 import Effectful.Error.Static (throwError)
-import Effectful.Git (BranchName (..), CommitID, RepoName (..))
+import Effectful.Git (BranchName (..), Commit (..), CommitID, RepoName (..))
 import Htmx.Lucid.Core (hxPost_)
 import Lucid
 import Servant hiding (throwError)
@@ -54,7 +54,7 @@ detailHandler :: RepoName -> Int -> AppHtml ()
 detailHandler repoName prNum = do
   pr <- lift $ App.query (St.GetPullRequestA repoName prNum) >>= maybe (throwError err404) pure
   commits <- lift $ App.query $ St.GetPRCommitsByPRA repoName prNum
-  let branchRef = BranchName $ "refs/pull/" <> show prNum <> "/head"
+  let branchRef = St.prBranchRef prNum
   jobs <- lift $ App.query $ St.GetJobsByBranchA repoName branchRef
   let crumbs =
         [ LinkTo.RepoListing
@@ -65,14 +65,14 @@ detailHandler repoName prNum = do
 
 viewPRDetail :: PullRequest -> [PRCommit] -> [St.Job] -> AppHtml ()
 viewPRDetail pr commits jobs = do
-  let ghPrUrl = "https://github.com/" <> unOwnerName pr.ownerName <> "/" <> unRepoName pr.repoName <> "/pull/" <> show pr.prNumber
+  let ghPrUrl = "https://github.com/" <> unOwnerName pr.baseOwner <> "/" <> unRepoName pr.repo <> "/pull/" <> show pr.prNumber
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.git_pull_request)
     (pr.title <> " #" <> show pr.prNumber)
     ( div_ [class_ "flex items-center space-x-3"] $ do
         div_ [class_ "flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300"] $ do
           span_ $ toHtml (unBranchName pr.headBranch) <> " → " <> toHtml (unBranchName pr.baseBranch)
-        forkBadge_ pr.forkRepo
+        forkBadge_ pr
         prStateBadge_ pr.prState
         a_ [href_ ghPrUrl, target_ "blank", class_ "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"] $
           div_ [class_ "w-5 h-5 flex items-center justify-center"] $
@@ -100,18 +100,19 @@ viewUnapprovedCommitRow pr pc =
       div_ [class_ "flex items-center space-x-3 min-w-0"] $ do
         div_ [class_ "w-5 h-5 flex items-center justify-center shrink-0 text-yellow-500 dark:text-yellow-400"] $
           toHtmlRaw Icon.shield_check
-        W.viraCommitInfo_ pc.sha
-      approveButton_ pr.ownerName pr.repoName pr.prNumber pc.sha
+        W.viraCommitInfo_ pc.commit.id
+      approveButton_ pr.baseOwner pr.repo pr.prNumber pc.commit.id
 
 -- * UI Helpers
 
--- | Fork indicator badge
-forkBadge_ :: (Monad m) => Maybe Text -> HtmlT m ()
-forkBadge_ Nothing = mempty
-forkBadge_ (Just repo) =
-  span_ [class_ "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"] $ do
-    div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.git_fork
-    toHtml $ "fork: " <> repo
+-- | Fork indicator badge (shows head owner when PR is from a fork)
+forkBadge_ :: (Monad m) => PullRequest -> HtmlT m ()
+forkBadge_ pr
+  | St.prIsFork pr =
+      span_ [class_ "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"] $ do
+        div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.git_fork
+        toHtml $ "fork: " <> unOwnerName pr.headOwner
+  | otherwise = mempty
 
 {- | Approve button for unapproved fork commits
 

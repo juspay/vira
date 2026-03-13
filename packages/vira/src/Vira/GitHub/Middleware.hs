@@ -68,8 +68,8 @@ githubMiddleware globalSettings viraRuntimeState appAuth webhookSecret app req s
           Left err -> pure $ Left err
           Right (pr, jobId) -> do
             let instId = InstallationId pr.installationId
-                owner = Owner (unOwnerName pr.ownerName)
-                repo = Repo (unRepoName pr.repoName)
+                owner = Owner (unOwnerName pr.baseOwner)
+                repo = Repo (unRepoName pr.repo)
             void $ async $ CheckRun.createCheckRunAndWatch appAuth instId owner repo sha jobId
             pure $ Right ()
 

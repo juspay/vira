@@ -1,5 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RecordWildCards #-}
 
 {- | GitHub App webhook event handlers
 
@@ -37,7 +38,7 @@ import GitHub.Data.Webhooks.Events (
   PullRequestEventAction (..),
   PushEvent,
  )
-import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookRepositorySimple (..), PullRequestTarget (..))
+import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookRepositorySimple (..), HookUser (..), PullRequestTarget (..))
 import Servant
 import Servant.GitHub.Webhook (GitHubEvent)
 import Servant.Server.Generic (AsServer)
@@ -50,7 +51,7 @@ import Vira.Lib.GitHub
 import Vira.Refresh qualified as Refresh
 import Vira.Refresh.Type (RefreshPriority (..))
 import Vira.State.Acid qualified as St
-import Vira.State.Type (OwnerName (..), PRCommit (..), PRState (..), PullRequest (..))
+import Vira.State.Type (OwnerName (..), PRCommit (..), PRState (..), PullRequest (..), prBranchRef)
 import Vira.State.Type qualified as St
 
 -- | API type for GitHub webhook events
@@ -102,73 +103,62 @@ prHandler event = do
           prPayload = evPullReqPayload event
           prHead = whPullReqHead prPayload
           prBase = whPullReqBase prPayload
-          owner = hookUserLoginAny (whRepoOwner prRepo)
-          repo = whRepoName prRepo
+          repo = RepoName $ whRepoName prRepo
+          headOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prHead
+          baseOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prBase
+          isFork = headOwner /= baseOwner
 
-      instId <- case evPullReqInstallationId event of
+      installationId <- case evPullReqInstallationId event of
         Just i -> pure i
         Nothing -> do
-          log Error $ "PR event for " <> owner <> "/" <> repo <> " missing installation ID"
+          log Error "PR event missing installation ID"
           Error.throwError $ TokenFetchFailed "Missing installation ID in PR event"
 
-      -- Detect fork: head repo differs from base repo
-      let headRepoFullName = whRepoFullName <$> whPullReqTargetRepo prHead
-          baseRepoFullName = whRepoFullName <$> whPullReqTargetRepo prBase
-          isFork = headRepoFullName /= baseRepoFullName
-          forkRepo = if isFork then headRepoFullName else Nothing
-
-      -- Create/update PullRequest record
       let pr =
             PullRequest
-              { repoName = RepoName repo
-              , ownerName = OwnerName owner
-              , prNumber = whPullReqNumber prPayload
+              { prNumber = whPullReqNumber prPayload
               , title = whPullReqTitle prPayload
               , headBranch = BranchName $ whPullReqTargetRef prHead
               , baseBranch = BranchName $ whPullReqTargetRef prBase
-              , forkRepo = forkRepo
               , prState = PROpen
-              , installationId = instId
+              , ..
               }
       App.update $ St.UpsertPullRequestA pr
 
-      -- Create PRCommit
       now <- liftIO getCurrentTime
-      let prCommit =
+      let commit =
+            Commit
+              { id = CommitID $ whPullReqTargetSha prHead
+              , message = whPullReqTitle prPayload
+              , -- Cannot be fetched from a prPayload
+                date = now
+              , author = ""
+              , authorEmail = ""
+              }
+          prCommit =
             PRCommit
-              { repoName = pr.repoName
+              { repo = pr.repo
               , prNumber = pr.prNumber
-              , sha = CommitID $ whPullReqTargetSha prHead
               , approved = not isFork
-              , receivedAt = now
+              , ..
               }
       App.update $ St.AddPRCommitA prCommit
 
-      -- Store commit so job rows can display at least the SHA
-      App.update $
-        St.StoreCommitA $
-          Commit
-            { id = prCommit.sha
-            , message = whPullReqTitle prPayload
-            , date = now
-            , author = ""
-            , authorEmail = ""
-            }
+      -- Store commit in the global index so job rows can display it
+      App.update $ St.StoreCommitA commit
 
-      -- Auto-build if approved (same-repo PRs)
       unless isFork $
-        enqueuePRJob (InstallationId instId) (Owner owner) (Repo repo) pr prCommit
+        enqueuePRJob (InstallationId installationId) (Owner $ unOwnerName baseOwner) (Repo $ unRepoName repo) pr prCommit
 
     handlePRClosed :: Eff (GitHub : Error GitHubError : AppStack) ()
     handlePRClosed = do
       let prRepo = evPullReqRepo event
-          repo = whRepoName prRepo
-          repoName = RepoName repo
+          repo = RepoName $ whRepoName prRepo
           prPayload = evPullReqPayload event
           prNum = whPullReqNumber prPayload
           newState = if isJust (whPullReqMergedAt prPayload) then PRMerged else PRClosed
-      App.update $ St.UpdatePullRequestStateA repoName prNum newState
-      log Info $ "PR #" <> show prNum <> " " <> show newState
+      App.update $ St.UpdatePullRequestStateA repo prNum newState
+      log Info $ "PR " <> show prNum <> " " <> show newState
 
 -- | Enqueue a job for a PR commit, creating a GitHub check run
 enqueuePRJob ::
@@ -178,9 +168,9 @@ enqueuePRJob ::
   PullRequest ->
   PRCommit ->
   Eff (GitHub : Error GitHubError : AppStack) ()
-enqueuePRJob instId owner repo pr commit = do
-  -- For PRs, GitHub provides refs/pull/:number/head in the origin repo
-  let branchRef = BranchName $ "refs/pull/" <> show pr.prNumber <> "/head"
+enqueuePRJob instId owner repo pr prCommit = do
+  let branchRef = prBranchRef pr.prNumber
+      commitId = prCommit.commit.id
 
   -- Subscribe to event bus BEFORE enqueueing to avoid missing events
   chan <- App.subscribe
@@ -191,13 +181,13 @@ enqueuePRJob instId owner repo pr commit = do
       createCheckRunE owner repo $
         NewCheckRun
           { name = "Vira CI"
-          , headSha = unCommitID commit.sha
+          , headSha = unCommitID commitId
           , status = Just Queued
           }
-  log Info $ "Created check run for PR #" <> show pr.prNumber <> " commit " <> show commit.sha
+  log Info $ "Created check run for PR #" <> show pr.prNumber <> " commit " <> show commitId
 
   -- Enqueue the job
-  job <- Client.enqueueJob pr.repoName branchRef commit.sha (Just pr.prNumber)
+  job <- Client.enqueueJob pr.repo branchRef commitId (Just pr.prNumber)
 
   -- Spawn async watcher to notify GitHub of the status as job progresses
   void $ async $ CheckRun.jobStatusLoop chan instId owner repo checkRun.checkRunId job.jobId

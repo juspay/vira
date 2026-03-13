@@ -7,12 +7,11 @@ module Vira.Web.Pages.RepoPage (
 ) where
 
 import Data.Text qualified as T
-import Data.Time (diffUTCTime)
 import Effectful (Eff)
 import Effectful.Colog.Simple (withLogContext)
 import Effectful.Error.Static (throwError)
-import Effectful.Git (BranchName (..), Commit (..), RepoName (..))
-import Htmx.Lucid.Core (hxGet_, hxPost_, hxSwapS_, hxTarget_, hxTrigger_)
+import Effectful.Git (RepoName (..))
+import Htmx.Lucid.Core (hxGet_, hxSwapS_, hxTarget_, hxTrigger_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (..))
 import Lucid
@@ -22,24 +21,20 @@ import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
-import Vira.GitHub.CheckRun qualified as CheckRun
 import Vira.Refresh qualified as Refresh
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (Now), RefreshResult (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type (BranchDetails (..), BranchQuery (..), PRCommit (..), PullRequest (..), jobEndTime)
+import Vira.State.Type (BranchDetails (..), BranchQuery (..), PRDetails (..), PullRequest (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
-import Vira.Web.Pages.PullPage qualified as PullPage
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Widgets.Alert qualified as W
 import Vira.Web.Widgets.Button qualified as W
-import Vira.Web.Widgets.Commit qualified as W
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
 import Vira.Web.Widgets.Modal (ErrorModal (..))
 import Vira.Web.Widgets.Status qualified as Status
-import Vira.Web.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
 
 data Routes mode = Routes
@@ -90,16 +85,11 @@ filterBranchesHandler name mQuery = do
 filterPRsHandler :: RepoName -> Maybe Text -> AppHtml ()
 filterPRsHandler name mQuery = do
   _ <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  prs <- lift $ App.query (St.GetPullRequestsByRepoA name)
+  prDetails <- lift $ App.query (St.QueryPRDetailsA (Just name) (fromIntegral maxDisplayed))
   let filtered = case mQuery of
-        Nothing -> prs
-        Just q -> filter (\pr -> T.isInfixOf (T.toLower q) (T.toLower pr.title)) prs
-  prData <- forM filtered $ \pr -> do
-    unapproved <- lift $ App.query (St.GetUnapprovedPRCommitsA name pr.prNumber)
-    let branchRef = BranchName $ "refs/pull/" <> show pr.prNumber <> "/head"
-    jobs <- lift $ App.query (St.GetJobsByBranchA name branchRef)
-    pure (pr, unapproved, viaNonEmpty head jobs)
-  viewPRListing prData
+        Nothing -> prDetails
+        Just q -> filter (\d -> T.isInfixOf (T.toLower q) (T.toLower d.pullRequest.title)) prDetails
+  viewPRListing filtered
 
 updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
@@ -148,13 +138,8 @@ viewRepo repo branchDetails isPruned = do
   W.viraSection_ [] $ do
     -- Pull Requests section
     do
-      prs <- lift $ App.query (St.GetPullRequestsByRepoA repo.name)
-      prData <- forM prs $ \pr -> do
-        unapproved <- lift $ App.query (St.GetUnapprovedPRCommitsA repo.name pr.prNumber)
-        let branchRef = BranchName $ "refs/pull/" <> show pr.prNumber <> "/head"
-        jobs <- lift $ App.query (St.GetJobsByBranchA repo.name branchRef)
-        pure (pr, unapproved, viaNonEmpty head jobs)
-      viewPullRequestsSection repo.name prData
+      prDetails <- lift $ App.query (St.QueryPRDetailsA (Just repo.name) (fromIntegral maxDisplayed))
+      viewPullRequestsSection repo.name prDetails
 
     -- Branch listing
     div_ [class_ "bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 lg:p-8"] $ do
@@ -232,8 +217,8 @@ viewBranchListing branchDetails isPruned = do
         W.viraBranchDetailsRow_ False details
 
 -- | Pull requests section with filter input
-viewPullRequestsSection :: RepoName -> [(PullRequest, [PRCommit], Maybe St.Job)] -> AppHtml ()
-viewPullRequestsSection repoName prData =
+viewPullRequestsSection :: RepoName -> [PRDetails] -> AppHtml ()
+viewPullRequestsSection repoName prDetails =
   div_ [class_ "bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 lg:p-8"] $ do
     -- Header
     div_ [class_ "mb-8"] $ do
@@ -242,7 +227,7 @@ viewPullRequestsSection repoName prData =
         h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100"] "Pull Requests"
         div_ [class_ "ml-auto text-sm text-gray-500 dark:text-gray-400"] $
           toHtml $
-            show @Text (length prData) <> " pull requests"
+            show @Text (length prDetails) <> " pull requests"
       div_ [class_ "h-px bg-gray-200 dark:bg-gray-700"] mempty
 
     -- PR filter input
@@ -263,97 +248,16 @@ viewPullRequestsSection repoName prData =
 
     -- PR listing
     div_ [id_ "pr-listing"] $
-      viewPRListing prData
+      viewPRListing prDetails
 
 -- | PR listing fragment (used by both full page and HTMX filter)
-viewPRListing :: [(PullRequest, [PRCommit], Maybe St.Job)] -> AppHtml ()
-viewPRListing prData =
-  if null prData
+viewPRListing :: [PRDetails] -> AppHtml ()
+viewPRListing prDetails =
+  if null prDetails
     then div_ [class_ "text-center py-12"] $ do
       div_ [class_ "text-gray-500 dark:text-gray-400 mb-4"] "No pull requests found"
       div_ [class_ "text-sm text-gray-500 dark:text-gray-400"] "Pull requests will appear here when opened via GitHub webhooks"
-    else div_ [class_ "mt-4"] $
-      forM_ prData $ \(pr, unapproved, mJob) ->
-        viewPRRow pr unapproved mJob
-
-{- | A single PR row — same card format as 'W.viraBranchDetailsRow_'.
-
-If unapproved commits exist, shows the latest one with an Approve button
-(like the Build button for NeverBuilt branches). Otherwise shows the
-latest job with status badge.
--}
-viewPRRow :: PullRequest -> [PRCommit] -> Maybe St.Job -> AppHtml ()
-viewPRRow pr unapproved mJob = do
-  prDetailUrl <- lift $ getLinkUrl $ LinkTo.RepoPull pr.repoName pr.prNumber
-
-  div_ [class_ "relative mb-6"] $ do
-    -- PR tag
-    div_ [class_ "absolute -top-3 left-3 flex items-center z-10"] $
-      a_ [href_ prDetailUrl, class_ "flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700 rounded-full shadow-sm hover:opacity-70 transition-opacity"] $ do
-        div_ [class_ "w-4 h-4 flex items-center justify-center text-blue-700 dark:text-blue-200 shrink-0"] $ toHtmlRaw Icon.git_pull_request
-        span_ [class_ "text-sm font-semibold text-blue-900 dark:text-blue-100"] $ toHtml $ "PR " <> show @Text pr.prNumber
-
-    -- Card
-    a_
-      [ href_ prDetailUrl
-      , class_ "block pt-6 pb-4 px-4 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-2 border-gray-200 dark:border-gray-700 transition-all cursor-pointer"
-      ]
-      $ do
-        div_ [class_ "grid grid-cols-1 lg:grid-cols-12 gap-3 items-center"] $ do
-          case unapproved of
-            (pc : _) -> do
-              -- Unapproved commit: show commit info + Approve button
-              maybeCommit <- lift $ App.query $ St.GetCommitByIdA pc.sha
-              div_ [class_ "lg:col-span-8 flex items-center gap-2 flex-wrap text-sm"] $ do
-                W.viraCommitHash_ pc.sha
-                whenJust maybeCommit $ \commit ->
-                  unless (T.null commit.message) $ do
-                    span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
-                    span_
-                      [ class_ "text-gray-700 dark:text-gray-300 truncate max-w-md"
-                      , title_ commit.message
-                      ]
-                      $ toHtml commit.message
-              div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
-                let approveLink = CheckRun.approvalUrl pr.ownerName pr.repoName pr.prNumber pc.sha
-                W.viraButton_
-                  W.ButtonSuccess
-                  [ hxPost_ approveLink
-                  , hxSwapS_ AfterEnd
-                  , onclick_ "event.preventDefault(); event.stopPropagation();"
-                  , class_ "!px-3 !py-1.5 !text-xs"
-                  ]
-                  $ do
-                    W.viraButtonIcon_ $ toHtmlRaw Icon.shield_check
-                    "Approve"
-            [] -> case mJob of
-              Just job -> do
-                -- Built: show job commit info + status
-                maybeCommit <- lift $ App.query $ St.GetCommitByIdA job.commit
-                div_ [class_ "lg:col-span-8 flex items-center gap-2 flex-wrap text-sm"] $ do
-                  W.viraCommitHash_ job.commit
-                  whenJust maybeCommit $ \commit ->
-                    unless (T.null commit.message) $ do
-                      span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
-                      span_
-                        [ class_ "text-gray-700 dark:text-gray-300 truncate max-w-md"
-                        , title_ commit.message
-                        ]
-                        $ toHtml commit.message
-                  span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
-                  div_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $
-                    Time.viraRelativeTime_ job.jobCreatedTime
-                div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
-                  span_ [class_ "text-sm text-gray-600 dark:text-gray-400"] $ "#" <> toHtml (show @Text job.jobId)
-                  span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
-                  case jobEndTime job of
-                    Just endTime -> Time.viraDuration_ $ diffUTCTime endTime job.jobCreatedTime
-                    Nothing -> mempty
-                  Status.viraStatusBadge_ job.jobStatus
-              Nothing -> do
-                -- No job, no unapproved: show PR title + state
-                div_ [class_ "lg:col-span-8 flex items-center gap-2 flex-wrap text-sm"] $ do
-                  PullPage.prStateBadge_ pr.prState
-                  span_ [class_ "text-gray-700 dark:text-gray-300 truncate max-w-md"] $ toHtml pr.title
-                  PullPage.forkBadge_ pr.forkRepo
-                div_ [class_ "lg:col-span-4"] mempty
+    else
+      div_ [class_ "mt-4"] $
+        forM_ prDetails $
+          W.viraPRDetailsRow_ False

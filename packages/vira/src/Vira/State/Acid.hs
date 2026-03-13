@@ -15,7 +15,8 @@ import Data.IxSet.Typed qualified as Ix
 import Data.Map.Strict qualified as Map
 import Data.SafeCopy
 import Data.Text qualified as T
-import Data.Time (UTCTime)
+import Data.Time (UTCTime (..))
+import Data.Time.Calendar (fromGregorian)
 import Effectful.Git (BranchName, Commit (..), CommitID, RepoName)
 import System.FilePath ((</>))
 import Vira.Refresh.Type (RefreshResult)
@@ -359,7 +360,7 @@ getUnapprovedPRCommitsA repo prNum = do
 addPRCommitA :: PRCommit -> Update ViraState ()
 addPRCommitA pc = do
   modify $ \s ->
-    s {prCommits = Ix.updateIx pc.sha pc s.prCommits}
+    s {prCommits = Ix.updateIx pc.commit.id pc s.prCommits}
 
 -- | Approve a PR commit, returning Left if not found
 approvePRCommitA :: RepoName -> Int -> CommitID -> Update ViraState (Either Text ())
@@ -369,8 +370,49 @@ approvePRCommitA repo prNum sha = do
     Nothing -> pure $ Left "PR commit not found"
     Just pc -> do
       let updated = pc {approved = True}
-      modify $ \st -> st {prCommits = Ix.updateIx sha updated st.prCommits}
+      modify $ \st -> st {prCommits = Ix.updateIx pc.commit.id updated st.prCommits}
       pure $ Right ()
+
+-- | Enrich a 'PullRequest' with its build/approval state to create 'PRDetails'
+enrichPRWithJobs :: IxJob -> IxPRCommit -> PullRequest -> PRDetails
+enrichPRWithJobs jobsIx prCommitsIx pr =
+  let branchRef = prBranchRef pr.prNumber
+      prJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= pr.repo @= branchRef
+      commits = Ix.toList $ prCommitsIx @= pr.repo @= pr.prNumber
+      unapproved = filter (not . (.approved)) commits
+      latestCommitTime = case sortWith (Down . (.commit.date)) commits of
+        (c : _) -> c.commit.date
+        [] -> UTCTime (fromGregorian 1970 1 1) 0
+      latestCommitId = case sortWith (Down . (.commit.date)) commits of
+        (c : _) -> Just c.commit.id
+        [] -> Nothing
+      buildState = case sortWith (Down . (.commit.date)) unapproved of
+        (c : _) -> PRUnapproved c
+        [] -> case viaNonEmpty head prJobs of
+          Just job ->
+            let freshness = case latestCommitId of
+                  Just cid | cid == job.commit -> UpToDate
+                  _ -> OutOfDate
+             in PRBuilt job freshness
+          Nothing -> PRNeverBuilt
+   in PRDetails {pullRequest = pr, latestCommitTime, buildState}
+
+{- | Query PRs with enriched build state, sorted by activity time.
+
+- Nothing repo: all repos (IndexPage)
+- Just repo: single repo (RepoPage)
+- Sorted by activity time (most recent first)
+-}
+queryPRDetailsA :: Maybe RepoName -> Natural -> Query ViraState [PRDetails]
+queryPRDetailsA mRepo limit = do
+  ViraState {pullRequests, jobs, prCommits} <- ask
+  pure $
+    pullRequests
+      & maybe Prelude.id getEQ mRepo
+      & Ix.toList
+      & fmap (enrichPRWithJobs jobs prCommits)
+      & sortWith (Down . prActivityTime)
+      & take (fromIntegral limit)
 
 -- | Like `Ix.updateIx`, but works for multiple items.
 updateIxMulti ::
@@ -432,6 +474,8 @@ $( makeAcidic
      , 'getUnapprovedPRCommitsA
      , 'addPRCommitA
      , 'approvePRCommitA
+     , -- PR enrichment queries
+       'queryPRDetailsA
      ]
  )
 

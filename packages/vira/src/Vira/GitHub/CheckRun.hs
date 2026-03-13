@@ -26,7 +26,7 @@ import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..), Severity (..), log)
 import Effectful.Concurrent.Async (Concurrent, async)
 import Effectful.Error.Static (runErrorNoCallStack)
-import Effectful.Git (BranchName (..), CommitID (..), RepoName (..))
+import Effectful.Git (Commit (..), CommitID (..), RepoName (..))
 import Effectful.Reader.Dynamic (Reader)
 import Effectful.Reader.Static qualified as ER
 import Vira.App (AppStack)
@@ -38,7 +38,7 @@ import Vira.Lib.GitHub
 import Vira.State.Acid (JobUpdateStatusA (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Core (ViraState)
-import Vira.State.Type (Job (..), JobId, JobResult (..), JobStatus (..), OwnerName (..), PRCommit (..), PullRequest (..))
+import Vira.State.Type (Job (..), JobId, JobResult (..), JobStatus (..), OwnerName (..), PRCommit (..), PullRequest (..), prBranchRef)
 import Prelude hiding (Reader)
 
 {- | Create a GitHub check run for a PR job and watch for status updates
@@ -163,8 +163,8 @@ approvalHandler repoName prNum sha = do
       | pc.approved -> pure $ Left AlreadyApproved
       | otherwise -> do
           void $ App.update $ St.ApprovePRCommitA repoName prNum sha
-          let branchRef = BranchName $ "refs/pull/" <> show prNum <> "/head"
-          job <- Client.enqueueJob pr.repoName branchRef pc.sha (Just prNum)
+          let branchRef = prBranchRef prNum
+          job <- Client.enqueueJob pr.repo branchRef pc.commit.id (Just prNum)
           pure $ Right (pr, job.jobId)
 
 -- | Build the approval URL for the GitHub middleware route

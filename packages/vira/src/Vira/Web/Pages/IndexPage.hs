@@ -4,11 +4,7 @@
 module Vira.Web.Pages.IndexPage where
 
 import Data.Default (def)
-import Data.Text qualified as T
-import Data.Time (UTCTime, diffUTCTime)
-import Effectful.Git (Commit (..))
-import Htmx.Lucid.Core (hxPost_, hxSwapS_)
-import Htmx.Swap (Swap (..))
+import Data.Time (UTCTime)
 import Lucid
 import Servant.API (Get, NamedRoutes, QueryParam, (:>))
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -16,9 +12,8 @@ import Servant.API.Generic (GenericMode (type (:-)))
 import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
-import Vira.GitHub.CheckRun qualified as CheckRun
 import Vira.State.Acid qualified as St
-import Vira.State.Type (BranchDetails, BranchQuery (..), Job (..), PRCommit (..), PullRequest (..), branchActivityTime, jobEndTime)
+import Vira.State.Type (BranchDetails, BranchQuery (..), PRBuildState (..), PRDetails (..), PRState (..), PullRequest (..), branchActivityTime, prActivityTime)
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl, runAppHtml)
 import Vira.Web.Pages.CachePage qualified as CachePage
@@ -29,13 +24,9 @@ import Vira.Web.Pages.RegistryPage qualified as RegistryPage
 import Vira.Web.Servant ((//))
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Stream.ScopedRefresh qualified as Refresh
-import Vira.Web.Widgets.Button qualified as W
-import Vira.Web.Widgets.Commit qualified as W
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
-import Vira.Web.Widgets.Status qualified as Status
 import Vira.Web.Widgets.Tabs (TabItem (..), viraTabs_)
-import Vira.Web.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (Reader, ask, runReader)
 
@@ -84,143 +75,42 @@ indexView mUnbuilt = do
 -- | A unified activity item for interleaving branch and PR activity
 data ActivityItem
   = BranchActivity BranchDetails
-  | PRJobActivity Job [PRCommit]
+  | PRActivity PRDetails
 
 activityTime :: ActivityItem -> UTCTime
 activityTime = \case
   BranchActivity details -> branchActivityTime details
-  PRJobActivity job _ -> job.jobCreatedTime
-
-{- | Render a PR activity row in the same format as 'W.viraBranchDetailsRow_'.
-
-If unapproved commits exist, shows the latest one with an Approve button
-(like the Build button for NeverBuilt branches). Otherwise shows the
-job with status badge.
--}
-viraPRJobRow_ :: Job -> [PRCommit] -> AppHtml ()
-viraPRJobRow_ job unapproved = do
-  repoUrl <- lift $ getLinkUrl $ LinkTo.Repo job.repo
-  let prNum = fromMaybe 0 job.prNumber
-  prUrl <- lift $ getLinkUrl $ LinkTo.RepoPull job.repo prNum
-
-  div_ [class_ "relative mb-6"] $ do
-    -- Tags: purple repo + blue PR
-    div_ [class_ "absolute -top-3 left-3 flex items-center z-10"] $ do
-      a_ [href_ repoUrl, class_ "flex items-center gap-1 px-3 py-1 bg-purple-100 dark:bg-purple-900 border border-purple-300 dark:border-purple-700 rounded-l-full border-r-0 shadow-sm hover:opacity-70 transition-opacity"] $ do
-        div_ [class_ "w-4 h-4 flex items-center justify-center text-purple-700 dark:text-purple-200 shrink-0"] $ toHtmlRaw Icon.book_2
-        span_ [class_ "text-sm font-semibold text-purple-900 dark:text-purple-100"] $ toHtml $ toString job.repo
-      a_ [href_ prUrl, class_ "flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700 rounded-r-full border-l-0 shadow-sm hover:opacity-70 transition-opacity"] $ do
-        div_ [class_ "w-4 h-4 flex items-center justify-center text-blue-700 dark:text-blue-200 shrink-0"] $ toHtmlRaw Icon.git_pull_request
-        span_ [class_ "text-sm font-semibold text-blue-900 dark:text-blue-100"] $ toHtml $ "PR " <> show @Text prNum
-
-    -- Card
-    jobUrl <- lift $ getLinkUrl $ LinkTo.Job job.jobId
-    a_
-      [ href_ jobUrl
-      , class_ "block pt-6 pb-4 px-4 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-2 border-gray-200 dark:border-gray-700 transition-all cursor-pointer"
-      ]
-      $ do
-        div_ [class_ "grid grid-cols-1 lg:grid-cols-12 gap-3 items-center"] $ do
-          case unapproved of
-            (pc : _) -> do
-              -- Unapproved commit: show commit info + Approve button
-              maybeCommit <- lift $ App.query $ St.GetCommitByIdA pc.sha
-              div_ [class_ "lg:col-span-8 flex items-center gap-2 flex-wrap text-sm"] $ do
-                W.viraCommitHash_ pc.sha
-                whenJust maybeCommit $ \commit ->
-                  unless (T.null commit.message) $ do
-                    span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
-                    span_
-                      [ class_ "text-gray-700 dark:text-gray-300 truncate max-w-md"
-                      , title_ commit.message
-                      ]
-                      $ toHtml commit.message
-              div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
-                mPR <- lift $ App.query (St.GetPullRequestA job.repo prNum)
-                whenJust mPR $ \pr -> do
-                  let approveLink = CheckRun.approvalUrl pr.ownerName job.repo prNum pc.sha
-                  W.viraButton_
-                    W.ButtonSuccess
-                    [ hxPost_ approveLink
-                    , hxSwapS_ AfterEnd
-                    , onclick_ "event.preventDefault(); event.stopPropagation();"
-                    , class_ "!px-3 !py-1.5 !text-xs"
-                    ]
-                    $ do
-                      W.viraButtonIcon_ $ toHtmlRaw Icon.shield_check
-                      "Approve"
-            [] -> do
-              -- All approved: show job info + status
-              maybeCommit <- lift $ App.query $ St.GetCommitByIdA job.commit
-              div_ [class_ "lg:col-span-8 flex items-center gap-2 flex-wrap text-sm"] $ do
-                W.viraCommitHash_ job.commit
-                whenJust maybeCommit $ \commit ->
-                  unless (T.null commit.message) $ do
-                    span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
-                    span_
-                      [ class_ "text-gray-700 dark:text-gray-300 truncate max-w-md"
-                      , title_ commit.message
-                      ]
-                      $ toHtml commit.message
-                span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
-                div_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $
-                  Time.viraRelativeTime_ job.jobCreatedTime
-              div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
-                span_ [class_ "text-sm text-gray-600 dark:text-gray-400"] $ "#" <> toHtml (show @Text job.jobId)
-                span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
-                case jobEndTime job of
-                  Just endTime -> Time.viraDuration_ $ diffUTCTime endTime job.jobCreatedTime
-                  Nothing -> mempty
-                Status.viraStatusBadge_ job.jobStatus
+  PRActivity details -> prActivityTime details
 
 viewRecentActivity :: Maybe Bool -> AppHtml ()
 viewRecentActivity mNeverBuilt = do
-  -- Fetch PR activities
-  let fetchPRActivities = do
-        recentJobs <- lift $ App.query (St.GetRecentJobsA activityLimit)
-        let prJobs = filter (isJust . (.prNumber)) recentJobs
-        forM prJobs $ \job -> do
-          let prNum = fromMaybe 0 job.prNumber
-          unapproved <- lift $ App.query (St.GetUnapprovedPRCommitsA job.repo prNum)
-          pure $ PRJobActivity job unapproved
+  -- Single query for all PR details (replaces N+1 fetchPRActivities)
+  allPRDetails <- lift $ App.query (St.QueryPRDetailsA Nothing activityLimit)
+  let openPRs = filter (\d -> d.pullRequest.prState == PROpen) allPRDetails
 
-  -- Build activity list based on selected tab
-  limited <- case mNeverBuilt of
-    Just True -> do
-      let query = def {neverBuilt = Just True}
-      branchActivities <- lift $ App.query (St.QueryBranchDetailsA query activityLimit)
-      -- PRs that are unbuilt (unapproved commits OR job still active)
-      prActivities <- fetchPRActivities
-      let prsUnbuilt = filter isPRUnbuilt prActivities
-      pure $
-        take (fromIntegral activityLimit) $
-          sortWith (Down . activityTime) $
-            map BranchActivity branchActivities <> prsUnbuilt
-    Just False -> do
-      let query = def {neverBuilt = Just False}
-      branchActivities <- lift $ App.query (St.QueryBranchDetailsA query activityLimit)
-      -- PRs that are built (finished job with all commits approved)
-      prActivities <- fetchPRActivities
-      let prsBuilt = filter isPRBuilt prActivities
-      pure $
-        take (fromIntegral activityLimit) $
-          sortWith (Down . activityTime) $
-            map BranchActivity branchActivities <> prsBuilt
-    Nothing -> do
-      -- "All" tab: merge branches + PR jobs
-      branchActivities <- lift $ App.query (St.QueryBranchDetailsA def activityLimit)
-      prActivities <- fetchPRActivities
-      pure $
-        take (fromIntegral activityLimit) $
-          sortWith (Down . activityTime) $
-            map BranchActivity branchActivities <> prActivities
+  -- Filter PRs by tab
+  let filteredPRs = case mNeverBuilt of
+        Nothing -> openPRs
+        Just True -> filter isPRUnbuilt openPRs
+        Just False -> filter (not . isPRUnbuilt) openPRs
 
-  -- Counts for badges
-  let unbuiltQuery = def {neverBuilt = Just True}
-  unbuiltBranchCount <- length <$> lift (App.query (St.QueryBranchDetailsA unbuiltQuery activityLimit))
-  prActivities <- fetchPRActivities
-  let prsUnbuiltCount = length $ filter isPRUnbuilt prActivities
-  let unbuiltCount = unbuiltBranchCount + prsUnbuiltCount
+  -- Fetch branches with tab filter (acid-state level filtering)
+  let branchQuery = def {neverBuilt = mNeverBuilt}
+  branchDetails <- lift $ App.query (St.QueryBranchDetailsA branchQuery activityLimit)
+
+  -- Merge and limit
+  let limited =
+        take (fromIntegral activityLimit) $
+          sortWith (Down . activityTime) $
+            map BranchActivity branchDetails <> map PRActivity filteredPRs
+
+  -- Badge counts
+  unbuiltBranchCount <-
+    if mNeverBuilt == Just True
+      then pure $ length branchDetails -- already filtered
+      else length <$> lift (App.query (St.QueryBranchDetailsA (def {neverBuilt = Just True}) activityLimit))
+  let unbuiltPRCount = length $ filter isPRUnbuilt openPRs
+  let unbuiltCount = unbuiltBranchCount + unbuiltPRCount
 
   W.viraSection_ [] $ do
     h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100"] "Recent Activity"
@@ -241,18 +131,15 @@ viewRecentActivity mNeverBuilt = do
       forM_ limited $ \case
         BranchActivity details ->
           W.viraBranchDetailsRow_ True details
-        PRJobActivity job unapproved ->
-          viraPRJobRow_ job unapproved
-  where
-    -- PR is unbuilt if it has unapproved commits (no job triggered yet)
-    -- This matches branch behavior where NeverBuilt = no job exists
-    isPRUnbuilt (PRJobActivity _ unapproved) = not (null unapproved)
-    isPRUnbuilt (BranchActivity _) = False
+        PRActivity details ->
+          W.viraPRDetailsRow_ True details
 
-    -- PR is built if it has a job (triggered, regardless of status)
-    -- This matches branch behavior where Built = job exists (running or finished)
-    isPRBuilt (PRJobActivity _ unapproved) = null unapproved
-    isPRBuilt (BranchActivity _) = False
+-- | PR is unbuilt if it has unapproved commits or has never been built
+isPRUnbuilt :: PRDetails -> Bool
+isPRUnbuilt d = case d.buildState of
+  PRUnapproved _ -> True
+  PRNeverBuilt -> True
+  PRBuilt {} -> False
 
 heroWelcome :: (Monad m) => Text -> Text -> Text -> Text -> HtmlT m ()
 heroWelcome logoUrl reposLink envLink cacheLink = do

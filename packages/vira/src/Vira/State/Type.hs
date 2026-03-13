@@ -11,7 +11,7 @@ import Data.Default (Default (..))
 import Data.IxSet.Typed
 import Data.SafeCopy
 import Data.Time (UTCTime)
-import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit, RepoName (..))
+import Effectful.Git (BranchName (..), Commit (..), CommitID, IxCommit, RepoName (..))
 import Servant.API (FromHttpApiData, ToHttpApiData)
 import Vira.Refresh.Type (RefreshResult)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
@@ -24,20 +24,20 @@ data PRState = PROpen | PRClosed | PRMerged
 
 -- | A pull request tracked by Vira
 data PullRequest = PullRequest
-  { repoName :: RepoName
+  { repo :: RepoName
   -- ^ Repository this PR targets
-  , ownerName :: OwnerName
-  -- ^ Owner (user or org) of the repository
   , prNumber :: Int
   -- ^ PR number (unique per repo)
   , title :: Text
   -- ^ PR title
+  , headOwner :: OwnerName
+  -- ^ Owner of the head (source) repo
+  , baseOwner :: OwnerName
+  -- ^ Owner of the base (target) repo
   , headBranch :: BranchName
   -- ^ Source branch name
   , baseBranch :: BranchName
   -- ^ Target branch in origin
-  , forkRepo :: Maybe Text
-  -- ^ Nothing = same-repo PR, Just "owner/repo" = fork PR
   , prState :: PRState
   -- ^ Current lifecycle state
   , installationId :: Int
@@ -45,27 +45,29 @@ data PullRequest = PullRequest
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
+-- | Whether a PR is from a fork (head owner differs from base owner)
+prIsFork :: PullRequest -> Bool
+prIsFork pr = pr.headOwner /= pr.baseOwner
+
 type PullRequestIxs = '[RepoName, Int]
 type IxPullRequest = IxSet PullRequestIxs PullRequest
 
 instance Indexable PullRequestIxs PullRequest where
   indices =
     ixList
-      (ixFun $ \PullRequest {repoName} -> [repoName])
+      (ixFun $ \PullRequest {repo} -> [repo])
       (ixFun $ \PullRequest {prNumber} -> [prNumber])
 
 -- | A commit pushed to a PR (tracks history of syncs)
 data PRCommit = PRCommit
-  { repoName :: RepoName
+  { repo :: RepoName
   -- ^ Repository this commit belongs to
   , prNumber :: Int
   -- ^ PR number
-  , sha :: CommitID
-  -- ^ Commit SHA
+  , commit :: Commit
+  -- ^ The commit (id, message, date, author)
   , approved :: Bool
   -- ^ Fork PRs require approval; same-repo PRs are always True
-  , receivedAt :: UTCTime
-  -- ^ When this commit was received
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
@@ -75,9 +77,13 @@ type IxPRCommit = IxSet PRCommitIxs PRCommit
 instance Indexable PRCommitIxs PRCommit where
   indices =
     ixList
-      (ixFun $ \PRCommit {repoName} -> [repoName])
+      (ixFun $ \PRCommit {repo} -> [repo])
       (ixFun $ \PRCommit {prNumber} -> [prNumber])
-      (ixFun $ \PRCommit {sha} -> [sha])
+      (ixFun $ \PRCommit {commit} -> [commit.id])
+
+-- | Ref branch for PR jobs in the jobs index
+prBranchRef :: Int -> BranchName
+prBranchRef n = BranchName $ "refs/pull/" <> show n <> "/head"
 
 -- | A project's git repository
 data Repo = Repo
@@ -179,6 +185,39 @@ branchActivityTime details = case details.buildState of
 -- | Sorts 'BranchDetails' by most recent activity descending (most recent first).
 instance Ord BranchDetails where
   compare a b = compare (Down $ branchActivityTime a) (Down $ branchActivityTime b)
+
+-- | Build/approval state for a PR (mirrors 'BranchBuildState')
+data PRBuildState
+  = -- | Fork PR with latest unapproved commit
+    PRUnapproved PRCommit
+  | -- | All approved but no job yet
+    PRNeverBuilt
+  | -- | Has at least one build (latest job + freshness)
+    PRBuilt Job BuildFreshness
+  deriving stock (Generic, Show, Eq)
+
+-- | 'PullRequest' enriched with build state for display (mirrors 'BranchDetails')
+data PRDetails = PRDetails
+  { pullRequest :: PullRequest
+  , latestCommitTime :: UTCTime
+  -- ^ Time of the most recent PR commit (analogous to @branch.headCommit.date@)
+  , buildState :: PRBuildState
+  }
+  deriving stock (Generic, Show, Eq)
+
+{- | Get the most recent activity time for a 'PRDetails'.
+
+Uses @max(latestCommitTime, jobCreatedTime)@, mirroring 'branchActivityTime'.
+-}
+prActivityTime :: PRDetails -> UTCTime
+prActivityTime details = case details.buildState of
+  PRUnapproved _ -> details.latestCommitTime
+  PRNeverBuilt -> details.latestCommitTime
+  PRBuilt job _ -> max details.latestCommitTime job.jobCreatedTime
+
+-- | Sorts 'PRDetails' by most recent activity descending (most recent first).
+instance Ord PRDetails where
+  compare a b = compare (Down $ prActivityTime a) (Down $ prActivityTime b)
 
 newtype OwnerName = OwnerName {unOwnerName :: Text}
   deriving stock (Generic, Data)
@@ -287,6 +326,8 @@ $(deriveSafeCopy 0 'base ''BuildFreshness)
 $(deriveSafeCopy 0 'base ''BranchBuildState)
 $(deriveSafeCopy 0 'base ''BranchQuery)
 $(deriveSafeCopy 0 'base ''BranchDetails)
+$(deriveSafeCopy 0 'base ''PRBuildState)
+$(deriveSafeCopy 0 'base ''PRDetails)
 $(deriveSafeCopy 0 'base ''Repo)
 
 {- | IMPORTANT: Increment the version number when making breaking changes to 'ViraState' or its indexed types.
