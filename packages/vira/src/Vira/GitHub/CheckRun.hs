@@ -4,17 +4,16 @@
 {- | GitHub check run lifecycle management
 
 Creates and updates GitHub check runs for PR jobs.
-Used by the webhook handler (same-repo PRs) and approval handler (fork PRs).
+The 'prCheckRunWatcher' is the unified entry point: spawned by the webhook handler
+for every PR event, it waits for a job to appear (immediate for same-repo,
+after approval for fork PRs) then creates and watches the check run.
 -}
 module Vira.GitHub.CheckRun (
-  -- * Check run lifecycle
-  createCheckRunAndWatch,
-  jobStatusLoop,
+  -- * Unified PR watcher
+  prCheckRunWatcher,
 
-  -- * Approval
-  ApprovalError (..),
-  approvalHandler,
-  approvalUrl,
+  -- * Check run lifecycle (internal)
+  jobStatusLoop,
 ) where
 
 import Colog.Message (RichMessage)
@@ -24,59 +23,76 @@ import Data.Acid.Events qualified as Events
 import Effectful (Eff, IOE, type (:>))
 import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..), Severity (..), log)
-import Effectful.Concurrent.Async (Concurrent, async)
 import Effectful.Error.Static (runErrorNoCallStack)
-import Effectful.Git (Commit (..), CommitID (..), RepoName (..))
-import Effectful.Reader.Dynamic (Reader)
+import Effectful.Git (CommitID (..), RepoName)
 import Effectful.Reader.Static qualified as ER
-import Vira.App (AppStack)
-import Vira.App.AcidState qualified as App
-import Vira.App.Type (ViraRuntimeState)
-import Vira.CI.Client qualified as Client
 import Vira.Effect.GitHub
 import Vira.Lib.GitHub
-import Vira.State.Acid (JobUpdateStatusA (..))
-import Vira.State.Acid qualified as St
+import Vira.State.Acid (AddNewJobA (..), JobUpdateStatusA (..))
 import Vira.State.Core (ViraState)
-import Vira.State.Type (Job (..), JobId, JobResult (..), JobStatus (..), OwnerName (..), PRCommit (..), PullRequest (..), prBranchRef)
+import Vira.State.Type (Job (..), JobId, JobResult (..), JobStatus (..))
 import Prelude hiding (Reader)
 
-{- | Create a GitHub check run for a PR job and watch for status updates
+{- | Unified PR check run watcher
 
-Self-contained: interprets GitHub and Error effects internally.
-Used by the approval handler for fork PR jobs.
+Spawned by the webhook handler for every PR event (open/reopen/synchronize).
+Waits for a job matching this PR + commit, then creates a GitHub check run
+and watches for status updates until the job finishes.
+
+For same-repo PRs: the job is enqueued before this watcher starts, so the
+matching 'AddNewJobA' event is found immediately.
+For fork PRs: this watcher blocks until the core approval route enqueues the job.
+
+The @installationId@ is captured in the async closure — never persisted in core state.
 -}
-createCheckRunAndWatch ::
-  ( Reader ViraRuntimeState :> es
-  , Concurrent :> es
+prCheckRunWatcher ::
+  ( GitHub :> es
   , ER.Reader LogContext :> es
   , Log (RichMessage IO) :> es
   , IOE :> es
   ) =>
-  AppAuth ->
+  TChan (SomeUpdate ViraState) ->
   InstallationId ->
   Owner ->
   Repo ->
+  RepoName ->
+  Int ->
   CommitID ->
-  JobId ->
   Eff es ()
-createCheckRunAndWatch appAuth instId owner repo sha jobId = do
-  chan <- App.subscribe
-  void $ async $ do
-    result <- runErrorNoCallStack @GitHubError $ runGitHubAsApp appAuth $ do
-      checkRun <-
-        queryGitHub @CheckRun instId $
-          createCheckRunE owner repo $
-            NewCheckRun
-              { name = "Vira CI"
-              , headSha = unCommitID sha
-              , status = Just Queued
-              }
-      log Info $ "Created check run for commit " <> show sha
-      jobStatusLoop chan instId owner repo checkRun.checkRunId jobId
-    case result of
-      Left err -> log Warning $ "GitHub check run error: " <> show err
-      Right () -> pass
+prCheckRunWatcher chan instId owner repo repoName prNum commitId = do
+  -- Wait for a job matching this PR + commit
+  log Info $ "Watching for job on PR #" <> show prNum <> " commit " <> show commitId
+  jobId <- liftIO $ waitForPRJob chan repoName prNum commitId
+  log Info $ "Found job " <> show jobId <> " for PR #" <> show prNum
+
+  -- Create check run and watch status
+  checkRun <-
+    queryGitHub @CheckRun instId $
+      createCheckRunE owner repo $
+        NewCheckRun
+          { name = "Vira CI"
+          , headSha = unCommitID commitId
+          , status = Just Queued
+          }
+  log Info $ "Created check run for PR #" <> show prNum <> " commit " <> show commitId
+  jobStatusLoop chan instId owner repo checkRun.checkRunId jobId
+
+-- | Wait for an 'AddNewJobA' event matching the given PR and commit
+waitForPRJob :: TChan (SomeUpdate ViraState) -> RepoName -> Int -> CommitID -> IO JobId
+waitForPRJob chan repoName prNum commitId = do
+  updates <- Events.awaitBatched chan matchesPRJob 500_000
+  -- The last matching event has the job we want
+  let extractJobId u = case Events.matchUpdate @AddNewJobA u of
+        Just (AddNewJobA r _ c (Just n) _ _, job) | r == repoName && n == prNum && c == commitId -> Just job.jobId
+        _ -> Nothing
+  case mapMaybe extractJobId (toList updates) of
+    (jid : _) -> pure jid
+    [] -> waitForPRJob chan repoName prNum commitId -- shouldn't happen, but retry
+  where
+    matchesPRJob update =
+      case Events.matchUpdate @AddNewJobA update of
+        Just (AddNewJobA r _ c (Just n) _ _, _) -> r == repoName && n == prNum && c == commitId
+        _ -> False
 
 -- | Watch event bus for job status changes, updating the GitHub check run
 jobStatusLoop ::
@@ -135,39 +151,3 @@ fromJobStatus = \case
   JobStale ->
     UpdateCheckRun {status = Completed, conclusion = Just Cancelled}
   JobPending -> UpdateCheckRun {status = Queued, conclusion = Nothing}
-
--- * Approval
-
--- | Errors that can occur during approval
-data ApprovalError
-  = ApprovalNotFound
-  | CommitNotFound
-  | AlreadyApproved
-
-{- | Handle fork PR approval: update state and enqueue job
-
-Returns the PR and created job ID on success.
--}
-approvalHandler ::
-  RepoName ->
-  Int ->
-  CommitID ->
-  Eff AppStack (Either ApprovalError (PullRequest, JobId))
-approvalHandler repoName prNum sha = do
-  mPR <- App.query (St.GetPullRequestA repoName prNum)
-  mCommit <- App.query $ St.GetPRCommitA repoName prNum sha
-  case (mPR, mCommit) of
-    (Nothing, _) -> pure $ Left ApprovalNotFound
-    (_, Nothing) -> pure $ Left CommitNotFound
-    (Just pr, Just pc)
-      | pc.approved -> pure $ Left AlreadyApproved
-      | otherwise -> do
-          void $ App.update $ St.ApprovePRCommitA repoName prNum sha
-          let branchRef = prBranchRef prNum
-          job <- Client.enqueueJob pr.repo branchRef pc.commit.id (Just prNum)
-          pure $ Right (pr, job.jobId)
-
--- | Build the approval URL for the GitHub middleware route
-approvalUrl :: OwnerName -> RepoName -> Int -> CommitID -> Text
-approvalUrl (OwnerName owner) (RepoName repo) prNum (CommitID sha) =
-  "/github/r/" <> owner <> "/" <> repo <> "/pull/" <> show prNum <> "/approve/" <> sha

@@ -2,8 +2,8 @@
 
 {- | Pull request detail page with commit history and approval
 
-The approval route is handled by Vira.GitHub.Middleware for GitHub integration.
-This module only handles the PR detail view.
+Approval is a core Vira action (mark commit approved + enqueue job).
+GitHub check run creation is handled reactively by 'Vira.GitHub.Webhook'.
 -}
 module Vira.Web.Pages.PullPage (
   Routes (..),
@@ -11,25 +11,26 @@ module Vira.Web.Pages.PullPage (
 
   -- * Shared widgets
   forkBadge_,
-  approveButton_,
   prStateBadge_,
 ) where
 
+import Effectful (Eff)
 import Effectful.Error.Static (throwError)
-import Effectful.Git (BranchName (..), Commit (..), CommitID, RepoName (..))
-import Htmx.Lucid.Core (hxPost_)
+import Effectful.Git (BranchName (..), Commit (..), CommitID (..), RepoName (..))
+import Htmx.Servant.Response
 import Lucid
+import Lucid.Htmx.Contrib (hxPostSafe_)
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
-import Vira.GitHub.CheckRun qualified as CheckRun
+import Vira.CI.Client qualified as Client
 import Vira.State.Acid qualified as St
-import Vira.State.Type (OwnerName (..), PRCommit (..), PRState (..), PullRequest (..))
+import Vira.State.Type (OwnerName (..), PRCommit (..), PRState (..), PullRequest (..), prBranchRef)
 import Vira.State.Type qualified as St
 import Vira.Web.LinkTo.Type qualified as LinkTo
-import Vira.Web.Lucid (AppHtml, runAppHtml)
+import Vira.Web.Lucid (AppHtml, getLink, runAppHtml)
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Widgets.Button qualified as W
 import Vira.Web.Widgets.Commit qualified as W
@@ -37,8 +38,9 @@ import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
 import Web.TablerIcons.Outline qualified as Icon
 
-newtype Routes mode = Routes
+data Routes mode = Routes
   { _detail :: mode :- Capture "number" Int :> Get '[HTML] (Html ())
+  , _approve :: mode :- Capture "number" Int :> "approve" :> Capture "sha" CommitID :> Post '[HTML] (Headers '[HXRefresh] Text)
   }
   deriving stock (Generic)
 
@@ -46,6 +48,7 @@ handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> RepoNam
 handlers globalSettings viraRuntimeState webSettings repoName =
   Routes
     { _detail = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml . detailHandler repoName
+    , _approve = \prNum sha -> Web.runAppInServant globalSettings viraRuntimeState webSettings $ approveHandler repoName prNum sha
     }
 
 -- * Detail
@@ -65,7 +68,6 @@ detailHandler repoName prNum = do
 
 viewPRDetail :: PullRequest -> [PRCommit] -> [St.Job] -> AppHtml ()
 viewPRDetail pr commits jobs = do
-  let ghPrUrl = "https://github.com/" <> unOwnerName pr.baseOwner <> "/" <> unRepoName pr.repo <> "/pull/" <> show pr.prNumber
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.git_pull_request)
     (pr.title <> " #" <> show pr.prNumber)
@@ -74,9 +76,10 @@ viewPRDetail pr commits jobs = do
           span_ $ toHtml (unBranchName pr.headBranch) <> " → " <> toHtml (unBranchName pr.baseBranch)
         forkBadge_ pr
         prStateBadge_ pr.prState
-        a_ [href_ ghPrUrl, target_ "blank", class_ "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"] $
-          div_ [class_ "w-5 h-5 flex items-center justify-center"] $
-            toHtmlRaw Icon.brand_github
+        whenJust pr.url $ \prUrl ->
+          a_ [href_ prUrl, target_ "blank", class_ "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"] $
+            div_ [class_ "w-5 h-5 flex items-center justify-center"] $
+              toHtmlRaw Icon.external_link
     )
 
   W.viraSection_ [] $ do
@@ -92,6 +95,26 @@ viewPRDetail pr commits jobs = do
         else forM_ jobs $ \job ->
           W.viraJobRow_ Nothing job
 
+-- * Approval
+
+{- | Handle fork PR approval: mark commit approved and enqueue job
+
+This is core Vira logic with no GitHub dependency. GitHub check run
+creation is handled reactively by 'Vira.GitHub.Webhook.prCheckRunWatcher'.
+-}
+approveHandler :: RepoName -> Int -> CommitID -> Eff Web.AppServantStack (Headers '[HXRefresh] Text)
+approveHandler repoName prNum sha = do
+  mCommit <- App.query $ St.GetPRCommitA repoName prNum sha
+  case mCommit of
+    Nothing -> throwError err404
+    Just pc
+      | pc.approved -> throwError err400
+      | otherwise -> do
+          void $ App.update $ St.ApprovePRCommitA repoName prNum sha
+          let branchRef = prBranchRef prNum
+          void $ Client.enqueueJob repoName branchRef pc.commit.id (Just prNum)
+          pure $ addHeader True "Approved"
+
 -- | Unapproved fork commit: show commit info + approve button
 viewUnapprovedCommitRow :: PullRequest -> PRCommit -> AppHtml ()
 viewUnapprovedCommitRow pr pc =
@@ -101,7 +124,7 @@ viewUnapprovedCommitRow pr pc =
         div_ [class_ "w-5 h-5 flex items-center justify-center shrink-0 text-yellow-500 dark:text-yellow-400"] $
           toHtmlRaw Icon.shield_check
         W.viraCommitInfo_ pc.commit.id
-      approveButton_ pr.baseOwner pr.repo pr.prNumber pc.commit.id
+      approveButton_ pr.repo pr.prNumber pc.commit.id
 
 -- * UI Helpers
 
@@ -114,16 +137,13 @@ forkBadge_ pr
         toHtml $ "fork: " <> unOwnerName pr.headOwner
   | otherwise = mempty
 
-{- | Approve button for unapproved fork commits
-
-Posts to GitHub approval route at @/github/r/:owner/:repo/pull/:num/approve/:sha@
--}
-approveButton_ :: OwnerName -> RepoName -> Int -> CommitID -> AppHtml ()
-approveButton_ ownerName repoName prNum sha = do
-  let approveLink = CheckRun.approvalUrl ownerName repoName prNum sha
+-- | Approve button for unapproved fork commits (posts to core approval route)
+approveButton_ :: RepoName -> Int -> CommitID -> AppHtml ()
+approveButton_ repoName prNum sha = do
+  approveLink <- lift $ getLink $ LinkTo.PRApprove repoName prNum sha
   W.viraButton_
     W.ButtonSuccess
-    [hxPost_ approveLink, class_ "text-xs px-3 py-1"]
+    [hxPostSafe_ approveLink, class_ "text-xs px-3 py-1"]
     $ do
       W.viraButtonIcon_ $ toHtmlRaw Icon.shield_check
       "Approve"

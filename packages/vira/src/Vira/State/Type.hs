@@ -40,8 +40,8 @@ data PullRequest = PullRequest
   -- ^ Target branch in origin
   , prState :: PRState
   -- ^ Current lifecycle state
-  , installationId :: Int
-  -- ^ GitHub App installation ID (needed for check run API)
+  , url :: Maybe Text
+  -- ^ External URL to the PR on the forge (e.g. GitHub)
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 

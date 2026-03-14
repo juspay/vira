@@ -37,3 +37,4 @@ linkTo = \case
   Refresh mPatterns -> fieldLink _refresh mPatterns
   RepoPRFilter repo -> fieldLink _repos // RegistryPage._repo /: repo // RepoPage._filterPRs /: (Nothing :: Maybe Text)
   RepoPull repo n -> fieldLink _repos // RegistryPage._pull /: repo // PullPage._detail /: n
+  PRApprove repo n sha -> fieldLink _repos // RegistryPage._pull /: repo // PullPage._approve /: n /: sha

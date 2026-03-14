@@ -15,12 +15,11 @@ module Vira.Web.Widgets.JobsListing (
 import Data.Text qualified as T
 import Data.Time (diffUTCTime)
 import Effectful.Git (Commit (..))
-import Htmx.Lucid.Core (hxPost_, hxSwapS_)
+import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Swap (Swap (..))
 import Lucid
 import Lucid.Htmx.Contrib (hxPostSafe_)
 import Vira.App qualified as App
-import Vira.GitHub.CheckRun qualified as CheckRun
 import Vira.State.Acid qualified as St
 import Vira.State.Type (BranchBuildState (..), BuildFreshness (..), OwnerName (..), PRBuildState (..), PRCommit (..), PRDetails (..), PRState (..), PullRequest (..))
 import Vira.State.Type qualified as St
@@ -325,10 +324,10 @@ viraPRDetailsRow_ showRepo details = do
                     ]
                     $ toHtml pc.commit.message
               div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
-                let approveLink = CheckRun.approvalUrl pr.baseOwner pr.repo pr.prNumber pc.commit.id
+                approveLink <- lift $ getLink $ LinkTo.PRApprove pr.repo pr.prNumber pc.commit.id
                 W.viraButton_
                   W.ButtonSuccess
-                  [ hxPost_ approveLink
+                  [ hxPostSafe_ approveLink
                   , hxSwapS_ AfterEnd
                   , onclick_ "event.preventDefault(); event.stopPropagation();"
                   , class_ "!px-3 !py-1.5 !text-xs"

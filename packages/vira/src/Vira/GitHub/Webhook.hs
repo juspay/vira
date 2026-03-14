@@ -38,7 +38,7 @@ import GitHub.Data.Webhooks.Events (
   PullRequestEventAction (..),
   PushEvent,
  )
-import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookRepositorySimple (..), HookUser (..), PullRequestTarget (..))
+import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookRepositorySimple (..), HookUser (..), PullRequestTarget (..), URL (..))
 import Servant
 import Servant.GitHub.Webhook (GitHubEvent)
 import Servant.Server.Generic (AsServer)
@@ -107,6 +107,8 @@ prHandler event = do
           headOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prHead
           baseOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prBase
           isFork = headOwner /= baseOwner
+          URL htmlUrl = whPullReqHtmlUrl prPayload
+          url = Just htmlUrl
 
       installationId <- case evPullReqInstallationId event of
         Just i -> pure i
@@ -147,8 +149,22 @@ prHandler event = do
       -- Store commit in the global index so job rows can display it
       App.update $ St.StoreCommitA commit
 
-      unless isFork $
-        enqueuePRJob (InstallationId installationId) (Owner $ unOwnerName baseOwner) (Repo $ unRepoName repo) pr prCommit
+      -- Subscribe to event bus BEFORE enqueuing to avoid missing events
+      let instId = InstallationId installationId
+          owner = Owner $ unOwnerName baseOwner
+          ghRepo = Repo $ unRepoName repo
+      chan <- App.subscribe
+
+      -- Same-repo PRs: auto-build (fork PRs wait for approval via core route)
+      unless isFork $ do
+        let branchRef = prBranchRef pr.prNumber
+        void $ Client.enqueueJob pr.repo branchRef prCommit.commit.id (Just pr.prNumber)
+
+      -- Spawn check run watcher for all PRs (same-repo + fork)
+      -- installationId is captured in the async closure — never persisted
+      void $
+        async $
+          CheckRun.prCheckRunWatcher chan instId owner ghRepo pr.repo pr.prNumber prCommit.commit.id
 
     handlePRClosed :: Eff (GitHub : Error GitHubError : AppStack) ()
     handlePRClosed = do
@@ -159,38 +175,6 @@ prHandler event = do
           newState = if isJust (whPullReqMergedAt prPayload) then PRMerged else PRClosed
       App.update $ St.UpdatePullRequestStateA repo prNum newState
       log Info $ "PR " <> show prNum <> " " <> show newState
-
--- | Enqueue a job for a PR commit, creating a GitHub check run
-enqueuePRJob ::
-  InstallationId ->
-  Owner ->
-  Repo ->
-  PullRequest ->
-  PRCommit ->
-  Eff (GitHub : Error GitHubError : AppStack) ()
-enqueuePRJob instId owner repo pr prCommit = do
-  let branchRef = prBranchRef pr.prNumber
-      commitId = prCommit.commit.id
-
-  -- Subscribe to event bus BEFORE enqueueing to avoid missing events
-  chan <- App.subscribe
-
-  -- Acknowledge queued status to GitHub
-  checkRun <-
-    queryGitHub @CheckRun instId $
-      createCheckRunE owner repo $
-        NewCheckRun
-          { name = "Vira CI"
-          , headSha = unCommitID commitId
-          , status = Just Queued
-          }
-  log Info $ "Created check run for PR #" <> show pr.prNumber <> " commit " <> show commitId
-
-  -- Enqueue the job
-  job <- Client.enqueueJob pr.repo branchRef commitId (Just pr.prNumber)
-
-  -- Spawn async watcher to notify GitHub of the status as job progresses
-  void $ async $ CheckRun.jobStatusLoop chan instId owner repo checkRun.checkRunId job.jobId
 
 pushHandler :: PushEvent -> Eff AppStack NoContent
 pushHandler _ = do
