@@ -28,13 +28,19 @@ module Vira.Lib.GitHub (
 
   -- * Helpers,
   hookUserLoginAny, -- requires github-webhooks
+  toPullRequest, -- requires github-webhooks
+  toPullRequestCommit, -- requires github-webhooks
 ) where
 
 import Data.Aeson (FromJSON (..), ToJSON (..), withObject, (.:))
 import Data.Time (UTCTime, defaultTimeLocale, parseTimeM)
-import GitHub.Data.Webhooks.Payload (HookSimpleUser (whSimplUserLogin), HookUser (whUserLogin))
+import Effectful.Git (BranchName (..), Commit (..), CommitID (..), RepoName (..))
+import GitHub.Data.Webhooks.Events (PullRequestEvent (..))
+import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookSimpleUser (whSimplUserLogin), HookUser (whUserLogin), PullRequestTarget (..), URL (URL))
 import GitHub.REST (GHEndpoint (..), KeyValue (..))
 import Network.HTTP.Types (StdMethod (..))
+import Vira.State.Type (ForgeInfo (..), OwnerName (..), PullRequest (..), PullRequestCommit (..), PullRequestState (..))
+import Web.TablerIcons.Outline qualified as Icon
 
 -- | GitHub App ID
 newtype AppId = AppId {unAppId :: Int}
@@ -171,3 +177,43 @@ createInstallationAccessTokenE (InstallationId instId) =
 -- | Return the user login as `Text`. Empty text if `whSimplUserLogin` is `Nothing`
 hookUserLoginAny :: Either HookSimpleUser HookUser -> Text
 hookUserLoginAny = either (fromMaybe "" . whSimplUserLogin) whUserLogin
+
+toPullRequest :: PullRequestEvent -> PullRequest
+toPullRequest event =
+  let prPayload = evPullReqPayload event
+      prHead = whPullReqHead prPayload
+      prBase = whPullReqBase prPayload
+      URL htmlUrl = whPullReqHtmlUrl prPayload
+   in PullRequest
+        { prNumber = whPullReqNumber prPayload
+        , title = whPullReqTitle prPayload
+        , headBranch = BranchName $ whPullReqTargetRef prHead
+        , baseBranch = BranchName $ whPullReqTargetRef prBase
+        , prState = PullRequestOpen
+        , repo = RepoName $ whRepoName $ evPullReqRepo event
+        , headOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prHead
+        , baseOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prBase
+        , forgeInfo = Just $ ForgeInfo htmlUrl Icon.brand_github
+        }
+
+toPullRequestCommit :: UTCTime -> PullRequestEvent -> PullRequestCommit
+toPullRequestCommit now event =
+  let prPayload = evPullReqPayload event
+      prHead = whPullReqHead prPayload
+      prBase = whPullReqBase prPayload
+      headOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prHead
+      baseOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prBase
+   in PullRequestCommit
+        { repo = RepoName $ whRepoName $ evPullReqRepo event
+        , prNumber = whPullReqNumber prPayload
+        , approved = headOwner == baseOwner
+        , commit =
+            Commit
+              { id = CommitID $ whPullReqTargetSha prHead
+              , message = whPullReqTitle prPayload
+              , -- The below fields cannot be fetched from a webhook payload
+                date = now
+              , author = ""
+              , authorEmail = ""
+              }
+        }

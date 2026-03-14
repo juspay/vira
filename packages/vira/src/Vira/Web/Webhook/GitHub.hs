@@ -26,7 +26,7 @@ import Effectful.Colog.Simple (LogContext (..), log, tagCurrentThread, withLogCo
 import Effectful.Concurrent.Async (async)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.Error.Static qualified as Error
-import Effectful.Git (BranchName (..), Commit (..), CommitID (..), RepoName (..))
+import Effectful.Git (Commit (..), CommitID (..), RepoName (..))
 import Effectful.Reader.Static qualified as ER
 import GitHub.Data.Webhooks.Events (
   InstallationEvent (..),
@@ -35,7 +35,7 @@ import GitHub.Data.Webhooks.Events (
   PullRequestEventAction (..),
   PushEvent,
  )
-import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookRepositorySimple (..), HookUser (..), PullRequestTarget (..), URL (..))
+import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookRepositorySimple (..))
 import Network.Wai (Middleware, pathInfo)
 import Servant
 import Servant.GitHub.Webhook (GitHubEvent, GitHubKey (..))
@@ -50,9 +50,8 @@ import Vira.Refresh.Type (RefreshPriority (..))
 import Vira.State.Acid (AddNewJobA (..), JobUpdateStatusA (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Core (ViraState)
-import Vira.State.Type (ForgeInfo (..), Job (..), JobId, JobResult (..), JobStatus (..), OwnerName (..), PullRequest (..), PullRequestCommit (..), PullRequestState (..), pullRequestBranchRef)
+import Vira.State.Type (Job (..), JobId, JobResult (..), JobStatus (..), OwnerName (..), PullRequest (..), PullRequestCommit (..), PullRequestState (..), pullRequestBranchRef)
 import Vira.State.Type qualified as St
-import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (Reader)
 
 data Routes mode = Routes
@@ -112,16 +111,13 @@ pullRequestHandler event = do
   where
     handlePullRequestOpened :: Eff (GitHub : Error GitHubError : AppStack) ()
     handlePullRequestOpened = do
-      let prRepo = evPullReqRepo event
-          prPayload = evPullReqPayload event
-          prHead = whPullReqHead prPayload
-          prBase = whPullReqBase prPayload
-          repo = RepoName $ whRepoName prRepo
-          headOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prHead
-          baseOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prBase
-          isFork = headOwner /= baseOwner
-          URL htmlUrl = whPullReqHtmlUrl prPayload
-          forgeInfo = Just $ ForgeInfo htmlUrl Icon.brand_github
+      let pr = toPullRequest event
+      App.update $ St.AddPullRequestA pr
+
+      now <- liftIO getCurrentTime -- FIXME: not a true indicator of when the commit was made
+      let prCommit = toPullRequestCommit now event
+      App.update $ St.AddPullRequestCommitA prCommit
+      App.update $ St.StoreCommitA prCommit.commit
 
       installationId <- case evPullReqInstallationId event of
         Just i -> pure i
@@ -129,52 +125,16 @@ pullRequestHandler event = do
           log Error "PR event missing installation ID"
           Error.throwError $ TokenFetchFailed "Missing installation ID in PR event"
 
-      let pr =
-            PullRequest
-              { prNumber = whPullReqNumber prPayload
-              , title = whPullReqTitle prPayload
-              , headBranch = BranchName $ whPullReqTargetRef prHead
-              , baseBranch = BranchName $ whPullReqTargetRef prBase
-              , prState = PullRequestOpen
-              , repo
-              , headOwner
-              , baseOwner
-              , forgeInfo
-              }
-      App.update $ St.UpsertPullRequestA pr
-
-      now <- liftIO getCurrentTime
-      let commit =
-            Commit
-              { id = CommitID $ whPullReqTargetSha prHead
-              , message = whPullReqTitle prPayload
-              , -- The below fields cannot be fetched from a prPayload
-                date = now
-              , author = ""
-              , authorEmail = ""
-              }
-          prCommit =
-            PullRequestCommit
-              { repo = pr.repo
-              , prNumber = pr.prNumber
-              , approved = not isFork
-              , commit
-              }
-      App.update $ St.AddPullRequestCommitA prCommit
-
-      -- Store commit in the global index so job rows can display it
-      App.update $ St.StoreCommitA commit
-
       chan <- App.subscribe
 
-      -- auto-build PR's from branches on the same repo
+      let isFork = pr.headOwner /= pr.baseOwner
       unless isFork $ do
         let branchRef = pullRequestBranchRef pr.prNumber
         void $ Client.enqueueJob pr.repo branchRef prCommit.commit.id (Just pr.prNumber)
 
       let instId = InstallationId installationId
-          owner = Owner $ unOwnerName baseOwner
-          ghRepo = Repo $ unRepoName repo
+          owner = Owner $ unOwnerName pr.baseOwner
+          ghRepo = Repo $ unRepoName pr.repo
       void $
         async $
           pullRequestCheckRunWatcher chan instId owner ghRepo pr.repo pr.prNumber prCommit.commit.id
@@ -186,7 +146,7 @@ pullRequestHandler event = do
           prPayload = evPullReqPayload event
           prNum = whPullReqNumber prPayload
           newState = if isJust (whPullReqMergedAt prPayload) then PullRequestMerged else PullRequestClosed
-      App.update $ St.UpdatePullRequestStateA repo prNum newState
+      App.update $ St.SetPullRequestStateA repo prNum newState
       log Info $ "PR " <> show prNum <> " " <> show newState
 
 pushHandler :: PushEvent -> Eff AppStack NoContent

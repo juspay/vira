@@ -325,13 +325,13 @@ data ViraState = ViraState
 $(deriveSafeCopy 0 'base ''OwnerName)
 $(deriveSafeCopy 0 'base ''PullRequestState)
 $(deriveSafeCopy 0 'base ''ForgeInfo)
-$(deriveSafeCopy 1 'base ''PullRequest)
+$(deriveSafeCopy 0 'base ''PullRequest)
 $(deriveSafeCopy 0 'base ''PullRequestCommit)
 $(deriveSafeCopy 0 'base ''JobResult)
 $(deriveSafeCopy 0 'base ''JobStatus)
 $(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
-$(deriveSafeCopy 1 'base ''Branch)
+$(deriveSafeCopy 0 'base ''Branch)
 $(deriveSafeCopy 0 'base ''BuildFreshness)
 $(deriveSafeCopy 0 'base ''BranchBuildState)
 $(deriveSafeCopy 0 'base ''BranchQuery)
@@ -345,4 +345,4 @@ The version is automatically used by the @--auto-reset-state@ feature to detect 
 When enabled, auto-reset will remove @ViraState/@ and @workspace/*/jobs@ directories on mismatch.
 Run @vira info@ to see the current schema version.
 -}
-$(deriveSafeCopy 10 'base ''ViraState)
+$(deriveSafeCopy 9 'base ''ViraState)

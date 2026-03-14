@@ -306,29 +306,23 @@ cancelPendingJobsInBranchA repo branch endTime = state $ \s ->
       updatedState = flipfoldl' (\job st -> st {jobs = Ix.updateIx job.jobId (job {jobStatus = JobFinished JobKilled endTime}) st.jobs}) s pendingJobs
    in (fromIntegral $ length pendingJobs, updatedState)
 
--- * PullRequest operations
-
--- | Get a pull request by repo and PR number
 getPullRequestA :: RepoName -> Int -> Query ViraState (Maybe PullRequest)
 getPullRequestA repo prNum = do
   ViraState {pullRequests} <- ask
   pure $ Ix.getOne $ pullRequests @= repo @= prNum
 
--- | Get all pull requests for a repo
 getPullRequestsByRepoA :: RepoName -> Query ViraState [PullRequest]
 getPullRequestsByRepoA repo = do
   ViraState {pullRequests} <- ask
   pure $ Ix.toList $ pullRequests @= repo
 
--- | Upsert a pull request (create or update)
-upsertPullRequestA :: PullRequest -> Update ViraState ()
-upsertPullRequestA pr = do
+addPullRequestA :: PullRequest -> Update ViraState ()
+addPullRequestA pr = do
   modify $ \s ->
-    s {pullRequests = Ix.updateIx pr.prNumber pr s.pullRequests}
+    s {pullRequests = Ix.updateIx pr.prNumber pr s.pullRequests} -- upsert to prevent duplicates
 
--- | Update a pull request's state (on close/merge)
-updatePullRequestStateA :: RepoName -> Int -> PullRequestState -> Update ViraState ()
-updatePullRequestStateA repo prNum newState = do
+setPullRequestStateA :: RepoName -> Int -> PullRequestState -> Update ViraState ()
+setPullRequestStateA repo prNum newState = do
   modify $ \s ->
     case Ix.getOne $ s.pullRequests @= repo @= prNum of
       Nothing -> s
@@ -336,33 +330,26 @@ updatePullRequestStateA repo prNum newState = do
         let updated = pr {prState = newState}
          in s {pullRequests = Ix.updateIx prNum updated s.pullRequests}
 
--- * PullRequestCommit operations
-
--- | Get a specific PR commit
 getPullRequestCommitA :: RepoName -> Int -> CommitID -> Query ViraState (Maybe PullRequestCommit)
 getPullRequestCommitA repo prNum sha = do
   ViraState {pullRequestCommits} <- ask
   pure $ Ix.getOne $ pullRequestCommits @= repo @= prNum @= sha
 
--- | Get all commits for a PR
 getPullRequestCommitsA :: RepoName -> Int -> Query ViraState [PullRequestCommit]
 getPullRequestCommitsA repo prNum = do
   ViraState {pullRequestCommits} <- ask
   pure $ Ix.toList $ pullRequestCommits @= repo @= prNum
 
--- | Get unapproved commits for a PR
-getUnapprovedPullRequestCommitsA :: RepoName -> Int -> Query ViraState [PullRequestCommit]
-getUnapprovedPullRequestCommitsA repo prNum = do
+getUnapprovedCommitsA :: RepoName -> Int -> Query ViraState [PullRequestCommit]
+getUnapprovedCommitsA repo prNum = do
   ViraState {pullRequestCommits} <- ask
   pure $ filter (not . (.approved)) $ Ix.toList $ pullRequestCommits @= repo @= prNum
 
--- | Add a new PR commit (upserts by SHA to avoid duplicates from repeated webhook events)
 addPullRequestCommitA :: PullRequestCommit -> Update ViraState ()
 addPullRequestCommitA pc = do
   modify $ \s ->
-    s {pullRequestCommits = Ix.updateIx pc.commit.id pc s.pullRequestCommits}
+    s {pullRequestCommits = Ix.updateIx pc.commit.id pc s.pullRequestCommits} -- upsert by commit id to prevent duplicates
 
--- | Approve a PR commit, returning Left if not found
 approvePullRequestCommitA :: RepoName -> Int -> CommitID -> Update ViraState (Either Text ())
 approvePullRequestCommitA repo prNum sha = do
   s <- get
@@ -464,19 +451,16 @@ $( makeAcidic
      , 'cancelPendingJobsInBranchA
      , 'addNewRepoA
      , 'deleteRepoByNameA
-     , -- PullRequest operations
-       'getPullRequestA
+     , 'getPullRequestA
      , 'getPullRequestsByRepoA
-     , 'upsertPullRequestA
-     , 'updatePullRequestStateA
-     , -- PullRequestCommit operations
-       'getPullRequestCommitA
+     , 'addPullRequestA
+     , 'setPullRequestStateA
+     , 'getPullRequestCommitA
      , 'getPullRequestCommitsA
-     , 'getUnapprovedPullRequestCommitsA
+     , 'getUnapprovedCommitsA
      , 'addPullRequestCommitA
      , 'approvePullRequestCommitA
-     , -- PullRequest enrichment queries
-       'queryPullRequestDetailsA
+     , 'queryPullRequestDetailsA
      ]
  )
 
@@ -500,9 +484,9 @@ deriving stock instance Show DeleteJobA
 
 deriving stock instance Show CancelPendingJobsInBranchA
 
-deriving stock instance Show UpsertPullRequestA
+deriving stock instance Show AddPullRequestA
 
-deriving stock instance Show UpdatePullRequestStateA
+deriving stock instance Show SetPullRequestStateA
 
 deriving stock instance Show AddPullRequestCommitA
 
