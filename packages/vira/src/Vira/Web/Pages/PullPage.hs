@@ -36,7 +36,7 @@ import Vira.Web.Widgets.PullRequest qualified as W
 import Web.TablerIcons.Outline qualified as Icon
 
 data Routes mode = Routes
-  { _detail :: mode :- Capture "number" Int :> Get '[HTML] (Html ())
+  { _view :: mode :- Capture "number" Int :> Get '[HTML] (Html ())
   , _approve :: mode :- Capture "number" Int :> "approve" :> Capture "sha" CommitID :> Post '[HTML] (Headers '[HXRefresh] Text)
   }
   deriving stock (Generic)
@@ -44,14 +44,14 @@ data Routes mode = Routes
 handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> RepoName -> Routes AsServer
 handlers globalSettings viraRuntimeState webSettings repoName =
   Routes
-    { _detail = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml . detailHandler repoName
+    { _view = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml . viewHandler repoName
     , _approve = \prNum sha -> Web.runAppInServant globalSettings viraRuntimeState webSettings $ approveHandler repoName prNum sha
     }
 
--- * Detail
+-- * View
 
-detailHandler :: RepoName -> Int -> AppHtml ()
-detailHandler repoName prNum = do
+viewHandler :: RepoName -> Int -> AppHtml ()
+viewHandler repoName prNum = do
   pr <- lift $ App.query (St.GetPullRequestA repoName prNum) >>= maybe (throwError err404) pure
   commits <- lift $ App.query $ St.GetPullRequestCommitsA repoName prNum
   let branchRef = St.pullRequestBranchRef prNum
@@ -61,10 +61,10 @@ detailHandler repoName prNum = do
         , LinkTo.Repo repoName
         , LinkTo.RepoPullRequest repoName prNum
         ]
-  W.layout crumbs $ viewPullRequestDetail pr commits jobs
+  W.layout crumbs $ viewPullRequest pr commits jobs
 
-viewPullRequestDetail :: PullRequest -> [PullRequestCommit] -> [St.Job] -> AppHtml ()
-viewPullRequestDetail pr commits jobs = do
+viewPullRequest :: PullRequest -> [PullRequestCommit] -> [St.Job] -> AppHtml ()
+viewPullRequest pr commits jobs = do
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.git_pull_request)
     (pr.title <> " #" <> show pr.prNumber)

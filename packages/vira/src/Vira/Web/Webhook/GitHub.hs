@@ -1,6 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE RecordWildCards #-}
 
 {- | GitHub App webhook integration
 
@@ -166,7 +165,10 @@ pullRequestHandler event = do
               , headBranch = BranchName $ whPullReqTargetRef prHead
               , baseBranch = BranchName $ whPullReqTargetRef prBase
               , prState = PullRequestOpen
-              , ..
+              , repo
+              , headOwner
+              , baseOwner
+              , forgeInfo
               }
       App.update $ St.UpsertPullRequestA pr
 
@@ -185,7 +187,7 @@ pullRequestHandler event = do
               { repo = pr.repo
               , prNumber = pr.prNumber
               , approved = not isFork
-              , ..
+              , commit
               }
       App.update $ St.AddPullRequestCommitA prCommit
 

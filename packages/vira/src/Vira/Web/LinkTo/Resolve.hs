@@ -36,5 +36,5 @@ linkTo = \case
   Events -> fieldLink _events // EventsPage._view
   Refresh mPatterns -> fieldLink _refresh mPatterns
   RepoPullRequestFilter repo -> fieldLink _repos // RegistryPage._repo /: repo // RepoPage._filterPullRequests /: (Nothing :: Maybe Text)
-  RepoPullRequest repo n -> fieldLink _repos // RegistryPage._pullRequest /: repo // PullPage._detail /: n
+  RepoPullRequest repo n -> fieldLink _repos // RegistryPage._pullRequest /: repo // PullPage._view /: n
   PullRequestApprove repo n sha -> fieldLink _repos // RegistryPage._pullRequest /: repo // PullPage._approve /: n /: sha
