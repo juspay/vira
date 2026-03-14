@@ -51,8 +51,9 @@ import Vira.Lib.GitHub
 import Vira.Refresh qualified as Refresh
 import Vira.Refresh.Type (RefreshPriority (..))
 import Vira.State.Acid qualified as St
-import Vira.State.Type (OwnerName (..), PRCommit (..), PRState (..), PullRequest (..), prBranchRef)
+import Vira.State.Type (ForgeInfo (..), OwnerName (..), PRCommit (..), PRState (..), PullRequest (..), prBranchRef)
 import Vira.State.Type qualified as St
+import Web.TablerIcons.Outline qualified as Icon
 
 -- | API type for GitHub webhook events
 data Routes mode = Routes
@@ -108,7 +109,7 @@ prHandler event = do
           baseOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prBase
           isFork = headOwner /= baseOwner
           URL htmlUrl = whPullReqHtmlUrl prPayload
-          url = Just htmlUrl
+          forgeInfo = Just $ ForgeInfo htmlUrl Icon.brand_github
 
       installationId <- case evPullReqInstallationId event of
         Just i -> pure i

@@ -22,6 +22,15 @@ import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
 data PRState = PROpen | PRClosed | PRMerged
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
+-- | Information about the forge (Eg. GitHub, Bitbucket etc.)
+data ForgeInfo = ForgeInfo
+  { url :: Text
+  -- ^ URL to the resource on the forge
+  , icon :: ByteString
+  -- ^ SVG icon content (e.g. brand icon for the forge)
+  }
+  deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
+
 -- | A pull request tracked by Vira
 data PullRequest = PullRequest
   { repo :: RepoName
@@ -40,8 +49,8 @@ data PullRequest = PullRequest
   -- ^ Target branch in origin
   , prState :: PRState
   -- ^ Current lifecycle state
-  , url :: Maybe Text
-  -- ^ External URL to the PR on the forge (e.g. GitHub)
+  , forgeInfo :: Maybe ForgeInfo
+  -- ^ Information about the forge
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
@@ -315,7 +324,8 @@ data ViraState = ViraState
 
 $(deriveSafeCopy 0 'base ''OwnerName)
 $(deriveSafeCopy 0 'base ''PRState)
-$(deriveSafeCopy 0 'base ''PullRequest)
+$(deriveSafeCopy 0 'base ''ForgeInfo)
+$(deriveSafeCopy 1 'base ''PullRequest)
 $(deriveSafeCopy 0 'base ''PRCommit)
 $(deriveSafeCopy 0 'base ''JobResult)
 $(deriveSafeCopy 0 'base ''JobStatus)
@@ -335,4 +345,4 @@ The version is automatically used by the @--auto-reset-state@ feature to detect 
 When enabled, auto-reset will remove @ViraState/@ and @workspace/*/jobs@ directories on mismatch.
 Run @vira info@ to see the current schema version.
 -}
-$(deriveSafeCopy 9 'base ''ViraState)
+$(deriveSafeCopy 10 'base ''ViraState)

@@ -27,7 +27,7 @@ import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.CI.Client qualified as Client
 import Vira.State.Acid qualified as St
-import Vira.State.Type (OwnerName (..), PRCommit (..), PRState (..), PullRequest (..), prBranchRef)
+import Vira.State.Type (ForgeInfo (..), OwnerName (..), PRCommit (..), PRState (..), PullRequest (..), prBranchRef)
 import Vira.State.Type qualified as St
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, runAppHtml)
@@ -76,10 +76,10 @@ viewPRDetail pr commits jobs = do
           span_ $ toHtml (unBranchName pr.headBranch) <> " → " <> toHtml (unBranchName pr.baseBranch)
         forkBadge_ pr
         prStateBadge_ pr.prState
-        whenJust pr.url $ \prUrl ->
-          a_ [href_ prUrl, target_ "blank", class_ "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"] $
+        whenJust pr.forgeInfo $ \f ->
+          a_ [href_ f.url, target_ "blank", class_ "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"] $
             div_ [class_ "w-5 h-5 flex items-center justify-center"] $
-              toHtmlRaw Icon.external_link
+              toHtmlRaw f.icon
     )
 
   W.viraSection_ [] $ do
