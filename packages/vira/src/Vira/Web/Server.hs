@@ -29,10 +29,10 @@ import System.Nix.Flake.Develop qualified as Nix
 import Vira.App (AppStack, ViraRuntimeState (..))
 import Vira.App.CLI (GHAppAuthSettings (..), GlobalSettings (..), WebSettings (..))
 import Vira.Effect.GitHub (newAppAuth)
-import Vira.GitHub.Middleware qualified as GitHub
 import Vira.Lib.Crypto (readRsaPem)
 import Vira.Web.Pages.IndexPage qualified as IndexPage
 import Vira.Web.Pages.NotFoundPage qualified as NotFoundPage
+import Vira.Web.Webhook.GitHub qualified as GitHub
 
 -- | Run the Vira server with the given 'GlobalSettings' and 'WebSettings'
 runServer :: (HasCallStack) => GlobalSettings -> WebSettings -> Application -> Eff AppStack ()

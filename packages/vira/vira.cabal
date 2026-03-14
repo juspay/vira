@@ -68,9 +68,6 @@ library
       Vira.Environment.Tool.Tools.Nix
       Vira.Environment.Tool.Type.ToolData
       Vira.Environment.Tool.Type.Tools
-      Vira.GitHub.CheckRun
-      Vira.GitHub.Middleware
-      Vira.GitHub.Webhook
       Vira.Lib.Crypto
       Vira.Lib.GitHub
       Vira.Lib.STM
@@ -110,6 +107,7 @@ library
       Vira.Web.Stream.KeepAlive
       Vira.Web.Stream.Log
       Vira.Web.Stream.ScopedRefresh
+      Vira.Web.Webhook.GitHub
       Vira.Web.Widgets.Alert
       Vira.Web.Widgets.Button
       Vira.Web.Widgets.Card
