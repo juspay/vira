@@ -240,7 +240,7 @@ installationHandler event = do
       addRepositories repos
     InstallationDeletedAction -> do
       let repoNames = toList $ fmap (RepoName . whSimplRepoName) (evInstallationRepos event)
-      log Warning "Installation deleted, removing repositories from Vira"
+      log Info "Installation deleted, removing repositories from Vira"
       deleteRepositories repoNames
     _ -> log Debug "Ignoring non-create/delete installation action"
   pure NoContent
@@ -259,7 +259,7 @@ installationReposHandler event = do
       addRepositories repos
     InstallationRepoRemovedAction -> do
       let repoNames = toList $ fmap (RepoName . whSimplRepoName) (evInstallationReposRemove event)
-      log Warning "Repositories removed from installation, deleting from Vira"
+      log Info "Repositories removed from installation, deleting from Vira"
       deleteRepositories repoNames
     _ -> log Debug "Ignoring unknown installation_repositories action"
   pure NoContent
@@ -334,7 +334,7 @@ logAndSwallowGitHubError appAuth m = do
   result <- runErrorNoCallStack @GitHubError $ runGitHubAsApp appAuth m
   case result of
     Left err -> do
-      log Warning $ "GitHub API error: " <> show err
+      log Error $ "GitHub API error: " <> show err
       pure NoContent
     Right a -> pure a
 

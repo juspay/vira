@@ -57,7 +57,7 @@ runServer globalSettings webSettings cacheApp = do
           webhookSecret <- case webSettings.ghWebhookSecretFile of
             Just secretPath -> liftIO $ strip . decodeUtf8 <$> readFileBS secretPath
             Nothing -> do
-              log Warning "No webhook secret configured (--github-webhook-secret-file). Webhook signature verification is disabled."
+              log Error "No webhook secret configured (--github-webhook-secret-file). Webhook signature verification is disabled."
               pure ""
           pure $ GitHub.githubMiddleware globalSettings viraRuntimeState appAuth webhookSecret
         Nothing ->
