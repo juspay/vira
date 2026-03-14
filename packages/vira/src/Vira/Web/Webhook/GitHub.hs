@@ -10,20 +10,7 @@ changes and posting updates back to GitHub.
 Includes WAI middleware that mounts these routes under @/github/webhook@.
 -}
 module Vira.Web.Webhook.GitHub (
-  -- * WAI middleware
   githubMiddleware,
-
-  -- * Servant routes
-  Routes (..),
-  handlers,
-
-  -- * Webhook helpers
-  runWebhookInServant,
-  logAndSwallowGitHubError,
-
-  -- * Check run lifecycle
-  pullRequestCheckRunWatcher,
-  jobStatusLoop,
 ) where
 
 import Colog (Severity (..))
@@ -44,8 +31,6 @@ import Effectful.Reader.Static qualified as ER
 import GitHub.Data.Webhooks.Events (
   InstallationEvent (..),
   InstallationEventAction (..),
-  InstallationRepoEventAction (..),
-  InstallationRepositoriesEvent (..),
   PullRequestEvent (..),
   PullRequestEventAction (..),
   PushEvent,
@@ -70,7 +55,27 @@ import Vira.State.Type qualified as St
 import Web.TablerIcons.Outline qualified as Icon
 import Prelude hiding (Reader)
 
--- * WAI Middleware
+data Routes mode = Routes
+  { _pullRequest :: mode :- GitHubEvent PullRequestEvent :> Post '[JSON] NoContent
+  , _push :: mode :- GitHubEvent PushEvent :> Post '[JSON] NoContent
+  , _installation :: mode :- GitHubEvent InstallationEvent :> Post '[JSON] NoContent
+  }
+  deriving stock (Generic)
+
+handlers ::
+  GlobalSettings ->
+  ViraRuntimeState ->
+  AppAuth ->
+  Routes AsServer
+handlers globalSettings viraRuntimeState appAuth =
+  Routes
+    { _pullRequest =
+        runWebhookInServant globalSettings viraRuntimeState
+          . logAndSwallowGitHubError appAuth
+          . pullRequestHandler
+    , _push = runWebhookInServant globalSettings viraRuntimeState . pushHandler
+    , _installation = runWebhookInServant globalSettings viraRuntimeState . installationHandler
+    }
 
 -- | WAI middleware that mounts GitHub webhook routes under @/github/webhook@
 githubMiddleware ::
@@ -94,40 +99,6 @@ githubMiddleware globalSettings viraRuntimeState appAuth webhookSecret app req s
         (handlers globalSettings viraRuntimeState appAuth)
         (githubKey :. EmptyContext)
 
--- * Servant Routes
-
--- | API type for GitHub webhook events
-data Routes mode = Routes
-  { _pullRequest :: mode :- GitHubEvent PullRequestEvent :> Post '[JSON] NoContent
-  , _push :: mode :- GitHubEvent PushEvent :> Post '[JSON] NoContent
-  , _installation :: mode :- GitHubEvent InstallationEvent :> Post '[JSON] NoContent
-  , _installationRepos :: mode :- GitHubEvent InstallationRepositoriesEvent :> Post '[JSON] NoContent
-  }
-  deriving stock (Generic)
-
--- | Servant handlers for GitHub webhook events
-handlers ::
-  GlobalSettings ->
-  ViraRuntimeState ->
-  AppAuth ->
-  Routes AsServer
-handlers globalSettings viraRuntimeState appAuth =
-  Routes
-    { _pullRequest =
-        runWebhookInServant globalSettings viraRuntimeState
-          . logAndSwallowGitHubError appAuth
-          . pullRequestHandler
-    , _push = runWebhookInServant globalSettings viraRuntimeState . pushHandler
-    , _installation = runWebhookInServant globalSettings viraRuntimeState . installationHandler
-    , _installationRepos = runWebhookInServant globalSettings viraRuntimeState . installationReposHandler
-    }
-
-{- | Handle pull request events
-
-On PR open/reopen/synchronize: creates PullRequest and PullRequestCommit records.
-Same-repo PRs auto-build. Fork PRs require per-commit approval before building.
-On PR close/merge: updates PR state.
--}
 pullRequestHandler :: PullRequestEvent -> Eff (GitHub : Error GitHubError : AppStack) NoContent
 pullRequestHandler event = do
   log Info $ "Received PR event: " <> show (evPullReqAction event)
@@ -177,7 +148,7 @@ pullRequestHandler event = do
             Commit
               { id = CommitID $ whPullReqTargetSha prHead
               , message = whPullReqTitle prPayload
-              , -- Cannot be fetched from a prPayload
+              , -- The below fields cannot be fetched from a prPayload
                 date = now
               , author = ""
               , authorEmail = ""
@@ -194,19 +165,16 @@ pullRequestHandler event = do
       -- Store commit in the global index so job rows can display it
       App.update $ St.StoreCommitA commit
 
-      -- Subscribe to event bus BEFORE enqueuing to avoid missing events
-      let instId = InstallationId installationId
-          owner = Owner $ unOwnerName baseOwner
-          ghRepo = Repo $ unRepoName repo
       chan <- App.subscribe
 
-      -- Same-repo PRs: auto-build (fork PRs wait for approval via core route)
+      -- auto-build PR's from branches on the same repo
       unless isFork $ do
         let branchRef = pullRequestBranchRef pr.prNumber
         void $ Client.enqueueJob pr.repo branchRef prCommit.commit.id (Just pr.prNumber)
 
-      -- Spawn check run watcher for all PRs (same-repo + fork)
-      -- installationId is captured in the async closure — never persisted
+      let instId = InstallationId installationId
+          owner = Owner $ unOwnerName baseOwner
+          ghRepo = Repo $ unRepoName repo
       void $
         async $
           pullRequestCheckRunWatcher chan instId owner ghRepo pr.repo pr.prNumber prCommit.commit.id
@@ -226,11 +194,6 @@ pushHandler _ = do
   log Info "Received Push"
   pure NoContent
 
-{- | Handle installation events (created/deleted)
-
-On installation created: automatically add all repositories to Vira registry
-On installation deleted: remove all repositories from Vira (unless they have running jobs)
--}
 installationHandler :: InstallationEvent -> Eff AppStack NoContent
 installationHandler event = do
   log Info $ "Received installation event: " <> show (evInstallationAction event)
@@ -238,82 +201,31 @@ installationHandler event = do
     InstallationCreatedAction -> do
       let repos = toList $ evInstallationRepos event
       addRepositories repos
-    InstallationDeletedAction -> do
-      let repoNames = toList $ fmap (RepoName . whSimplRepoName) (evInstallationRepos event)
-      log Info "Installation deleted, removing repositories from Vira"
-      deleteRepositories repoNames
     _ -> log Debug "Ignoring non-create/delete installation action"
   pure NoContent
-
-{- | Handle installation_repositories events (added/removed)
-
-On repositories added: automatically add them to Vira registry
-On repositories removed: remove them from Vira (unless they have running jobs)
--}
-installationReposHandler :: InstallationRepositoriesEvent -> Eff AppStack NoContent
-installationReposHandler event = do
-  log Info $ "Received installation_repositories event: " <> show (evInstallationRepoAction event)
-  case evInstallationRepoAction event of
-    InstallationRepoAddedAction -> do
-      let repos = toList $ evInstallationReposAdd event
-      addRepositories repos
-    InstallationRepoRemovedAction -> do
-      let repoNames = toList $ fmap (RepoName . whSimplRepoName) (evInstallationReposRemove event)
-      log Info "Repositories removed from installation, deleting from Vira"
-      deleteRepositories repoNames
-    _ -> log Debug "Ignoring unknown installation_repositories action"
-  pure NoContent
-
-{- | Add repositories from webhook event
-
-For each repository:
-1. Check if it already exists (idempotent)
-2. Add to Vira registry with constructed clone URL
-3. Schedule immediate refresh to fetch branches
--}
-addRepositories :: [HookRepositorySimple] -> Eff AppStack ()
-addRepositories repos = do
-  forM_ repos $ \repoSimple -> do
-    let fullName = whSimplRepoFullName repoSimple
-        repoName = RepoName $ whSimplRepoName repoSimple
-        cloneUrl = "https://github.com/" <> fullName <> ".git"
-
-    log Info $ "Processing repository: " <> fullName
-
-    -- Check for duplicates
-    App.query (St.GetRepoByNameA repoName) >>= \case
-      Just _ -> log Info $ "Repository already exists, skipping: " <> toText repoName
-      Nothing -> do
-        -- Add repository
-        let newRepo =
-              St.Repo
-                { name = repoName
-                , cloneUrl = cloneUrl
-                , lastRefresh = Nothing
-                }
-        App.update $ St.AddNewRepoA newRepo
-        log Info $ "Added repository: " <> toText repoName
-
-        -- Schedule immediate refresh (matches pattern from RegistryPage.hs)
-        Refresh.scheduleRepoRefresh (one repoName) Now
-
-{- | Delete repositories from Vira
-
-For each repository:
-1. Attempt deletion (fails if running jobs exist)
-2. Log success or failure
--}
-deleteRepositories :: [RepoName] -> Eff AppStack ()
-deleteRepositories repoNames = do
-  forM_ repoNames $ \repoName -> do
-    log Info $ "Deleting repository: " <> toText repoName
-    App.update (St.DeleteRepoByNameA repoName) >>= \case
-      Left errMsg -> log Error $ "Failed to delete " <> toText repoName <> ": " <> errMsg
-      Right () -> log Info $ "Deleted repository: " <> toText repoName
+  where
+    addRepositories :: [HookRepositorySimple] -> Eff AppStack ()
+    addRepositories repos = do
+      forM_ repos $ \repoSimple -> do
+        let fullName = whSimplRepoFullName repoSimple
+            repoName = RepoName $ whSimplRepoName repoSimple
+            cloneUrl = "https://github.com/" <> fullName <> ".git" -- won't work with private repos, but `HookRepositorySimple` has no field for url
+        App.query (St.GetRepoByNameA repoName) >>= \case
+          Just _ -> log Info $ "Repository already exists, skipping: " <> toText repoName
+          Nothing -> do
+            -- Add repository
+            let newRepo =
+                  St.Repo
+                    { name = repoName
+                    , cloneUrl = cloneUrl
+                    , lastRefresh = Nothing
+                    }
+            App.update $ St.AddNewRepoA newRepo
+            log Info $ "Added repository: " <> toText repoName
+            Refresh.scheduleRepoRefresh (one repoName) Now
 
 -- * Webhook helpers
 
--- | Run an 'AppStack' action into Servant 'Handler'
 runWebhookInServant :: GlobalSettings -> ViraRuntimeState -> Eff AppStack NoContent -> Handler NoContent
 runWebhookInServant globalSettings viraRuntimeState action =
   Handler
