@@ -380,10 +380,11 @@ enrichPullRequestWithJobs jobsIx pullRequestCommitsIx pr =
       prJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= pr.repo @= branchRef
       commits = Ix.toList $ pullRequestCommitsIx @= pr.repo @= pr.prNumber
       unapproved = filter (not . (.approved)) commits
-      latestCommitTime = case sortWith (Down . (.commit.date)) commits of
+      sortedCommits = sortWith (Down . (.commit.date)) commits
+      latestCommitTime = case sortedCommits of
         (c : _) -> c.commit.date
         [] -> UTCTime (fromGregorian 1970 1 1) 0
-      latestCommitId = case sortWith (Down . (.commit.date)) commits of
+      latestCommitId = case sortedCommits of
         (c : _) -> Just c.commit.id
         [] -> Nothing
       buildState = case sortWith (Down . (.commit.date)) unapproved of
