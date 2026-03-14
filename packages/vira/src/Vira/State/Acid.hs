@@ -327,7 +327,7 @@ upsertPullRequestA pr = do
     s {pullRequests = Ix.updateIx pr.prNumber pr s.pullRequests}
 
 -- | Update a pull request's state (on close/merge)
-updatePullRequestStateA :: RepoName -> Int -> PRState -> Update ViraState ()
+updatePullRequestStateA :: RepoName -> Int -> PullRequestState -> Update ViraState ()
 updatePullRequestStateA repo prNum newState = do
   modify $ \s ->
     case Ix.getOne $ s.pullRequests @= repo @= prNum of
@@ -336,49 +336,49 @@ updatePullRequestStateA repo prNum newState = do
         let updated = pr {prState = newState}
          in s {pullRequests = Ix.updateIx prNum updated s.pullRequests}
 
--- * PRCommit operations
+-- * PullRequestCommit operations
 
 -- | Get a specific PR commit
-getPRCommitA :: RepoName -> Int -> CommitID -> Query ViraState (Maybe PRCommit)
-getPRCommitA repo prNum sha = do
-  ViraState {prCommits} <- ask
-  pure $ Ix.getOne $ prCommits @= repo @= prNum @= sha
+getPullRequestCommitA :: RepoName -> Int -> CommitID -> Query ViraState (Maybe PullRequestCommit)
+getPullRequestCommitA repo prNum sha = do
+  ViraState {pullRequestCommits} <- ask
+  pure $ Ix.getOne $ pullRequestCommits @= repo @= prNum @= sha
 
 -- | Get all commits for a PR
-getPRCommitsByPRA :: RepoName -> Int -> Query ViraState [PRCommit]
-getPRCommitsByPRA repo prNum = do
-  ViraState {prCommits} <- ask
-  pure $ Ix.toList $ prCommits @= repo @= prNum
+getPullRequestCommitsA :: RepoName -> Int -> Query ViraState [PullRequestCommit]
+getPullRequestCommitsA repo prNum = do
+  ViraState {pullRequestCommits} <- ask
+  pure $ Ix.toList $ pullRequestCommits @= repo @= prNum
 
 -- | Get unapproved commits for a PR
-getUnapprovedPRCommitsA :: RepoName -> Int -> Query ViraState [PRCommit]
-getUnapprovedPRCommitsA repo prNum = do
-  ViraState {prCommits} <- ask
-  pure $ filter (not . (.approved)) $ Ix.toList $ prCommits @= repo @= prNum
+getUnapprovedPullRequestCommitsA :: RepoName -> Int -> Query ViraState [PullRequestCommit]
+getUnapprovedPullRequestCommitsA repo prNum = do
+  ViraState {pullRequestCommits} <- ask
+  pure $ filter (not . (.approved)) $ Ix.toList $ pullRequestCommits @= repo @= prNum
 
 -- | Add a new PR commit (upserts by SHA to avoid duplicates from repeated webhook events)
-addPRCommitA :: PRCommit -> Update ViraState ()
-addPRCommitA pc = do
+addPullRequestCommitA :: PullRequestCommit -> Update ViraState ()
+addPullRequestCommitA pc = do
   modify $ \s ->
-    s {prCommits = Ix.updateIx pc.commit.id pc s.prCommits}
+    s {pullRequestCommits = Ix.updateIx pc.commit.id pc s.pullRequestCommits}
 
 -- | Approve a PR commit, returning Left if not found
-approvePRCommitA :: RepoName -> Int -> CommitID -> Update ViraState (Either Text ())
-approvePRCommitA repo prNum sha = do
+approvePullRequestCommitA :: RepoName -> Int -> CommitID -> Update ViraState (Either Text ())
+approvePullRequestCommitA repo prNum sha = do
   s <- get
-  case Ix.getOne $ s.prCommits @= repo @= prNum @= sha of
+  case Ix.getOne $ s.pullRequestCommits @= repo @= prNum @= sha of
     Nothing -> pure $ Left "PR commit not found"
     Just pc -> do
       let updated = pc {approved = True}
-      modify $ \st -> st {prCommits = Ix.updateIx pc.commit.id updated st.prCommits}
+      modify $ \st -> st {pullRequestCommits = Ix.updateIx pc.commit.id updated st.pullRequestCommits}
       pure $ Right ()
 
--- | Enrich a 'PullRequest' with its build/approval state to create 'PRDetails'
-enrichPRWithJobs :: IxJob -> IxPRCommit -> PullRequest -> PRDetails
-enrichPRWithJobs jobsIx prCommitsIx pr =
-  let branchRef = prBranchRef pr.prNumber
+-- | Enrich a 'PullRequest' with its build/approval state to create 'PullRequestDetails'
+enrichPullRequestWithJobs :: IxJob -> IxPullRequestCommit -> PullRequest -> PullRequestDetails
+enrichPullRequestWithJobs jobsIx pullRequestCommitsIx pr =
+  let branchRef = pullRequestBranchRef pr.prNumber
       prJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= pr.repo @= branchRef
-      commits = Ix.toList $ prCommitsIx @= pr.repo @= pr.prNumber
+      commits = Ix.toList $ pullRequestCommitsIx @= pr.repo @= pr.prNumber
       unapproved = filter (not . (.approved)) commits
       latestCommitTime = case sortWith (Down . (.commit.date)) commits of
         (c : _) -> c.commit.date
@@ -387,15 +387,15 @@ enrichPRWithJobs jobsIx prCommitsIx pr =
         (c : _) -> Just c.commit.id
         [] -> Nothing
       buildState = case sortWith (Down . (.commit.date)) unapproved of
-        (c : _) -> PRUnapproved c
+        (c : _) -> PullRequestUnapproved c
         [] -> case viaNonEmpty head prJobs of
           Just job ->
             let freshness = case latestCommitId of
                   Just cid | cid == job.commit -> UpToDate
                   _ -> OutOfDate
-             in PRBuilt job freshness
-          Nothing -> PRNeverBuilt
-   in PRDetails {pullRequest = pr, latestCommitTime, buildState}
+             in PullRequestBuilt job freshness
+          Nothing -> PullRequestNeverBuilt
+   in PullRequestDetails {pullRequest = pr, latestCommitTime, buildState}
 
 {- | Query PRs with enriched build state, sorted by activity time.
 
@@ -403,15 +403,15 @@ enrichPRWithJobs jobsIx prCommitsIx pr =
 - Just repo: single repo (RepoPage)
 - Sorted by activity time (most recent first)
 -}
-queryPRDetailsA :: Maybe RepoName -> Natural -> Query ViraState [PRDetails]
-queryPRDetailsA mRepo limit = do
-  ViraState {pullRequests, jobs, prCommits} <- ask
+queryPullRequestDetailsA :: Maybe RepoName -> Natural -> Query ViraState [PullRequestDetails]
+queryPullRequestDetailsA mRepo limit = do
+  ViraState {pullRequests, jobs, pullRequestCommits} <- ask
   pure $
     pullRequests
       & maybe Prelude.id getEQ mRepo
       & Ix.toList
-      & fmap (enrichPRWithJobs jobs prCommits)
-      & sortWith (Down . prActivityTime)
+      & fmap (enrichPullRequestWithJobs jobs pullRequestCommits)
+      & sortWith (Down . pullRequestActivityTime)
       & take (fromIntegral limit)
 
 -- | Like `Ix.updateIx`, but works for multiple items.
@@ -468,14 +468,14 @@ $( makeAcidic
      , 'getPullRequestsByRepoA
      , 'upsertPullRequestA
      , 'updatePullRequestStateA
-     , -- PRCommit operations
-       'getPRCommitA
-     , 'getPRCommitsByPRA
-     , 'getUnapprovedPRCommitsA
-     , 'addPRCommitA
-     , 'approvePRCommitA
-     , -- PR enrichment queries
-       'queryPRDetailsA
+     , -- PullRequestCommit operations
+       'getPullRequestCommitA
+     , 'getPullRequestCommitsA
+     , 'getUnapprovedPullRequestCommitsA
+     , 'addPullRequestCommitA
+     , 'approvePullRequestCommitA
+     , -- PullRequest enrichment queries
+       'queryPullRequestDetailsA
      ]
  )
 
@@ -503,6 +503,6 @@ deriving stock instance Show UpsertPullRequestA
 
 deriving stock instance Show UpdatePullRequestStateA
 
-deriving stock instance Show AddPRCommitA
+deriving stock instance Show AddPullRequestCommitA
 
-deriving stock instance Show ApprovePRCommitA
+deriving stock instance Show ApprovePullRequestCommitA

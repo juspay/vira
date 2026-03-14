@@ -35,6 +35,6 @@ linkTo = \case
   Cache -> fieldLink _cache // CachePage._view
   Events -> fieldLink _events // EventsPage._view
   Refresh mPatterns -> fieldLink _refresh mPatterns
-  RepoPRFilter repo -> fieldLink _repos // RegistryPage._repo /: repo // RepoPage._filterPRs /: (Nothing :: Maybe Text)
-  RepoPull repo n -> fieldLink _repos // RegistryPage._pull /: repo // PullPage._detail /: n
-  PRApprove repo n sha -> fieldLink _repos // RegistryPage._pull /: repo // PullPage._approve /: n /: sha
+  RepoPullRequestFilter repo -> fieldLink _repos // RegistryPage._repo /: repo // RepoPage._filterPullRequests /: (Nothing :: Maybe Text)
+  RepoPullRequest repo n -> fieldLink _repos // RegistryPage._pullRequest /: repo // PullPage._detail /: n
+  PullRequestApprove repo n sha -> fieldLink _repos // RegistryPage._pullRequest /: repo // PullPage._approve /: n /: sha

@@ -13,7 +13,7 @@ import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
-import Vira.State.Type (BranchDetails, BranchQuery (..), PRBuildState (..), PRDetails (..), PRState (..), PullRequest (..), branchActivityTime, prActivityTime)
+import Vira.State.Type (BranchDetails, BranchQuery (..), PullRequest (..), PullRequestBuildState (..), PullRequestDetails (..), PullRequestState (..), branchActivityTime, pullRequestActivityTime)
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl, runAppHtml)
 import Vira.Web.Pages.CachePage qualified as CachePage
@@ -75,24 +75,24 @@ indexView mUnbuilt = do
 -- | A unified activity item for interleaving branch and PR activity
 data ActivityItem
   = BranchActivity BranchDetails
-  | PRActivity PRDetails
+  | PRActivity PullRequestDetails
 
 activityTime :: ActivityItem -> UTCTime
 activityTime = \case
   BranchActivity details -> branchActivityTime details
-  PRActivity details -> prActivityTime details
+  PRActivity details -> pullRequestActivityTime details
 
 viewRecentActivity :: Maybe Bool -> AppHtml ()
 viewRecentActivity mNeverBuilt = do
   -- Single query for all PR details (replaces N+1 fetchPRActivities)
-  allPRDetails <- lift $ App.query (St.QueryPRDetailsA Nothing activityLimit)
-  let openPRs = filter (\d -> d.pullRequest.prState == PROpen) allPRDetails
+  allPullRequestDetails <- lift $ App.query (St.QueryPullRequestDetailsA Nothing activityLimit)
+  let openPRs = filter (\d -> d.pullRequest.prState == PullRequestOpen) allPullRequestDetails
 
   -- Filter PRs by tab
   let filteredPRs = case mNeverBuilt of
         Nothing -> openPRs
-        Just True -> filter isPRUnbuilt openPRs
-        Just False -> filter (not . isPRUnbuilt) openPRs
+        Just True -> filter isPullRequestUnbuilt openPRs
+        Just False -> filter (not . isPullRequestUnbuilt) openPRs
 
   -- Fetch branches with tab filter (acid-state level filtering)
   let branchQuery = def {neverBuilt = mNeverBuilt}
@@ -109,7 +109,7 @@ viewRecentActivity mNeverBuilt = do
     if mNeverBuilt == Just True
       then pure $ length branchDetails -- already filtered
       else length <$> lift (App.query (St.QueryBranchDetailsA (def {neverBuilt = Just True}) activityLimit))
-  let unbuiltPRCount = length $ filter isPRUnbuilt openPRs
+  let unbuiltPRCount = length $ filter isPullRequestUnbuilt openPRs
   let unbuiltCount = unbuiltBranchCount + unbuiltPRCount
 
   W.viraSection_ [] $ do
@@ -132,14 +132,14 @@ viewRecentActivity mNeverBuilt = do
         BranchActivity details ->
           W.viraBranchDetailsRow_ True details
         PRActivity details ->
-          W.viraPRDetailsRow_ True details
+          W.viraPullRequestDetailsRow_ True details
 
 -- | PR is unbuilt if it has unapproved commits or has never been built
-isPRUnbuilt :: PRDetails -> Bool
-isPRUnbuilt d = case d.buildState of
-  PRUnapproved _ -> True
-  PRNeverBuilt -> True
-  PRBuilt {} -> False
+isPullRequestUnbuilt :: PullRequestDetails -> Bool
+isPullRequestUnbuilt d = case d.buildState of
+  PullRequestUnapproved _ -> True
+  PullRequestNeverBuilt -> True
+  PullRequestBuilt {} -> False
 
 heroWelcome :: (Monad m) => Text -> Text -> Text -> Text -> HtmlT m ()
 heroWelcome logoUrl reposLink envLink cacheLink = do

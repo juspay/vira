@@ -10,9 +10,9 @@ module Vira.State.Core (
   JobResult (..),
   jobIsActive,
   jobEndTime,
-  PRState (..),
+  PullRequestState (..),
   PullRequest (..),
-  PRCommit (..),
+  PullRequestCommit (..),
 
   -- * App initialization
   openViraState,

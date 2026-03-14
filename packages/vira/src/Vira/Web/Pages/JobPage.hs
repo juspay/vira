@@ -70,7 +70,7 @@ viewHandler jobId = do
         , LinkTo.Repo job.repo
         ]
           <> case job.prNumber of
-            Just prNum -> [LinkTo.RepoPull job.repo prNum]
+            Just prNum -> [LinkTo.RepoPullRequest job.repo prNum]
             Nothing -> [LinkTo.RepoBranch job.repo job.branch]
           <> [LinkTo.Job jobId]
   W.layout crumbs $ viewJob job

@@ -19,7 +19,7 @@ import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
 -- * Pull Request types
 
 -- | Pull request lifecycle state
-data PRState = PROpen | PRClosed | PRMerged
+data PullRequestState = PullRequestOpen | PullRequestClosed | PullRequestMerged
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
 -- | Information about the forge (Eg. GitHub, Bitbucket etc.)
@@ -47,7 +47,7 @@ data PullRequest = PullRequest
   -- ^ Source branch name
   , baseBranch :: BranchName
   -- ^ Target branch in origin
-  , prState :: PRState
+  , prState :: PullRequestState
   -- ^ Current lifecycle state
   , forgeInfo :: Maybe ForgeInfo
   -- ^ Information about the forge
@@ -55,8 +55,8 @@ data PullRequest = PullRequest
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
 -- | Whether a PR is from a fork (head owner differs from base owner)
-prIsFork :: PullRequest -> Bool
-prIsFork pr = pr.headOwner /= pr.baseOwner
+pullRequestIsFork :: PullRequest -> Bool
+pullRequestIsFork pr = pr.headOwner /= pr.baseOwner
 
 type PullRequestIxs = '[RepoName, Int]
 type IxPullRequest = IxSet PullRequestIxs PullRequest
@@ -68,7 +68,7 @@ instance Indexable PullRequestIxs PullRequest where
       (ixFun $ \PullRequest {prNumber} -> [prNumber])
 
 -- | A commit pushed to a PR (tracks history of syncs)
-data PRCommit = PRCommit
+data PullRequestCommit = PullRequestCommit
   { repo :: RepoName
   -- ^ Repository this commit belongs to
   , prNumber :: Int
@@ -80,19 +80,19 @@ data PRCommit = PRCommit
   }
   deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
 
-type PRCommitIxs = '[RepoName, Int, CommitID]
-type IxPRCommit = IxSet PRCommitIxs PRCommit
+type PullRequestCommitIxs = '[RepoName, Int, CommitID]
+type IxPullRequestCommit = IxSet PullRequestCommitIxs PullRequestCommit
 
-instance Indexable PRCommitIxs PRCommit where
+instance Indexable PullRequestCommitIxs PullRequestCommit where
   indices =
     ixList
-      (ixFun $ \PRCommit {repo} -> [repo])
-      (ixFun $ \PRCommit {prNumber} -> [prNumber])
-      (ixFun $ \PRCommit {commit} -> [commit.id])
+      (ixFun $ \PullRequestCommit {repo} -> [repo])
+      (ixFun $ \PullRequestCommit {prNumber} -> [prNumber])
+      (ixFun $ \PullRequestCommit {commit} -> [commit.id])
 
 -- | Ref branch for PR jobs in the jobs index
-prBranchRef :: Int -> BranchName
-prBranchRef n = BranchName $ "refs/pull/" <> show n <> "/head"
+pullRequestBranchRef :: Int -> BranchName
+pullRequestBranchRef n = BranchName $ "refs/pull/" <> show n <> "/head"
 
 -- | A project's git repository
 data Repo = Repo
@@ -196,37 +196,37 @@ instance Ord BranchDetails where
   compare a b = compare (Down $ branchActivityTime a) (Down $ branchActivityTime b)
 
 -- | Build/approval state for a PR (mirrors 'BranchBuildState')
-data PRBuildState
+data PullRequestBuildState
   = -- | Fork PR with latest unapproved commit
-    PRUnapproved PRCommit
+    PullRequestUnapproved PullRequestCommit
   | -- | All approved but no job yet
-    PRNeverBuilt
+    PullRequestNeverBuilt
   | -- | Has at least one build (latest job + freshness)
-    PRBuilt Job BuildFreshness
+    PullRequestBuilt Job BuildFreshness
   deriving stock (Generic, Show, Eq)
 
 -- | 'PullRequest' enriched with build state for display (mirrors 'BranchDetails')
-data PRDetails = PRDetails
+data PullRequestDetails = PullRequestDetails
   { pullRequest :: PullRequest
   , latestCommitTime :: UTCTime
   -- ^ Time of the most recent PR commit (analogous to @branch.headCommit.date@)
-  , buildState :: PRBuildState
+  , buildState :: PullRequestBuildState
   }
   deriving stock (Generic, Show, Eq)
 
-{- | Get the most recent activity time for a 'PRDetails'.
+{- | Get the most recent activity time for a 'PullRequestDetails'.
 
 Uses @max(latestCommitTime, jobCreatedTime)@, mirroring 'branchActivityTime'.
 -}
-prActivityTime :: PRDetails -> UTCTime
-prActivityTime details = case details.buildState of
-  PRUnapproved _ -> details.latestCommitTime
-  PRNeverBuilt -> details.latestCommitTime
-  PRBuilt job _ -> max details.latestCommitTime job.jobCreatedTime
+pullRequestActivityTime :: PullRequestDetails -> UTCTime
+pullRequestActivityTime details = case details.buildState of
+  PullRequestUnapproved _ -> details.latestCommitTime
+  PullRequestNeverBuilt -> details.latestCommitTime
+  PullRequestBuilt job _ -> max details.latestCommitTime job.jobCreatedTime
 
--- | Sorts 'PRDetails' by most recent activity descending (most recent first).
-instance Ord PRDetails where
-  compare a b = compare (Down $ prActivityTime a) (Down $ prActivityTime b)
+-- | Sorts 'PullRequestDetails' by most recent activity descending (most recent first).
+instance Ord PullRequestDetails where
+  compare a b = compare (Down $ pullRequestActivityTime a) (Down $ pullRequestActivityTime b)
 
 newtype OwnerName = OwnerName {unOwnerName :: Text}
   deriving stock (Generic, Data)
@@ -316,17 +316,17 @@ data ViraState = ViraState
   , commits :: IxCommit
   , jobs :: IxJob
   , pullRequests :: IxPullRequest
-  , prCommits :: IxPRCommit
+  , pullRequestCommits :: IxPullRequestCommit
   , nextJobId :: JobId
   -- ^ The next job ID to assign (monotonically increasing)
   }
   deriving stock (Generic, Typeable)
 
 $(deriveSafeCopy 0 'base ''OwnerName)
-$(deriveSafeCopy 0 'base ''PRState)
+$(deriveSafeCopy 0 'base ''PullRequestState)
 $(deriveSafeCopy 0 'base ''ForgeInfo)
 $(deriveSafeCopy 1 'base ''PullRequest)
-$(deriveSafeCopy 0 'base ''PRCommit)
+$(deriveSafeCopy 0 'base ''PullRequestCommit)
 $(deriveSafeCopy 0 'base ''JobResult)
 $(deriveSafeCopy 0 'base ''JobStatus)
 $(deriveSafeCopy 0 'base ''JobId)
@@ -336,8 +336,8 @@ $(deriveSafeCopy 0 'base ''BuildFreshness)
 $(deriveSafeCopy 0 'base ''BranchBuildState)
 $(deriveSafeCopy 0 'base ''BranchQuery)
 $(deriveSafeCopy 0 'base ''BranchDetails)
-$(deriveSafeCopy 0 'base ''PRBuildState)
-$(deriveSafeCopy 0 'base ''PRDetails)
+$(deriveSafeCopy 0 'base ''PullRequestBuildState)
+$(deriveSafeCopy 0 'base ''PullRequestDetails)
 $(deriveSafeCopy 0 'base ''Repo)
 
 {- | IMPORTANT: Increment the version number when making breaking changes to 'ViraState' or its indexed types.

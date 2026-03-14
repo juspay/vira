@@ -29,9 +29,9 @@ data LinkTo
   | Cache
   | Events
   | Refresh (Maybe Text) -- Query parameter for event patterns
-  | RepoPRFilter RepoName
-  | RepoPull RepoName Int
-  | PRApprove RepoName Int CommitID
+  | RepoPullRequestFilter RepoName
+  | RepoPullRequest RepoName Int
+  | PullRequestApprove RepoName Int CommitID
 
 linkShortTitle :: LinkTo -> Text
 linkShortTitle = \case
@@ -52,9 +52,9 @@ linkShortTitle = \case
   Cache -> "Binary Cache"
   Events -> "Events"
   Refresh _ -> "Refresh"
-  RepoPRFilter _ -> "Filter PRs" -- unused
-  RepoPull _ n -> "PR " <> show n
-  PRApprove {} -> "Approve" -- unused
+  RepoPullRequestFilter _ -> "Filter PRs" -- unused
+  RepoPullRequest _ n -> "PR " <> show n
+  PullRequestApprove {} -> "Approve" -- unused
 
 linkTitle :: LinkTo -> Text
 linkTitle = \case

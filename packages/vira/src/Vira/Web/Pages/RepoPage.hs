@@ -25,7 +25,7 @@ import Vira.Refresh qualified as Refresh
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (Now), RefreshResult (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type (BranchDetails (..), BranchQuery (..), PRDetails (..), PullRequest (..))
+import Vira.State.Type (BranchDetails (..), BranchQuery (..), PullRequest (..), PullRequestDetails (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
 import Vira.Web.Stack qualified as Web
@@ -42,7 +42,7 @@ data Routes mode = Routes
   , _update :: mode :- "fetch" Servant.:> Post '[HTML] (Headers '[HXRefresh] (Maybe ErrorModal))
   , _delete :: mode :- "delete" Servant.:> Post '[HTML] (Headers '[HXRedirect] Text)
   , _filterBranches :: mode :- "branches" Servant.:> QueryParam "q" Text :> Get '[HTML] (Html ())
-  , _filterPRs :: mode :- "pulls" Servant.:> QueryParam "q" Text :> Get '[HTML] (Html ())
+  , _filterPullRequests :: mode :- "pulls" Servant.:> QueryParam "q" Text :> Get '[HTML] (Html ())
   }
   deriving stock (Generic)
 
@@ -61,7 +61,7 @@ handlers globalSettings viraRuntimeState webSettings name = do
     , _update = Web.runAppInServant globalSettings viraRuntimeState webSettings $ updateHandler name
     , _delete = Web.runAppInServant globalSettings viraRuntimeState webSettings $ deleteHandler name
     , _filterBranches = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml . filterBranchesHandler name
-    , _filterPRs = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml . filterPRsHandler name
+    , _filterPullRequests = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml . filterPullRequestsHandler name
     }
 
 viewHandler :: RepoName -> AppHtml ()
@@ -82,14 +82,14 @@ filterBranchesHandler name mQuery = do
   _ <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   viewBranchListing displayed isPruned
 
-filterPRsHandler :: RepoName -> Maybe Text -> AppHtml ()
-filterPRsHandler name mQuery = do
+filterPullRequestsHandler :: RepoName -> Maybe Text -> AppHtml ()
+filterPullRequestsHandler name mQuery = do
   _ <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  prDetails <- lift $ App.query (St.QueryPRDetailsA (Just name) (fromIntegral maxDisplayed))
+  prDetails <- lift $ App.query (St.QueryPullRequestDetailsA (Just name) (fromIntegral maxDisplayed))
   let filtered = case mQuery of
         Nothing -> prDetails
         Just q -> filter (\d -> T.isInfixOf (T.toLower q) (T.toLower d.pullRequest.title)) prDetails
-  viewPRListing filtered
+  viewPullRequestListing filtered
 
 updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
@@ -138,7 +138,7 @@ viewRepo repo branchDetails isPruned = do
   W.viraSection_ [] $ do
     -- Pull Requests section
     do
-      prDetails <- lift $ App.query (St.QueryPRDetailsA (Just repo.name) (fromIntegral maxDisplayed))
+      prDetails <- lift $ App.query (St.QueryPullRequestDetailsA (Just repo.name) (fromIntegral maxDisplayed))
       viewPullRequestsSection repo.name prDetails
 
     -- Branch listing
@@ -217,7 +217,7 @@ viewBranchListing branchDetails isPruned = do
         W.viraBranchDetailsRow_ False details
 
 -- | Pull requests section with filter input
-viewPullRequestsSection :: RepoName -> [PRDetails] -> AppHtml ()
+viewPullRequestsSection :: RepoName -> [PullRequestDetails] -> AppHtml ()
 viewPullRequestsSection repoName prDetails =
   div_ [class_ "bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 lg:p-8"] $ do
     -- Header
@@ -232,7 +232,7 @@ viewPullRequestsSection repoName prDetails =
 
     -- PR filter input
     div_ [class_ "mb-6"] $ do
-      filterUrl <- lift $ getLinkUrl $ LinkTo.RepoPRFilter repoName
+      filterUrl <- lift $ getLinkUrl $ LinkTo.RepoPullRequestFilter repoName
       div_ [class_ "relative"] $ do
         input_
           [ type_ "text"
@@ -248,11 +248,11 @@ viewPullRequestsSection repoName prDetails =
 
     -- PR listing
     div_ [id_ "pr-listing"] $
-      viewPRListing prDetails
+      viewPullRequestListing prDetails
 
 -- | PR listing fragment (used by both full page and HTMX filter)
-viewPRListing :: [PRDetails] -> AppHtml ()
-viewPRListing prDetails =
+viewPullRequestListing :: [PullRequestDetails] -> AppHtml ()
+viewPullRequestListing prDetails =
   if null prDetails
     then div_ [class_ "text-center py-12"] $ do
       div_ [class_ "text-gray-500 dark:text-gray-400 mb-4"] "No pull requests found"
@@ -260,4 +260,4 @@ viewPRListing prDetails =
     else
       div_ [class_ "mt-4"] $
         forM_ prDetails $
-          W.viraPRDetailsRow_ False
+          W.viraPullRequestDetailsRow_ False

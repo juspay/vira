@@ -23,7 +23,7 @@ import Vira.App qualified as App
 import Vira.App.CLI (WebSettings)
 import Vira.CI.Client qualified as Client
 import Vira.State.Acid qualified as St
-import Vira.State.Type (ForgeInfo (..), PRCommit (..), PullRequest (..), prBranchRef)
+import Vira.State.Type (ForgeInfo (..), PullRequest (..), PullRequestCommit (..), pullRequestBranchRef)
 import Vira.State.Type qualified as St
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, runAppHtml)
@@ -53,18 +53,18 @@ handlers globalSettings viraRuntimeState webSettings repoName =
 detailHandler :: RepoName -> Int -> AppHtml ()
 detailHandler repoName prNum = do
   pr <- lift $ App.query (St.GetPullRequestA repoName prNum) >>= maybe (throwError err404) pure
-  commits <- lift $ App.query $ St.GetPRCommitsByPRA repoName prNum
-  let branchRef = St.prBranchRef prNum
+  commits <- lift $ App.query $ St.GetPullRequestCommitsA repoName prNum
+  let branchRef = St.pullRequestBranchRef prNum
   jobs <- lift $ App.query $ St.GetJobsByBranchA repoName branchRef
   let crumbs =
         [ LinkTo.RepoListing
         , LinkTo.Repo repoName
-        , LinkTo.RepoPull repoName prNum
+        , LinkTo.RepoPullRequest repoName prNum
         ]
-  W.layout crumbs $ viewPRDetail pr commits jobs
+  W.layout crumbs $ viewPullRequestDetail pr commits jobs
 
-viewPRDetail :: PullRequest -> [PRCommit] -> [St.Job] -> AppHtml ()
-viewPRDetail pr commits jobs = do
+viewPullRequestDetail :: PullRequest -> [PullRequestCommit] -> [St.Job] -> AppHtml ()
+viewPullRequestDetail pr commits jobs = do
   W.viraPageHeaderWithIcon_
     (toHtmlRaw Icon.git_pull_request)
     (pr.title <> " #" <> show pr.prNumber)
@@ -72,7 +72,7 @@ viewPRDetail pr commits jobs = do
         div_ [class_ "flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300"] $ do
           span_ $ toHtml (unBranchName pr.headBranch) <> " → " <> toHtml (unBranchName pr.baseBranch)
         W.forkBadge_ pr
-        W.prStateBadge_ pr.prState
+        W.pullRequestStateBadge_ pr.prState
         whenJust pr.forgeInfo $ \f ->
           a_ [href_ f.url, target_ "blank", class_ "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"] $
             div_ [class_ "w-5 h-5 flex items-center justify-center"] $
@@ -97,23 +97,23 @@ viewPRDetail pr commits jobs = do
 {- | Handle fork PR approval: mark commit approved and enqueue job
 
 This is core Vira logic with no GitHub dependency. GitHub check run
-creation is handled reactively by 'Vira.GitHub.Webhook.prCheckRunWatcher'.
+creation is handled reactively by 'Vira.GitHub.Webhook.pullRequestCheckRunWatcher'.
 -}
 approveHandler :: RepoName -> Int -> CommitID -> Eff Web.AppServantStack (Headers '[HXRefresh] Text)
 approveHandler repoName prNum sha = do
-  mCommit <- App.query $ St.GetPRCommitA repoName prNum sha
+  mCommit <- App.query $ St.GetPullRequestCommitA repoName prNum sha
   case mCommit of
     Nothing -> throwError err404
     Just pc
       | pc.approved -> throwError err400
       | otherwise -> do
-          void $ App.update $ St.ApprovePRCommitA repoName prNum sha
-          let branchRef = prBranchRef prNum
+          void $ App.update $ St.ApprovePullRequestCommitA repoName prNum sha
+          let branchRef = pullRequestBranchRef prNum
           void $ Client.enqueueJob repoName branchRef pc.commit.id (Just prNum)
           pure $ addHeader True "Approved"
 
 -- | Unapproved fork commit: show commit info + approve button
-viewUnapprovedCommitRow :: PullRequest -> PRCommit -> AppHtml ()
+viewUnapprovedCommitRow :: PullRequest -> PullRequestCommit -> AppHtml ()
 viewUnapprovedCommitRow pr pc =
   div_ [class_ "mb-6 p-4 rounded-lg bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700"] $ do
     div_ [class_ "flex items-center justify-between"] $ do
@@ -128,7 +128,7 @@ viewUnapprovedCommitRow pr pc =
 -- | Approve button for unapproved fork commits (posts to core approval route)
 approveButton_ :: RepoName -> Int -> CommitID -> AppHtml ()
 approveButton_ repoName prNum sha = do
-  approveLink <- lift $ getLink $ LinkTo.PRApprove repoName prNum sha
+  approveLink <- lift $ getLink $ LinkTo.PullRequestApprove repoName prNum sha
   W.viraButton_
     W.ButtonSuccess
     [hxPostSafe_ approveLink, class_ "text-xs px-3 py-1"]

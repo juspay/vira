@@ -42,7 +42,7 @@ data Routes mode = Routes
   { _listing :: mode :- Get '[HTML] (Html ())
   , _repo :: mode :- Capture "name" RepoName :> NamedRoutes RepoPage.Routes
   , _branch :: mode :- Capture "repo" RepoName :> "branches" :> Capture "name" BranchName :> NamedRoutes BranchPage.Routes
-  , _pull :: mode :- Capture "repo" RepoName :> "pulls" :> NamedRoutes PullPage.Routes
+  , _pullRequest :: mode :- Capture "repo" RepoName :> "pulls" :> NamedRoutes PullPage.Routes
   , _addRepo :: mode :- "add" :> FormReq Repo :> Post '[HTML] FormResp
   }
   deriving stock (Generic)
@@ -53,7 +53,7 @@ handlers globalSettings viraRuntimeState webSettings = do
     { _listing = Web.runAppInServant globalSettings viraRuntimeState webSettings $ runAppHtml handleListing
     , _repo = RepoPage.handlers globalSettings viraRuntimeState webSettings
     , _branch = BranchPage.handlers globalSettings viraRuntimeState webSettings
-    , _pull = PullPage.handlers globalSettings viraRuntimeState webSettings
+    , _pullRequest = PullPage.handlers globalSettings viraRuntimeState webSettings
     , _addRepo = Web.runAppInServant globalSettings viraRuntimeState webSettings . handleAddRepo
     }
 

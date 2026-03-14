@@ -9,7 +9,7 @@ module Vira.Web.Widgets.JobsListing (
   viraJobRow_,
   viraJobContextHeader_,
   viraBranchDetailsRow_,
-  viraPRDetailsRow_,
+  viraPullRequestDetailsRow_,
 ) where
 
 import Data.Text qualified as T
@@ -21,7 +21,7 @@ import Lucid
 import Lucid.Htmx.Contrib (hxPostSafe_)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
-import Vira.State.Type (BranchBuildState (..), BuildFreshness (..), PRBuildState (..), PRCommit (..), PRDetails (..), PullRequest (..))
+import Vira.State.Type (BranchBuildState (..), BuildFreshness (..), PullRequest (..), PullRequestBuildState (..), PullRequestCommit (..), PullRequestDetails (..))
 import Vira.State.Type qualified as St
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl)
@@ -266,25 +266,25 @@ viraBranchDetailsRow_ showRepo details = do
 {- | Render a PR details row with optional repo name.
 
 Canonical widget for displaying PR information across the application.
-Pattern matches on 'PRBuildState' for 3 cases:
-- 'PRUnapproved': show latest unapproved commit with Approve button
-- 'PRNeverBuilt': show PR title and state
-- 'PRBuilt': show latest job with status badge
+Pattern matches on 'PullRequestBuildState' for 3 cases:
+- 'PullRequestUnapproved': show latest unapproved commit with Approve button
+- 'PullRequestNeverBuilt': show PR title and state
+- 'PullRequestBuilt': show latest job with status badge
 
 Used by both IndexPage (with repo name) and RepoPage (without repo name).
 -}
-viraPRDetailsRow_ ::
+viraPullRequestDetailsRow_ ::
   -- | Show repo name? (True for IndexPage, False for RepoPage)
   Bool ->
-  St.PRDetails ->
+  St.PullRequestDetails ->
   AppHtml ()
-viraPRDetailsRow_ showRepo details = do
+viraPullRequestDetailsRow_ showRepo details = do
   let pr = details.pullRequest
-  prUrl <- lift $ getLinkUrl $ LinkTo.RepoPull pr.repo pr.prNumber
+  prUrl <- lift $ getLinkUrl $ LinkTo.RepoPullRequest pr.repo pr.prNumber
 
   -- Determine where clicking the row should go
   rowUrl <- case details.buildState of
-    PRBuilt job _ -> lift $ getLinkUrl $ LinkTo.Job job.jobId
+    PullRequestBuilt job _ -> lift $ getLinkUrl $ LinkTo.Job job.jobId
     _ -> pure prUrl
 
   div_ [class_ "relative mb-6"] $ do
@@ -313,7 +313,7 @@ viraPRDetailsRow_ showRepo details = do
       $ do
         div_ [class_ "grid grid-cols-1 lg:grid-cols-12 gap-3 items-center"] $ do
           case details.buildState of
-            PRUnapproved pc -> do
+            PullRequestUnapproved pc -> do
               -- Unapproved commit: show commit info + Approve button
               div_ [class_ "lg:col-span-8 flex items-center gap-2 flex-wrap text-sm"] $ do
                 W.viraCommitHash_ pc.commit.id
@@ -325,7 +325,7 @@ viraPRDetailsRow_ showRepo details = do
                     ]
                     $ toHtml pc.commit.message
               div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
-                approveLink <- lift $ getLink $ LinkTo.PRApprove pr.repo pr.prNumber pc.commit.id
+                approveLink <- lift $ getLink $ LinkTo.PullRequestApprove pr.repo pr.prNumber pc.commit.id
                 W.viraButton_
                   W.ButtonSuccess
                   [ hxPostSafe_ approveLink
@@ -336,14 +336,14 @@ viraPRDetailsRow_ showRepo details = do
                   $ do
                     W.viraButtonIcon_ $ toHtmlRaw Icon.shield_check
                     "Approve"
-            PRNeverBuilt -> do
+            PullRequestNeverBuilt -> do
               -- No job, no unapproved: show PR title + state
               div_ [class_ "lg:col-span-8 flex items-center gap-2 flex-wrap text-sm"] $ do
-                W.prStateBadge_ pr.prState
+                W.pullRequestStateBadge_ pr.prState
                 span_ [class_ "text-gray-700 dark:text-gray-300 truncate max-w-md"] $ toHtml pr.title
                 W.forkBadge_ pr
               div_ [class_ "lg:col-span-4"] mempty
-            PRBuilt job _freshness -> do
+            PullRequestBuilt job _freshness -> do
               -- Built: show job commit info + status
               maybeCommit <- lift $ App.query $ St.GetCommitByIdA job.commit
               div_ [class_ "lg:col-span-8 flex items-center gap-2 flex-wrap text-sm"] $ do
