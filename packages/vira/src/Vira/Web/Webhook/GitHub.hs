@@ -35,7 +35,7 @@ import Data.Time (getCurrentTime)
 import Effectful (Eff, IOE)
 import Effectful qualified as E
 import Effectful.Colog (Log)
-import Effectful.Colog.Simple (LogContext (..), log, tagCurrentThread)
+import Effectful.Colog.Simple (LogContext (..), log, tagCurrentThread, withLogContext)
 import Effectful.Concurrent.Async (async)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.Error.Static qualified as Error
@@ -322,7 +322,7 @@ runWebhookInServant globalSettings viraRuntimeState action =
     . runApp globalSettings viraRuntimeState
     $ do
       tagCurrentThread "🪝"
-      action
+      withLogContext [("webhook", "github")] action
 
 {- | Interpret @GitHub : Error GitHubError@ down to 'AppStack'
 
