@@ -117,6 +117,7 @@ library
       Vira.Web.Widgets.JobsListing
       Vira.Web.Widgets.Layout
       Vira.Web.Widgets.Modal
+      Vira.Web.Widgets.PullRequest
       Vira.Web.Widgets.Status
       Vira.Web.Widgets.Tabs
       Vira.Web.Widgets.Time
