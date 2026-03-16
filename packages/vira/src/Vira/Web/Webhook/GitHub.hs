@@ -90,32 +90,34 @@ pullRequestHandler event = do
   where
     handlePullRequestOpened :: Eff (GitHub : Error GitHubError : AppStack) ()
     handlePullRequestOpened = do
-      let pr = toPullRequest event
       App.update $ St.AddPullRequestA pr
 
-      now <- liftIO getCurrentTime -- FIXME: not a true indicator of when the commit was made
+      now <- liftIO getCurrentTime -- FIXME: not a true indicator of when the commit was made, but the payload doesn't provide one
       let (prCommit, commit) = toPullRequestCommit now event
       App.update $ St.AddPullRequestCommitA prCommit commit
 
-      installationId <- case evPullReqInstallationId event of
-        Just i -> pure i
-        Nothing -> do
-          log Error "PR event missing installation ID"
-          Error.throwError $ TokenFetchFailed "Missing installation ID in PR event"
-
+      installationId <- getInstallationId
       chan <- App.subscribe
 
-      let isFork = pr.headOwner /= pr.baseOwner
-      unless isFork $ do
-        let branchRef = pullRequestBranchRef pr.prNumber
-        void $ Client.enqueueJob pr.repo branchRef prCommit.commitId (Just pr.prNumber)
+      unless isFork $
+        void $
+          Client.enqueueJob pr.repo branchRef prCommit.commitId (Just pr.prNumber)
 
-      let instId = InstallationId installationId
-          owner = Owner $ unOwnerName pr.baseOwner
-          ghRepo = Repo $ unRepoName pr.repo
       void $
         async $
-          checkRunLoop chan instId owner ghRepo pr.repo pr.prNumber prCommit.commitId
+          checkRunLoop chan (InstallationId installationId) owner ghRepo pr.repo pr.prNumber prCommit.commitId
+      where
+        pr = toPullRequest event
+        isFork = pr.headOwner /= pr.baseOwner
+        branchRef = pullRequestBranchRef pr.prNumber
+        owner = Owner $ unOwnerName pr.baseOwner
+        ghRepo = Repo $ unRepoName pr.repo
+        getInstallationId =
+          case evPullReqInstallationId event of
+            Just i -> pure i
+            Nothing -> do
+              log Error "PR event missing installation ID"
+              Error.throwError $ TokenFetchFailed "Missing installation ID in PR event"
 
     handlePullRequestClosed :: Eff (GitHub : Error GitHubError : AppStack) ()
     handlePullRequestClosed = do
@@ -148,7 +150,7 @@ installationHandler event = do
       forM_ repos $ \repoSimple -> do
         let fullName = whSimplRepoFullName repoSimple
             repoName = RepoName $ whSimplRepoName repoSimple
-            cloneUrl = "https://github.com/" <> fullName <> ".git" -- won't work with private repos, but `HookRepositorySimple` has no field for url
+            cloneUrl = "https://github.com/" <> fullName <> ".git" -- LIMITATION: won't work with private repos, but `HookRepositorySimple` has no field for url
         App.query (St.GetRepoByNameA repoName) >>= \case
           Just _ -> log Info $ "Repository already exists, skipping: " <> toText repoName
           Nothing -> do
