@@ -76,28 +76,6 @@ handlers globalSettings viraRuntimeState appAuth =
     , _installation = runWebhookInServant globalSettings viraRuntimeState . installationHandler
     }
 
--- | WAI middleware that mounts GitHub webhook routes under @/github/webhook@
-githubMiddleware ::
-  GlobalSettings ->
-  ViraRuntimeState ->
-  AppAuth ->
-  Text ->
-  Middleware
-githubMiddleware globalSettings viraRuntimeState appAuth webhookSecret app req sendResponse =
-  case pathInfo req of
-    ("github" : "webhook" : rest) -> do
-      let req' = req {pathInfo = rest}
-      webhookApp req' sendResponse
-    _ -> app req sendResponse
-  where
-    key = encodeUtf8 webhookSecret
-    githubKey = GitHubKey $ pure key
-    webhookApp =
-      genericServeTWithContext
-        Prelude.id
-        (handlers globalSettings viraRuntimeState appAuth)
-        (githubKey :. EmptyContext)
-
 pullRequestHandler :: PullRequestEvent -> Eff (GitHub : Error GitHubError : AppStack) NoContent
 pullRequestHandler event = do
   log Info $ "Received PR event: " <> show (evPullReqAction event)
@@ -150,6 +128,7 @@ pullRequestHandler event = do
 
 pushHandler :: PushEvent -> Eff AppStack NoContent
 pushHandler _ = do
+  -- TODO: Handle
   log Info "Received Push"
   pure NoContent
 
@@ -160,7 +139,7 @@ installationHandler event = do
     InstallationCreatedAction -> do
       let repos = toList $ evInstallationRepos event
       addRepositories repos
-    _ -> log Debug "Ignoring non-create/delete installation action"
+    _ -> log Debug "Ignoring non-create installation action"
   pure NoContent
   where
     addRepositories :: [HookRepositorySimple] -> Eff AppStack ()
@@ -329,3 +308,25 @@ fromJobStatus = \case
   JobStale ->
     UpdateCheckRun {status = Completed, conclusion = Just Cancelled}
   JobPending -> UpdateCheckRun {status = Queued, conclusion = Nothing}
+
+-- | WAI middleware that mounts GitHub webhook routes under @/github/webhook@
+githubMiddleware ::
+  GlobalSettings ->
+  ViraRuntimeState ->
+  AppAuth ->
+  Text ->
+  Middleware
+githubMiddleware globalSettings viraRuntimeState appAuth webhookSecret app req sendResponse =
+  case pathInfo req of
+    ("github" : "webhook" : rest) -> do
+      let req' = req {pathInfo = rest}
+      webhookApp req' sendResponse
+    _ -> app req sendResponse
+  where
+    key = encodeUtf8 webhookSecret
+    githubKey = GitHubKey $ pure key
+    webhookApp =
+      genericServeTWithContext
+        Prelude.id
+        (handlers globalSettings viraRuntimeState appAuth)
+        (githubKey :. EmptyContext)
