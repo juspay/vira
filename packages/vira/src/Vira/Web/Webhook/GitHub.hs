@@ -26,7 +26,7 @@ import Effectful.Colog.Simple (LogContext (..), log, tagCurrentThread, withLogCo
 import Effectful.Concurrent.Async (async)
 import Effectful.Error.Static (Error, runErrorNoCallStack)
 import Effectful.Error.Static qualified as Error
-import Effectful.Git (Commit (..), CommitID (..), RepoName (..))
+import Effectful.Git (CommitID (..), RepoName (..))
 import Effectful.Reader.Static qualified as ER
 import GitHub.Data.Webhooks.Events (
   InstallationEvent (..),
@@ -115,9 +115,8 @@ pullRequestHandler event = do
       App.update $ St.AddPullRequestA pr
 
       now <- liftIO getCurrentTime -- FIXME: not a true indicator of when the commit was made
-      let prCommit = toPullRequestCommit now event
-      App.update $ St.AddPullRequestCommitA prCommit
-      App.update $ St.StoreCommitA prCommit.commit
+      let (prCommit, commit) = toPullRequestCommit now event
+      App.update $ St.AddPullRequestCommitA prCommit commit
 
       installationId <- case evPullReqInstallationId event of
         Just i -> pure i
@@ -130,14 +129,14 @@ pullRequestHandler event = do
       let isFork = pr.headOwner /= pr.baseOwner
       unless isFork $ do
         let branchRef = pullRequestBranchRef pr.prNumber
-        void $ Client.enqueueJob pr.repo branchRef prCommit.commit.id (Just pr.prNumber)
+        void $ Client.enqueueJob pr.repo branchRef prCommit.commitId (Just pr.prNumber)
 
       let instId = InstallationId installationId
           owner = Owner $ unOwnerName pr.baseOwner
           ghRepo = Repo $ unRepoName pr.repo
       void $
         async $
-          pullRequestCheckRunWatcher chan instId owner ghRepo pr.repo pr.prNumber prCommit.commit.id
+          pullRequestCheckRunWatcher chan instId owner ghRepo pr.repo pr.prNumber prCommit.commitId
 
     handlePullRequestClosed :: Eff (GitHub : Error GitHubError : AppStack) ()
     handlePullRequestClosed = do

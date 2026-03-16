@@ -313,19 +313,20 @@ viraPullRequestDetailsRow_ showRepo details = do
       $ do
         div_ [class_ "grid grid-cols-1 lg:grid-cols-12 gap-3 items-center"] $ do
           case details.buildState of
-            PullRequestUnapproved pc -> do
+            PullRequestUnapproved pc mCommit -> do
               -- Unapproved commit: show commit info + Approve button
+              let commitMsg = maybe "" (.message) mCommit
               div_ [class_ "lg:col-span-8 flex items-center gap-2 flex-wrap text-sm"] $ do
-                W.viraCommitHash_ pc.commit.id
-                unless (T.null pc.commit.message) $ do
+                W.viraCommitHash_ pc.commitId
+                unless (T.null commitMsg) $ do
                   span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
                   span_
                     [ class_ "text-gray-700 dark:text-gray-300 truncate max-w-md"
-                    , title_ pc.commit.message
+                    , title_ commitMsg
                     ]
-                    $ toHtml pc.commit.message
+                    $ toHtml commitMsg
               div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
-                approveLink <- lift $ getLink $ LinkTo.PullRequestApprove pr.repo pr.prNumber pc.commit.id
+                approveLink <- lift $ getLink $ LinkTo.PullRequestApprove pr.repo pr.prNumber pc.commitId
                 W.viraButton_
                   W.ButtonSuccess
                   [ hxPostSafe_ approveLink

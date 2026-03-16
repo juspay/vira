@@ -12,7 +12,7 @@ module Vira.Web.Pages.PullPage (
 
 import Effectful (Eff)
 import Effectful.Error.Static (throwError)
-import Effectful.Git (BranchName (..), Commit (..), CommitID (..), RepoName (..))
+import Effectful.Git (BranchName (..), CommitID (..), RepoName (..))
 import Htmx.Servant.Response
 import Lucid
 import Lucid.Htmx.Contrib (hxPostSafe_)
@@ -109,7 +109,7 @@ approveHandler repoName prNum sha = do
       | otherwise -> do
           void $ App.update $ St.ApprovePullRequestCommitA repoName prNum sha
           let branchRef = pullRequestBranchRef prNum
-          void $ Client.enqueueJob repoName branchRef pc.commit.id (Just prNum)
+          void $ Client.enqueueJob repoName branchRef pc.commitId (Just prNum)
           pure $ addHeader True "Approved"
 
 -- | Unapproved fork commit: show commit info + approve button
@@ -120,8 +120,8 @@ viewUnapprovedCommitRow pr pc =
       div_ [class_ "flex items-center space-x-3 min-w-0"] $ do
         div_ [class_ "w-5 h-5 flex items-center justify-center shrink-0 text-yellow-500 dark:text-yellow-400"] $
           toHtmlRaw Icon.shield_check
-        W.viraCommitInfo_ pc.commit.id
-      approveButton_ pr.repo pr.prNumber pc.commit.id
+        W.viraCommitInfo_ pc.commitId
+      approveButton_ pr.repo pr.prNumber pc.commitId
 
 -- * UI Helpers
 

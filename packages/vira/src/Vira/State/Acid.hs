@@ -17,7 +17,7 @@ import Data.SafeCopy
 import Data.Text qualified as T
 import Data.Time (UTCTime (..))
 import Data.Time.Calendar (fromGregorian)
-import Effectful.Git (BranchName, Commit (..), CommitID, RepoName)
+import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit, RepoName)
 import System.FilePath ((</>))
 import Vira.Refresh.Type (RefreshResult)
 import Vira.State.Type
@@ -345,10 +345,13 @@ getUnapprovedCommitsA repo prNum = do
   ViraState {pullRequestCommits} <- ask
   pure $ filter (not . (.approved)) $ Ix.toList $ pullRequestCommits @= repo @= prNum
 
-addPullRequestCommitA :: PullRequestCommit -> Update ViraState ()
-addPullRequestCommitA pc = do
+addPullRequestCommitA :: PullRequestCommit -> Commit -> Update ViraState ()
+addPullRequestCommitA pc commit = do
   modify $ \s ->
-    s {pullRequestCommits = Ix.updateIx pc.commit.id pc s.pullRequestCommits} -- upsert by commit id to prevent duplicates
+    s
+      { pullRequestCommits = Ix.updateIx pc.commitId pc s.pullRequestCommits -- upsert by commit id to prevent duplicates
+      , commits = Ix.updateIx commit.id commit s.commits
+      }
 
 approvePullRequestCommitA :: RepoName -> Int -> CommitID -> Update ViraState (Either Text ())
 approvePullRequestCommitA repo prNum sha = do
@@ -357,25 +360,27 @@ approvePullRequestCommitA repo prNum sha = do
     Nothing -> pure $ Left "PR commit not found"
     Just pc -> do
       let updated = pc {approved = True}
-      modify $ \st -> st {pullRequestCommits = Ix.updateIx pc.commit.id updated st.pullRequestCommits}
+      modify $ \st -> st {pullRequestCommits = Ix.updateIx pc.commitId updated st.pullRequestCommits}
       pure $ Right ()
 
 -- | Enrich a 'PullRequest' with its build/approval state to create 'PullRequestDetails'
-enrichPullRequestWithJobs :: IxJob -> IxPullRequestCommit -> PullRequest -> PullRequestDetails
-enrichPullRequestWithJobs jobsIx pullRequestCommitsIx pr =
+enrichPullRequestWithJobs :: IxJob -> IxPullRequestCommit -> IxCommit -> PullRequest -> PullRequestDetails
+enrichPullRequestWithJobs jobsIx pullRequestCommitsIx commitsIx pr =
   let branchRef = pullRequestBranchRef pr.prNumber
       prJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= pr.repo @= branchRef
-      commits = Ix.toList $ pullRequestCommitsIx @= pr.repo @= pr.prNumber
-      unapproved = filter (not . (.approved)) commits
-      sortedCommits = sortWith (Down . (.commit.date)) commits
+      prCommits = Ix.toList $ pullRequestCommitsIx @= pr.repo @= pr.prNumber
+      unapproved = filter (not . (.approved)) prCommits
+      resolveCommit pc = Ix.getOne $ commitsIx @= pc.commitId
+      commitDate pc = maybe (UTCTime (fromGregorian 1970 1 1) 0) (.date) $ resolveCommit pc
+      sortedCommits = sortWith (Down . commitDate) prCommits
       latestCommitTime = case sortedCommits of
-        (c : _) -> c.commit.date
+        (c : _) -> commitDate c
         [] -> UTCTime (fromGregorian 1970 1 1) 0
       latestCommitId = case sortedCommits of
-        (c : _) -> Just c.commit.id
+        (c : _) -> Just c.commitId
         [] -> Nothing
-      buildState = case sortWith (Down . (.commit.date)) unapproved of
-        (c : _) -> PullRequestUnapproved c
+      buildState = case sortWith (Down . commitDate) unapproved of
+        (c : _) -> PullRequestUnapproved c (resolveCommit c)
         [] -> case viaNonEmpty head prJobs of
           Just job ->
             let freshness = case latestCommitId of
@@ -393,12 +398,12 @@ enrichPullRequestWithJobs jobsIx pullRequestCommitsIx pr =
 -}
 queryPullRequestDetailsA :: Maybe RepoName -> Natural -> Query ViraState [PullRequestDetails]
 queryPullRequestDetailsA mRepo limit = do
-  ViraState {pullRequests, jobs, pullRequestCommits} <- ask
+  ViraState {pullRequests, jobs, pullRequestCommits, commits} <- ask
   pure $
     pullRequests
       & maybe Prelude.id getEQ mRepo
       & Ix.toList
-      & fmap (enrichPullRequestWithJobs jobs pullRequestCommits)
+      & fmap (enrichPullRequestWithJobs jobs pullRequestCommits commits)
       & sortWith (Down . pullRequestActivityTime)
       & take (fromIntegral limit)
 

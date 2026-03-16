@@ -137,7 +137,7 @@ viewRecentActivity mNeverBuilt = do
 -- | PR is unbuilt if it has unapproved commits or has never been built
 isPullRequestUnbuilt :: PullRequestDetails -> Bool
 isPullRequestUnbuilt d = case d.buildState of
-  PullRequestUnapproved _ -> True
+  PullRequestUnapproved _ _ -> True
   PullRequestNeverBuilt -> True
   PullRequestBuilt {} -> False
 

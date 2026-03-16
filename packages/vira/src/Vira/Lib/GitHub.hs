@@ -196,24 +196,28 @@ toPullRequest event =
         , forgeInfo = Just $ ForgeInfo htmlUrl Icon.brand_github
         }
 
-toPullRequestCommit :: UTCTime -> PullRequestEvent -> PullRequestCommit
+toPullRequestCommit :: UTCTime -> PullRequestEvent -> (PullRequestCommit, Commit)
 toPullRequestCommit now event =
   let prPayload = evPullReqPayload event
       prHead = whPullReqHead prPayload
       prBase = whPullReqBase prPayload
       headOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prHead
       baseOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prBase
-   in PullRequestCommit
-        { repo = RepoName $ whRepoName $ evPullReqRepo event
-        , prNumber = whPullReqNumber prPayload
-        , approved = headOwner == baseOwner
-        , commit =
-            Commit
-              { id = CommitID $ whPullReqTargetSha prHead
-              , message = whPullReqTitle prPayload
-              , -- The below fields cannot be fetched from a webhook payload
-                date = now
-              , author = ""
-              , authorEmail = ""
-              }
-        }
+      commitId = CommitID $ whPullReqTargetSha prHead
+      commit =
+        Commit
+          { id = commitId
+          , message = whPullReqTitle prPayload -- the payload doesn't include the commit message, using the title of the PR as a placeholder
+          , -- The below fields cannot be fetched from a webhook payload
+            date = now
+          , author = ""
+          , authorEmail = ""
+          }
+   in ( PullRequestCommit
+          { repo = RepoName $ whRepoName $ evPullReqRepo event
+          , prNumber = whPullReqNumber prPayload
+          , approved = headOwner == baseOwner
+          , commitId = commitId
+          }
+      , commit
+      )

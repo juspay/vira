@@ -73,8 +73,8 @@ data PullRequestCommit = PullRequestCommit
   -- ^ Repository this commit belongs to
   , prNumber :: Int
   -- ^ PR number
-  , commit :: Commit
-  -- ^ The commit (id, message, date, author)
+  , commitId :: CommitID
+  -- ^ References a 'Commit' in the global commits store
   , approved :: Bool
   -- ^ Fork PRs require approval; same-repo PRs are always True
   }
@@ -88,7 +88,7 @@ instance Indexable PullRequestCommitIxs PullRequestCommit where
     ixList
       (ixFun $ \PullRequestCommit {repo} -> [repo])
       (ixFun $ \PullRequestCommit {prNumber} -> [prNumber])
-      (ixFun $ \PullRequestCommit {commit} -> [commit.id])
+      (ixFun $ \PullRequestCommit {commitId} -> [commitId])
 
 -- | Ref branch for PR jobs in the jobs index
 pullRequestBranchRef :: Int -> BranchName
@@ -197,8 +197,8 @@ instance Ord BranchDetails where
 
 -- | Build/approval state for a PR (mirrors 'BranchBuildState')
 data PullRequestBuildState
-  = -- | Fork PR with latest unapproved commit
-    PullRequestUnapproved PullRequestCommit
+  = -- | Fork PR with latest unapproved commit (resolved from commits store for display)
+    PullRequestUnapproved PullRequestCommit (Maybe Commit)
   | -- | All approved but no job yet
     PullRequestNeverBuilt
   | -- | Has at least one build (latest job + freshness)
@@ -220,7 +220,7 @@ Uses @max(latestCommitTime, jobCreatedTime)@, mirroring 'branchActivityTime'.
 -}
 pullRequestActivityTime :: PullRequestDetails -> UTCTime
 pullRequestActivityTime details = case details.buildState of
-  PullRequestUnapproved _ -> details.latestCommitTime
+  PullRequestUnapproved _ _ -> details.latestCommitTime
   PullRequestNeverBuilt -> details.latestCommitTime
   PullRequestBuilt job _ -> max details.latestCommitTime job.jobCreatedTime
 
@@ -345,4 +345,4 @@ The version is automatically used by the @--auto-reset-state@ feature to detect 
 When enabled, auto-reset will remove @ViraState/@ and @workspace/*/jobs@ directories on mismatch.
 Run @vira info@ to see the current schema version.
 -}
-$(deriveSafeCopy 9 'base ''ViraState)
+$(deriveSafeCopy 10 'base ''ViraState)
