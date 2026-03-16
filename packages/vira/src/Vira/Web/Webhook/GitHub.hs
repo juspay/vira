@@ -11,7 +11,8 @@ Includes WAI middleware that mounts these routes under @/github/webhook@.
 -}
 module Vira.Web.Webhook.GitHub (
   githubMiddleware,
-) where
+)
+where
 
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
@@ -114,7 +115,7 @@ pullRequestHandler event = do
           ghRepo = Repo $ unRepoName pr.repo
       void $
         async $
-          pullRequestCheckRunWatcher chan instId owner ghRepo pr.repo pr.prNumber prCommit.commitId
+          checkRunLoop chan instId owner ghRepo pr.repo pr.prNumber prCommit.commitId
 
     handlePullRequestClosed :: Eff (GitHub : Error GitHubError : AppStack) ()
     handlePullRequestClosed = do
@@ -151,14 +152,7 @@ installationHandler event = do
         App.query (St.GetRepoByNameA repoName) >>= \case
           Just _ -> log Info $ "Repository already exists, skipping: " <> toText repoName
           Nothing -> do
-            -- Add repository
-            let newRepo =
-                  St.Repo
-                    { name = repoName
-                    , cloneUrl = cloneUrl
-                    , lastRefresh = Nothing
-                    }
-            App.update $ St.AddNewRepoA newRepo
+            App.update $ St.AddNewRepoA $ St.Repo repoName cloneUrl Nothing
             log Info $ "Added repository: " <> toText repoName
             Refresh.scheduleRepoRefresh (one repoName) Now
 
@@ -190,19 +184,19 @@ logAndSwallowGitHubError appAuth m = do
 
 -- * Check run lifecycle
 
-{- | Unified PR check run watcher
+{- | Unified PR check run event loop
 
 Spawned by the webhook handler for every PR event (open/reopen/synchronize).
 Waits for a job matching this PR + commit, then creates a GitHub check run
 and watches for status updates until the job finishes.
 
-For same-repo PRs: the job is enqueued before this watcher starts, so the
+For same-repo PRs: the job is enqueued before this loop starts, so the
 matching 'AddNewJobA' event is found immediately.
-For fork PRs: this watcher blocks until the core approval route enqueues the job.
+For fork PRs: this loop blocks until the core approval route enqueues the job.
 
 The @installationId@ is captured in the async closure — never persisted in core state.
 -}
-pullRequestCheckRunWatcher ::
+checkRunLoop ::
   ( (E.:>) GitHub es
   , (E.:>) (ER.Reader LogContext) es
   , (E.:>) (Log (RichMessage IO)) es
@@ -216,10 +210,9 @@ pullRequestCheckRunWatcher ::
   Int ->
   CommitID ->
   Eff es ()
-pullRequestCheckRunWatcher chan instId owner repo repoName prNum commitId = do
-  -- Wait for a job matching this PR + commit
+checkRunLoop chan instId owner repo repoName prNum commitId = do
   log Info $ "Watching for job on PR #" <> show prNum <> " commit " <> show commitId
-  jobId <- liftIO $ waitForPullRequestJob chan repoName prNum commitId
+  jobId <- liftIO $ awaitPullRequestJob chan repoName prNum commitId
   log Info $ "Found job " <> show jobId <> " for PR #" <> show prNum
 
   -- Create check run and watch status
@@ -234,9 +227,9 @@ pullRequestCheckRunWatcher chan instId owner repo repoName prNum commitId = do
   log Info $ "Created check run for PR #" <> show prNum <> " commit " <> show commitId
   jobStatusLoop chan instId owner repo checkRun.checkRunId jobId
 
--- | Wait for an 'AddNewJobA' event matching the given PR and commit
-waitForPullRequestJob :: TChan (SomeUpdate ViraState) -> RepoName -> Int -> CommitID -> IO JobId
-waitForPullRequestJob chan repoName prNum commitId = do
+-- | Await an 'AddNewJobA' event matching the given PR and commit
+awaitPullRequestJob :: TChan (SomeUpdate ViraState) -> RepoName -> Int -> CommitID -> IO JobId
+awaitPullRequestJob chan repoName prNum commitId = do
   updates <- Events.awaitBatched chan matchesPRJob 500_000
   -- The last matching event has the job we want
   let extractJobId u = case Events.matchUpdate @AddNewJobA u of
@@ -244,7 +237,7 @@ waitForPullRequestJob chan repoName prNum commitId = do
         _ -> Nothing
   case mapMaybe extractJobId (toList updates) of
     (jid : _) -> pure jid
-    [] -> waitForPullRequestJob chan repoName prNum commitId -- shouldn't happen, but retry
+    [] -> awaitPullRequestJob chan repoName prNum commitId -- shouldn't happen, but retry
   where
     matchesPRJob update =
       case Events.matchUpdate @AddNewJobA update of
