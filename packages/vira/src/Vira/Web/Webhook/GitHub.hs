@@ -16,8 +16,7 @@ where
 
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
-import Control.Concurrent.STM (TChan)
-import Data.Acid.Events (SomeUpdate)
+import Control.Concurrent.STM qualified as STM
 import Data.Acid.Events qualified as Events
 import Data.Time (getCurrentTime)
 import Effectful (Eff, IOE)
@@ -51,7 +50,7 @@ import Vira.Refresh.Type (RefreshPriority (..))
 import Vira.State.Acid (AddNewJobA (..), JobUpdateStatusA (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Core (ViraState)
-import Vira.State.Type (Job (..), JobId, JobResult (..), JobStatus (..), OwnerName (..), PullRequest (..), PullRequestCommit (..), PullRequestState (..), pullRequestBranchRef)
+import Vira.State.Type (Job (..), JobStatus (..), PullRequest (..), PullRequestCommit (..), PullRequestState (..), pullRequestBranchRef)
 import Vira.State.Type qualified as St
 import Prelude hiding (Reader)
 
@@ -105,13 +104,11 @@ pullRequestHandler event = do
 
       void $
         async $
-          checkRunLoop chan (InstallationId installationId) owner ghRepo pr.repo pr.prNumber prCommit.commitId
+          checkRunLoop chan (InstallationId installationId) pr prCommit.commitId
       where
         pr = toPullRequest event
         isFork = pr.headOwner /= pr.baseOwner
         branchRef = pullRequestBranchRef pr.prNumber
-        owner = Owner $ unOwnerName pr.baseOwner
-        ghRepo = Repo $ unRepoName pr.repo
         getInstallationId =
           case evPullReqInstallationId event of
             Just i -> pure i
@@ -134,6 +131,67 @@ pushHandler _ = do
   -- TODO: Handle
   log Info "Received Push"
   pure NoContent
+
+{- | Check run event loop
+
+For same-repo PRs: the job is enqueued before this loop starts, so the
+matching 'AddNewJobA' event is found immediately.
+For fork PRs: this loop blocks until the core approval route enqueues the job.
+-}
+checkRunLoop ::
+  ( (E.:>) GitHub es
+  , (E.:>) (ER.Reader LogContext) es
+  , (E.:>) (Log (RichMessage IO)) es
+  , (E.:>) IOE es
+  ) =>
+  STM.TChan (Events.SomeUpdate ViraState) ->
+  InstallationId ->
+  PullRequest ->
+  CommitID ->
+  Eff es ()
+checkRunLoop chan instId pr commitId = do
+  log Info $ "Watching for job on PR " <> show pr.prNumber <> " commit " <> show commitId
+
+  jobId <- liftIO awaitJob
+  log Info $ "Found job " <> show jobId <> " for PR " <> show pr.prNumber
+
+  checkRun <-
+    queryGitHub @CheckRun instId $
+      createCheckRunE pr.baseOwner pr.repo $
+        NewCheckRun "Vira CI" (unCommitID commitId) (Just Queued)
+  log Info $ "Created check run for PR " <> show pr.prNumber <> " commit " <> show commitId
+
+  fix $ \loop -> do
+    status <- liftIO $ awaitStatusChange jobId
+    updateCheckRunStatus checkRun.checkRunId status
+    unless (isTerminal status) loop
+  where
+    awaitJob =
+      awaitMatch chan $ \u ->
+        case Events.matchUpdate @AddNewJobA u of
+          Just (AddNewJobA r _ c (Just n) _ _, job) | r == pr.repo && n == pr.prNumber && c == commitId -> Just job.jobId
+          _ -> Nothing
+
+    awaitStatusChange targetJobId =
+      awaitMatch chan $ \u ->
+        case Events.matchUpdate @JobUpdateStatusA u of
+          Just (JobUpdateStatusA jid s, _) | jid == targetJobId -> Just s
+          _ -> Nothing
+
+    updateCheckRunStatus checkRunId status = do
+      result <-
+        runErrorNoCallStack @GitHubError $
+          queryGitHub_ instId $
+            updateCheckRunE pr.baseOwner pr.repo checkRunId $
+              fromJobStatus status
+      case result of
+        Left err -> log Warning $ "Failed to update check run " <> show checkRunId <> ": " <> show err
+        Right () -> pass
+
+    isTerminal = \case
+      JobFinished {} -> True
+      JobStale -> True
+      _ -> False
 
 installationHandler :: InstallationEvent -> Eff AppStack NoContent
 installationHandler event = do
@@ -184,125 +242,11 @@ logAndSwallowGitHubError appAuth m = do
       pure NoContent
     Right a -> pure a
 
--- * Check run lifecycle
-
-{- | Unified PR check run event loop
-
-Spawned by the webhook handler for every PR event (open/reopen/synchronize).
-Waits for a job matching this PR + commit, then creates a GitHub check run
-and watches for status updates until the job finishes.
-
-For same-repo PRs: the job is enqueued before this loop starts, so the
-matching 'AddNewJobA' event is found immediately.
-For fork PRs: this loop blocks until the core approval route enqueues the job.
-
-The @installationId@ is captured in the async closure — never persisted in core state.
--}
-checkRunLoop ::
-  ( (E.:>) GitHub es
-  , (E.:>) (ER.Reader LogContext) es
-  , (E.:>) (Log (RichMessage IO)) es
-  , (E.:>) IOE es
-  ) =>
-  TChan (SomeUpdate ViraState) ->
-  InstallationId ->
-  Owner ->
-  Repo ->
-  RepoName ->
-  Int ->
-  CommitID ->
-  Eff es ()
-checkRunLoop chan instId owner repo repoName prNum commitId = do
-  log Info $ "Watching for job on PR #" <> show prNum <> " commit " <> show commitId
-  jobId <- liftIO $ awaitPullRequestJob chan repoName prNum commitId
-  log Info $ "Found job " <> show jobId <> " for PR #" <> show prNum
-
-  -- Create check run and watch status
-  checkRun <-
-    queryGitHub @CheckRun instId $
-      createCheckRunE owner repo $
-        NewCheckRun
-          { name = "Vira CI"
-          , headSha = unCommitID commitId
-          , status = Just Queued
-          }
-  log Info $ "Created check run for PR #" <> show prNum <> " commit " <> show commitId
-  jobStatusLoop chan instId owner repo checkRun.checkRunId jobId
-
--- | Await an 'AddNewJobA' event matching the given PR and commit
-awaitPullRequestJob :: TChan (SomeUpdate ViraState) -> RepoName -> Int -> CommitID -> IO JobId
-awaitPullRequestJob chan repoName prNum commitId = do
-  updates <- Events.awaitBatched chan matchesPRJob 500_000
-  -- The last matching event has the job we want
-  let extractJobId u = case Events.matchUpdate @AddNewJobA u of
-        Just (AddNewJobA r _ c (Just n) _ _, job) | r == repoName && n == prNum && c == commitId -> Just job.jobId
-        _ -> Nothing
-  case mapMaybe extractJobId (toList updates) of
-    (jid : _) -> pure jid
-    [] -> awaitPullRequestJob chan repoName prNum commitId -- shouldn't happen, but retry
-  where
-    matchesPRJob update =
-      case Events.matchUpdate @AddNewJobA update of
-        Just (AddNewJobA r _ c (Just n) _ _, _) -> r == repoName && n == prNum && c == commitId
-        _ -> False
-
--- | Watch event bus for job status changes, updating the GitHub check run
-jobStatusLoop ::
-  ( (E.:>) GitHub es
-  , (E.:>) IOE es
-  , (E.:>) (Log (RichMessage IO)) es
-  , (E.:>) (ER.Reader LogContext) es
-  ) =>
-  TChan (SomeUpdate ViraState) ->
-  InstallationId ->
-  Owner ->
-  Repo ->
-  CheckRunId ->
-  JobId ->
-  Eff es ()
-jobStatusLoop chan instId owner repo checkRunId jobId = do
-  updates <- liftIO $ Events.awaitBatched chan (matchesJob jobId) 500_000
-  let latestStatus = lastStatus updates
-  result <-
-    runErrorNoCallStack @GitHubError $
-      queryGitHub_ instId $
-        updateCheckRunE owner repo checkRunId $
-          fromJobStatus latestStatus
-  case result of
-    Left err -> log Warning $ "Failed to update check run " <> show checkRunId <> ": " <> show err
-    Right () -> pass
-  unless (isTerminal latestStatus) $ jobStatusLoop chan instId owner repo checkRunId jobId
-  where
-    matchesJob targetJobId update =
-      case Events.matchUpdate @JobUpdateStatusA update of
-        Just (JobUpdateStatusA jid _, _) -> jid == targetJobId
-        Nothing -> False
-
-    lastStatus updates =
-      let extractStatus u = case Events.matchUpdate @JobUpdateStatusA u of
-            Just (JobUpdateStatusA _ s, _) -> Just s
-            Nothing -> Nothing
-       in fromMaybe JobPending $ viaNonEmpty last $ mapMaybe extractStatus (toList updates)
-
-    isTerminal = \case
-      JobFinished {} -> True
-      JobStale -> True
-      _ -> False
-
--- | Convert a 'JobStatus' to a GitHub check run update
-fromJobStatus :: JobStatus -> UpdateCheckRun
-fromJobStatus = \case
-  JobRunning ->
-    UpdateCheckRun {status = InProgress, conclusion = Nothing}
-  JobFinished jobResult _ -> do
-    let conclusion = case jobResult of
-          JobSuccess -> Success
-          JobFailure -> Failure
-          JobKilled -> Cancelled
-    UpdateCheckRun {status = Completed, conclusion = Just conclusion}
-  JobStale ->
-    UpdateCheckRun {status = Completed, conclusion = Just Cancelled}
-  JobPending -> UpdateCheckRun {status = Queued, conclusion = Nothing}
+-- | Read events one at a time, returning the first successful extraction
+awaitMatch :: STM.TChan (Events.SomeUpdate ViraState) -> (Events.SomeUpdate ViraState -> Maybe a) -> IO a
+awaitMatch chan extract = do
+  u <- STM.atomically $ STM.readTChan chan
+  maybe (awaitMatch chan extract) pure (extract u)
 
 -- | WAI middleware that mounts GitHub webhook routes under @/github/webhook@
 githubMiddleware ::

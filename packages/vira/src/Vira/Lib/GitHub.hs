@@ -10,8 +10,6 @@ module Vira.Lib.GitHub (
   AppId (..),
   InstallationId (..),
   InstallationAccessToken (..),
-  Owner (..),
-  Repo (..),
 
   -- * Check Run
   CheckRunId (..),
@@ -30,6 +28,7 @@ module Vira.Lib.GitHub (
   hookUserLoginAny, -- requires github-webhooks
   toPullRequest, -- requires github-webhooks
   toPullRequestCommit, -- requires github-webhooks
+  fromJobStatus,
 ) where
 
 import Data.Aeson (FromJSON (..), ToJSON (..), withObject, (.:))
@@ -39,7 +38,7 @@ import GitHub.Data.Webhooks.Events (PullRequestEvent (..))
 import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookSimpleUser (whSimplUserLogin), HookUser (whUserLogin), PullRequestTarget (..), URL (URL))
 import GitHub.REST (GHEndpoint (..), KeyValue (..))
 import Network.HTTP.Types (StdMethod (..))
-import Vira.State.Type (ForgeInfo (..), OwnerName (..), PullRequest (..), PullRequestCommit (..), PullRequestState (..))
+import Vira.State.Type (ForgeInfo (..), JobResult (..), JobStatus (..), OwnerName (..), PullRequest (..), PullRequestCommit (..), PullRequestState (..))
 import Web.TablerIcons.Outline qualified as Icon
 
 -- | GitHub App ID
@@ -66,14 +65,6 @@ instance FromJSON InstallationAccessToken where
         { iatToken = encodeUtf8 @Text token
         , iatExpiresAt = utcTime
         }
-
--- | Repository owner
-newtype Owner = Owner Text
-  deriving newtype (Show, Eq, ToJSON)
-
--- | Repository name
-newtype Repo = Repo Text
-  deriving newtype (Show, Eq, ToJSON)
 
 -- | Check run ID returned by GitHub
 newtype CheckRunId = CheckRunId {unCheckRunId :: Int}
@@ -141,8 +132,8 @@ data UpdateCheckRun = UpdateCheckRun
 -- Endpoints
 ---------------
 
-createCheckRunE :: Owner -> Repo -> NewCheckRun -> GHEndpoint
-createCheckRunE (Owner owner) (Repo repo) cr =
+createCheckRunE :: OwnerName -> RepoName -> NewCheckRun -> GHEndpoint
+createCheckRunE (OwnerName owner) (RepoName repo) cr =
   GHEndpoint
     { method = POST
     , endpoint = "/repos/:owner/:repo/check-runs"
@@ -152,8 +143,8 @@ createCheckRunE (Owner owner) (Repo repo) cr =
           <> maybe [] (\s -> ["status" := toText s]) cr.status
     }
 
-updateCheckRunE :: Owner -> Repo -> CheckRunId -> UpdateCheckRun -> GHEndpoint
-updateCheckRunE (Owner owner) (Repo repo) (CheckRunId checkRunId) upd =
+updateCheckRunE :: OwnerName -> RepoName -> CheckRunId -> UpdateCheckRun -> GHEndpoint
+updateCheckRunE (OwnerName owner) (RepoName repo) (CheckRunId checkRunId) upd =
   GHEndpoint
     { method = PATCH
     , endpoint = "/repos/:owner/:repo/check-runs/:check_run_id"
@@ -221,3 +212,18 @@ toPullRequestCommit now event =
           }
       , commit
       )
+
+-- | Convert a 'JobStatus' to a GitHub check run update
+fromJobStatus :: JobStatus -> UpdateCheckRun
+fromJobStatus = \case
+  JobRunning ->
+    UpdateCheckRun {status = InProgress, conclusion = Nothing}
+  JobFinished jobResult _ -> do
+    let conclusion = case jobResult of
+          JobSuccess -> Success
+          JobFailure -> Failure
+          JobKilled -> Cancelled
+    UpdateCheckRun {status = Completed, conclusion = Just conclusion}
+  JobStale ->
+    UpdateCheckRun {status = Completed, conclusion = Just Cancelled}
+  JobPending -> UpdateCheckRun {status = Queued, conclusion = Nothing}
