@@ -37,7 +37,7 @@ testContextStaging =
     { branch = testBranchStaging.branchName
     , onlyBuild = False
     , commitId = testBranchStaging.headCommit.id
-    , cloneUrl = "https://example.com/test-repo.git"
+    , cloneUrl = Just "https://example.com/test-repo.git"
     , repoDir = "/tmp/test-repo"
     }
 

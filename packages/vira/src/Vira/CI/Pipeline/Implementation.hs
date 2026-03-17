@@ -317,25 +317,32 @@ signoffImpl ::
 signoffImpl pipeline buildResults = do
   env <- ER.ask @PipelineEnv
   let commitId = env.viraContext.commitId
-      cloneUrl = env.viraContext.cloneUrl
+      mCloneUrl = env.viraContext.cloneUrl
       repoDir = env.viraContext.repoDir
   if pipeline.signoff.enable
     then do
-      -- Extract unique systems from all build results
-      let systems = extractSystems $ fmap (.devourResult) (toList buildResults)
-          signoffNames = fmap (\system -> "vira/" <> toString system) (toList systems)
-      case nonEmpty signoffNames of
-        Nothing -> throwError $ DevourFlakeMalformedOutput "build results" "No systems found in build results"
-        Just names -> do
-          -- Detect platform based on clone URL
-          case detectPlatform cloneUrl of
-            Nothing ->
-              throwError $
-                pipelineToolError
-                  ("Signoff enabled but could not detect platform from clone URL: " <> cloneUrl <> ". Must be GitHub or Bitbucket.")
-                  (Nothing :: Maybe Text)
-            Just platform -> do
-              Signoff.performSignoff commitId platform repoDir names
+      case mCloneUrl of
+        Nothing ->
+          throwError $
+            pipelineToolError
+              ("Signoff enabled but no remote URL is available. Add an 'origin' remote or disable signoff." :: Text)
+              (Nothing :: Maybe Text)
+        Just cloneUrl -> do
+          -- Extract unique systems from all build results
+          let systems = extractSystems $ fmap (.devourResult) (toList buildResults)
+              signoffNames = fmap (\system -> "vira/" <> toString system) (toList systems)
+          case nonEmpty signoffNames of
+            Nothing -> throwError $ DevourFlakeMalformedOutput "build results" "No systems found in build results"
+            Just names -> do
+              -- Detect platform based on clone URL
+              case detectPlatform cloneUrl of
+                Nothing ->
+                  throwError $
+                    pipelineToolError
+                      ("Signoff enabled but could not detect platform from clone URL: " <> cloneUrl <> ". Must be GitHub or Bitbucket.")
+                      (Nothing :: Maybe Text)
+                Just platform -> do
+                  Signoff.performSignoff commitId platform repoDir names
     else
       logPipeline Warning "Signoff disabled, skipping"
 

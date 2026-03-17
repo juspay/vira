@@ -149,7 +149,7 @@ runVira = do
           -- Check for dirty working directory unless --only-build is set
           unless onlyBuild $ do
             when status.dirty $ throwError "Working directory has uncommitted changes or untracked files. Use --only-build to run CI anyway."
-          -- Get remote URL for creating Repo
+          -- Get remote URL (Nothing if no remote configured)
           remoteUrl <- getRemoteUrl dir "origin"
           -- Get current commit hash
           commitId <- getCurrentCommit dir

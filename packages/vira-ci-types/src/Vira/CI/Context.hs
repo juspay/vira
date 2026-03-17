@@ -27,8 +27,8 @@ data ViraContext = ViraContext
     onlyBuild :: Bool
   , -- Commit ID being built
     commitId :: CommitID
-  , -- Repository clone URL (for platform detection)
-    cloneUrl :: Text
+  , -- Repository clone URL (for platform detection), Nothing when no remote is configured
+    cloneUrl :: Maybe Text
   , -- Repository working directory
     -- HACK: See Program.hs:pipelineProgramWithClone for `ER.local` hack.
     repoDir :: FilePath
@@ -44,7 +44,7 @@ instance HasField "onlyBuild" ViraContext Bool where
 instance HasField "commitId" ViraContext CommitID where
   hasField (ViraContext branch onlyBuild commitId cloneUrl repoDir) = (\x -> ViraContext branch onlyBuild x cloneUrl repoDir, commitId)
 
-instance HasField "cloneUrl" ViraContext Text where
+instance HasField "cloneUrl" ViraContext (Maybe Text) where
   hasField (ViraContext branch onlyBuild commitId cloneUrl repoDir) = (\x -> ViraContext branch onlyBuild commitId x repoDir, cloneUrl)
 
 instance HasField "repoDir" ViraContext FilePath where
