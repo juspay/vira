@@ -91,9 +91,8 @@ drain (CircularBuffer queue _) = do
       let go acc = do
             item <- tryReadTBMQueue queue
             case item of
-              Nothing -> pure (reverse acc) -- Queue is closed
-              Just Nothing -> pure (reverse acc) -- No more items available
               Just (Just y) -> go (y : acc) -- Got another item
+              _ -> pure (reverse acc) -- Queue closed or empty
       rest <- go []
       pure $ Just (x :| rest)
 

@@ -148,5 +148,4 @@ viewJobHeader job = do
       viewJobStatus job.jobStatus
 
 viewJobStatus :: (Monad m) => St.JobStatus -> HtmlT m ()
-viewJobStatus status = do
-  W.viraStatusBadge_ status
+viewJobStatus = W.viraStatusBadge_

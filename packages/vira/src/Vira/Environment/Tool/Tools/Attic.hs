@@ -130,21 +130,18 @@ viewToolStatus :: (Monad m) => Either ConfigError AtticConfig -> HtmlT m ()
 viewToolStatus result = do
   div_ [class_ "mb-3"] $ do
     case result of
-      Left setupErr -> do
-        let suggestion = configErrorToSuggestion setupErr
-        case setupErr of
-          ParseError err ->
-            viraAlertWithTitle_ AlertError "Parse error" $
-              toHtml (show err :: String) >> toHtml suggestion
-          MissingEndpoint endpoint -> viraAlertWithTitle_ AlertWarning "No server configured" $ do
-            "No server found for endpoint: "
-            code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] $ toHtml (toText endpoint)
-            toHtml suggestion
-          MissingToken serverName -> viraAlertWithTitle_ AlertWarning "Missing authentication token" $ do
-            "Server "
-            strong_ $ toHtml serverName.name
-            " is configured but has no authentication token"
-            toHtml suggestion
+      Left (ParseError err) ->
+        viraAlertWithTitle_ AlertError "Parse error" $
+          toHtml (show err :: String) >> toHtml (configErrorToSuggestion (ParseError err))
+      Left (MissingEndpoint endpoint) -> viraAlertWithTitle_ AlertWarning "No server configured" $ do
+        "No server found for endpoint: "
+        code_ [class_ "bg-yellow-100 dark:bg-yellow-800 px-1 rounded"] $ toHtml (toText endpoint)
+        toHtml $ configErrorToSuggestion (MissingEndpoint endpoint)
+      Left (MissingToken serverName) -> viraAlertWithTitle_ AlertWarning "Missing authentication token" $ do
+        "Server "
+        strong_ $ toHtml serverName.name
+        " is configured but has no authentication token"
+        toHtml $ configErrorToSuggestion (MissingToken serverName)
       Right atticCfg ->
         if Map.null atticCfg.servers
           then

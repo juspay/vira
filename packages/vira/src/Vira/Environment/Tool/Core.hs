@@ -54,7 +54,7 @@ newToolsTVar = do
 -- | Get cached 'Tools' from 'ViraRuntimeState'
 getTools :: (IOE :> es, Reader.Reader ViraRuntimeState :> es) => Eff es Tools
 getTools = do
-  ViraRuntimeState {tools = toolsVar} <- Reader.ask
+  toolsVar <- Reader.asks (.tools)
   liftIO $ STM.readTVarIO toolsVar
 
 -- | Refresh 'Tools' data and update cache in 'ViraRuntimeState'
@@ -67,7 +67,7 @@ refreshTools ::
   ) =>
   Eff es Tools
 refreshTools = do
-  ViraRuntimeState {tools = toolsVar} <- Reader.ask
+  toolsVar <- Reader.asks (.tools)
   freshTools <- getAllTools
   liftIO $ STM.atomically $ STM.writeTVar toolsVar freshTools
   pure freshTools

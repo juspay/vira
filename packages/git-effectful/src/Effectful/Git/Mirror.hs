@@ -180,7 +180,7 @@ withFileLock dirPath action = do
     createDirectoryIfMissing True (takeDirectory lockPath)
     fd <- Lukko.fdOpen lockPath
     Lukko.fdLock fd ExclusiveLock
-    return fd
+    pure fd
 
   -- Run action with cleanup via finally
   action `finally` liftIO (Lukko.fdUnlock fd >> Lukko.fdClose fd)

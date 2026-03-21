@@ -31,6 +31,4 @@ getLink linkToValue = do
 
 -- | Like 'getLink' but as URL text.
 getLinkUrl :: (Reader.Reader ViraRuntimeState :> es) => LinkTo -> Eff es Text
-getLinkUrl linkToValue = do
-  uri <- linkURI <$> getLink linkToValue
-  pure $ show @Text $ uri
+getLinkUrl linkToValue = show @Text . linkURI <$> getLink linkToValue

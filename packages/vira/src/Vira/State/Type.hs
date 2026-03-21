@@ -175,8 +175,7 @@ jobIsActive :: Job -> Bool
 jobIsActive job = case job.jobStatus of
   JobPending -> True
   JobRunning -> True
-  JobFinished _ _ -> False
-  JobStale -> False
+  _ -> False
 
 -- | Get the end time for finished 'Job's only
 jobEndTime :: Job -> Maybe UTCTime

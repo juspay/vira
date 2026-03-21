@@ -24,7 +24,7 @@ viraUTCTime_ utcTime = do
 
 -- | Duration badge component for 'NominalDiffTime'
 viraDuration_ :: NominalDiffTime -> AppHtml ()
-viraDuration_ duration = do
+viraDuration_ duration =
   span_ [class_ "text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded"] $
     toHtml $
       formatDuration duration

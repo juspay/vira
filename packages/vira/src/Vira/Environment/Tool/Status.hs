@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 -- | Tool status views for the UI
@@ -42,10 +41,8 @@ viewToolsStatus = do
         || isAuthError t.github.status
         || isBitbucketError t.bitbucket.status
     isAuthError :: AuthStatus -> Bool
-    isAuthError = \case
-      NotAuthenticated -> True
-      Authenticated {} -> False
+    isAuthError NotAuthenticated = True
+    isAuthError Authenticated {} = False
     isBitbucketError :: Either Text (Map.Map ServerEndpoint ServerConfig) -> Bool
-    isBitbucketError = \case
-      Left _ -> True
-      Right servers -> Map.null servers
+    isBitbucketError (Left _) = True
+    isBitbucketError (Right servers) = Map.null servers

@@ -117,17 +117,16 @@ pLastField = toText <$> (space *> someTill anySingle (lookAhead eol))
 
 -- | Parse an optional last field (treats "-" as Nothing)
 pOptionalLastField :: Parsec Void Text (Maybe Text)
-pOptionalLastField = do
-  field <- optional pLastField
-  pure $ case field of
+pOptionalLastField =
+  optional pLastField <&> \case
     Just "-" -> Nothing
     x -> x
 
 -- | Parse an optional field (treats "-" as Nothing)
 pOptionalField :: Parsec Void Text (Maybe Text)
-pOptionalField = do
-  field <- pField
-  pure $ if field == "-" then Nothing else Just field
+pOptionalField =
+  pField <&> \field ->
+    if field == "-" then Nothing else Just field
 
 -- | Parse an integer field
 pIntField :: Parsec Void Text Int

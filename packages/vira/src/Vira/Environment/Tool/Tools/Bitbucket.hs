@@ -29,10 +29,7 @@ newtype BitbucketSuggestion = BbAuthSuggestion
 
 -- | Create a BitbucketSuggestion
 mkBitbucketSuggestion :: Text -> BitbucketSuggestion
-mkBitbucketSuggestion url =
-  BbAuthSuggestion
-    { bitbucketUrl = url
-    }
+mkBitbucketSuggestion = BbAuthSuggestion
 
 instance TS.Show BitbucketSuggestion where
   show BbAuthSuggestion {bitbucketUrl} =

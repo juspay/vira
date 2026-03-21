@@ -5,7 +5,6 @@ module Vira.Lib.STM (
 ) where
 
 import Control.Concurrent.STM (TChan, readTChan, tryReadTChan)
-import Data.List.NonEmpty qualified as NonEmpty
 
 {- | Drain all items from a 'TChan' (equivalent to @CB.drain@)
 
@@ -13,20 +12,15 @@ Blocks until at least one item is available, then drains all remaining items.
 -}
 drainTChan :: TChan a -> STM (NonEmpty a)
 drainTChan chan = do
-  -- Block until first item is available
-  firstItem <- readTChan chan
-  -- Then drain any remaining items without blocking
-  remainingItems <- drainRemainingTChan chan
-  pure $ NonEmpty.fromList (firstItem : remainingItems)
+  first <- readTChan chan
+  rest <- drainRemainingTChan chan
+  pure $ first :| rest
 
 -- | Drain remaining items from 'TChan' without blocking
 drainRemainingTChan :: TChan a -> STM [a]
-drainRemainingTChan chan = do
-  items <- drainLoop []
-  pure $ reverse items
+drainRemainingTChan chan = reverse <$> go []
   where
-    drainLoop acc = do
-      maybeItem <- tryReadTChan chan
-      case maybeItem of
+    go acc =
+      tryReadTChan chan >>= \case
         Nothing -> pure acc
-        Just item -> drainLoop (item : acc)
+        Just item -> go (item : acc)

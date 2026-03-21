@@ -20,8 +20,8 @@ applyConfig ::
   -- | Default 'ViraPipeline' configuration
   ViraPipeline ->
   m (Either InterpreterError ViraPipeline)
-applyConfig configContent ctx pipeline = do
-  result <- liftIO $ runInterpreterWithNixPackageDb $ do
+applyConfig configContent ctx pipeline =
+  liftIO $ runInterpreterWithNixPackageDb $ do
     -- Set up the interpreter context
     Hint.set
       [ Hint.languageExtensions
@@ -56,8 +56,4 @@ applyConfig configContent ctx pipeline = do
     configFn <- Hint.interpret (toString wrappedContent) (Hint.as :: ViraContext -> ViraPipeline -> ViraPipeline)
 
     -- Apply the configuration function
-    return $ configFn ctx pipeline
-
-  case result of
-    Left err -> return $ Left err
-    Right modifiedPipeline -> return $ Right modifiedPipeline
+    pure $ configFn ctx pipeline

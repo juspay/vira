@@ -116,14 +116,8 @@ data JobLookup = Active Job | Stale
 
 -- | Lookup a job and check if it's active or stale.
 lookupActiveJob :: JobId -> Eff AppStack (Maybe JobLookup)
-lookupActiveJob jobId = do
-  mJob <- App.query (St.GetJobA jobId)
-  pure $ case mJob of
-    Nothing -> Nothing
-    Just job ->
-      if St.jobIsActive job
-        then Just (Active job)
-        else Just Stale
+lookupActiveJob jobId =
+  App.query (St.GetJobA jobId) <&> fmap (\job -> if St.jobIsActive job then Active job else Stale)
 
 streamRouteHandler :: JobId -> SourceT (Eff AppStack) (KeepAlive LogChunk)
 streamRouteHandler jobId = S.fromStepT $ S.Effect $ do

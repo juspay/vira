@@ -23,19 +23,11 @@ import Vira.State.Type
 
 -- | Set all repositories, replacing existing ones
 setAllReposA :: [Repo] -> Update ViraState ()
-setAllReposA repos = do
-  modify $ \s ->
-    s
-      { repos = Ix.fromList repos
-      }
+setAllReposA repos = modify $ \s -> s {repos = Ix.fromList repos}
 
 -- | Add a new 'Repo'
 addNewRepoA :: Repo -> Update ViraState ()
-addNewRepoA repo = do
-  modify $ \s ->
-    s
-      { repos = Ix.insert repo s.repos
-      }
+addNewRepoA repo = modify $ \s -> s {repos = Ix.insert repo s.repos}
 
 {- | Delete a 'Repo' by name and all associated data ('Branch'es and 'Job's)
 
@@ -60,15 +52,11 @@ deleteRepoByNameA name = do
 
 -- | Get all 'Repo's
 getAllReposA :: Query ViraState [Repo]
-getAllReposA = do
-  ViraState {repos} <- ask
-  pure $ Ix.toList repos
+getAllReposA = Ix.toList . repos <$> ask
 
 -- | Get a 'Repo' by 'RepoName'
 getRepoByNameA :: RepoName -> Query ViraState (Maybe Repo)
-getRepoByNameA name = do
-  ViraState {repos} <- ask
-  pure $ Ix.getOne $ repos @= name
+getRepoByNameA name = Ix.getOne . (@= name) . repos <$> ask
 
 -- | Enrich a 'Branch' with its 'Job' metadata to create 'BranchDetails'
 enrichBranchWithJobs :: IxJob -> Branch -> BranchDetails
@@ -127,15 +115,11 @@ getBranchDetailsA repo branchName = do
 
 -- | Get all branches for a repo
 getRepoBranchesA :: RepoName -> Query ViraState [Branch]
-getRepoBranchesA repo = do
-  ViraState {branches} <- ask
-  pure $ Ix.toList $ branches @= repo
+getRepoBranchesA repo = Ix.toList . (@= repo) . branches <$> ask
 
 -- | Get a repo's branch by name
 getBranchByNameA :: RepoName -> BranchName -> Query ViraState (Maybe Branch)
-getBranchByNameA repo branch = do
-  ViraState {branches} <- ask
-  pure $ Ix.getOne $ branches @= repo @= branch
+getBranchByNameA repo branch = Ix.getOne . (@= branch) . (@= repo) . branches <$> ask
 
 -- | Set a repository's refresh status
 setRefreshStatusA :: RepoName -> Maybe RefreshResult -> Update ViraState ()
@@ -201,23 +185,16 @@ setRepoBranchesA repoName branches = state $ \s ->
 
 -- | Get a commit by its ID
 getCommitByIdA :: CommitID -> Query ViraState (Maybe Commit)
-getCommitByIdA commitId = do
-  ViraState {commits} <- ask
-  pure $ Ix.getOne $ commits @= commitId
+getCommitByIdA commitId = Ix.getOne . (@= commitId) . commits <$> ask
 
 -- | Store a commit in the index
 storeCommitA :: Commit -> Update ViraState ()
-storeCommitA commit = do
-  modify $ \s ->
-    s
-      { commits = Ix.updateIx commit.id commit s.commits
-      }
+storeCommitA commit = modify $ \s -> s {commits = Ix.updateIx commit.id commit s.commits}
 
 -- | Get all jobs of a repo's branch in descending order
 getJobsByBranchA :: RepoName -> BranchName -> Query ViraState [Job]
-getJobsByBranchA repo branch = do
-  ViraState {jobs} <- ask
-  pure $ Ix.toDescList (Proxy @JobId) $ jobs @= repo @= branch
+getJobsByBranchA repo branch =
+  Ix.toDescList (Proxy @JobId) . (@= branch) . (@= repo) . jobs <$> ask
 
 -- | Get the N most recent jobs across all repos/branches, showing only latest job per repo/branch
 getRecentJobsA :: Natural -> Query ViraState [Job]
@@ -247,9 +224,7 @@ getActiveJobsA = do
       }
 
 getJobA :: JobId -> Query ViraState (Maybe Job)
-getJobA jobId = do
-  ViraState {jobs} <- ask
-  pure $ Ix.getOne $ jobs @= jobId
+getJobA jobId = Ix.getOne . (@= jobId) . jobs <$> ask
 
 -- | Get all finished jobs older than the cutoff time (returns job ID, end time, and workspace directory)
 getOldJobsA :: UTCTime -> Query ViraState [(JobId, UTCTime, FilePath)]
@@ -285,15 +260,15 @@ jobUpdateStatusA jobId status = state $ \s ->
 
 -- | Delete a job from the state (for cleanup of old jobs)
 deleteJobA :: JobId -> Update ViraState ()
-deleteJobA jobId = do
-  modify $ \s -> s {jobs = Ix.deleteIx jobId s.jobs}
+deleteJobA jobId = modify $ \s -> s {jobs = Ix.deleteIx jobId s.jobs}
 
 markUnfinishedJobsAsStaleA :: Update ViraState ()
 markUnfinishedJobsAsStaleA = do
   jobs <- Ix.toList <$> gets jobs
-  forM_ jobs $ \job -> do
-    when (jobIsActive job) $ do
-      void $ jobUpdateStatusA job.jobId JobStale
+  forM_ jobs $ \job ->
+    when (jobIsActive job) $
+      void $
+        jobUpdateStatusA job.jobId JobStale
 
 {- | Cancel all pending jobs for a (repo, branch) pair
 Returns the number of jobs cancelled

@@ -37,8 +37,7 @@ handlers globalSettings viraRuntimeState webSettings jobId = do
 rawLogHandler :: JobId -> Eff Web.AppServantStack Text
 rawLogHandler jobId = do
   job <- App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
-  logText <- liftIO $ readLogFileShared $ job.jobWorkingDir </> "output.log"
-  pure $ decodeUtf8 logText
+  readJobLogFull job
 
 view :: Job -> AppHtml ()
 view job = do
@@ -54,9 +53,8 @@ viewStaticLog job = do
     Log.renderLogLines [logText]
 
 readJobLogFull :: (MonadIO m) => Job -> m Text
-readJobLogFull job = do
-  logText <- liftIO $ readLogFileShared $ job.jobWorkingDir </> "output.log"
-  pure $ decodeUtf8 logText
+readJobLogFull job =
+  decodeUtf8 <$> liftIO (readLogFileShared $ job.jobWorkingDir </> "output.log")
 
 {- | Read a file that might be open for writing by another process.
 Uses POSIX IO to bypass GHC's file locking mechanism.

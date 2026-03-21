@@ -85,11 +85,9 @@ renderViraLogCLI vlog =
       colorCode = setSGRCode [SetColor Foreground intensity clr]
       resetCode = setSGRCode [Reset]
       LogContext ctx = vlog.context
-      contextStr =
-        if null ctx
-          then ""
-          else " " <> toText (setSGRCode [SetColor Foreground Dull White]) <> "{" <> T.intercalate ", " (map renderPair ctx) <> "}" <> toText resetCode
-      renderPair (k, v) = k <> "=" <> v
+      contextStr
+        | null ctx = ""
+        | otherwise = " " <> toText (setSGRCode [SetColor Foreground Dull White]) <> "{" <> T.intercalate ", " [k <> "=" <> v | (k, v) <- ctx] <> "}" <> toText resetCode
    in toText colorCode <> emoji <> "  " <> vlog.message <> toText resetCode <> contextStr
 
 {- | Render ViraLog for web UI with TailwindCSS
@@ -127,10 +125,7 @@ instance ToHtml ViraLog where
               toHtml vlog.message
               unless (null ctx) $ do
                 toHtml (" " :: Text)
-                span_ [class_ "text-slate-500 dark:text-slate-600"] $ do
-                  toHtml ("{" :: Text)
-                  forM_ (intersperse Nothing $ map Just ctx) $ \case
-                    Nothing -> toHtml (", " :: Text)
-                    Just (k, v) -> toHtml $ k <> "=" <> v
-                  toHtml ("}" :: Text)
+                span_ [class_ "text-slate-500 dark:text-slate-600"] $
+                  toHtml $
+                    "{" <> T.intercalate ", " [k <> "=" <> v | (k, v) <- ctx] <> "}"
   toHtmlRaw = toHtml

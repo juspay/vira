@@ -18,6 +18,7 @@ import Htmx.Lucid.Core (hxSwapS_)
 import Htmx.Swap (Swap (..))
 import Lucid
 import Lucid.Htmx.Contrib (hxPostSafe_)
+import Servant.Links (Link)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
 import Vira.State.Type (BranchBuildState (..), BuildFreshness (..))
@@ -69,7 +70,7 @@ viraJobRow_ mExtraInfo job = do
 
   div_ [class_ "mb-6"] $ do
     -- Extra info rendered outside/above the row
-    whenJust mExtraInfo Prelude.id
+    sequence_ mExtraInfo
 
     -- Job row as clickable link with consistent styling
     a_ [href_ jobUrl, class_ "block p-4 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-2 border-gray-200 dark:border-gray-700 transition-all cursor-pointer"] $ do
@@ -171,19 +172,13 @@ viraBranchDetailsRow_ showRepo details = do
           span_ [class_ "text-sm font-semibold text-purple-900 dark:text-purple-100"] $ toHtml $ toString details.branch.repoName
 
       -- Branch tag - blue theme (or red if deleted), flat left edge when repo shown
-      let branchClasses =
+      let (colorBg, colorIcon, colorText) =
             if details.branch.deleted
-              then "flex items-center gap-1 px-3 py-1 bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 shadow-sm hover:opacity-70 transition-opacity"
-              else "flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700 shadow-sm hover:opacity-70 transition-opacity"
-          branchClasses' = branchClasses <> if showRepo then " rounded-r-full border-l-0" else " rounded-full"
-          branchIconColor =
-            if details.branch.deleted
-              then "w-4 h-4 flex items-center justify-center text-red-700 dark:text-red-200"
-              else "w-4 h-4 flex items-center justify-center text-blue-700 dark:text-blue-200"
-          branchTextColor =
-            if details.branch.deleted
-              then "text-sm font-semibold text-red-900 dark:text-red-100"
-              else "text-sm font-semibold text-blue-900 dark:text-blue-100"
+              then ("bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700", "text-red-700 dark:text-red-200", "text-red-900 dark:text-red-100")
+              else ("bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700", "text-blue-700 dark:text-blue-200", "text-blue-900 dark:text-blue-100")
+          branchClasses' = "flex items-center gap-1 px-3 py-1 " <> colorBg <> " shadow-sm hover:opacity-70 transition-opacity" <> if showRepo then " rounded-r-full border-l-0" else " rounded-full"
+          branchIconColor = "w-4 h-4 flex items-center justify-center " <> colorIcon
+          branchTextColor = "text-sm font-semibold " <> colorText
       a_ [href_ branchUrl, class_ branchClasses'] $ do
         div_ [class_ branchIconColor] $ toHtmlRaw Icon.git_branch
         span_ [class_ branchTextColor] $ toHtml $ toString details.branch.branchName
@@ -231,32 +226,31 @@ viraBranchDetailsRow_ showRepo details = do
 
               -- Never built: show badge + Build button
               NeverBuilt -> do
-                span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"] $ do
-                  div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.alert_circle
-                  "Never built"
-                W.viraButton_
-                  W.ButtonSuccess
-                  [ hxPostSafe_ buildLink
-                  , hxSwapS_ AfterEnd
-                  , onclick_ "event.preventDefault(); event.stopPropagation();"
-                  , class_ "!px-3 !py-1.5 !text-xs"
-                  ]
-                  $ do
-                    W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
-                    "Build"
+                smallBadge "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300" Icon.alert_circle "Never built"
+                buildButton buildLink
 
               -- Out of date: show badge + Build button
               Built _job OutOfDate -> do
-                span_ [class_ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300"] $ do
-                  div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw Icon.clock
-                  "Out of date"
-                W.viraButton_
-                  W.ButtonSuccess
-                  [ hxPostSafe_ buildLink
-                  , hxSwapS_ AfterEnd
-                  , onclick_ "event.preventDefault(); event.stopPropagation();"
-                  , class_ "!px-3 !py-1.5 !text-xs"
-                  ]
-                  $ do
-                    W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
-                    "Build"
+                smallBadge "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300" Icon.clock "Out of date"
+                buildButton buildLink
+  where
+    -- Small inline badge with icon
+    smallBadge :: (Monad m) => Text -> ByteString -> HtmlT m () -> HtmlT m ()
+    smallBadge colorClass icon label =
+      span_ [class_ $ "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium " <> colorClass] $ do
+        div_ [class_ "w-3 h-3 mr-1 flex items-center justify-center"] $ toHtmlRaw icon
+        label
+
+    -- Compact build button for branch rows
+    buildButton :: (Monad m) => Link -> HtmlT m ()
+    buildButton link =
+      W.viraButton_
+        W.ButtonSuccess
+        [ hxPostSafe_ link
+        , hxSwapS_ AfterEnd
+        , onclick_ "event.preventDefault(); event.stopPropagation();"
+        , class_ "!px-3 !py-1.5 !text-xs"
+        ]
+        $ do
+          W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
+          "Build"

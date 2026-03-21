@@ -38,10 +38,7 @@ drainHandleWith transform h sink = go
   where
     go = do
       eof <- hIsEOF h
-      if eof
-        then pass
-        else do
-          -- Read line as String, convert to Text
-          line <- toText <$> hGetLine h
-          sinkWrite sink (transform line)
-          go
+      unless eof $ do
+        line <- toText <$> hGetLine h
+        sinkWrite sink (transform line)
+        go

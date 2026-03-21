@@ -165,6 +165,6 @@ logSupervisorState :: (HasCallStack, Concurrent :> es, Log (RichMessage IO) :> e
 logSupervisorState supervisor = do
   tasks <- readMVar (tasks supervisor)
   withFrozenCallStack $ log Debug $ "Current tasks: " <> show (Map.keys tasks)
-  forM_ (Map.toList tasks) $ \(_, task) -> do
+  forM_ (Map.elems tasks) $ \task -> do
     st <- taskState task
     withFrozenCallStack $ log Debug $ "Task state: " <> show st

@@ -29,9 +29,8 @@ runStreamHandler ::
   ViraRuntimeState ->
   SourceT (Eff AppStack) a ->
   m (RecommendedEventSourceHeaders (SourceT IO a))
-runStreamHandler globalSettings viraRuntimeState h = do
-  pure $ recommendedEventSourceHeaders $ mapSourceT (runApp globalSettings viraRuntimeState) $ do
-    h
+runStreamHandler globalSettings viraRuntimeState =
+  pure . recommendedEventSourceHeaders . mapSourceT (runApp globalSettings viraRuntimeState)
 
 -- Replace ugly thread label for warp handlers with our usual emoji tag.
 tagWebThread :: (MonadIO m) => m ()

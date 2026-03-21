@@ -31,7 +31,7 @@ module Vira.Web.Widgets.Status (
   statusLabel,
 ) where
 
-import Data.Time (getCurrentTime)
+import Data.Time (UTCTime, getCurrentTime)
 import Effectful.Git (RepoName (..))
 import Lucid
 import Vira.App.AcidState qualified as App
@@ -109,7 +109,7 @@ viraStatusBadge_ jobStatus = do
 viewAllJobStatus :: AppHtml ()
 viewAllJobStatus = do
   activeJobs <- lift $ App.query Acid.GetActiveJobsA
-  let active = not (null activeJobs.running) || not (null activeJobs.pending)
+  let active = not (null activeJobs.running && null activeJobs.pending)
   indexUrl <- lift $ getLinkUrl (Home Nothing) -- Nothing = all branches
   a_ [href_ indexUrl, class_ "flex items-center space-x-2 text-white hover:bg-white/20 px-3 py-1 rounded-lg transition-colors", title_ "View all jobs"] $ do
     indicator active
@@ -164,29 +164,23 @@ viraSmartRefreshButton_ repo = do
         $ do
           W.viraButtonIcon_ $ toHtmlRaw Icon.refresh
           "Refresh Branches"
-    Pending {queuedAt} -> do
-      (fullTime, _) <- formatTimestamp queuedAt
-      button_
-        [ class_ "inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border transition-colors bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800 cursor-not-allowed"
-        , disabled_ "disabled"
-        , title_ $ "Queued at " <> fullTime
-        ]
-        $ do
-          div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center animate-spin"] $ toHtmlRaw Icon.loader_2
-          "Queued..."
-    InProgress {startedAt} -> do
-      (fullTime, _) <- formatTimestamp startedAt
-      button_
-        [ class_ "inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border transition-colors bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800 cursor-not-allowed"
-        , disabled_ "disabled"
-        , title_ $ "Started at " <> fullTime
-        ]
-        $ do
-          div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center animate-spin"] $ toHtmlRaw Icon.loader_2
-          "Refreshing..."
+    Pending {queuedAt} -> inProgressButton "Queued at" queuedAt "Queued..."
+    InProgress {startedAt} -> inProgressButton "Started at" startedAt "Refreshing..."
     Completed result ->
       renderCompletedButton now updateLink result
   where
+    inProgressButton :: (MonadIO m) => Text -> UTCTime -> HtmlT m () -> HtmlT m ()
+    inProgressButton prefix time label = do
+      (fullTime, _) <- formatTimestamp time
+      button_
+        [ class_ "inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border transition-colors bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800 cursor-not-allowed"
+        , disabled_ "disabled"
+        , title_ $ prefix <> " " <> fullTime
+        ]
+        $ do
+          div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center animate-spin"] $ toHtmlRaw Icon.loader_2
+          label
+
     renderCompletedButton now updateLink RefreshResult {completedAt, duration, outcome} = do
       (fullTime, _) <- formatTimestamp completedAt
       let relativeTime = formatRelativeTime now completedAt

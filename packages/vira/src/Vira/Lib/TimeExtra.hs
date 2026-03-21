@@ -37,23 +37,17 @@ For differences greater than a week, shows the absolute date instead.
 Uses concise abbreviations for space-constrained UIs.
 -}
 formatRelativeTime :: UTCTime -> UTCTime -> Text
-formatRelativeTime now commitTime =
-  let diffSeconds = round $ diffUTCTime now commitTime :: Integer
-      minutes = diffSeconds `div` 60
-      hours = minutes `div` 60
-      days = hours `div` 24
-   in if diffSeconds < 60
-        then "just now"
-        else
-          if minutes < 60
-            then toText (show @Text minutes) <> "min ago"
-            else
-              if hours < 24
-                then toText (show @Text hours) <> "hr ago"
-                else
-                  if days < 7
-                    then toText (show @Text days) <> "d ago"
-                    else toText $ formatTime defaultTimeLocale "%b %d, %Y" commitTime
+formatRelativeTime now commitTime
+  | diffSeconds < 60 = "just now"
+  | minutes < 60 = show minutes <> "min ago"
+  | hours < 24 = show hours <> "hr ago"
+  | days < 7 = show days <> "d ago"
+  | otherwise = toText $ formatTime defaultTimeLocale "%b %d, %Y" commitTime
+  where
+    diffSeconds = round $ diffUTCTime now commitTime :: Integer
+    minutes = diffSeconds `div` 60
+    hours = minutes `div` 60
+    days = hours `div` 24
 
 {- |
 Format a UTC timestamp for display with local timezone conversion.
