@@ -93,6 +93,11 @@ hpack:
         hpack $f; \
     done
 
+# Clear the nix devShell cache (forces re-eval on next direnv reload)
+nix-cache-clear:
+    rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/vira-shell"
+    @echo "Cleared. Next direnv reload will re-evaluate."
+
 # Run the logsink example (Vira CI workflow simulation)
 [group('2. haskell')]
 logsink-example:
