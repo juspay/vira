@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # nix-develop-cached — cached nix develop replacement (~0.015s vs ~5.4s)
 #
-# Runs a command inside the flake devShell environment, caching the full set of
-# exported env vars on first use. Subsequent calls eval the cache and exec
-# directly, skipping nix entirely.
+# Runs a command inside the flake devShell environment, caching the full
+# `nix print-dev-env` output on first use. Subsequent calls source the
+# cache and exec directly, skipping nix entirely.
 #
 # Cache invalidation:
 #   Content hash of nix files + flake.lock. Any byte change → cache miss → re-eval.
@@ -29,21 +29,21 @@ CACHE_KEY=$(cat \
     "$DIR/packages/attic/haskell-module.nix" \
     "$DIR/packages/nix-cache-server/haskell-module.nix" \
     2>/dev/null | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1)
-ENV_FILE="$CACHE_DIR/$CACHE_KEY.env"
+ENV_FILE="$CACHE_DIR/$CACHE_KEY.sh"
 
 cache_valid() {
     [[ -f "$ENV_FILE" ]] || return 1
     local store_path
-    store_path=$(grep '^declare -x PATH=' "$ENV_FILE" | grep -o '/nix/store/[^/:]*' | head -1)
+    store_path=$(grep -o '/nix/store/[^/"'"'"']*' "$ENV_FILE" | head -1)
     [[ -n "$store_path" ]] && [[ -e "$store_path" ]]
 }
 
 if ! cache_valid; then
     mkdir -p "$CACHE_DIR"
     find "$CACHE_DIR" -maxdepth 1 -type f -not -name "$CACHE_KEY.*" -delete 2>/dev/null || true
-    nix develop "$DIR" -c bash -c 'export -p' 2>/dev/null | grep '^declare -x ' > "$ENV_FILE.tmp"
+    nix print-dev-env "$DIR" > "$ENV_FILE.tmp" 2>/dev/null
     mv "$ENV_FILE.tmp" "$ENV_FILE"
 fi
 
-eval "$(cat "$ENV_FILE")"
+source "$ENV_FILE" > /dev/null
 exec "$@"
