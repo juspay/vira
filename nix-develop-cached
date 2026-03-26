@@ -28,7 +28,7 @@ CACHE_KEY=$(cat \
     "$DIR/nix/modules/flake-parts/tests.nix" \
     "$DIR/packages/attic/haskell-module.nix" \
     "$DIR/packages/nix-cache-server/haskell-module.nix" \
-    2>/dev/null | sha256sum | cut -d' ' -f1)
+    2>/dev/null | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1)
 ENV_FILE="$CACHE_DIR/$CACHE_KEY.env"
 
 cache_valid() {
