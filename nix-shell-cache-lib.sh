@@ -21,7 +21,15 @@ NIX_FILES=(
     "$DIR/packages/nix-cache-server/haskell-module.nix"
 )
 
-CACHE_KEY=$(cat "${NIX_FILES[@]}" 2>/dev/null | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1)
+# Include cabal project file and all package.yaml files in the cache key.
+# Haskell dependency changes (package.yaml → .cabal) affect the devShell
+# but aren't captured by .nix files alone.
+CABAL_FILES=("$DIR/cabal.project")
+while IFS= read -r -d '' f; do
+    CABAL_FILES+=("$f")
+done < <(find "$DIR/packages" -name "package.yaml" -print0 2>/dev/null)
+
+CACHE_KEY=$(cat "${NIX_FILES[@]}" "${CABAL_FILES[@]}" 2>/dev/null | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1)
 ENV_FILE="$CACHE_DIR/$CACHE_KEY.sh"
 
 cache_valid() {
