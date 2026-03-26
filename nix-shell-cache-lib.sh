@@ -7,18 +7,13 @@
 
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/vira-shell"
 
+# nixos-unified autowires all .nix files under nix/modules/flake-parts/,
+# so we glob rather than hardcoding to catch new modules automatically.
 NIX_FILES=(
     "$DIR/flake.nix"
     "$DIR/flake.lock"
-    "$DIR/nix/modules/flake-parts/devshell.nix"
-    "$DIR/nix/modules/flake-parts/haskell.nix"
-    "$DIR/nix/modules/flake-parts/pre-commit.nix"
-    "$DIR/nix/modules/flake-parts/assets.nix"
-    "$DIR/nix/modules/flake-parts/vira-dev.nix"
-    "$DIR/nix/modules/flake-parts/hpack-watch.nix"
-    "$DIR/nix/modules/flake-parts/tests.nix"
-    "$DIR/packages/attic/haskell-module.nix"
-    "$DIR/packages/nix-cache-server/haskell-module.nix"
+    "$DIR"/nix/modules/flake-parts/*.nix
+    "$DIR"/packages/*/haskell-module.nix
 )
 
 # Include cabal project file and all package.yaml files in the cache key.
