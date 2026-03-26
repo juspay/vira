@@ -23,5 +23,9 @@ if ! cache_valid; then
     mv "$ENV_FILE.tmp" "$ENV_FILE"
 fi
 
+# Source from project root — shellHook may use relative paths
+ORIG_DIR="$(pwd)"
+cd "$DIR"
 source "$ENV_FILE" > /dev/null
+cd "$ORIG_DIR"
 exec "$@"
