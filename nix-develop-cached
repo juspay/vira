@@ -19,7 +19,7 @@ source "$DIR/nix-shell-cache-lib.sh"
 if ! cache_valid; then
     mkdir -p "$CACHE_DIR"
     find "$CACHE_DIR" -maxdepth 1 -type f -not -name "$CACHE_KEY.*" -delete 2>/dev/null || true
-    nix print-dev-env "$DIR" > "$ENV_FILE.tmp" 2>/dev/null
+    nix print-dev-env "$DIR" --profile "$CACHE_DIR/profile" > "$ENV_FILE.tmp" 2>/dev/null
     mv "$ENV_FILE.tmp" "$ENV_FILE"
 fi
 
