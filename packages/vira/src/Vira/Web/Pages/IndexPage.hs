@@ -1,7 +1,10 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+
 -- | Top-level routes and views
 module Vira.Web.Pages.IndexPage where
 
 import Data.Default (def)
+import Data.Time (UTCTime)
 import Lucid
 import Servant.API (Get, NamedRoutes, QueryParam, (:>))
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -10,8 +13,8 @@ import Servant.Links (fieldLink, linkURI)
 import Servant.Server.Generic (AsServer)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
-import Vira.State.Type (BranchQuery (..))
-import Vira.Web.LinkTo.Type (LinkTo (..))
+import Vira.State.Type (BranchDetails, BranchQuery (..), PullRequest (..), PullRequestBuildState (..), PullRequestDetails (..), PullRequestState (..), branchActivityTime, pullRequestActivityTime)
+import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLinkUrl, runAppHtml)
 import Vira.Web.Pages.CachePage qualified as CachePage
 import Vira.Web.Pages.EnvironmentPage qualified as EnvironmentPage
@@ -69,23 +72,53 @@ indexView mUnbuilt = do
     heroWelcome logoUrl reposLink envLink cacheLink
     viewRecentActivity mUnbuilt
 
+-- | A unified activity item for interleaving branch and PR activity
+data ActivityItem
+  = BranchActivity BranchDetails
+  | PRActivity PullRequestDetails
+
+activityTime :: ActivityItem -> UTCTime
+activityTime = \case
+  BranchActivity details -> branchActivityTime details
+  PRActivity details -> pullRequestActivityTime details
+
 viewRecentActivity :: Maybe Bool -> AppHtml ()
 viewRecentActivity mNeverBuilt = do
-  -- Get filtered activities based on neverBuilt flag
-  let query = def {neverBuilt = mNeverBuilt}
-  activities <- lift $ App.query (St.QueryBranchDetailsA query activityLimit)
-  -- Calculate unbuilt count for badge
-  let unbuiltQuery = def {neverBuilt = Just True}
-  unbuiltCount <- length <$> lift (App.query (St.QueryBranchDetailsA unbuiltQuery activityLimit))
+  -- Single query for all PR details (replaces N+1 fetchPRActivities)
+  allPullRequestDetails <- lift $ App.query (St.QueryPullRequestDetailsA Nothing activityLimit)
+  let openPRs = filter (\d -> d.pullRequest.prState == PullRequestOpen) allPullRequestDetails
+
+  -- Filter PRs by tab
+  let filteredPRs = case mNeverBuilt of
+        Nothing -> openPRs
+        Just True -> filter isPullRequestUnbuilt openPRs
+        Just False -> filter (not . isPullRequestUnbuilt) openPRs
+
+  -- Fetch branches with tab filter (acid-state level filtering)
+  let branchQuery = def {neverBuilt = mNeverBuilt}
+  branchDetails <- lift $ App.query (St.QueryBranchDetailsA branchQuery activityLimit)
+
+  -- Merge and limit
+  let limited =
+        take (fromIntegral activityLimit) $
+          sortWith (Down . activityTime) $
+            map BranchActivity branchDetails <> map PRActivity filteredPRs
+
+  -- Badge counts
+  unbuiltBranchCount <-
+    if mNeverBuilt == Just True
+      then pure $ length branchDetails -- already filtered
+      else length <$> lift (App.query (St.QueryBranchDetailsA (def {neverBuilt = Just True}) activityLimit))
+  let unbuiltPRCount = length $ filter isPullRequestUnbuilt openPRs
+  let unbuiltCount = unbuiltBranchCount + unbuiltPRCount
 
   W.viraSection_ [] $ do
-    -- Header with title
     h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100"] "Recent Activity"
 
     -- Tab bar
-    allUrl <- lift $ getLinkUrl (Home Nothing)
-    buildsUrl <- lift $ getLinkUrl (Home (Just False))
-    unbuiltUrl <- lift $ getLinkUrl (Home (Just True))
+    allUrl <- lift $ getLinkUrl (LinkTo.Home Nothing)
+    buildsUrl <- lift $ getLinkUrl (LinkTo.Home (Just False))
+    unbuiltUrl <- lift $ getLinkUrl (LinkTo.Home (Just True))
     viraTabs_
       []
       [ TabItem "All" allUrl (isNothing mNeverBuilt) Nothing
@@ -95,8 +128,18 @@ viewRecentActivity mNeverBuilt = do
 
     -- Activity list
     div_ $ do
-      forM_ activities $ \details ->
-        W.viraBranchDetailsRow_ True details
+      forM_ limited $ \case
+        BranchActivity details ->
+          W.viraBranchDetailsRow_ True details
+        PRActivity details ->
+          W.viraPullRequestDetailsRow_ True details
+
+-- | PR is unbuilt if it has unapproved commits or has never been built
+isPullRequestUnbuilt :: PullRequestDetails -> Bool
+isPullRequestUnbuilt d = case d.buildState of
+  PullRequestUnapproved _ _ -> True
+  PullRequestNeverBuilt -> True
+  PullRequestBuilt {} -> False
 
 heroWelcome :: (Monad m) => Text -> Text -> Text -> Text -> HtmlT m ()
 heroWelcome logoUrl reposLink envLink cacheLink = do

@@ -7,6 +7,7 @@ module Vira.App.CLI (
   GlobalSettings (..),
   WebSettings (..),
   CISettings (..),
+  GHAppAuthSettings (..),
   Command (..),
 
   -- * Functions
@@ -22,6 +23,7 @@ import Options.Applicative hiding (command)
 import Options.Applicative qualified as OA
 import Paths_vira qualified
 import Vira.CI.AutoBuild.Type (AutoBuildNewBranches (..))
+import Vira.Lib.GitHub (AppId)
 import Prelude hiding (Reader, reader, runReader)
 
 -- | Global CLI Settings
@@ -46,6 +48,15 @@ data CISettings = CISettings
   }
   deriving stock (Show)
 
+-- | Settings for authenticating as a GitHub App
+data GHAppAuthSettings = GHAppAuthSettings
+  { appId :: AppId
+  -- ^ GitHub App ID
+  , privateKeyPath :: FilePath
+  -- ^ Path to the GitHub App private key PEM file
+  }
+  deriving stock (Show)
+
 -- | Web server settings
 data WebSettings = WebSettings
   { port :: Port
@@ -60,6 +71,10 @@ data WebSettings = WebSettings
   -- ^ Optional JSON file to import on startup
   , ciSettings :: CISettings
   -- ^ CI configuration settings
+  , ghWebhookSecretFile :: Maybe FilePath
+  -- ^ Path to file containing secret for verifying GitHub webhook signatures
+  , ghAppAuthSettings :: Maybe GHAppAuthSettings
+  -- ^ Settings for authenticating as a GitHub App
   }
   deriving stock (Show)
 
@@ -174,6 +189,14 @@ webSettingsParser = do
           <> value 14
           <> showDefault
       )
+  ghWebhookSecretFile <-
+    optional $
+      strOption
+        ( long "github-webhook-secret-file"
+            <> metavar "PATH"
+            <> help "Path to file containing secret for verifying GitHub webhook signatures"
+        )
+  ghAppAuthSettings <- githubAppParser
   pure
     WebSettings
       { port
@@ -187,7 +210,27 @@ webSettingsParser = do
             , autoBuildNewBranches = AutoBuildNewBranches autoBuildNewBranchesBool
             , jobRetentionDays
             }
+      , ghWebhookSecretFile
+      , ghAppAuthSettings
       }
+
+-- | Parser for GitHub App settings (optional, requires both app ID and key)
+githubAppParser :: Parser (Maybe GHAppAuthSettings)
+githubAppParser = optional $ do
+  appId <-
+    option
+      auto
+      ( long "github-app-id"
+          <> metavar "APP_ID"
+          <> help "GitHub App ID for Checks API integration"
+      )
+  privateKeyPath <-
+    strOption
+      ( long "github-app-private-key"
+          <> metavar "PATH"
+          <> help "Path to GitHub App private key PEM file"
+      )
+  pure GHAppAuthSettings {..}
 
 -- | Parser for CI command
 ciCommandParser :: Parser Command

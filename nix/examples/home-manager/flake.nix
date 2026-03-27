@@ -44,6 +44,13 @@
                   vira = "https://github.com/juspay/vira.git";
                 };
               };
+
+              # GitHub App integration (optional)
+              # github = {
+              #   appId = 123456;
+              #   privateKeyFile = "/path/to/github-app.pem";
+              #   webhookSecretFile = "/path/to/webhook-secret";
+              # };
             };
 
           }
@@ -93,6 +100,13 @@
                       test-repo = "https://github.com/srid/haskell-template.git";
                     };
                   };
+
+                  # GitHub integration test
+                  github = {
+                    appId = 12345;
+                    privateKeyFile = "/home/testuser/test-github-app.pem";
+                    webhookSecretFile = "/home/testuser/test-webhook-secret";
+                  };
                 };
 
                 home = {
@@ -112,6 +126,10 @@
 
             machine.start()
             machine.wait_for_unit("multi-user.target")
+
+            # Generate test files for GitHub integration
+            machine.succeed("sudo -u testuser openssl genrsa -out /home/testuser/test-github-app.pem 2048")
+            machine.succeed("sudo -u testuser bash -c 'echo test-webhook-secret > /home/testuser/test-webhook-secret'")
 
             # Enable lingering for testuser to allow user services to run
             machine.succeed("loginctl enable-linger testuser")

@@ -32,6 +32,8 @@ import Prelude hiding (Reader, asks)
 
 This is the entry point for triggering new builds. The job is created with 'JobPending'
 status and immediately scheduled (worker fills slots synchronously).
+
+Returns the created 'Job' so callers can track its progress via the event bus.
 -}
 enqueueJob ::
   ( Reader ViraRuntimeState :> es
@@ -46,15 +48,18 @@ enqueueJob ::
   RepoName ->
   BranchName ->
   CommitID ->
-  Eff es ()
-enqueueJob repoName branchName commitId = do
+  Maybe Int ->
+  Eff es Job
+enqueueJob repoName branchName commitId prNumber = do
   sup <- asks supervisor
   creationTime <- liftIO getCurrentTime
   let baseDir = Workspace.repoJobsDir sup repoName
 
   -- Create job as Pending
-  job <- App.update $ AddNewJobA repoName branchName commitId baseDir creationTime
+  job <- App.update $ AddNewJobA repoName branchName commitId prNumber baseDir creationTime
   log Info $ "Queued job #" <> show job.jobId
 
   -- Immediately try to schedule it (with lock)
   Worker.tryStartPendingJobs
+
+  pure job

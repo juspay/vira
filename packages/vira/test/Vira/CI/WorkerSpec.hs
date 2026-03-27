@@ -77,6 +77,7 @@ mkJobs specs = flip evalState 1 $ forM specs $ \(status, _, repo, branch) -> do
       { repo
       , branch
       , commit = CommitID "abc123"
+      , prNumber = Nothing
       , jobId = JobId (fromIntegral n)
       , jobWorkingDir = "/tmp/job/" <> show n
       , jobStatus = status

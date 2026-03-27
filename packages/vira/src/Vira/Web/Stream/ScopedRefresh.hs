@@ -106,7 +106,7 @@ entitiesChanged update
       [Repo name]
   | Just (SetRepoBranchesA name _, _) <- matchUpdate update =
       [Repo name]
-  | Just (AddNewJobA repo _ _ _ _, job) <- matchUpdate update =
+  | Just (AddNewJobA repo _ _ _ _ _, job) <- matchUpdate update =
       [Repo repo, Job job.jobId]
   | Just (JobUpdateStatusA _ _, job) <- matchUpdate update =
       [Repo job.repo, Job job.jobId]

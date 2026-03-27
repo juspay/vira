@@ -1,7 +1,7 @@
 -- | Hints from across the apps to link to any route, but without needing a direct reference to all the routes (avoiding cylicic imports in Haskell)
 module Vira.Web.LinkTo.Type where
 
-import Effectful.Git (BranchName, RepoName)
+import Effectful.Git (BranchName, CommitID, RepoName)
 import Vira.State.Type (JobId)
 
 {- | The part of the application the caller intends to link to
@@ -29,6 +29,9 @@ data LinkTo
   | Cache
   | Events
   | Refresh (Maybe Text) -- Query parameter for event patterns
+  | RepoPullRequestFilter RepoName
+  | RepoPullRequest RepoName Int
+  | PullRequestApprove RepoName Int CommitID
 
 linkShortTitle :: LinkTo -> Text
 linkShortTitle = \case
@@ -49,6 +52,9 @@ linkShortTitle = \case
   Cache -> "Binary Cache"
   Events -> "Events"
   Refresh _ -> "Refresh"
+  RepoPullRequestFilter _ -> "Filter PRs" -- unused
+  RepoPullRequest _ n -> "PR " <> show n
+  PullRequestApprove {} -> "Approve" -- unused
 
 linkTitle :: LinkTo -> Text
 linkTitle = \case

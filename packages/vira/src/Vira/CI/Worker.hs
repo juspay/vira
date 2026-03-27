@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 {- | CI job worker daemon for queue processing
@@ -26,7 +27,7 @@ import Effectful.Concurrent.MVar (withMVar)
 import Effectful.Concurrent.STM (atomically)
 import Effectful.Environment (Environment)
 import Effectful.FileSystem (FileSystem)
-import Effectful.Git.Types (Commit (id))
+import Effectful.Git.Types (Commit (..))
 import Effectful.Process (Process)
 import Effectful.Reader.Dynamic (Reader, ask)
 import Effectful.Reader.Static qualified as ER
@@ -41,7 +42,7 @@ import Vira.CI.Worker.Type (JobWorkerState (..))
 import Vira.Environment.Tool.Core qualified as Tool
 import Vira.State.Acid
 import Vira.State.Acid qualified as Acid
-import Vira.State.Type (Job (..), JobStatus (..))
+import Vira.State.Type (Branch (..), Job (..), JobStatus (..))
 import Vira.State.Type qualified as St
 import Vira.Supervisor.Task qualified as Supervisor
 import Vira.Supervisor.Type (Terminated (..))
@@ -146,16 +147,23 @@ startJob ::
 startJob job = do
   log Info $ "Starting job #" <> show job.jobId
 
-  -- Get repo and branch
+  -- Get repo
   repo <-
     App.query (GetRepoByNameA job.repo) >>= \case
       Nothing -> error "Repo not found; impossible!"
       Just r -> pure r
 
-  branch <-
-    App.query (GetBranchByNameA job.repo job.branch) >>= \case
-      Nothing -> error "Branch not found; impossible!"
-      Just b -> pure b
+  -- For PR jobs, refs/pull/:n/head is not in the branches table.
+  -- Construct a synthetic Branch using the commit ID from the Job.
+  branch <- case job.prNumber of
+    Nothing ->
+      App.query (GetBranchByNameA job.repo job.branch) >>= \case
+        Nothing -> error "Branch not found; impossible!"
+        Just b -> pure b
+    Just _ -> do
+      now <- liftIO getCurrentTime
+      let syntheticCommit = Commit {id = job.commit, message = "", date = now, author = "", authorEmail = ""}
+      pure $ Branch {repoName = job.repo, branchName = job.branch, headCommit = syntheticCommit, deleted = False}
 
   -- Start task
   st <- ask @ViraRuntimeState

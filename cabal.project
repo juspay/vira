@@ -14,6 +14,7 @@ packages:
   packages/nix
   packages/nix-cache-server
   packages/devour-flake
+  packages/servant-github-webhook-simple
 
 multi-repl: true
 tests: True

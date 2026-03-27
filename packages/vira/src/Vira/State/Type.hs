@@ -11,10 +11,88 @@ import Data.Default (Default (..))
 import Data.IxSet.Typed
 import Data.SafeCopy
 import Data.Time (UTCTime)
-import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit, RepoName (..))
+import Effectful.Git (BranchName (..), Commit (..), CommitID, IxCommit, RepoName (..))
 import Servant.API (FromHttpApiData, ToHttpApiData)
 import Vira.Refresh.Type (RefreshResult)
 import Web.FormUrlEncoded (FromForm (fromForm), parseUnique)
+
+-- * Pull Request types
+
+-- | Pull request lifecycle state
+data PullRequestState = PullRequestOpen | PullRequestClosed | PullRequestMerged
+  deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
+
+-- | Information about the forge (Eg. GitHub, Bitbucket etc.)
+data ForgeInfo = ForgeInfo
+  { url :: Text
+  -- ^ URL to the resource on the forge
+  , icon :: ByteString
+  -- ^ SVG icon content (e.g. brand icon for the forge)
+  }
+  deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
+
+-- | A pull request tracked by Vira
+data PullRequest = PullRequest
+  { repo :: RepoName
+  -- ^ Repository this PR targets
+  , prNumber :: Int
+  -- ^ PR number (unique per repo)
+  , title :: Text
+  -- ^ PR title
+  , headOwner :: OwnerName
+  -- ^ Owner of the head (source) repo
+  , baseOwner :: OwnerName
+  -- ^ Owner of the base (target) repo
+  , headBranch :: BranchName
+  -- ^ Source branch name
+  , baseBranch :: BranchName
+  -- ^ Target branch in origin
+  , prState :: PullRequestState
+  -- ^ Current lifecycle state
+  , forgeInfo :: Maybe ForgeInfo
+  -- ^ Information about the forge
+  }
+  deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
+
+-- | Whether a PR is from a fork (head owner differs from base owner)
+pullRequestIsFork :: PullRequest -> Bool
+pullRequestIsFork pr = pr.headOwner /= pr.baseOwner
+
+type PullRequestIxs = '[RepoName, Int]
+type IxPullRequest = IxSet PullRequestIxs PullRequest
+
+instance Indexable PullRequestIxs PullRequest where
+  indices =
+    ixList
+      (ixFun $ \PullRequest {repo} -> [repo])
+      (ixFun $ \PullRequest {prNumber} -> [prNumber])
+
+-- | A commit pushed to a PR (tracks history of syncs)
+data PullRequestCommit = PullRequestCommit
+  { repo :: RepoName
+  -- ^ Repository this commit belongs to
+  , prNumber :: Int
+  -- ^ PR number
+  , commitId :: CommitID
+  -- ^ References a 'Commit' in the global commits store
+  , approved :: Bool
+  -- ^ Fork PRs require approval; same-repo PRs are always True
+  }
+  deriving stock (Generic, Show, Typeable, Data, Eq, Ord)
+
+type PullRequestCommitIxs = '[RepoName, Int, CommitID]
+type IxPullRequestCommit = IxSet PullRequestCommitIxs PullRequestCommit
+
+instance Indexable PullRequestCommitIxs PullRequestCommit where
+  indices =
+    ixList
+      (ixFun $ \PullRequestCommit {repo} -> [repo])
+      (ixFun $ \PullRequestCommit {prNumber} -> [prNumber])
+      (ixFun $ \PullRequestCommit {commitId} -> [commitId])
+
+-- | Ref branch for PR jobs in the jobs index
+pullRequestBranchRef :: Int -> BranchName
+pullRequestBranchRef n = BranchName $ "refs/pull/" <> show n <> "/head"
 
 -- | A project's git repository
 data Repo = Repo
@@ -117,6 +195,43 @@ branchActivityTime details = case details.buildState of
 instance Ord BranchDetails where
   compare a b = compare (Down $ branchActivityTime a) (Down $ branchActivityTime b)
 
+-- | Build/approval state for a PR (mirrors 'BranchBuildState')
+data PullRequestBuildState
+  = -- | Fork PR with latest unapproved commit (resolved from commits store for display)
+    PullRequestUnapproved PullRequestCommit (Maybe Commit)
+  | -- | All approved but no job yet
+    PullRequestNeverBuilt
+  | -- | Has at least one build (latest job + freshness)
+    PullRequestBuilt Job BuildFreshness
+  deriving stock (Generic, Show, Eq)
+
+-- | 'PullRequest' enriched with build state for display (mirrors 'BranchDetails')
+data PullRequestDetails = PullRequestDetails
+  { pullRequest :: PullRequest
+  , latestCommitTime :: UTCTime
+  -- ^ Time of the most recent PR commit (analogous to @branch.headCommit.date@)
+  , buildState :: PullRequestBuildState
+  }
+  deriving stock (Generic, Show, Eq)
+
+{- | Get the most recent activity time for a 'PullRequestDetails'.
+
+Uses @max(latestCommitTime, jobCreatedTime)@, mirroring 'branchActivityTime'.
+-}
+pullRequestActivityTime :: PullRequestDetails -> UTCTime
+pullRequestActivityTime details = case details.buildState of
+  PullRequestUnapproved _ _ -> details.latestCommitTime
+  PullRequestNeverBuilt -> details.latestCommitTime
+  PullRequestBuilt job _ -> max details.latestCommitTime job.jobCreatedTime
+
+-- | Sorts 'PullRequestDetails' by most recent activity descending (most recent first).
+instance Ord PullRequestDetails where
+  compare a b = compare (Down $ pullRequestActivityTime a) (Down $ pullRequestActivityTime b)
+
+newtype OwnerName = OwnerName {unOwnerName :: Text}
+  deriving stock (Generic, Data)
+  deriving newtype (Show, Eq, Ord, IsString, ToHttpApiData, FromHttpApiData, ToJSON, FromJSON)
+
 newtype JobId = JobId {unJobId :: Natural}
   deriving stock (Generic, Data)
   deriving newtype
@@ -134,9 +249,11 @@ data Job = Job
   { repo :: RepoName
   -- ^ The name of the repository this job belongs to
   , branch :: BranchName
-  -- ^ The name of the branch this job is running on
+  -- ^ For branch jobs: branch name; For PR jobs: @refs\/pull\/:n\/head@
   , commit :: CommitID
   -- ^ The commit this job is running on
+  , prNumber :: Maybe Int
+  -- ^ Just for PR jobs, Nothing for branch jobs
   , jobId :: JobId
   -- ^ The unique identifier of the job
   , jobWorkingDir :: FilePath
@@ -198,20 +315,29 @@ data ViraState = ViraState
   , branches :: IxBranch
   , commits :: IxCommit
   , jobs :: IxJob
+  , pullRequests :: IxPullRequest
+  , pullRequestCommits :: IxPullRequestCommit
   , nextJobId :: JobId
   -- ^ The next job ID to assign (monotonically increasing)
   }
   deriving stock (Generic, Typeable)
 
+$(deriveSafeCopy 0 'base ''OwnerName)
+$(deriveSafeCopy 0 'base ''PullRequestState)
+$(deriveSafeCopy 0 'base ''ForgeInfo)
+$(deriveSafeCopy 0 'base ''PullRequest)
+$(deriveSafeCopy 0 'base ''PullRequestCommit)
 $(deriveSafeCopy 0 'base ''JobResult)
 $(deriveSafeCopy 0 'base ''JobStatus)
 $(deriveSafeCopy 0 'base ''JobId)
 $(deriveSafeCopy 0 'base ''Job)
-$(deriveSafeCopy 1 'base ''Branch)
+$(deriveSafeCopy 0 'base ''Branch)
 $(deriveSafeCopy 0 'base ''BuildFreshness)
 $(deriveSafeCopy 0 'base ''BranchBuildState)
 $(deriveSafeCopy 0 'base ''BranchQuery)
 $(deriveSafeCopy 0 'base ''BranchDetails)
+$(deriveSafeCopy 0 'base ''PullRequestBuildState)
+$(deriveSafeCopy 0 'base ''PullRequestDetails)
 $(deriveSafeCopy 0 'base ''Repo)
 
 {- | IMPORTANT: Increment the version number when making breaking changes to 'ViraState' or its indexed types.
@@ -219,4 +345,4 @@ The version is automatically used by the @--auto-reset-state@ feature to detect 
 When enabled, auto-reset will remove @ViraState/@ and @workspace/*/jobs@ directories on mismatch.
 Run @vira info@ to see the current schema version.
 -}
-$(deriveSafeCopy 8 'base ''ViraState)
+$(deriveSafeCopy 10 'base ''ViraState)

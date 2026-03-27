@@ -15,8 +15,9 @@ import Data.IxSet.Typed qualified as Ix
 import Data.Map.Strict qualified as Map
 import Data.SafeCopy
 import Data.Text qualified as T
-import Data.Time (UTCTime)
-import Effectful.Git (BranchName, Commit (..), CommitID, RepoName)
+import Data.Time (UTCTime (..))
+import Data.Time.Calendar (fromGregorian)
+import Effectful.Git (BranchName, Commit (..), CommitID, IxCommit, RepoName)
 import System.FilePath ((</>))
 import Vira.Refresh.Type (RefreshResult)
 import Vira.State.Type
@@ -267,8 +268,8 @@ getOldJobsA cutoffTime = do
         | otherwise -> Nothing
 
 -- | Create a new job returning it.
-addNewJobA :: RepoName -> BranchName -> CommitID -> FilePath -> UTCTime -> Update ViraState Job
-addNewJobA repo branch commit baseDir jobCreatedTime = state $ \s ->
+addNewJobA :: RepoName -> BranchName -> CommitID -> Maybe Int -> FilePath -> UTCTime -> Update ViraState Job
+addNewJobA repo branch commit prNumber baseDir jobCreatedTime = state $ \s ->
   let
     jobId = s.nextJobId
     jobStatus = JobPending
@@ -304,6 +305,107 @@ cancelPendingJobsInBranchA repo branch endTime = state $ \s ->
       pendingJobs = filter (\j -> j.jobStatus == JobPending) jobs
       updatedState = flipfoldl' (\job st -> st {jobs = Ix.updateIx job.jobId (job {jobStatus = JobFinished JobKilled endTime}) st.jobs}) s pendingJobs
    in (fromIntegral $ length pendingJobs, updatedState)
+
+getPullRequestA :: RepoName -> Int -> Query ViraState (Maybe PullRequest)
+getPullRequestA repo prNum = do
+  ViraState {pullRequests} <- ask
+  pure $ Ix.getOne $ pullRequests @= repo @= prNum
+
+getPullRequestsByRepoA :: RepoName -> Query ViraState [PullRequest]
+getPullRequestsByRepoA repo = do
+  ViraState {pullRequests} <- ask
+  pure $ Ix.toList $ pullRequests @= repo
+
+addPullRequestA :: PullRequest -> Update ViraState ()
+addPullRequestA pr = do
+  modify $ \s ->
+    s {pullRequests = Ix.updateIx pr.prNumber pr s.pullRequests} -- upsert to prevent duplicates
+
+setPullRequestStateA :: RepoName -> Int -> PullRequestState -> Update ViraState ()
+setPullRequestStateA repo prNum newState = do
+  modify $ \s ->
+    case Ix.getOne $ s.pullRequests @= repo @= prNum of
+      Nothing -> s
+      Just pr ->
+        let updated = pr {prState = newState}
+         in s {pullRequests = Ix.updateIx prNum updated s.pullRequests}
+
+getPullRequestCommitA :: RepoName -> Int -> CommitID -> Query ViraState (Maybe PullRequestCommit)
+getPullRequestCommitA repo prNum sha = do
+  ViraState {pullRequestCommits} <- ask
+  pure $ Ix.getOne $ pullRequestCommits @= repo @= prNum @= sha
+
+getPullRequestCommitsA :: RepoName -> Int -> Query ViraState [PullRequestCommit]
+getPullRequestCommitsA repo prNum = do
+  ViraState {pullRequestCommits} <- ask
+  pure $ Ix.toList $ pullRequestCommits @= repo @= prNum
+
+getUnapprovedCommitsA :: RepoName -> Int -> Query ViraState [PullRequestCommit]
+getUnapprovedCommitsA repo prNum = do
+  ViraState {pullRequestCommits} <- ask
+  pure $ filter (not . (.approved)) $ Ix.toList $ pullRequestCommits @= repo @= prNum
+
+addPullRequestCommitA :: PullRequestCommit -> Commit -> Update ViraState ()
+addPullRequestCommitA pc commit = do
+  modify $ \s ->
+    s
+      { pullRequestCommits = Ix.updateIx pc.commitId pc s.pullRequestCommits -- upsert by commit id to prevent duplicates
+      , commits = Ix.updateIx commit.id commit s.commits
+      }
+
+approvePullRequestCommitA :: RepoName -> Int -> CommitID -> Update ViraState (Either Text ())
+approvePullRequestCommitA repo prNum sha = do
+  s <- get
+  case Ix.getOne $ s.pullRequestCommits @= repo @= prNum @= sha of
+    Nothing -> pure $ Left "PR commit not found"
+    Just pc -> do
+      let updated = pc {approved = True}
+      modify $ \st -> st {pullRequestCommits = Ix.updateIx pc.commitId updated st.pullRequestCommits}
+      pure $ Right ()
+
+-- | Enrich a 'PullRequest' with its build/approval state to create 'PullRequestDetails'
+enrichPullRequestWithJobs :: IxJob -> IxPullRequestCommit -> IxCommit -> PullRequest -> PullRequestDetails
+enrichPullRequestWithJobs jobsIx pullRequestCommitsIx commitsIx pr =
+  let branchRef = pullRequestBranchRef pr.prNumber
+      prJobs = Ix.toDescList (Proxy @JobId) $ jobsIx @= pr.repo @= branchRef
+      prCommits = Ix.toList $ pullRequestCommitsIx @= pr.repo @= pr.prNumber
+      unapproved = filter (not . (.approved)) prCommits
+      resolveCommit pc = Ix.getOne $ commitsIx @= pc.commitId
+      commitDate pc = maybe (UTCTime (fromGregorian 1970 1 1) 0) (.date) $ resolveCommit pc
+      sortedCommits = sortWith (Down . commitDate) prCommits
+      latestCommitTime = case sortedCommits of
+        (c : _) -> commitDate c
+        [] -> UTCTime (fromGregorian 1970 1 1) 0
+      latestCommitId = case sortedCommits of
+        (c : _) -> Just c.commitId
+        [] -> Nothing
+      buildState = case sortWith (Down . commitDate) unapproved of
+        (c : _) -> PullRequestUnapproved c (resolveCommit c)
+        [] -> case viaNonEmpty head prJobs of
+          Just job ->
+            let freshness = case latestCommitId of
+                  Just cid | cid == job.commit -> UpToDate
+                  _ -> OutOfDate
+             in PullRequestBuilt job freshness
+          Nothing -> PullRequestNeverBuilt
+   in PullRequestDetails {pullRequest = pr, latestCommitTime, buildState}
+
+{- | Query PRs with enriched build state, sorted by activity time.
+
+- Nothing repo: all repos (IndexPage)
+- Just repo: single repo (RepoPage)
+- Sorted by activity time (most recent first)
+-}
+queryPullRequestDetailsA :: Maybe RepoName -> Natural -> Query ViraState [PullRequestDetails]
+queryPullRequestDetailsA mRepo limit = do
+  ViraState {pullRequests, jobs, pullRequestCommits, commits} <- ask
+  pure $
+    pullRequests
+      & maybe Prelude.id getEQ mRepo
+      & Ix.toList
+      & fmap (enrichPullRequestWithJobs jobs pullRequestCommits commits)
+      & sortWith (Down . pullRequestActivityTime)
+      & take (fromIntegral limit)
 
 -- | Like `Ix.updateIx`, but works for multiple items.
 updateIxMulti ::
@@ -354,6 +456,16 @@ $( makeAcidic
      , 'cancelPendingJobsInBranchA
      , 'addNewRepoA
      , 'deleteRepoByNameA
+     , 'getPullRequestA
+     , 'getPullRequestsByRepoA
+     , 'addPullRequestA
+     , 'setPullRequestStateA
+     , 'getPullRequestCommitA
+     , 'getPullRequestCommitsA
+     , 'getUnapprovedCommitsA
+     , 'addPullRequestCommitA
+     , 'approvePullRequestCommitA
+     , 'queryPullRequestDetailsA
      ]
  )
 
@@ -367,6 +479,8 @@ deriving stock instance Show SetRefreshStatusA
 
 deriving stock instance Show SetRepoBranchesA
 
+deriving stock instance Show StoreCommitA
+
 deriving stock instance Show AddNewJobA
 
 deriving stock instance Show JobUpdateStatusA
@@ -374,3 +488,11 @@ deriving stock instance Show JobUpdateStatusA
 deriving stock instance Show DeleteJobA
 
 deriving stock instance Show CancelPendingJobsInBranchA
+
+deriving stock instance Show AddPullRequestA
+
+deriving stock instance Show SetPullRequestStateA
+
+deriving stock instance Show AddPullRequestCommitA
+
+deriving stock instance Show ApprovePullRequestCommitA

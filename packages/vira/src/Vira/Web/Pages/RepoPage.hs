@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 
 module Vira.Web.Pages.RepoPage (
@@ -5,11 +6,11 @@ module Vira.Web.Pages.RepoPage (
   handlers,
 ) where
 
-import Data.Default (def)
+import Data.Text qualified as T
 import Effectful (Eff)
 import Effectful.Colog.Simple (withLogContext)
 import Effectful.Error.Static (throwError)
-import Effectful.Git (RepoName)
+import Effectful.Git (RepoName (..))
 import Htmx.Lucid.Core (hxGet_, hxSwapS_, hxTarget_, hxTrigger_)
 import Htmx.Servant.Response
 import Htmx.Swap (Swap (..))
@@ -24,7 +25,7 @@ import Vira.Refresh qualified as Refresh
 import Vira.Refresh.Type (RefreshOutcome (..), RefreshPriority (Now), RefreshResult (..), RefreshStatus (..))
 import Vira.State.Acid qualified as St
 import Vira.State.Core qualified as St
-import Vira.State.Type (BranchDetails (..), BranchQuery (..))
+import Vira.State.Type (BranchDetails (..), BranchQuery (..), PullRequest (..), PullRequestDetails (..))
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
 import Vira.Web.Stack qualified as Web
@@ -41,15 +42,16 @@ data Routes mode = Routes
   , _update :: mode :- "fetch" Servant.:> Post '[HTML] (Headers '[HXRefresh] (Maybe ErrorModal))
   , _delete :: mode :- "delete" Servant.:> Post '[HTML] (Headers '[HXRedirect] Text)
   , _filterBranches :: mode :- "branches" Servant.:> QueryParam "q" Text :> Get '[HTML] (Html ())
+  , _filterPullRequests :: mode :- "pulls" Servant.:> QueryParam "q" Text :> Get '[HTML] (Html ())
   }
   deriving stock (Generic)
 
 crumbs :: [LinkTo.LinkTo]
 crumbs = [LinkTo.RepoListing]
 
--- | Maximum number of 'Vira.State.Type.Branch'es to display
-maxBranchesDisplayed :: Int
-maxBranchesDisplayed = 20
+-- | Maximum number of items to display per section
+maxDisplayed :: Int
+maxDisplayed = 20
 
 -- | Servant handlers for 'Routes'
 handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> RepoName -> Routes AsServer
@@ -59,25 +61,35 @@ handlers globalSettings viraRuntimeState webSettings name = do
     , _update = Web.runAppInServant globalSettings viraRuntimeState webSettings $ updateHandler name
     , _delete = Web.runAppInServant globalSettings viraRuntimeState webSettings $ deleteHandler name
     , _filterBranches = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml . filterBranchesHandler name
+    , _filterPullRequests = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml . filterPullRequestsHandler name
     }
 
 viewHandler :: RepoName -> AppHtml ()
 viewHandler name = do
   repo <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
-  let query = def {repoName = Just name}
-  branchDetails <- lift $ App.query (St.QueryBranchDetailsA query (fromIntegral maxBranchesDisplayed + 1))
-  let isPruned = length branchDetails > maxBranchesDisplayed
-      displayed = take maxBranchesDisplayed branchDetails
+  let query = BranchQuery {repoName = Just name, branchNamePattern = Nothing, neverBuilt = Nothing}
+  branchDetails <- lift $ App.query (St.QueryBranchDetailsA query (fromIntegral maxDisplayed + 1))
+  let isPruned = length branchDetails > maxDisplayed
+      displayed = take maxDisplayed branchDetails
   W.layout (crumbs <> [LinkTo.Repo name]) $ viewRepo repo displayed isPruned
 
 filterBranchesHandler :: RepoName -> Maybe Text -> AppHtml ()
 filterBranchesHandler name mQuery = do
-  let query = def {repoName = Just name, branchNamePattern = mQuery}
-  branchDetails <- lift $ App.query (St.QueryBranchDetailsA query (fromIntegral maxBranchesDisplayed + 1))
-  let isPruned = length branchDetails > maxBranchesDisplayed
-      displayed = take maxBranchesDisplayed branchDetails
+  let query = BranchQuery {repoName = Just name, branchNamePattern = mQuery, neverBuilt = Nothing}
+  branchDetails <- lift $ App.query (St.QueryBranchDetailsA query (fromIntegral maxDisplayed + 1))
+  let isPruned = length branchDetails > maxDisplayed
+      displayed = take maxDisplayed branchDetails
   _ <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
   viewBranchListing displayed isPruned
+
+filterPullRequestsHandler :: RepoName -> Maybe Text -> AppHtml ()
+filterPullRequestsHandler name mQuery = do
+  _ <- lift $ App.query (St.GetRepoByNameA name) >>= maybe (throwError err404) pure
+  prDetails <- lift $ App.query (St.QueryPullRequestDetailsA (Just name) (fromIntegral maxDisplayed))
+  let filtered = case mQuery of
+        Nothing -> prDetails
+        Just q -> filter (\d -> T.isInfixOf (T.toLower q) (T.toLower d.pullRequest.title)) prDetails
+  viewPullRequestListing filtered
 
 updateHandler :: RepoName -> Eff Web.AppServantStack (Headers '[HXRefresh] (Maybe ErrorModal))
 updateHandler name = do
@@ -124,6 +136,11 @@ viewRepo repo branchDetails isPruned = do
     _ -> pass
 
   W.viraSection_ [] $ do
+    -- Pull Requests section
+    do
+      prDetails <- lift $ App.query (St.QueryPullRequestDetailsA (Just repo.name) (fromIntegral maxDisplayed))
+      viewPullRequestsSection repo.name prDetails
+
     -- Branch listing
     div_ [class_ "bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 lg:p-8"] $ do
       -- Branch listing header
@@ -185,17 +202,62 @@ viewRepo repo branchDetails isPruned = do
                 W.viraButtonIcon_ $ toHtmlRaw Icon.trash
                 "Delete Repository"
 
--- Branch listing component for repository page
+-- | Branch listing fragment (used by both full page and HTMX filter)
 viewBranchListing :: [BranchDetails] -> Bool -> AppHtml ()
 viewBranchListing branchDetails isPruned = do
-  -- Pruning indicator
   when isPruned $
     div_ [class_ "mb-6 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"] $ do
       div_ [class_ "flex items-center text-sm text-yellow-800 dark:text-yellow-200"] $ do
         div_ [class_ "w-4 h-4 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.alert_circle
-        span_ $ toHtml $ "Showing first " <> show @Text maxBranchesDisplayed <> " branches. Use the filter to narrow results."
+        span_ $ toHtml $ "Showing first " <> show @Text maxDisplayed <> " branches. Use the filter to narrow results."
 
   div_ [class_ "mt-4"] $ do
     forM_ branchDetails $ \details ->
       div_ [data_ "branch-item" (toText details.branch.branchName)] $
         W.viraBranchDetailsRow_ False details
+
+-- | Pull requests section with filter input
+viewPullRequestsSection :: RepoName -> [PullRequestDetails] -> AppHtml ()
+viewPullRequestsSection repoName prDetails =
+  div_ [class_ "bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 lg:p-8"] $ do
+    -- Header
+    div_ [class_ "mb-8"] $ do
+      div_ [class_ "flex items-center mb-3"] $ do
+        div_ [class_ "text-gray-600 dark:text-gray-300 w-8 h-8 mr-3 flex items-center justify-center"] $ toHtmlRaw Icon.git_pull_request
+        h2_ [class_ "text-2xl font-bold text-gray-900 dark:text-gray-100"] "Pull Requests"
+        div_ [class_ "ml-auto text-sm text-gray-500 dark:text-gray-400"] $
+          toHtml $
+            show @Text (length prDetails) <> " pull requests"
+      div_ [class_ "h-px bg-gray-200 dark:bg-gray-700"] mempty
+
+    -- PR filter input
+    div_ [class_ "mb-6"] $ do
+      filterUrl <- lift $ getLinkUrl $ LinkTo.RepoPullRequestFilter repoName
+      div_ [class_ "relative"] $ do
+        input_
+          [ type_ "text"
+          , class_ "w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 transition-colors duration-200 pr-10"
+          , placeholder_ "Filter pull requests..."
+          , name_ "q"
+          , hxGet_ filterUrl
+          , hxTarget_ "#pr-listing"
+          , hxTrigger_ "keyup changed delay:300ms"
+          ]
+        div_ [class_ "absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"] $ do
+          div_ [class_ "text-gray-500 dark:text-gray-400 w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.search
+
+    -- PR listing
+    div_ [id_ "pr-listing"] $
+      viewPullRequestListing prDetails
+
+-- | PR listing fragment (used by both full page and HTMX filter)
+viewPullRequestListing :: [PullRequestDetails] -> AppHtml ()
+viewPullRequestListing prDetails =
+  if null prDetails
+    then div_ [class_ "text-center py-12"] $ do
+      div_ [class_ "text-gray-500 dark:text-gray-400 mb-4"] "No pull requests found"
+      div_ [class_ "text-sm text-gray-500 dark:text-gray-400"] "Pull requests will appear here when opened via GitHub webhooks"
+    else
+      div_ [class_ "mt-4"] $
+        forM_ prDetails $
+          W.viraPullRequestDetailsRow_ False

@@ -1,0 +1,229 @@
+{-# LANGUAGE DuplicateRecordFields #-}
+
+{- | GitHub API Types and Endpoints
+
+Pure types and endpoint definitions for GitHub REST API.
+Use with 'Vira.Effect.GitHub' for effectful operations.
+-}
+module Vira.Lib.GitHub (
+  -- * Identifiers
+  AppId (..),
+  InstallationId (..),
+  InstallationAccessToken (..),
+
+  -- * Check Run
+  CheckRunId (..),
+  CheckRun (..),
+  NewCheckRun (..),
+  UpdateCheckRun (..),
+  CheckRunStatus (..),
+  CheckRunConclusion (..),
+
+  -- * Endpoints
+  createCheckRunE,
+  updateCheckRunE,
+  createInstallationAccessTokenE,
+
+  -- * Helpers,
+  hookUserLoginAny, -- requires github-webhooks
+  toPullRequest, -- requires github-webhooks
+  toPullRequestCommit, -- requires github-webhooks
+  fromJobStatus,
+) where
+
+import Data.Aeson (FromJSON (..), ToJSON (..), withObject, (.:))
+import Data.Time (UTCTime, defaultTimeLocale, parseTimeM)
+import Effectful.Git (BranchName (..), Commit (..), CommitID (..), RepoName (..))
+import GitHub.Data.Webhooks.Events (PullRequestEvent (..))
+import GitHub.Data.Webhooks.Payload (HookPullRequest (..), HookRepository (..), HookSimpleUser (whSimplUserLogin), HookUser (whUserLogin), PullRequestTarget (..), URL (URL))
+import GitHub.REST (GHEndpoint (..), KeyValue (..))
+import Network.HTTP.Types (StdMethod (..))
+import Vira.State.Type (ForgeInfo (..), JobResult (..), JobStatus (..), OwnerName (..), PullRequest (..), PullRequestCommit (..), PullRequestState (..))
+import Web.TablerIcons.Outline qualified as Icon
+
+-- | GitHub App ID
+newtype AppId = AppId {unAppId :: Int}
+  deriving newtype (Show, Eq, Ord, Read)
+
+-- | GitHub App Installation ID
+newtype InstallationId = InstallationId Int
+  deriving newtype (Show, Eq, Ord)
+
+data InstallationAccessToken = InstallationAccessToken
+  { iatToken :: ByteString
+  , iatExpiresAt :: UTCTime
+  }
+  deriving stock (Show, Eq)
+
+instance FromJSON InstallationAccessToken where
+  parseJSON = withObject "InstallationAccessToken" $ \o -> do
+    token <- o .: "token"
+    expiresAt <- o .: "expires_at"
+    utcTime <- parseTimeM True defaultTimeLocale "%Y-%m-%dT%H:%M:%SZ" expiresAt
+    pure
+      InstallationAccessToken
+        { iatToken = encodeUtf8 @Text token
+        , iatExpiresAt = utcTime
+        }
+
+-- | Check run ID returned by GitHub
+newtype CheckRunId = CheckRunId {unCheckRunId :: Int}
+  deriving newtype (Show, Eq, Ord, FromJSON, ToJSON)
+
+-- | Response from creating a check run
+newtype CheckRun = CheckRun
+  { checkRunId :: CheckRunId
+  }
+  deriving stock (Show, Eq)
+
+instance FromJSON CheckRun where
+  parseJSON = withObject "CheckRun" $ \o ->
+    CheckRun <$> o .: "id"
+
+-- | Check run status
+data CheckRunStatus
+  = Queued
+  | InProgress
+  | Completed
+  deriving stock (Show, Eq)
+
+instance ToText CheckRunStatus where
+  toText = \case
+    Queued -> "queued"
+    InProgress -> "in_progress"
+    Completed -> "completed"
+
+-- | Check run conclusion (required when status is 'Completed')
+data CheckRunConclusion
+  = Success
+  | Failure
+  | Cancelled
+  | TimedOut
+  | ActionRequired
+  | Skipped
+  deriving stock (Show, Eq)
+
+instance ToText CheckRunConclusion where
+  toText = \case
+    Success -> "success"
+    Failure -> "failure"
+    Cancelled -> "cancelled"
+    TimedOut -> "timed_out"
+    ActionRequired -> "action_required"
+    Skipped -> "skipped"
+
+-- | Request body for creating a check run
+data NewCheckRun = NewCheckRun
+  { name :: Text
+  , headSha :: Text
+  , status :: Maybe CheckRunStatus
+  }
+  deriving stock (Show, Eq)
+
+-- | Request body for updating a check run
+data UpdateCheckRun = UpdateCheckRun
+  { status :: CheckRunStatus
+  , conclusion :: Maybe CheckRunConclusion
+  -- ^ Required when status is 'Completed'
+  }
+  deriving stock (Show, Eq)
+
+---------------
+-- Endpoints
+---------------
+
+createCheckRunE :: OwnerName -> RepoName -> NewCheckRun -> GHEndpoint
+createCheckRunE (OwnerName owner) (RepoName repo) cr =
+  GHEndpoint
+    { method = POST
+    , endpoint = "/repos/:owner/:repo/check-runs"
+    , endpointVals = ["owner" := owner, "repo" := repo]
+    , ghData =
+        ["name" := cr.name, "head_sha" := cr.headSha]
+          <> maybe [] (\s -> ["status" := toText s]) cr.status
+    }
+
+updateCheckRunE :: OwnerName -> RepoName -> CheckRunId -> UpdateCheckRun -> GHEndpoint
+updateCheckRunE (OwnerName owner) (RepoName repo) (CheckRunId checkRunId) upd =
+  GHEndpoint
+    { method = PATCH
+    , endpoint = "/repos/:owner/:repo/check-runs/:check_run_id"
+    , endpointVals = ["owner" := owner, "repo" := repo, "check_run_id" := checkRunId]
+    , ghData =
+        ["status" := toText upd.status]
+          <> maybe [] (\c -> ["conclusion" := toText c]) upd.conclusion
+    }
+
+createInstallationAccessTokenE :: InstallationId -> GHEndpoint
+createInstallationAccessTokenE (InstallationId instId) =
+  GHEndpoint
+    { method = POST
+    , endpoint = "/app/installations/:installation_id/access_tokens"
+    , endpointVals = ["installation_id" := instId]
+    , ghData = []
+    }
+
+-- Helpers
+
+-- | Return the user login as `Text`. Empty text if `whSimplUserLogin` is `Nothing`
+hookUserLoginAny :: Either HookSimpleUser HookUser -> Text
+hookUserLoginAny = either (fromMaybe "" . whSimplUserLogin) whUserLogin
+
+toPullRequest :: PullRequestEvent -> PullRequest
+toPullRequest event =
+  let prPayload = evPullReqPayload event
+      prHead = whPullReqHead prPayload
+      prBase = whPullReqBase prPayload
+      URL htmlUrl = whPullReqHtmlUrl prPayload
+   in PullRequest
+        { prNumber = whPullReqNumber prPayload
+        , title = whPullReqTitle prPayload
+        , headBranch = BranchName $ whPullReqTargetRef prHead
+        , baseBranch = BranchName $ whPullReqTargetRef prBase
+        , prState = PullRequestOpen
+        , repo = RepoName $ whRepoName $ evPullReqRepo event
+        , headOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prHead
+        , baseOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prBase
+        , forgeInfo = Just $ ForgeInfo htmlUrl Icon.brand_github
+        }
+
+toPullRequestCommit :: UTCTime -> PullRequestEvent -> (PullRequestCommit, Commit)
+toPullRequestCommit now event =
+  let prPayload = evPullReqPayload event
+      prHead = whPullReqHead prPayload
+      prBase = whPullReqBase prPayload
+      headOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prHead
+      baseOwner = OwnerName $ whUserLogin $ whPullReqTargetUser prBase
+      commitId = CommitID $ whPullReqTargetSha prHead
+      commit =
+        Commit
+          { id = commitId
+          , message = whPullReqTitle prPayload -- the payload doesn't include the commit message, using the title of the PR as a placeholder
+          , -- The below fields cannot be fetched from a webhook payload
+            date = now
+          , author = ""
+          , authorEmail = ""
+          }
+   in ( PullRequestCommit
+          { repo = RepoName $ whRepoName $ evPullReqRepo event
+          , prNumber = whPullReqNumber prPayload
+          , approved = headOwner == baseOwner
+          , commitId = commitId
+          }
+      , commit
+      )
+
+-- | Convert a 'JobStatus' to a GitHub check run update
+fromJobStatus :: JobStatus -> UpdateCheckRun
+fromJobStatus = \case
+  JobRunning ->
+    UpdateCheckRun {status = InProgress, conclusion = Nothing}
+  JobFinished jobResult _ -> do
+    let conclusion = case jobResult of
+          JobSuccess -> Success
+          JobFailure -> Failure
+          JobKilled -> Cancelled
+    UpdateCheckRun {status = Completed, conclusion = Just conclusion}
+  JobStale ->
+    UpdateCheckRun {status = Completed, conclusion = Just Cancelled}
+  JobPending -> UpdateCheckRun {status = Queued, conclusion = Nothing}

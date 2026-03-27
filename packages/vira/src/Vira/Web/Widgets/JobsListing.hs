@@ -9,6 +9,7 @@ module Vira.Web.Widgets.JobsListing (
   viraJobRow_,
   viraJobContextHeader_,
   viraBranchDetailsRow_,
+  viraPullRequestDetailsRow_,
 ) where
 
 import Data.Text qualified as T
@@ -20,12 +21,13 @@ import Lucid
 import Lucid.Htmx.Contrib (hxPostSafe_)
 import Vira.App qualified as App
 import Vira.State.Acid qualified as St
-import Vira.State.Type (BranchBuildState (..), BuildFreshness (..))
+import Vira.State.Type (BranchBuildState (..), BuildFreshness (..), PullRequest (..), PullRequestBuildState (..), PullRequestCommit (..), PullRequestDetails (..))
 import Vira.State.Type qualified as St
 import Vira.Web.LinkTo.Type qualified as LinkTo
 import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl)
 import Vira.Web.Widgets.Button qualified as W
 import Vira.Web.Widgets.Commit qualified as W
+import Vira.Web.Widgets.PullRequest qualified as W
 import Vira.Web.Widgets.Status qualified as Status
 import Vira.Web.Widgets.Time qualified as Time
 import Web.TablerIcons.Outline qualified as Icon
@@ -260,3 +262,108 @@ viraBranchDetailsRow_ showRepo details = do
                   $ do
                     W.viraButtonIcon_ $ toHtmlRaw Icon.player_play
                     "Build"
+
+{- | Render a PR details row with optional repo name.
+
+Canonical widget for displaying PR information across the application.
+Pattern matches on 'PullRequestBuildState' for 3 cases:
+- 'PullRequestUnapproved': show latest unapproved commit with Approve button
+- 'PullRequestNeverBuilt': show PR title and state
+- 'PullRequestBuilt': show latest job with status badge
+
+Used by both IndexPage (with repo name) and RepoPage (without repo name).
+-}
+viraPullRequestDetailsRow_ ::
+  -- | Show repo name? (True for IndexPage, False for RepoPage)
+  Bool ->
+  St.PullRequestDetails ->
+  AppHtml ()
+viraPullRequestDetailsRow_ showRepo details = do
+  let pr = details.pullRequest
+  prUrl <- lift $ getLinkUrl $ LinkTo.RepoPullRequest pr.repo pr.prNumber
+
+  -- Determine where clicking the row should go
+  rowUrl <- case details.buildState of
+    PullRequestBuilt job _ -> lift $ getLinkUrl $ LinkTo.Job job.jobId
+    _ -> pure prUrl
+
+  div_ [class_ "relative mb-6"] $ do
+    -- Tags - connected segments with color distinction, left-aligned
+    div_ [class_ "absolute -top-3 left-3 flex items-center z-10"] $ do
+      -- Repo tag (if shown) - purple theme, flat right edge
+      when showRepo $ do
+        repoUrl <- lift $ getLinkUrl $ LinkTo.Repo pr.repo
+        a_ [href_ repoUrl, class_ "flex items-center gap-1 px-3 py-1 bg-purple-100 dark:bg-purple-900 border border-purple-300 dark:border-purple-700 rounded-l-full border-r-0 shadow-sm hover:opacity-70 transition-opacity"] $ do
+          div_ [class_ "w-4 h-4 flex items-center justify-center text-purple-700 dark:text-purple-200 shrink-0"] $ toHtmlRaw Icon.book_2
+          span_ [class_ "text-sm font-semibold text-purple-900 dark:text-purple-100"] $ toHtml $ toString pr.repo
+
+      -- PR tag - blue theme
+      let prClasses =
+            "flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900 border border-blue-300 dark:border-blue-700 shadow-sm hover:opacity-70 transition-opacity"
+              <> if showRepo then " rounded-r-full border-l-0" else " rounded-full"
+      a_ [href_ prUrl, class_ prClasses] $ do
+        div_ [class_ "w-4 h-4 flex items-center justify-center text-blue-700 dark:text-blue-200 shrink-0"] $ toHtmlRaw Icon.git_pull_request
+        span_ [class_ "text-sm font-semibold text-blue-900 dark:text-blue-100"] $ toHtml $ "PR " <> show @Text pr.prNumber
+
+    -- Main row - clickable card
+    a_
+      [ href_ rowUrl
+      , class_ "block pt-6 pb-4 px-4 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-2 border-gray-200 dark:border-gray-700 transition-all cursor-pointer"
+      ]
+      $ do
+        div_ [class_ "grid grid-cols-1 lg:grid-cols-12 gap-3 items-center"] $ do
+          case details.buildState of
+            PullRequestUnapproved pc mCommit -> do
+              -- Unapproved commit: show commit info + Approve button
+              let commitMsg = maybe "" (.message) mCommit
+              div_ [class_ "lg:col-span-8 flex items-center gap-2 flex-wrap text-sm"] $ do
+                W.viraCommitHash_ pc.commitId
+                unless (T.null commitMsg) $ do
+                  span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
+                  span_
+                    [ class_ "text-gray-700 dark:text-gray-300 truncate max-w-md"
+                    , title_ commitMsg
+                    ]
+                    $ toHtml commitMsg
+              div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
+                approveLink <- lift $ getLink $ LinkTo.PullRequestApprove pr.repo pr.prNumber pc.commitId
+                W.viraButton_
+                  W.ButtonSuccess
+                  [ hxPostSafe_ approveLink
+                  , hxSwapS_ AfterEnd
+                  , onclick_ "event.preventDefault(); event.stopPropagation();"
+                  , class_ "!px-3 !py-1.5 !text-xs"
+                  ]
+                  $ do
+                    W.viraButtonIcon_ $ toHtmlRaw Icon.shield_check
+                    "Approve"
+            PullRequestNeverBuilt -> do
+              -- No job, no unapproved: show PR title + state
+              div_ [class_ "lg:col-span-8 flex items-center gap-2 flex-wrap text-sm"] $ do
+                W.pullRequestStateBadge_ pr.prState
+                span_ [class_ "text-gray-700 dark:text-gray-300 truncate max-w-md"] $ toHtml pr.title
+                W.forkBadge_ pr
+              div_ [class_ "lg:col-span-4"] mempty
+            PullRequestBuilt job _freshness -> do
+              -- Built: show job commit info + status
+              maybeCommit <- lift $ App.query $ St.GetCommitByIdA job.commit
+              div_ [class_ "lg:col-span-8 flex items-center gap-2 flex-wrap text-sm"] $ do
+                W.viraCommitHash_ job.commit
+                whenJust maybeCommit $ \commit ->
+                  unless (T.null commit.message) $ do
+                    span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
+                    span_
+                      [ class_ "text-gray-700 dark:text-gray-300 truncate max-w-md"
+                      , title_ commit.message
+                      ]
+                      $ toHtml commit.message
+                span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
+                div_ [class_ "text-xs text-gray-500 dark:text-gray-400"] $
+                  Time.viraRelativeTime_ job.jobCreatedTime
+              div_ [class_ "lg:col-span-4 flex items-center justify-start lg:justify-end gap-2 flex-wrap"] $ do
+                span_ [class_ "text-sm text-gray-600 dark:text-gray-400"] $ "#" <> toHtml (show @Text job.jobId)
+                span_ [class_ "text-gray-500 dark:text-gray-400"] "·"
+                case St.jobEndTime job of
+                  Just endTime -> Time.viraDuration_ $ diffUTCTime endTime job.jobCreatedTime
+                  Nothing -> mempty
+                Status.viraStatusBadge_ job.jobStatus
