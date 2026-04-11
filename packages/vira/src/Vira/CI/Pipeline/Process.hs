@@ -4,7 +4,6 @@
 
 module Vira.CI.Pipeline.Process (
   runProcess,
-  runProcess',
 ) where
 
 import Colog (Severity (..))

@@ -20,7 +20,6 @@ Create a `vira.hs` file in your repository root:
     { signoff.enable = True
     , build.flakes = ["." { overrideInputs = [("nixpkgs", "github:nixos/nixpkgs/nixos-unstable")] }]
     , cache.url = Just "https://attic.example.com/my-cache"
-    , postBuild.timeoutSeconds = 120
     }
 ```
 
@@ -132,59 +131,6 @@ Enables commit status reporting to GitHub or Bitbucket. When enabled, Vira posts
 
 - For GitHub, uses GitHub API with token from `gh` CLI.
 - For Bitbucket, uses Bitbucket API with token from `bb` CLI.
-
-#### PostBuild Stage
-
-Vira supports a convention-based post-build hook. If a file named `viraPostBuildHook.sh` exists at the **root of your repository** and is executable, it is automatically run after a successful build (after cache push and signoff).
-
-No configuration is needed to enable the hook — its presence in the repo is the trigger.
-
-The only configurable option is the timeout:
-
-```haskell
--- Increase timeout for slow notification scripts (default: 600 seconds)
-pipeline { postBuild.timeoutSeconds = 120 }
-```
-
-**Creating the hook script:**
-
-```bash
-#!/usr/bin/env bash
-# viraPostBuildHook.sh — placed at repo root, must be executable
-# chmod +x viraPostBuildHook.sh
-
-# Trigger a Jenkins build using credentials from the CI machine environment.
-# JENKINS_URL, JENKINS_USER, and JENKINS_TOKEN must be set as env vars on the CI machine.
-# Adjust the job path to match your Jenkins folder/job structure.
-curl -X POST \
-  "${JENKINS_URL}/job/MyOrg/job/my-repo/job/my-job/build?delay=0sec" \
-  --user "${JENKINS_USER}:${JENKINS_TOKEN}"
-```
-
-Make it executable before committing:
-
-```bash
-chmod +x viraPostBuildHook.sh
-```
-
-Vira context is exposed as environment variables:
-
-| Environment Variable | Description                                        | Example                        |
-| -------------------- | -------------------------------------------------- | ------------------------------ |
-| `VIRA_BRANCH`        | Current branch name                                | `main`                         |
-| `VIRA_COMMIT_ID`     | Commit ID being built                              | `abc123...`                    |
-| `VIRA_CLONE_URL`     | Repository clone URL (empty string if unavailable) | `git@github.com:user/repo.git` |
-| `VIRA_REPO_DIR`      | Repository working directory                       | `/workspace/project`           |
-| `VIRA_ONLY_BUILD`    | Whether running in build-only mode                 | `true` or `false`              |
-
-> [!NOTE]
-> The script is executed directly (not via shell), from the repository root directory. The post-build hook runs **last** — after build, cache push, and signoff. If the hook fails (non-zero exit code) or times out, the pipeline fails. The hook is skipped when running with `--only-build`.
-
-> [!TIP]
-> For secrets (API tokens, credentials), set them as environment variables on the CI machine rather than committing them to the repository. The script can access them alongside the Vira context variables.
-
-> [!WARNING]
-> The hook script runs with full CI machine privileges and has access to **all environment variables** on the CI machine, including any secrets. Treat `viraPostBuildHook.sh` with the same scrutiny as any other privileged CI configuration.
 
 ## Conditional Configuration {#cond}
 

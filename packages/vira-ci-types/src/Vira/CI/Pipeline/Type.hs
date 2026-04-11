@@ -16,7 +16,7 @@ module Vira.CI.Pipeline.Type where
 
 import Data.String (IsString (..))
 import GHC.Records.Compat
-import Relude (Bool (..), FilePath, Generic, Int, Maybe, NonEmpty, Show, Text, notElem)
+import Relude (Bool (..), FilePath, Generic, Maybe, NonEmpty, Show, Text, notElem)
 import System.Nix.System (System)
 
 -- | CI Pipeline configuration types
@@ -25,7 +25,6 @@ data ViraPipeline = ViraPipeline
   , nix :: NixConfig
   , cache :: CacheStage
   , signoff :: SignoffStage
-  , postBuild :: PostBuildStage
   }
   deriving stock (Generic, Show)
 
@@ -91,17 +90,6 @@ newtype CacheStage = CacheStage
   }
   deriving stock (Generic, Show)
 
-{- | Post-build hook configuration.
-When 'viraPostBuildHook.sh' exists in the repository root and is executable,
-it is run after a successful build with Vira context exposed as env vars:
-VIRA_BRANCH, VIRA_COMMIT_ID, VIRA_CLONE_URL, VIRA_REPO_DIR, VIRA_ONLY_BUILD
--}
-newtype PostBuildStage = PostBuildStage
-  { timeoutSeconds :: Int
-  -- ^ Maximum seconds to wait for the hook script to complete.
-  }
-  deriving stock (Generic, Show)
-
 -- HasField instances for enabling OverloadedRecordUpdate syntax (see vira.hs)
 -- NOTE: Do not forgot to fill in these instances if the types above change.
 -- In future, we could generically derive them using generics-sop and the like.
@@ -127,20 +115,14 @@ instance HasField "enable" SignoffStage Bool where
 instance HasField "url" CacheStage (Maybe Text) where
   hasField (CacheStage url) = (CacheStage, url)
 
-instance HasField "timeoutSeconds" PostBuildStage Int where
-  hasField (PostBuildStage timeoutSeconds) = (PostBuildStage, timeoutSeconds)
-
 instance HasField "build" ViraPipeline BuildStage where
-  hasField (ViraPipeline build nix cache signoff postBuild) = (\x -> ViraPipeline x nix cache signoff postBuild, build)
+  hasField (ViraPipeline build nix cache signoff) = (\x -> ViraPipeline x nix cache signoff, build)
 
 instance HasField "nix" ViraPipeline NixConfig where
-  hasField (ViraPipeline build nix cache signoff postBuild) = (\x -> ViraPipeline build x cache signoff postBuild, nix)
+  hasField (ViraPipeline build nix cache signoff) = (\x -> ViraPipeline build x cache signoff, nix)
 
 instance HasField "cache" ViraPipeline CacheStage where
-  hasField (ViraPipeline build nix cache signoff postBuild) = (\x -> ViraPipeline build nix x signoff postBuild, cache)
+  hasField (ViraPipeline build nix cache signoff) = (\x -> ViraPipeline build nix x signoff, cache)
 
 instance HasField "signoff" ViraPipeline SignoffStage where
-  hasField (ViraPipeline build nix cache signoff postBuild) = (\x -> ViraPipeline build nix cache x postBuild, signoff)
-
-instance HasField "postBuild" ViraPipeline PostBuildStage where
-  hasField (ViraPipeline build nix cache signoff postBuild) = (ViraPipeline build nix cache signoff, postBuild)
+  hasField (ViraPipeline build nix cache signoff) = (ViraPipeline build nix cache, signoff)

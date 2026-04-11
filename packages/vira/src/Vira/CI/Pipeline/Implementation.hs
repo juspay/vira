@@ -36,21 +36,17 @@ import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
 import Prettyprinter
 import Prettyprinter.Render.Text (renderStrict)
-import System.Directory (executable, getPermissions)
-import System.Environment (getEnvironment)
-import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.Nix.Core (nix)
 import System.Nix.System (System (..))
-import System.Process (CreateProcess (env), proc)
-import UnliftIO.Timeout (timeout)
+import System.Process (proc)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..), pipelineToolError)
 import Vira.CI.Pipeline.Effect
-import Vira.CI.Pipeline.Process (runProcess, runProcess')
+import Vira.CI.Pipeline.Process (runProcess)
 import Vira.CI.Pipeline.Signoff qualified as Signoff
-import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), NixConfig (..), PostBuildStage (..), SignoffStage (..), ViraPipeline (..), allowedNixOptions, validateNixOptions)
+import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), NixConfig (..), SignoffStage (..), ViraPipeline (..), allowedNixOptions, validateNixOptions)
 import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
 import Vira.Environment.Tool.Type.ToolData (status)
 import Vira.Environment.Tool.Type.Tools (attic)
@@ -79,7 +75,6 @@ runPipeline env program =
           Build pipeline -> buildImpl pipeline
           Cache pipeline buildResults -> cacheImpl pipeline buildResults
           Signoff pipeline buildResults -> signoffImpl pipeline buildResults
-          PostBuild pipeline buildResults -> postBuildImpl pipeline buildResults
       )
       program
 
@@ -351,79 +346,6 @@ signoffImpl pipeline buildResults = do
     else
       logPipeline Warning "Signoff disabled, skipping"
 
--- | Convention-based post-build hook script name (must exist at repo root)
-postBuildHookScript :: FilePath
-postBuildHookScript = "viraPostBuildHook.sh"
-
--- | Default timeout for the post-build hook (10 minutes)
-defaultPostBuildTimeoutSeconds :: Int
-defaultPostBuildTimeoutSeconds = 600
-
--- | Implementation: Run post-build hook
-postBuildImpl ::
-  ( Concurrent :> es
-  , Process :> es
-  , Log (RichMessage IO) :> es
-  , IOE :> es
-  , FileSystem :> es
-  , ER.Reader LogContext :> es
-  , ER.Reader PipelineEnv :> es
-  , Error PipelineError :> es
-  , Environment :> es
-  ) =>
-  ViraPipeline ->
-  NonEmpty BuildResult ->
-  Eff es ()
-postBuildImpl pipeline _buildResults = do
-  env <- ER.ask @PipelineEnv
-  let ctx = env.viraContext
-      repoDir = ctx.repoDir
-      scriptPath = repoDir </> postBuildHookScript
-      timeoutUs = pipeline.postBuild.timeoutSeconds * 1_000_000
-  -- Skip post-build hook in --only-build mode
-  if ctx.onlyBuild
-    then logPipeline Info "Skipping post-build hook (--only-build mode)"
-    else
-      doesFileExist scriptPath >>= \case
-        False ->
-          logPipeline Info $ "No " <> toText postBuildHookScript <> " found, skipping post-build hook"
-        True -> do
-          -- Hard error if script exists but is not executable
-          perms <- liftIO $ getPermissions scriptPath
-          unless (executable perms) $
-            throwError $
-              PipelineConfigurationError $
-                MalformedConfig $
-                  toText postBuildHookScript <> " exists but is not executable. Run: chmod +x " <> toText postBuildHookScript
-          logPipeline Info $ "Running post-build hook: " <> toText postBuildHookScript
-          -- Build environment: VIRA_* vars prepended so they take precedence
-          currentEnv <- liftIO getEnvironment
-          let viraEnv =
-                [ ("VIRA_BRANCH", toString ctx.branch)
-                , ("VIRA_COMMIT_ID", toString ctx.commitId)
-                , ("VIRA_CLONE_URL", maybe "" toString ctx.cloneUrl)
-                , ("VIRA_REPO_DIR", repoDir)
-                , ("VIRA_ONLY_BUILD", if ctx.onlyBuild then "true" else "false")
-                ]
-              newEnv = viraEnv <> currentEnv
-          -- Run script directly (not via shell) in repo directory, with timeout
-          -- Note: cwd is not set here; runProcess' always overrides it with repoDir
-          let processProc =
-                (proc scriptPath [])
-                  { env = Just newEnv
-                  }
-          timedResult <- withRunInIO $ \runInIO ->
-            timeout timeoutUs (runInIO $ runProcess' repoDir env.logSink processProc)
-          case timedResult of
-            Nothing ->
-              throwError $
-                PipelineConfigurationError $
-                  MalformedConfig $
-                    "Post-build hook timed out after " <> show pipeline.postBuild.timeoutSeconds <> " seconds"
-            Just (Left err) -> throwError $ PipelineTerminated err
-            Just (Right ExitSuccess) -> logPipeline Info "Post-build hook completed successfully"
-            Just (Right exitCode) -> throwError $ PipelineProcessFailed exitCode
-
 -- | Default pipeline configuration
 defaultPipeline :: ViraPipeline
 defaultPipeline =
@@ -432,7 +354,6 @@ defaultPipeline =
     , nix = NixConfig {options = []}
     , cache = CacheStage Nothing
     , signoff = SignoffStage False
-    , postBuild = PostBuildStage defaultPostBuildTimeoutSeconds
     }
   where
     defaultFlake = Flake "." mempty
