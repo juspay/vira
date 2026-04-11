@@ -17,12 +17,12 @@ import System.Nix.System (System (..))
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Error (PipelineError (..))
 import Vira.CI.Pipeline.Effect
-import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), NixConfig (..), SignoffStage (..), ViraPipeline (..))
+import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), NixConfig (..), PostBuildStage (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch, Repo)
 
 -- | Pretty-print pipeline configuration in a concise format
 prettyPipeline :: ViraPipeline -> Text
-prettyPipeline ViraPipeline {build = buildStage, nix = nixCfg, cache = cacheStage, signoff = signoffStage} =
+prettyPipeline ViraPipeline {build = buildStage, nix = nixCfg, cache = cacheStage, signoff = signoffStage, postBuild = postBuildStage} =
   renderStrict $
     layoutPretty defaultLayoutOptions $
       vsep
@@ -36,6 +36,7 @@ prettyPipeline ViraPipeline {build = buildStage, nix = nixCfg, cache = cacheStag
               ]
         , "Cache:" <+> maybe "disabled" (\url -> "enabled" <+> parens (pretty url)) cacheStage.url
         , "Signoff:" <+> if signoffStage.enable then "enabled" else "disabled"
+        , "PostBuild:" <+> "viraPostBuildHook.sh" <+> parens ("timeout:" <+> pretty postBuildStage.timeoutSeconds <> "s")
         ]
   where
     prettyFlake :: Flake -> Doc ann
@@ -78,6 +79,9 @@ pipelineProgram = do
 
   -- Step 4: Signoff
   signoff pipeline buildResults
+
+  -- Step 5: Post-build hook (runs last, after cache and signoff)
+  postBuild pipeline buildResults
   logPipeline Info "Pipeline completed successfully"
 
 {- | Pipeline program with clone (for web/CI)
@@ -99,7 +103,7 @@ pipelineProgramWithClone repo branch workspacePath = do
   -- Step 1: Clone repository
   clonedDir <- clone repo branch workspacePath
 
-  -- Step 2-5: Run pipeline in the cloned directory
+  -- Step 2-6: Run pipeline in the cloned directory
   -- HACK: Update context with actual cloned directory
   ER.local @PipelineEnv
     ( \env ->
