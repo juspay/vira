@@ -159,10 +159,10 @@ runVira = do
           runErrorNoCallStack (Pipeline.runPipeline env Program.pipelineProgram) >>= \case
             Left (err :: Pipeline.PipelineError) -> do
               log Error $ show err
-              log Error "CI pipeline failed"
+              log Error $ "CI pipeline failed (" <> show ciMode <> ")"
               pure $ ExitFailure 2
             Right () -> do
-              log Info "CI pipeline succeeded"
+              log Info $ "CI pipeline succeeded (" <> show ciMode <> ")"
               pure ExitSuccess
         case result of
           Left err -> do
