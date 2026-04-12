@@ -8,7 +8,7 @@ import Effectful.Git (BranchName (..), Commit (..), CommitID (..), RepoName (..)
 import Paths_vira (getDataFileName)
 import Test.Hspec
 import Vira.CI.Configuration
-import Vira.CI.Context (ViraContext (..))
+import Vira.CI.Context (CIMode (..), ViraContext (..))
 import Vira.CI.Pipeline.Implementation (defaultPipeline)
 import Vira.CI.Pipeline.Type (BuildStage (..), Flake (..), NixConfig (..), SignoffStage (..), ViraPipeline (..), validateNixOptions)
 import Vira.State.Type (Branch (..))
@@ -35,7 +35,7 @@ testContextStaging :: ViraContext
 testContextStaging =
   ViraContext
     { branch = testBranchStaging.branchName
-    , onlyBuild = False
+    , ciMode = FullBuild
     , commitId = testBranchStaging.headCommit.id
     , cloneUrl = Just "https://example.com/test-repo.git"
     , repoDir = "/tmp/test-repo"

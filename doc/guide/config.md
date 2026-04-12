@@ -31,7 +31,7 @@ The configuration function receives two parameters:
 
 - `ctx` - The Vira context containing repository and branch information
   - `ctx.branch` - Current branch name
-  - `ctx.onlyBuild` - True when running in build-only mode (e.g., `vira ci --only-build`)
+  - `ctx.ciMode` - The CI mode: `FullBuild`, `LocalBuild`, or `BuildOnly`
 - `pipeline` - The default pipeline configuration to customize
 
 All of [relude](https://hackage.haskell.org/package/relude)'s functions are made available in scope.

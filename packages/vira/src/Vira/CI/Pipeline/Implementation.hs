@@ -41,7 +41,7 @@ import System.Nix.Core (nix)
 import System.Nix.System (System (..))
 import System.Process (proc)
 import Vira.CI.Configuration qualified as Configuration
-import Vira.CI.Context (ViraContext (..))
+import Vira.CI.Context (CIMode (..), ViraContext (..))
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..), pipelineToolError)
 import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Process (runProcess)
@@ -137,19 +137,19 @@ loadConfigImpl = do
       logPipeline Info "No vira.hs found - using default pipeline"
       pure $ patchPipelineForCli env.viraContext defaultPipeline
   where
-    -- When onlyBuild is enabled, restrict to current system and disable cache/signoff
     patchPipelineForCli :: ViraContext -> ViraPipeline -> ViraPipeline
-    patchPipelineForCli ctx pipeline
-      | ctx.onlyBuild =
-          pipeline
-            { -- Don't signoff when only building
-              signoff = pipeline.signoff {enable = False}
-            , -- Don't push to cache when only building
-              cache = pipeline.cache {url = Nothing}
-            , -- Only build for current system when only building
-              build = BuildStage {flakes = pipeline.build.flakes, systems = []}
-            }
-      | otherwise = pipeline
+    patchPipelineForCli ctx pipeline = case ctx.ciMode of
+      FullBuild -> pipeline
+      LocalBuild ->
+        pipeline
+          { build = BuildStage {flakes = pipeline.build.flakes, systems = []}
+          }
+      BuildOnly ->
+        pipeline
+          { signoff = pipeline.signoff {enable = False}
+          , cache = pipeline.cache {url = Nothing}
+          , build = BuildStage {flakes = pipeline.build.flakes, systems = []}
+          }
 
 -- | Implementation: Build flakes
 buildImpl ::

@@ -35,7 +35,7 @@ import Vira.App.CLI qualified as CLI
 import Vira.App.InstanceInfo (InstanceInfo (..), getInstanceInfo, platform)
 import Vira.CI.AutoBuild qualified as AutoBuild
 import Vira.CI.Cleanup.Daemon qualified as CleanupDaemon
-import Vira.CI.Context (ViraContext (..))
+import Vira.CI.Context (CIMode (..), ViraContext (..))
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Pipeline.Program qualified as Program
 import Vira.CI.Worker qualified as Worker
@@ -78,7 +78,7 @@ runVira = do
         ExportCommand -> runExport globalSettings
         ImportCommand -> runImport globalSettings
         InfoCommand -> runInfo
-        CICommand mDir onlyBuild -> runCI globalSettings mDir onlyBuild
+        CICommand mDir ciMode -> runCI globalSettings mDir ciMode
 
     runWebServer :: GlobalSettings -> WebSettings -> IO ()
     runWebServer globalSettings webSettings = do
@@ -137,8 +137,8 @@ runVira = do
       putTextLn $ "Platform: " <> platform instanceInfo
       putTextLn $ "Schema version: " <> show viraDbVersion
 
-    runCI :: GlobalSettings -> Maybe FilePath -> Bool -> IO ()
-    runCI gs mDir onlyBuild = do
+    runCI :: GlobalSettings -> Maybe FilePath -> CIMode -> IO ()
+    runCI gs mDir ciMode = do
       dir <- maybe getCurrentDirectory makeAbsolute mDir
       -- Throw Terminated on Ctrl+C so Process.hs cleanup logic can terminate nix processes
       exitCode <- withTerminationHandler Terminated $ App.runAppCLI gs $ do
@@ -146,14 +146,14 @@ runVira = do
           exists <- liftIO $ doesDirectoryExist dir
           unless exists $ throwError $ "Repository directory does not exist: " <> toText dir
           status <- gitStatusPorcelain dir
-          -- Check for dirty working directory unless --only-build is set
-          unless onlyBuild $ do
+          -- Check for dirty working directory unless in BuildOnly mode
+          unless (ciMode == BuildOnly) $ do
             when status.dirty $ throwError "Working directory has uncommitted changes or untracked files. Use --only-build to run CI anyway."
           -- Get remote URL (Nothing if no remote configured)
           remoteUrl <- getRemoteUrl dir "origin"
           -- Get current commit hash
           commitId <- getCurrentCommit dir
-          let ctx = ViraContext status.branch onlyBuild commitId remoteUrl dir
+          let ctx = ViraContext status.branch ciMode commitId remoteUrl dir
           tools <- Tool.getAllTools
           let env = Pipeline.pipelineEnvFromCLI gs.logLevel Pipeline.workspaceContextKeys tools ctx
           runErrorNoCallStack (Pipeline.runPipeline env Program.pipelineProgram) >>= \case

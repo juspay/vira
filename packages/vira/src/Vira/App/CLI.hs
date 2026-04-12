@@ -22,6 +22,7 @@ import Options.Applicative hiding (command)
 import Options.Applicative qualified as OA
 import Paths_vira qualified
 import Vira.CI.AutoBuild.Type (AutoBuildNewBranches (..))
+import Vira.CI.Context (CIMode (..))
 import Prelude hiding (Reader, reader, runReader)
 
 -- | Global CLI Settings
@@ -69,7 +70,7 @@ data Command
   | ExportCommand
   | ImportCommand
   | InfoCommand
-  | CICommand (Maybe FilePath) Bool
+  | CICommand (Maybe FilePath) CIMode
   deriving stock (Show)
 
 -- | Complete CLI configuration
@@ -199,11 +200,10 @@ ciCommandParser =
               <> help "Directory to run CI in (defaults to current directory)"
           )
       )
-    <*> switch
-      ( long "only-build"
-          <> short 'b'
-          <> help "Skip cache and signoff stages, only run build"
-      )
+    <*> ( flag' BuildOnly (long "only-build" <> short 'b' <> help "Skip cache and signoff stages, only run build")
+            <|> flag' LocalBuild (long "local" <> short 'l' <> help "Build only for the current system")
+            <|> pure FullBuild
+        )
 
 -- | Parser for commands
 commandParser :: Parser Command

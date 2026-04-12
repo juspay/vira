@@ -27,7 +27,7 @@ data PipelineEnv = PipelineEnv
   , tools :: Tools
   -- ^ Available CI 'Vira.Environment.Tool.Type.Tools.Tools'
   , viraContext :: ViraContext
-  -- ^ 'ViraContext' (branch, onlyBuild flag)
+  -- ^ 'ViraContext' (branch, ciMode, etc.)
   , logSink :: Sink Text
   -- ^ 'LogSink.Sink' for all output (ViraLog JSON + subprocess raw output)
   , excludeContextKeys :: [Text]
