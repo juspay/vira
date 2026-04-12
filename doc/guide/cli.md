@@ -18,7 +18,10 @@ If no directory is specified, runs in the current directory. The directory must 
 
 ### Options {#ci-opts}
 
-- `--only-build` / `-b` - Skip cache and signoff stages, only run build for current system
+- `--local` / `-l` - Build only for the current system, run all stages
+- `--only-build` / `-b` - Build only for the current system, skip cache and signoff stages
+
+These flags are mutually exclusive.
 
 ### Default Behavior {#default}
 
@@ -26,15 +29,31 @@ By default, `vira ci` respects the [[config|`vira.hs`]] configuration for all st
 
 - Fails if working directory has uncommitted changes or untracked files
 - Runs build, cache, and signoff stages as configured
+- Builds for all configured `build.systems`
 - Enables creating per-system signoffs (e.g., `vira/x86_64-linux`) during local development
 - Pushes to cache if configured
 
-### Build-Only Mode {#build-only}
+### Local Mode {#local}
 
-Use the `--only-build` flag for quick local testing without side effects:
+Use `--local` to build only for the current system while still running all pipeline stages (cache, signoff). This is useful when remote builders are unreliable and you want to complete CI locally — for example, SSH into a machine and run `vira ci --local` to finish CI for that system all the way through signoff.
 
 ```bash
-# Only build, skip cache and signoff
+vira ci --local
+
+# Short form
+vira ci -l
+```
+
+When `--local` is used:
+
+- Ignores `build.systems` from config (uses current system only)
+- Runs all stages: build, cache, and signoff
+
+### Build-Only Mode {#build-only}
+
+Use `--only-build` for quick local testing without side effects:
+
+```bash
 vira ci --only-build
 
 # Short form
@@ -49,16 +68,19 @@ When `--only-build` is used:
 - Skips cache push even if configured
 - Skips signoff creation even if configured
 
-### Example
+### Examples
 
 ```bash
-# Run CI with full configuration (build, cache, signoff)
+# Run full CI (all systems, all stages)
 vira ci
 
 # Run CI in specific directory
 vira ci /path/to/repo
 
-# Quick build-only mode
+# Local system only, all stages (skip remote builders)
+vira ci -l
+
+# Quick build-only mode (no cache, no signoff)
 vira ci -b
 ```
 
