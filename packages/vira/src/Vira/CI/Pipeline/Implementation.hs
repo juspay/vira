@@ -7,6 +7,12 @@ module Vira.CI.Pipeline.Implementation (
 
   -- * Used in tests
   defaultPipeline,
+  checkDomain,
+  isLoopbackHost,
+  isIpLiteral,
+  sanitiseHeader,
+  sanitiseHeaderName,
+  sanitiseHeaderValue,
 ) where
 
 import Prelude hiding (asks, id)
@@ -17,8 +23,14 @@ import Attic.Types (AtticServer (..), AtticServerEndpoint)
 import Attic.Url qualified
 import Colog (Severity (..))
 import Colog.Message (RichMessage)
+import Control.Exception (try)
 import Data.Aeson (eitherDecodeFileStrict)
+import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
+import Data.List (lookup)
 import Data.Map qualified as Map
+import Data.Set qualified as Set
+import Data.Text (splitOn, strip)
+import Data.Text qualified as T
 import DevourFlake (DevourFlakeArgs (..), devourFlake, prefetchFlakeInputs)
 import DevourFlake.Result (DevourFlakeResult (..), SystemOutputs (..), extractSystems)
 import Effectful
@@ -26,7 +38,7 @@ import Effectful.Colog (Log)
 import Effectful.Colog.Simple (LogContext (..))
 import Effectful.Concurrent.Async (Concurrent)
 import Effectful.Dispatch.Dynamic
-import Effectful.Environment (Environment)
+import Effectful.Environment (Environment, getEnvironment)
 import Effectful.Error.Static (Error, throwError)
 import Effectful.FileSystem (FileSystem, doesFileExist)
 import Effectful.Git.Command.Clone qualified as Git
@@ -34,19 +46,33 @@ import Effectful.Git.Platform (detectPlatform)
 import Effectful.Git.Types (Commit (id))
 import Effectful.Process (Process)
 import Effectful.Reader.Static qualified as ER
+import Network.HTTP.Req (
+  HttpException,
+  NoReqBody (..),
+  ReqBodyBs (..),
+  defaultHttpConfig,
+  header,
+  ignoreResponse,
+  req,
+  responseTimeout,
+  runReq,
+  useURI,
+ )
+import Network.HTTP.Req qualified as Req
 import Prettyprinter
 import Prettyprinter.Render.Text (renderStrict)
 import System.FilePath ((</>))
 import System.Nix.Core (nix)
 import System.Nix.System (System (..))
 import System.Process (proc)
+import Text.URI (Authority (..), mkURI, unRText, uriAuthority, uriScheme)
 import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..), pipelineToolError)
 import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Process (runProcess)
 import Vira.CI.Pipeline.Signoff qualified as Signoff
-import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), NixConfig (..), SignoffStage (..), ViraPipeline (..), allowedNixOptions, validateNixOptions)
+import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), HttpMethod (..), NixConfig (..), PostBuildStage (..), SignoffStage (..), ViraPipeline (..), WebhookConfig (..), allowedNixOptions, substituteVars, validateNixOptions)
 import Vira.Environment.Tool.Tools.Attic qualified as AtticTool
 import Vira.Environment.Tool.Type.ToolData (status)
 import Vira.Environment.Tool.Type.Tools (attic)
@@ -75,6 +101,7 @@ runPipeline env program =
           Build pipeline -> buildImpl pipeline
           Cache pipeline buildResults -> cacheImpl pipeline buildResults
           Signoff pipeline buildResults -> signoffImpl pipeline buildResults
+          PostBuild pipeline buildResults -> postBuildImpl pipeline buildResults
       )
       program
 
@@ -145,9 +172,11 @@ loadConfigImpl = do
             { -- Don't signoff when only building
               signoff = pipeline.signoff {enable = False}
             , -- Don't push to cache when only building
-              cache = pipeline.cache {url = Nothing}
+              cache = CacheStage {url = Nothing}
             , -- Only build for current system when only building
               build = BuildStage {flakes = pipeline.build.flakes, systems = []}
+            , -- Don't fire webhooks when only building (webhooks are side effects)
+              postBuild = PostBuildStage {webhooks = []}
             }
       | otherwise = pipeline
 
@@ -346,6 +375,237 @@ signoffImpl pipeline buildResults = do
     else
       logPipeline Warning "Signoff disabled, skipping"
 
+-- | Implementation: Fire post-build webhooks
+postBuildImpl ::
+  ( Log (RichMessage IO) :> es
+  , IOE :> es
+  , ER.Reader LogContext :> es
+  , ER.Reader PipelineEnv :> es
+  , Error PipelineError :> es
+  , Environment :> es
+  ) =>
+  ViraPipeline ->
+  NonEmpty BuildResult ->
+  Eff es ()
+postBuildImpl pipeline _buildResults = do
+  env <- ER.ask @PipelineEnv
+  let ctx = env.viraContext
+      hooks = pipeline.postBuild.webhooks
+  if null hooks
+    then logPipeline Info "No post-build webhooks configured, skipping"
+    else do
+      -- Build the base $VIRA_* substitution bindings from build context
+      let viraBindings =
+            [ ("VIRA_BRANCH", toText ctx.branch)
+            , ("VIRA_COMMIT_ID", toText ctx.commitId)
+            , ("VIRA_CLONE_URL", maybe "" identity ctx.cloneUrl)
+            , ("VIRA_REPO_DIR", toText ctx.repoDir)
+            , ("VIRA_ONLY_BUILD", if ctx.onlyBuild then "true" else "false")
+            ]
+      -- Read the operator-configured allowlist of env vars from the CI machine
+      machineEnv <- getEnvironment
+      let allowedEnvNames =
+            Set.fromList $
+              maybe [] ((map strip . splitOn ",") . toText) $
+                lookup "VIRA_WEBHOOK_ALLOWED_ENV" machineEnv
+          -- Build env bindings for allowed machine vars (others silently absent)
+          allowedEnvBindings =
+            [ (toText k, toText v)
+            | (k, v) <- machineEnv
+            , Set.member (toText k) allowedEnvNames
+            ]
+          -- Vira bindings take precedence: put them last so Map.fromList (last-wins) prefers them
+          allBindings = allowedEnvBindings <> viraBindings
+          -- Operator-configured allowlist of webhook target domains.
+          -- VIRA_WEBHOOK_ALLOWED_DOMAINS must be explicitly set by the operator;
+          -- if absent, all webhooks are blocked (fail-closed / deny-by-default).
+          -- When set, only URLs whose host appears in the comma-separated list are permitted.
+          allowedDomains =
+            fmap (Set.fromList . filter (not . T.null) . map strip . splitOn ",") $
+              toText <$> lookup "VIRA_WEBHOOK_ALLOWED_DOMAINS" machineEnv
+      -- Fail fast: if VIRA_WEBHOOK_ALLOWED_DOMAINS is not set, all webhooks will be
+      -- rejected anyway — surface a single clear error rather than failing per-hook.
+      when (isNothing allowedDomains) $
+        throwError $
+          pipelineToolError
+            ( "VIRA_WEBHOOK_ALLOWED_DOMAINS is not set on the CI machine; webhooks are disabled by default. "
+                <> "Set it to a comma-separated list of allowed domains to enable post-build webhooks." ::
+                Text
+            )
+            (Nothing :: Maybe Text)
+      -- Fire each webhook in order
+      forM_ (zip [1 :: Int ..] hooks) $ \(idx, hook) -> do
+        let label = "webhook #" <> show idx <> " (" <> hook.url <> ")"
+        logPipeline Info $ "Firing post-build " <> label
+        result <- liftIO $ fireWebhook allBindings allowedDomains hook
+        case result of
+          Left err ->
+            throwError $
+              pipelineToolError
+                ("Post-build " <> label <> " failed: " <> err)
+                (Nothing :: Maybe Text)
+          Right () ->
+            logPipeline Info $ "Post-build " <> label <> " succeeded"
+
+{- | Check whether a resolved webhook URL is permitted by the domain allowlist.
+
+Returns @Right ()@ if the request should proceed, or @Left errMsg@ if it should
+be rejected.
+
+  * @Nothing@ — @VIRA_WEBHOOK_ALLOWED_DOMAINS@ is not set on the CI machine.
+    All webhooks are blocked (fail-closed / deny-by-default).
+  * @Just domains@ — operator has configured an explicit allowlist.
+    The URL's host must appear in @domains@; otherwise rejected.
+    An empty set (e.g. @VIRA_WEBHOOK_ALLOWED_DOMAINS=""@) blocks everything.
+
+Only HTTPS is permitted.
+
+Loopback addresses and IP literals are unconditionally rejected to prevent SSRF.
+
+The @templateUrl@ is used in error messages instead of resolved URL to avoid
+leaking substituted secrets in logs.
+-}
+checkDomain :: Maybe (Set.Set Text) -> Text -> Text -> Either Text ()
+checkDomain Nothing _resolvedUrl _templateUrl =
+  Left "VIRA_WEBHOOK_ALLOWED_DOMAINS is not set; webhooks are disabled by default. Set it on the CI machine to enable webhooks."
+checkDomain (Just allowedDomains) resolvedUrl templateUrl =
+  case mkURI resolvedUrl of
+    Nothing -> Left $ "Invalid webhook URL (could not parse): " <> templateUrl
+    Just uri -> do
+      -- Only HTTPS permitted
+      let scheme = fmap unRText (uriScheme uri)
+      case scheme of
+        Just "https" -> Right ()
+        Just s -> Left $ "Webhook URL scheme '" <> s <> "' is not allowed; only https is permitted (template: " <> templateUrl <> ")"
+        Nothing -> Left $ "Webhook URL has no scheme (template: " <> templateUrl <> ")"
+      -- Validate host against allowlist and SSRF rules
+      case uriAuthority uri of
+        Right auth ->
+          let host = unRText (authHost auth)
+           in if isLoopbackHost host
+                then Left $ "Webhook URL host is a loopback address and cannot be used as a webhook target (template: " <> templateUrl <> ")"
+                else
+                  if isIpLiteral host
+                    then Left $ "Webhook URL host is an IP address literal; use a hostname from VIRA_WEBHOOK_ALLOWED_DOMAINS instead (template: " <> templateUrl <> ")"
+                    else
+                      if Set.member host allowedDomains
+                        then Right ()
+                        else Left $ "Webhook URL host '" <> host <> "' is not in VIRA_WEBHOOK_ALLOWED_DOMAINS (template: " <> templateUrl <> ")"
+        _ -> Left $ "Webhook URL has no host (template: " <> templateUrl <> ")"
+
+{- | Return @True@ if the host is a loopback or unroutable address.
+
+Unconditionally blocked regardless of any allowlist, to prevent SSRF
+to services on the CI machine itself.
+-}
+isLoopbackHost :: Text -> Bool
+isLoopbackHost host =
+  host == "localhost"
+    || host == "::1"
+    || host == "0.0.0.0"
+    || T.isPrefixOf "127." host -- 127.0.0.0/8 loopback range
+
+{- | Return @True@ if the host looks like an IP address literal.
+
+modern-uri normalises IPv6 literals to @[addr]@ form and IPv4 to dotted-decimal.
+We reject all of these to prevent operators from inadvertently allowlisting
+internal network addresses (e.g. 10.x.x.x, 172.16.x.x, 192.168.x.x, AWS metadata 169.254.169.254).
+Hostnames that only contain digits, dots, colons, or square brackets are
+considered IP literals.
+-}
+isIpLiteral :: Text -> Bool
+isIpLiteral host =
+  -- IPv6: modern-uri renders as "[addr]"
+  (T.isPrefixOf "[" host && T.isSuffixOf "]" host)
+    -- IPv4: only digits and dots, at least one dot
+    || (T.all (\c -> c == '.' || isDigit c) host && T.any (== '.') host)
+
+{- | Sanitise an HTTP header name by keeping only RFC 7230 token characters:
+alphanumeric plus @! # $ % & ' * + - . ^ _ ` | ~@.
+
+Any character outside this set is stripped. This prevents header injection
+and ensures the resulting name is a valid HTTP token.
+-}
+sanitiseHeaderName :: Text -> Text
+sanitiseHeaderName = T.filter isHeaderTokenChar
+  where
+    -- RFC 7230 §3.2.6 token character set
+    isHeaderTokenChar :: Char -> Bool
+    isHeaderTokenChar c =
+      isAsciiLower c
+        || isAsciiUpper c
+        || isDigit c
+        || c `elem` ("!#$%&'*+-.^_`|~" :: String)
+
+{- | Sanitise an HTTP header value by stripping control characters @\r@, @\n@,
+@\0@ to prevent header injection attacks.
+-}
+sanitiseHeaderValue :: Text -> Text
+sanitiseHeaderValue = T.filter (\c -> c /= '\r' && c /= '\n' && c /= '\0')
+
+{- | Sanitise both an HTTP header name and value.
+
+Exported for testing only; internal code uses 'sanitiseHeaderName' and
+'sanitiseHeaderValue' directly.
+-}
+sanitiseHeader :: Text -> Text
+sanitiseHeader = sanitiseHeaderValue
+
+{- | Execute a single webhook request.
+
+Performs variable substitution on the URL, header values, and body,
+then fires the HTTP request. Returns @Left errMsg@ on failure.
+
+Header names and values are sanitised via 'sanitiseHeader' (control characters
+@\r@, @\n@, @\0@ stripped) to prevent HTTP header injection.
+
+Redirects are disabled (httpConfigRedirectCount = 0) to prevent SSRF via
+redirect chains from a whitelisted host to an internal address.
+
+The resolved URL (which may contain substituted secrets) is never included
+in error messages; only the original template URL from @vira.hs@ is used.
+
+Only 'HttpException' is caught; async exceptions (ThreadKilled, etc.) propagate
+normally and are not suppressed.
+-}
+fireWebhook :: [(Text, Text)] -> Maybe (Set.Set Text) -> WebhookConfig -> IO (Either Text ())
+fireWebhook bindings allowedDomains hook = do
+  let resolvedUrl = substituteVars bindings hook.url
+      resolvedHeaders = map (\(k, v) -> (sanitiseHeaderName k, sanitiseHeaderValue (substituteVars bindings v))) hook.headers
+      resolvedBody = fmap (substituteVars bindings) hook.body
+      bodyBytes = maybe "" encodeUtf8 resolvedBody
+      -- Use the template URL (pre-substitution) in all error messages so
+      -- substituted secret values are never written to logs.
+      templateUrl = hook.url
+  case checkDomain allowedDomains resolvedUrl templateUrl of
+    Left err -> pure $ Left err
+    Right () ->
+      -- mkURI is pure (returns Maybe); no IO, no exception possible.
+      case mkURI resolvedUrl of
+        Nothing -> pure $ Left $ "Invalid webhook URL (template: " <> templateUrl <> ")"
+        Just uri ->
+          case useURI uri of
+            Nothing -> pure $ Left $ "Could not parse URI scheme (expected https://) for webhook (template: " <> templateUrl <> ")"
+            Just (Left _) -> pure $ Left $ "HTTP scheme is not allowed; only HTTPS is permitted for webhooks (template: " <> templateUrl <> ")"
+            Just (Right (httpsUrl, _)) -> do
+              -- noRedirectConfig: disable redirect following to prevent SSRF via
+              -- redirect chains from a whitelisted domain to an internal address.
+              let noRedirectConfig = defaultHttpConfig {Req.httpConfigRedirectCount = 0}
+                  -- 30 second timeout is a sensible default for webhooks
+                  defaultTimeoutMicros = 30 * 1_000_000
+                  opts =
+                    responseTimeout defaultTimeoutMicros
+                      <> mconcat [header (encodeUtf8 k) (encodeUtf8 v) | (k, v) <- resolvedHeaders]
+              -- Only catch HttpException; async exceptions must not be swallowed.
+              result <- try @HttpException $
+                runReq noRedirectConfig $
+                  case hook.method of
+                    GET -> void $ req Req.GET httpsUrl NoReqBody ignoreResponse opts
+                    POST -> void $ req Req.POST httpsUrl (ReqBodyBs bodyBytes) ignoreResponse opts
+                    PUT -> void $ req Req.PUT httpsUrl (ReqBodyBs bodyBytes) ignoreResponse opts
+                    PATCH -> void $ req Req.PATCH httpsUrl (ReqBodyBs bodyBytes) ignoreResponse opts
+              pure $ bimap (\ex -> "HTTP error for webhook (template: " <> templateUrl <> "): " <> fromString (show ex)) identity result
+
 -- | Default pipeline configuration
 defaultPipeline :: ViraPipeline
 defaultPipeline =
@@ -354,6 +614,7 @@ defaultPipeline =
     , nix = NixConfig {options = []}
     , cache = CacheStage Nothing
     , signoff = SignoffStage False
+    , postBuild = PostBuildStage {webhooks = []}
     }
   where
     defaultFlake = Flake "." mempty

@@ -374,6 +374,8 @@ executable vira-tests
   main-is: Spec.hs
   other-modules:
       Vira.CI.ConfigurationSpec
+      Vira.CI.Pipeline.CheckDomainSpec
+      Vira.CI.Pipeline.SubstituteVarsSpec
       Vira.CI.WorkerSpec
       Vira.Lib.TimeExtraSpec
       Vira.State.ResetSpec

@@ -132,6 +132,50 @@ Enables commit status reporting to GitHub or Bitbucket. When enabled, Vira posts
 - For GitHub, uses GitHub API with token from `gh` CLI.
 - For Bitbucket, uses Bitbucket API with token from `bb` CLI.
 
+#### PostBuild Stage
+
+After a successful pipeline run (Build → Cache → Signoff), Vira can fire one or more outbound HTTPS webhooks. Only HTTPS is permitted.
+
+```haskell
+pipeline
+  { postBuild.webhooks =
+      [ WebhookConfig
+          { url     = "https://hooks.slack.com/services/$SLACK_WEBHOOK_TOKEN"
+          , method  = POST
+          , headers = [("Content-Type", "application/json")]
+          , body    = Just "{\"text\": \"✅ $VIRA_BRANCH @ $VIRA_COMMIT_ID built\"}"
+          }
+      ]
+  }
+```
+
+**Variable substitution** is performed on `url`, header values, and `body` before the request is sent:
+
+| Variable           | Description                                        | Always available?                              |
+| ------------------ | -------------------------------------------------- | ---------------------------------------------- |
+| `$VIRA_BRANCH`     | Current branch name                                | ✅ Yes                                         |
+| `$VIRA_COMMIT_ID`  | Commit SHA being built                             | ✅ Yes                                         |
+| `$VIRA_CLONE_URL`  | Repository clone URL (empty if unavailable)        | ✅ Yes                                         |
+| `$VIRA_REPO_DIR`   | Absolute path to the cloned repo on the CI machine | ✅ Yes                                         |
+| `$VIRA_ONLY_BUILD` | `"true"` when running in build-only mode           | ✅ Yes                                         |
+| `$FOO`             | Any CI machine env var named `FOO`                 | Only if `FOO` is in `VIRA_WEBHOOK_ALLOWED_ENV` |
+
+**Secrets stay on the CI machine.** A variable reference like `$SLACK_WEBHOOK_TOKEN` in `vira.hs` is safe to commit — the actual token value is never logged or visible to the repository. It is only injected into the outbound HTTP request at build time.
+
+**Operator allowlist.** On the Vira server, set the `VIRA_WEBHOOK_ALLOWED_ENV` environment variable to a comma-separated list of env var names that repos are permitted to reference:
+
+```sh
+VIRA_WEBHOOK_ALLOWED_ENV=SLACK_WEBHOOK_TOKEN,GITHUB_TOKEN,DEPLOY_API_KEY
+```
+
+Any `$VAR` reference not in this list (and not a `$VIRA_*` variable) is substituted with an empty string.
+
+> [!NOTE]
+> Webhooks are fired in the order they are declared. A failed webhook (non-2xx response or timeout) stops the pipeline with an error.
+
+> [!NOTE]
+> The `GET` method ignores the `body` field. Use `POST`, `PUT`, or `PATCH` to send a request body.
+
 ## Conditional Configuration {#cond}
 
 You can customize the pipeline based on branch or repository information:

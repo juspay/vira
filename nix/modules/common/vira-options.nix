@@ -92,6 +92,45 @@ in
       };
     };
 
+    webhookAllowedDomains = mkOption {
+      type = types.listOf types.str;
+      default = [ ];
+      description = ''
+        List of hostnames that repository <filename>vira.hs</filename> configs are
+        permitted to use as post-build webhook targets.
+
+        An empty list (the default) disables all outbound webhooks.
+        Entries are matched exactly against the URL host — no wildcard
+        expansion is performed.
+
+        Example: <literal>[ "hooks.slack.com" "api.example.com" ]</literal>
+
+        Populates the <envar>VIRA_WEBHOOK_ALLOWED_DOMAINS</envar> environment
+        variable consumed by the Vira service.
+      '';
+      example = [ "hooks.slack.com" "api.example.com" ];
+    };
+
+    webhookAllowedEnv = mkOption {
+      type = types.listOf types.str;
+      default = [ ];
+      description = ''
+        List of environment variable names that repository
+        <filename>vira.hs</filename> webhook templates are permitted to
+        reference via <literal>$VAR</literal> substitution.
+
+        Variables not in this list are silently replaced with an empty
+        string, so secrets that are not explicitly opt-in are never sent
+        to webhook targets.
+
+        Example: <literal>[ "SLACK_WEBHOOK_TOKEN" "DEPLOY_API_KEY" ]</literal>
+
+        Populates the <envar>VIRA_WEBHOOK_ALLOWED_ENV</envar> environment
+        variable consumed by the Vira service.
+      '';
+      example = [ "SLACK_WEBHOOK_TOKEN" "DEPLOY_API_KEY" ];
+    };
+
     systemd = mkOption {
       description = "Systemd service configuration overrides";
       default = { };

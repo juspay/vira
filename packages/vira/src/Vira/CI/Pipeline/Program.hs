@@ -17,12 +17,12 @@ import System.Nix.System (System (..))
 import Vira.CI.Context (ViraContext (..))
 import Vira.CI.Error (PipelineError (..))
 import Vira.CI.Pipeline.Effect
-import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), NixConfig (..), SignoffStage (..), ViraPipeline (..))
+import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), NixConfig (..), PostBuildStage (..), SignoffStage (..), ViraPipeline (..))
 import Vira.State.Type (Branch, Repo)
 
 -- | Pretty-print pipeline configuration in a concise format
 prettyPipeline :: ViraPipeline -> Text
-prettyPipeline ViraPipeline {build = buildStage, nix = nixCfg, cache = cacheStage, signoff = signoffStage} =
+prettyPipeline ViraPipeline {build = buildStage, nix = nixCfg, cache = cacheStage, signoff = signoffStage, postBuild = postBuildStage} =
   renderStrict $
     layoutPretty defaultLayoutOptions $
       vsep
@@ -36,6 +36,7 @@ prettyPipeline ViraPipeline {build = buildStage, nix = nixCfg, cache = cacheStag
               ]
         , "Cache:" <+> maybe "disabled" (\url -> "enabled" <+> parens (pretty url)) cacheStage.url
         , "Signoff:" <+> if signoffStage.enable then "enabled" else "disabled"
+        , "PostBuild:" <+> prettyPostBuild postBuildStage
         ]
   where
     prettyFlake :: Flake -> Doc ann
@@ -51,6 +52,11 @@ prettyPipeline ViraPipeline {build = buildStage, nix = nixCfg, cache = cacheStag
     prettyNixOptions [] = mempty
     prettyNixOptions opts =
       "Nix options:" <+> hsep (punctuate comma (map (\(k, v) -> pretty k <> "=" <> pretty v) opts))
+
+    prettyPostBuild :: PostBuildStage -> Doc ann
+    prettyPostBuild (PostBuildStage []) = "disabled (no webhooks configured)"
+    prettyPostBuild (PostBuildStage hooks) =
+      pretty (length hooks) <+> "webhook(s)"
 
 -- | Pipeline program for CLI (uses existing local directory)
 pipelineProgram ::
@@ -78,6 +84,9 @@ pipelineProgram = do
 
   -- Step 4: Signoff
   signoff pipeline buildResults
+
+  -- Step 5: Post-build webhooks (run last, after cache and signoff)
+  postBuild pipeline buildResults
   logPipeline Info "Pipeline completed successfully"
 
 {- | Pipeline program with clone (for web/CI)
