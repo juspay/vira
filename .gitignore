@@ -26,3 +26,8 @@ result-*
 /ghcid.txt
 
 /.worktrees
+
+/.do-results.json
+
+# APM dependencies
+apm_modules/

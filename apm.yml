@@ -1,0 +1,9 @@
+name: vira
+version: 1.0.0
+type: hybrid
+target: claude
+
+dependencies:
+  apm:
+    - srid/agency#master
+    - juspay/skills/skills/nix-justfile
