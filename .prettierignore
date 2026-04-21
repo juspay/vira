@@ -1,2 +1,6 @@
 # Ignore generated/compiled CSS files
 **/tailwind.css
+
+# Agent/tooling configuration
+.claude/
+apm.*
