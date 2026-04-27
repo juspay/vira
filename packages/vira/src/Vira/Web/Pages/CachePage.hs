@@ -61,7 +61,7 @@ viewCache cachePublicKey = do
           Code.viraCodeBlockCopyable (Just "cache-url") cacheUrl
           p_ [class_ "text-sm text-gray-500 dark:text-gray-500 mt-2"] $ do
             "Check cache info: "
-            a_ [href_ "/cache/nix-cache-info", class_ "text-cyan-600 dark:text-cyan-400 hover:underline", target_ "_blank"] "/cache/nix-cache-info"
+            a_ [href_ "/cache/nix-cache-info", class_ "text-brand-600 dark:text-brand-400 hover:underline", target_ "_blank"] "/cache/nix-cache-info"
 
         -- Public key section
         div_ [] $ do

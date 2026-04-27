@@ -211,7 +211,7 @@ breadcrumbs :: [LinkTo] -> AppHtml ()
 breadcrumbs rs' = do
   logoUrl <- appLogoUrl
   let logo = img_ [src_ logoUrl, alt_ "Vira Logo", class_ "h-8 w-8 rounded-lg"]
-  nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between px-4 py-2 bg-cyan-600 rounded-t-xl"] $ do
+  nav_ [id_ "breadcrumbs", class_ "flex items-center justify-between px-4 py-2 bg-brand-600 rounded-t-xl"] $ do
     ol_ [class_ "flex flex-1 items-center space-x-2 text-base list-none"] $ do
       -- Logo as first element
       li_ [class_ "flex items-center"] $ do
@@ -260,9 +260,9 @@ Features brand-accent styling that connects visually with breadcrumbs.
 -}
 viraPageHeader_ :: (Monad m) => Text -> HtmlT m () -> HtmlT m ()
 viraPageHeader_ title subtitle = do
-  div_ [class_ "bg-cyan-50 dark:bg-cyan-900/20 border-2 border-t-0 border-cyan-200 dark:border-cyan-800 rounded-b-xl p-4 mb-6"] $ do
-    h1_ [class_ "text-2xl font-bold text-cyan-900 dark:text-cyan-200 tracking-tight mb-2"] $ toHtml title
-    div_ [class_ "text-cyan-700 dark:text-cyan-300"] subtitle
+  div_ [class_ "bg-brand-50 dark:bg-brand-900/20 border-2 border-t-0 border-brand-200 dark:border-brand-800 rounded-b-xl p-4 mb-6"] $ do
+    h1_ [class_ "text-2xl font-bold text-brand-900 dark:text-brand-200 tracking-tight mb-2"] $ toHtml title
+    div_ [class_ "text-brand-700 dark:text-brand-300"] subtitle
 
 {- |
 Standardized page header with icon, title and subtitle.
@@ -271,11 +271,11 @@ Features brand-accent styling that connects visually with breadcrumbs, with an i
 -}
 viraPageHeaderWithIcon_ :: (Monad m) => HtmlT m () -> Text -> HtmlT m () -> HtmlT m ()
 viraPageHeaderWithIcon_ icon title subtitle = do
-  div_ [class_ "bg-cyan-50 dark:bg-cyan-900/20 border-2 border-t-0 border-cyan-200 dark:border-cyan-800 rounded-b-xl p-4 mb-6"] $ do
-    h1_ [class_ "text-2xl font-bold text-cyan-900 dark:text-cyan-200 tracking-tight mb-2 flex items-center"] $ do
-      div_ [class_ "w-6 h-6 mr-3 flex items-center justify-center text-cyan-900 dark:text-cyan-200"] icon
+  div_ [class_ "bg-brand-50 dark:bg-brand-900/20 border-2 border-t-0 border-brand-200 dark:border-brand-800 rounded-b-xl p-4 mb-6"] $ do
+    h1_ [class_ "text-2xl font-bold text-brand-900 dark:text-brand-200 tracking-tight mb-2 flex items-center"] $ do
+      div_ [class_ "w-6 h-6 mr-3 flex items-center justify-center text-brand-900 dark:text-brand-200"] icon
       toHtml title
-    div_ [class_ "text-cyan-700 dark:text-cyan-300"] subtitle
+    div_ [class_ "text-brand-700 dark:text-brand-300"] subtitle
 
 {- |
 Section component for grouping and spacing page content.

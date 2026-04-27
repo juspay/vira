@@ -43,7 +43,7 @@ viewEnvironment = do
     W.viraPageHeaderWithIcon_ (toHtmlRaw Icon.cpu) "Environment" $ do
       div_ [class_ "flex items-center justify-between"] $ do
         p_ [class_ "text-gray-600 dark:text-gray-300"] "User environment under which Vira runs"
-        span_ [class_ "text-cyan-800 dark:text-cyan-300 font-semibold"] User.viewUserInfo
+        span_ [class_ "text-brand-800 dark:text-brand-300 font-semibold"] User.viewUserInfo
 
     -- Tools Section (returns tools data for reuse)
     tools <- Tools.viewTools

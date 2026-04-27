@@ -17,7 +17,7 @@ Clean, minimal CI/CD application design system emphasizing clarity and functiona
 
 ### Primary Colors
 
-- **Brand accent**: `cyan-600` (primary actions), `cyan-700` (hover states)
+- **Brand accent**: `brand-600` (primary actions), `brand-700` (hover states). The `brand-*` scale is declared in `packages/vira/src/style.css` as a `@theme` alias to Tailwind's cyan today — change those `var(--color-cyan-*)` aliases to shift the brand without touching widget code.
 - **Background**: `gray-50` (page), `white` (cards), `gray-200` (dividers)
   - **Dark mode**: `gray-900` (page), `gray-800` (cards), `gray-700` (dividers)
 

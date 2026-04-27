@@ -63,8 +63,8 @@ W.viraNavigationCard_ (show repoUrl) (toHtml $ toString repo.name)
 viraNavigationCard_ :: (Monad m) => Text -> HtmlT m () -> HtmlT m ()
 viraNavigationCard_ href title = do
   a_ [href_ href, class_ "group block"] $ do
-    viraCard_ [class_ "p-6 hover:shadow-lg transition-all duration-300 group-hover:border-cyan-300 dark:group-hover:border-cyan-600"] $ do
+    viraCard_ [class_ "p-6 hover:shadow-lg transition-all duration-300 group-hover:border-brand-300 dark:group-hover:border-brand-600"] $ do
       div_ [class_ "flex items-center justify-between"] $ do
-        h3_ [class_ "text-xl font-semibold text-gray-900 dark:text-gray-100 group-hover:text-cyan-700 dark:group-hover:text-cyan-400 transition-colors"] title
-        div_ [class_ "text-gray-400 dark:text-gray-500 group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-colors ml-4 w-6 h-6 flex items-center justify-center"] $
+        h3_ [class_ "text-xl font-semibold text-gray-900 dark:text-gray-100 group-hover:text-brand-700 dark:group-hover:text-brand-400 transition-colors"] title
+        div_ [class_ "text-gray-400 dark:text-gray-500 group-hover:text-brand-500 dark:group-hover:text-brand-400 transition-colors ml-4 w-6 h-6 flex items-center justify-center"] $
           toHtmlRaw Icon.chevron_right

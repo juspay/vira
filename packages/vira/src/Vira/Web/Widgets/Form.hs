@@ -67,11 +67,11 @@ W.viraInput_ [type_ "text", name_ "repo", value_ existingValue]
 
 Inherits full width (w-full) by default.
 Override styling with additional classes as needed.
-Focus ring uses cyan-500 to match brand colors.
+Focus ring uses brand-500 to match brand colors.
 -}
 viraInput_ :: forall (m :: Type -> Type). (Monad m) => [Attributes] -> HtmlT m ()
 viraInput_ attrs = do
-  input_ ([class_ "block w-full px-4 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 bg-white dark:bg-gray-700 dark:text-gray-100 transition-colors duration-200"] <> attrs)
+  input_ ([class_ "block w-full px-4 py-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-gray-700 dark:text-gray-100 transition-colors duration-200"] <> attrs)
 
 {- |
 Form label component with consistent typography and spacing.
@@ -226,7 +226,7 @@ viraFilterInput_ targetSelector attrs = do
   div_ [class_ "relative"] $ do
     input_
       ( [ type_ "text"
-        , class_ "w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 bg-white dark:bg-gray-700 dark:text-gray-100 transition-colors duration-200 pr-10"
+        , class_ "w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-gray-700 dark:text-gray-100 transition-colors duration-200 pr-10"
         , hyperscript_ $
             "on input "
               <> "set filterText to my.value.toLowerCase() "
