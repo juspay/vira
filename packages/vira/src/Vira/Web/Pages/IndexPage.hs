@@ -101,7 +101,7 @@ viewRecentActivity mNeverBuilt = do
 heroWelcome :: (Monad m) => Text -> Text -> Text -> Text -> HtmlT m ()
 heroWelcome logoUrl reposLink envLink cacheLink = do
   -- Compact hero banner
-  div_ [class_ "bg-brand-50 dark:bg-brand-900/20 border-2 border-t-0 border-brand-200 dark:border-brand-800 rounded-b-xl p-6 mb-6"] $ do
+  W.viraBrandPanel_ [class_ "p-6 mb-6"] $ do
     -- Logo and title
     div_ [class_ "flex items-center space-x-4 mb-4"] $ do
       img_ [src_ logoUrl, class_ "w-12 h-12"]
