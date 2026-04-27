@@ -18,7 +18,7 @@ import Vira.Web.Widgets.Modal (viraGlobalModalId)
 
 -- | Button variant types for consistent styling
 data ButtonVariant
-  = -- | Indigo - primary actions, forms
+  = -- | Brand accent - primary actions, forms
     ButtonPrimary
   | -- | Red - delete, disconnect, kill actions
     ButtonDestructive
