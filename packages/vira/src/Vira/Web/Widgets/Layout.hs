@@ -101,12 +101,6 @@ layout crumbs content = do
       link_ [rel_ "icon", type_ "image/svg+xml", href_ logoUrl]
       htmx
       link_ [rel_ "stylesheet", type_ "text/css", href_ "tailwind.css"]
-      -- Custom styles for the new design
-      style_ $
-        unlines
-          [ "html { overflow-y: scroll; }" -- Scrollbar always visible, to prevent jankiness
-          , ".transition-smooth { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }"
-          ]
     body_ [class_ "bg-gray-50 dark:bg-gray-900 min-h-screen font-sans"] $ do
       -- Add SSE listener for auto-refresh (if page supports it)
       Stream.viewStreamScoped crumbs

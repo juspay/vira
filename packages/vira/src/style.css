@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* Always render a vertical scrollbar to prevent layout shift between
+   pages whose content does/doesn't overflow the viewport. */
+html {
+  overflow-y: scroll;
+}
+
+/* Smooth transition for interactive elements that change colors / spacing
+   on hover or focus. Referenced by class via `transition-smooth`. */
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 @theme {
   --font-sans:
     "Geist", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
