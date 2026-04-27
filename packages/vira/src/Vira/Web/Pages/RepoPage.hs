@@ -30,6 +30,7 @@ import Vira.Web.Lucid (AppHtml, getLink, getLinkUrl, runAppHtml)
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Widgets.Alert qualified as W
 import Vira.Web.Widgets.Button qualified as W
+import Vira.Web.Widgets.Form qualified as W
 import Vira.Web.Widgets.JobsListing qualified as W
 import Vira.Web.Widgets.Layout qualified as W
 import Vira.Web.Widgets.Modal (ErrorModal (..))
@@ -136,21 +137,17 @@ viewRepo repo branchDetails isPruned = do
               show @Text (length branchDetails) <> " branches"
         div_ [class_ "h-px bg-gray-200 dark:bg-gray-700"] mempty
 
-      -- Branch filter input
+      -- Branch filter input (server-side filter via HTMX)
       div_ [class_ "mb-6"] $ do
         filterUrl <- lift $ getLinkUrl $ LinkTo.RepoBranchFilter repo.name
-        div_ [class_ "relative"] $ do
-          input_
-            [ type_ "text"
-            , class_ "w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-gray-700 dark:text-gray-100 transition-colors duration-200 pr-10"
-            , placeholder_ "Filter branches..."
-            , name_ "q"
-            , hxGet_ filterUrl
-            , hxTarget_ "#branch-listing"
-            , hxTrigger_ "keyup changed delay:300ms"
-            ]
-          div_ [class_ "absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"] $ do
-            div_ [class_ "text-gray-500 dark:text-gray-400 w-4 h-4 flex items-center justify-center"] $ toHtmlRaw Icon.search
+        W.viraFilterInputShell_
+          [ placeholder_ "Filter branches..."
+          , name_ "q"
+          , hxGet_ filterUrl
+          , hxTarget_ "#branch-listing"
+          , hxTrigger_ "keyup changed delay:300ms"
+          ]
+          []
 
       -- Branch listing
       div_ [id_ "branch-listing"] $ do

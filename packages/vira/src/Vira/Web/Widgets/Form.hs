@@ -29,6 +29,7 @@ module Vira.Web.Widgets.Form (
   viraLabel_,
   viraFormGroup_,
   viraFilterInput_,
+  viraFilterInputShell_,
 ) where
 
 import Data.Char (toUpper)
@@ -223,24 +224,39 @@ viraFilterInput_ targetSelector attrs = do
       capitalize t = case T.uncons t of
         Nothing -> t
         Just (c, cs) -> cons (toUpper c) cs
+  viraFilterInputShell_
+    [ hyperscript_ $
+        "on input "
+          <> "set filterText to my.value.toLowerCase() "
+          <> "for item in document.querySelectorAll('"
+          <> targetSelector
+          <> "') "
+          <> "set itemValue to item.dataset."
+          <> filterAttribute
+          <> " "
+          <> "if filterText is '' then show item "
+          <> "else if itemValue and itemValue.toLowerCase().includes(filterText) then show item "
+          <> "else hide item "
+          <> "end"
+    ]
+    attrs
+
+{- |
+Filter-input chrome (rounded text input + trailing search icon) without
+filtering behavior. Pass behavior attributes (hyperscript, htmx, plain
+@onchange@, etc.) via @inputAttrs@; @attrs@ merges into the @\<input\>@.
+
+Use this directly when 'viraFilterInput_'\'s built-in client-side
+hyperscript filtering doesn't fit (e.g., server-side HTMX filtering).
+-}
+viraFilterInputShell_ :: (Monad m) => [Attributes] -> [Attributes] -> HtmlT m ()
+viraFilterInputShell_ inputAttrs attrs = do
   div_ [class_ "relative"] $ do
     input_
       ( [ type_ "text"
         , class_ "w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-gray-700 dark:text-gray-100 transition-colors duration-200 pr-10"
-        , hyperscript_ $
-            "on input "
-              <> "set filterText to my.value.toLowerCase() "
-              <> "for item in document.querySelectorAll('"
-              <> targetSelector
-              <> "') "
-              <> "set itemValue to item.dataset."
-              <> filterAttribute
-              <> " "
-              <> "if filterText is '' then show item "
-              <> "else if itemValue and itemValue.toLowerCase().includes(filterText) then show item "
-              <> "else hide item "
-              <> "end"
         ]
+          <> inputAttrs
           <> attrs
       )
     div_ [class_ "absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"] $ do
