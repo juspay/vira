@@ -6,6 +6,11 @@
   ];
   perSystem = { config, ... }: {
     pre-commit.settings = {
+      excludes = [
+        "^\.claude/"
+        "^\.apm/"
+        "^apm\."
+      ];
       hooks = {
         nixpkgs-fmt.enable = true;
         fourmolu = {

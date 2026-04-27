@@ -1,3 +1,8 @@
+---
+name: vira-design
+description: Vira's design system — TailwindCSS conventions, color palette, typography, spacing, components, and accessibility rules. Use when working on UI components, styling, or layout in this project (Lucid HTML in Haskell sources under packages/vira).
+---
+
 # Vira Design System
 
 Clean, minimal CI/CD application design system emphasizing clarity and functionality.
