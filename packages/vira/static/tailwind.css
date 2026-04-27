@@ -45,16 +45,6 @@
     --color-green-900: oklch(39.3% 0.095 152.535);
     --color-cyan-400: oklch(78.9% 0.154 211.53);
     --color-cyan-500: oklch(71.5% 0.143 215.221);
-    --color-sky-50: oklch(97.7% 0.013 236.62);
-    --color-sky-100: oklch(95.1% 0.026 236.824);
-    --color-sky-200: oklch(90.1% 0.058 230.902);
-    --color-sky-300: oklch(82.8% 0.111 230.318);
-    --color-sky-400: oklch(74.6% 0.16 232.661);
-    --color-sky-500: oklch(68.5% 0.169 237.323);
-    --color-sky-600: oklch(58.8% 0.158 241.966);
-    --color-sky-700: oklch(50% 0.134 242.749);
-    --color-sky-800: oklch(44.3% 0.11 240.79);
-    --color-sky-900: oklch(39.1% 0.09 240.876);
     --color-blue-50: oklch(97% 0.014 254.604);
     --color-blue-100: oklch(93.2% 0.032 255.585);
     --color-blue-200: oklch(88.2% 0.059 254.128);
@@ -121,16 +111,16 @@
     --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     --default-font-family: var(--font-sans);
     --default-mono-font-family: var(--font-mono);
-    --color-brand-50: var(--color-sky-50);
-    --color-brand-100: var(--color-sky-100);
-    --color-brand-200: var(--color-sky-200);
-    --color-brand-300: var(--color-sky-300);
-    --color-brand-400: var(--color-sky-400);
-    --color-brand-500: var(--color-sky-500);
-    --color-brand-600: var(--color-sky-600);
-    --color-brand-700: var(--color-sky-700);
-    --color-brand-800: var(--color-sky-800);
-    --color-brand-900: var(--color-sky-900);
+    --color-brand-50: var(--color-blue-50);
+    --color-brand-100: var(--color-blue-100);
+    --color-brand-200: var(--color-blue-200);
+    --color-brand-300: var(--color-blue-300);
+    --color-brand-400: var(--color-blue-400);
+    --color-brand-500: var(--color-blue-500);
+    --color-brand-600: var(--color-blue-600);
+    --color-brand-700: var(--color-blue-700);
+    --color-brand-800: var(--color-blue-800);
+    --color-brand-900: var(--color-blue-900);
   }
 }
 @layer base {
@@ -1720,7 +1710,7 @@
   }
   .dark\:bg-brand-900\/20 {
     @media (prefers-color-scheme: dark) {
-      background-color: color-mix(in srgb, oklch(39.1% 0.09 240.876) 20%, transparent);
+      background-color: color-mix(in srgb, oklch(37.9% 0.146 265.522) 20%, transparent);
       @supports (color: color-mix(in lab, red, red)) {
         background-color: color-mix(in oklab, var(--color-brand-900) 20%, transparent);
       }
