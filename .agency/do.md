@@ -14,7 +14,7 @@ cabal test all
 
 ## CI command
 
-just run-ci
+nix run . -- ci
 
 ## Documentation
 
