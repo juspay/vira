@@ -31,7 +31,7 @@ Creates a horizontal tab bar with consistent styling following Vira Design Syste
 
 = Features
 
-- Active state with indigo accent
+- Active state with brand accent
 - Inactive tabs with hover states
 - Optional badge counts
 - Full dark mode support
@@ -48,7 +48,7 @@ viraTabs_ []
 
 = Design
 
-Active tabs use indigo-600 border and background tint.
+Active tabs use cyan-600 border and background tint.
 Inactive tabs use transparent border with hover effects.
 Badges adapt colors based on active/inactive state.
 -}
@@ -63,7 +63,7 @@ viraTabs_ attrs tabs =
               "px-4 py-3 font-semibold text-sm transition-colors border-b-2 "
                 <> (if isJust badge then "flex items-center gap-2 " else "")
                 <> if isActive
-                  then "border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20"
+                  then "border-cyan-600 dark:border-cyan-400 text-cyan-600 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-900/20"
                   else "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
           ]
           $ do
@@ -74,7 +74,7 @@ viraTabs_ attrs tabs =
                   [ class_ $
                       "inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full "
                         <> if isActive
-                          then "bg-indigo-600 dark:bg-indigo-500 text-white"
+                          then "bg-cyan-600 dark:bg-cyan-500 text-white"
                           else "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                   ]
                 $ toHtml (show count :: String)

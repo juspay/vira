@@ -142,7 +142,7 @@ viewRepo repo branchDetails isPruned = do
         div_ [class_ "relative"] $ do
           input_
             [ type_ "text"
-            , class_ "w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 transition-colors duration-200 pr-10"
+            , class_ "w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 bg-white dark:bg-gray-700 dark:text-gray-100 transition-colors duration-200 pr-10"
             , placeholder_ "Filter branches..."
             , name_ "q"
             , hxGet_ filterUrl

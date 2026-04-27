@@ -42,7 +42,7 @@
                 text = ''
                   pwd
                   cd ./packages/vira
-                  exec ${lib.getExe tailwind} -w -o ../static/tailwind.css --cwd ./src
+                  exec ${lib.getExe tailwind} -w -i ./style.css -o ../static/tailwind.css --cwd ./src
                 '';
               };
               is_tty = true;

@@ -229,7 +229,7 @@ logViewerWidget job w = do
       h4_ [class_ "text-sm font-semibold text-gray-700 uppercase tracking-wider"] "Build Output"
       a_
         [ target_ "blank"
-        , class_ "text-sm text-gray-600 hover:text-indigo-600 transition-colors font-medium"
+        , class_ "text-sm text-gray-600 hover:text-cyan-600 transition-colors font-medium"
         , href_ jobLogUrl
         ]
         "View Full Log →"

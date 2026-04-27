@@ -17,7 +17,7 @@ Clean, minimal CI/CD application design system emphasizing clarity and functiona
 
 ### Primary Colors
 
-- **Indigo**: `indigo-600` (primary actions), `indigo-700` (hover states)
+- **Brand accent**: `cyan-600` (primary actions), `cyan-700` (hover states)
 - **Background**: `gray-50` (page), `white` (cards), `gray-200` (dividers)
   - **Dark mode**: `gray-900` (page), `gray-800` (cards), `gray-700` (dividers)
 
@@ -42,8 +42,10 @@ Clean, minimal CI/CD application design system emphasizing clarity and functiona
 
 ### Font Families
 
-- **Sans-serif**: Inter (variable font, 300-700 weights), system-ui fallbacks
-- **Monospace**: JetBrains Mono (for logs, code, and technical values)
+- **Sans-serif**: Geist (variable font, 300-700 weights), system-ui fallbacks
+- **Monospace**: Geist Mono (for logs, code, and technical values)
+
+Tokens are declared as `--font-sans` / `--font-mono` in `packages/vira/src/style.css` (the Tailwind v4 input file). Generated `static/tailwind.css` exposes them via `font-sans` / `font-mono` utility classes — prefer those over hard-coded `font-family` declarations.
 
 ### Size Scale
 

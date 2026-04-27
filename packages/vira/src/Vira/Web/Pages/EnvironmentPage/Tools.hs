@@ -49,7 +49,7 @@ viewToolCard toolData infoHtml = do
           a_
             [ href_ toolData.url
             , target_ "_blank"
-            , class_ "inline-flex items-center gap-1 hover:text-indigo-600 dark:hover:text-indigo-400"
+            , class_ "inline-flex items-center gap-1 hover:text-cyan-600 dark:hover:text-cyan-400"
             ]
             $ do
               toHtml toolData.name
@@ -81,7 +81,7 @@ viewToolIcon disp =
 -- | Get display styling for a tool
 mkToolDisplay :: Text -> ToolDisplay
 mkToolDisplay name = case name of
-  "Attic" -> mkDisplay "bg-indigo-100" "text-indigo-600"
+  "Attic" -> mkDisplay "bg-cyan-100" "text-cyan-600"
   "Bitbucket CLI" -> mkDisplay "bg-blue-100" "text-blue-600"
   "GitHub" -> mkDisplay "bg-green-100" "text-green-600"
   "Git" -> mkDisplay "bg-orange-100" "text-orange-600"

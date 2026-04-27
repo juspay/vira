@@ -107,7 +107,7 @@ viewRepoList = do
               (toHtml $ toString repo.name)
 
         -- Add new repository section
-        W.viraCard_ [class_ "p-6 bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-200 dark:border-indigo-800"] $ do
+        W.viraCard_ [class_ "p-6 bg-cyan-50 dark:bg-cyan-900/20 border-2 border-cyan-200 dark:border-cyan-800"] $ do
           h3_ [class_ "text-xl font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center"] $ do
             div_ [class_ "w-5 h-5 mr-2 flex items-center justify-center"] $ toHtmlRaw Icon.plus
             "Add New Repository"

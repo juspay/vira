@@ -58,7 +58,7 @@ W.viraButton_ W.ButtonPrimary [type_ "submit", form_ "my-form"] "Submit"
 
 = Variant Guidelines
 
-- **ButtonPrimary**: Main actions, form submissions (indigo)
+- **ButtonPrimary**: Main actions, form submissions (brand accent)
 - **ButtonSuccess**: Positive actions like build, save (green)
 - **ButtonDestructive**: Delete, disconnect, kill actions (red)
 - **ButtonSecondary**: Less important actions, cancel (gray)
@@ -70,7 +70,7 @@ Colors are automatically managed by the variant type, preventing inconsistent st
 viraButton_ :: forall {result}. (Term [Attributes] result) => ButtonVariant -> [Attributes] -> result
 viraButton_ variant attrs =
   let (colorClasses, focusRing) = case variant of
-        ButtonPrimary -> ("bg-indigo-600 hover:bg-indigo-700 text-white", "focus:ring-indigo-500")
+        ButtonPrimary -> ("bg-cyan-600 hover:bg-cyan-700 text-white", "focus:ring-cyan-500")
         ButtonSuccess -> ("bg-green-600 hover:bg-green-700 text-white", "focus:ring-green-500")
         ButtonDestructive -> ("bg-red-600 hover:bg-red-700 text-white", "focus:ring-red-500")
         ButtonSecondary -> ("bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100", "focus:ring-gray-500")

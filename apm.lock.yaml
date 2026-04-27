@@ -1,6 +1,6 @@
 lockfile_version: '1'
-generated_at: '2026-04-27T15:57:15.362181+00:00'
-apm_version: 0.9.4
+generated_at: '2026-04-27T16:59:08.161082+00:00'
+apm_version: 0.10.0
 dependencies:
 - repo_url: anthropics/skills
   host: github.com
