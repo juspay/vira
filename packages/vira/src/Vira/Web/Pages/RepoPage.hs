@@ -147,7 +147,6 @@ viewRepo repo branchDetails isPruned = do
           , hxTarget_ "#branch-listing"
           , hxTrigger_ "keyup changed delay:300ms"
           ]
-          []
 
       -- Branch listing
       div_ [id_ "branch-listing"] $ do

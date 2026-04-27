@@ -224,9 +224,9 @@ viraFilterInput_ targetSelector attrs = do
       capitalize t = case T.uncons t of
         Nothing -> t
         Just (c, cs) -> cons (toUpper c) cs
-  viraFilterInputShell_
-    [ hyperscript_ $
-        "on input "
+  viraFilterInputShell_ $
+    hyperscript_
+      ( "on input "
           <> "set filterText to my.value.toLowerCase() "
           <> "for item in document.querySelectorAll('"
           <> targetSelector
@@ -238,25 +238,24 @@ viraFilterInput_ targetSelector attrs = do
           <> "else if itemValue and itemValue.toLowerCase().includes(filterText) then show item "
           <> "else hide item "
           <> "end"
-    ]
-    attrs
+      )
+      : attrs
 
 {- |
 Filter-input chrome (rounded text input + trailing search icon) without
 filtering behavior. Pass behavior attributes (hyperscript, htmx, plain
-@onchange@, etc.) via @inputAttrs@; @attrs@ merges into the @\<input\>@.
+@onchange@, etc.) via @attrs@; they're merged onto the @\<input\>@.
 
 Use this directly when 'viraFilterInput_'\'s built-in client-side
 hyperscript filtering doesn't fit (e.g., server-side HTMX filtering).
 -}
-viraFilterInputShell_ :: (Monad m) => [Attributes] -> [Attributes] -> HtmlT m ()
-viraFilterInputShell_ inputAttrs attrs = do
+viraFilterInputShell_ :: (Monad m) => [Attributes] -> HtmlT m ()
+viraFilterInputShell_ attrs = do
   div_ [class_ "relative"] $ do
     input_
       ( [ type_ "text"
         , class_ "w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white dark:bg-gray-700 dark:text-gray-100 transition-colors duration-200 pr-10"
         ]
-          <> inputAttrs
           <> attrs
       )
     div_ [class_ "absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none"] $ do
