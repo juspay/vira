@@ -114,8 +114,8 @@ Research the task thoroughly before writing code.
 
 **Delegation rule — keep the main context lean.** Before your third `Read` in this step, stop and delegate the rest via `Agent(subagent_type=Explore)`. Main-context reads are reserved for:
 
-  (a) specific files the user named in the prompt,
-  (b) verifying a specific file:line an Explore subagent cited — and only with `offset`/`limit`, never full-file.
+(a) specific files the user named in the prompt,
+(b) verifying a specific file:line an Explore subagent cited — and only with `offset`/`limit`, never full-file.
 
 Anything that smells like "map the codebase", "find all callers", "understand how X works across the repo" — delegate. The Explore subagent returns a file:line map; keep that map and reference it in later steps instead of re-reading. Use `Grep`/`Glob` before `Read`: if the question can be answered by searching, don't open the file.
 
@@ -211,7 +211,7 @@ Invoke `hickey` and `lowy` as two **parallel sub-agents** via the harness's agen
 
 **Fallback, never skip.** If the harness cannot honor the requested review model in sub-agents, run hickey and lowy as sub-agents on the available model instead. If a sub-agent invocation fails for harness/tooling reasons before producing a review, retry that reviewer once; if it still cannot produce a sub-agent review, run that review in the main model by loading the reviewer skill against the same diff. This fallback is slower and uses more main-context budget, but it is still the `/do` hickey+lowy step. Do not replace it with an informal/manual review, and do not mark the step `skipped` because the requested model was unavailable.
 
-**Why post-implement, not pre-implement.** Hickey's complecting critique and Lowy's volatility lens both bite harder on a concrete diff than on a plan sketch. Reviewing a plan tends to surface generic concerns; reviewing a real diff surfaces the specific interleavings and boundary misalignments that matter. Running here also means the review covers *everything* the diff contains — including whatever the plan glossed over and whatever drifted during implementation.
+**Why post-implement, not pre-implement.** Hickey's complecting critique and Lowy's volatility lens both bite harder on a concrete diff than on a plan sketch. Reviewing a plan tends to surface generic concerns; reviewing a real diff surfaces the specific interleavings and boundary misalignments that matter. Running here also means the review covers _everything_ the diff contains — including whatever the plan glossed over and whatever drifted during implementation.
 
 <use_parallel_tool_calls>
 For maximum efficiency, invoke the `hickey` and `lowy` Agent tools **in parallel** rather than sequentially. You MUST use parallel tool calls: emit both `Agent` tool_use blocks (one with `subagent_type: "hickey"`, one with `subagent_type: "lowy"`) in a single response, with no other tool calls or text in that response.
@@ -226,7 +226,7 @@ The sub-agent already knows to read its skill file and follow that methodology; 
 
 **Model override.** If the user passed `--review-model=<model>`, pass `model: "<model>"` in **both** `Agent` tool calls — this overrides the `model: sonnet` in the agents' frontmatter via the `Agent` tool's built-in `model` parameter. If the flag was not passed, omit the `model` parameter entirely so the agent definition's default (sonnet) applies. Accept only `opus`, `sonnet`, and `haiku`; reject anything else at argument-parse time with a one-line error, since a typo silently falling back to sonnet would hide a budget decision the user was trying to express.
 
-After both reviewers return, **audit every `Defer` disposition before acting**. `/do` is not optimizing for minimal diff — it is optimizing for the simpler artifact landing in `master`. A PR that grows from 50 lines to 400 because hickey caught a real fragmentation bug is a *better* PR, not a worse one; the alternative is shipping the complected version and trusting a "broader refactor" follow-up that statistically never happens. **The default disposition is "Fix in this PR" — even when the fix grows the diff substantially.**
+After both reviewers return, **audit every `Defer` disposition before acting**. `/do` is not optimizing for minimal diff — it is optimizing for the simpler artifact landing in `master`. A PR that grows from 50 lines to 400 because hickey caught a real fragmentation bug is a _better_ PR, not a worse one; the alternative is shipping the complected version and trusting a "broader refactor" follow-up that statistically never happens. **The default disposition is "Fix in this PR" — even when the fix grows the diff substantially.**
 
 For every `Defer` the sub-agents returned, check the stated reason. Acceptable defers are narrow:
 
@@ -325,15 +325,17 @@ Check whether a PR already exists for this branch (`gh pr view`).
    ```md
    ## [Hickey/Lowy](https://kolu.dev/blog/hickey-lowy/) Analysis
 
-   | # | Lens   | Finding                                  | Disposition       |
-   |---|--------|------------------------------------------|-------------------|
-   | 1 | Hickey | viewportDimensions complects two roles   | Fixed in this PR  |
-   | 2 | Lowy   | useViewport encapsulates ghost concern   | Deferred [#123]   |
+   | #   | Lens   | Finding                                | Disposition      |
+   | --- | ------ | -------------------------------------- | ---------------- |
+   | 1   | Hickey | viewportDimensions complects two roles | Fixed in this PR |
+   | 2   | Lowy   | useViewport encapsulates ghost concern | Deferred [#123]  |
 
    ### Hickey rationale
+
    <prose from the hickey sub-agent>
 
    ### Lowy rationale
+
    <prose from the lowy sub-agent>
    ```
 
@@ -359,7 +361,7 @@ Read `.agency/do.md` and look for a `## CI command` section, plus any verificati
 
 **Active state**: Before waiting for background CI, run `scripts/do-results set active waiting`. When CI returns (success or failure), run `scripts/do-results set active working` before proceeding. This lets the stop hook allow graceful exits while the agent is idle.
 
-CI commands are typically local (e.g. `nix flake check`, `just ci`, `make ci`) and are forge-independent — **run them regardless of forge**. Only the *verification method* may be forge-specific: if `.agency/do.md` describes verification via `gh` commit-status checks and `forge != github`, fall back to exit code + command output for verification on non-GitHub forges, and note this in the step record. (Bitbucket `bkt pr checks` wiring is tracked in #10.)
+CI commands are typically local (e.g. `nix flake check`, `just ci`, `make ci`) and are forge-independent — **run them regardless of forge**. Only the _verification method_ may be forge-specific: if `.agency/do.md` describes verification via `gh` commit-status checks and `forge != github`, fall back to exit code + command output for verification on non-GitHub forges, and note this in the step record. (Bitbucket `bkt pr checks` wiring is tracked in #10.)
 
 **Verify**: Use the verification method described in `.agency/do.md` (e.g., checking commit statuses on GitHub, reading CI output elsewhere). If no CI command is documented, skip with a note. **The CI result must cover `HEAD`.** Before recording the step as passed, compare the commit SHA that CI ran against with `git rev-parse HEAD`. If they differ (e.g., a commit was pushed after CI started — whether from a fix retry, user-requested changes, or any other source), re-run CI against the current HEAD. CI passing on a stale commit does not satisfy verification.
 
@@ -480,13 +482,13 @@ COMMENT
 
 ## Entry Points
 
-| ID               | Starts at             | Use case                                |
-| ---------------- | --------------------- | --------------------------------------- |
-| `default`        | **sync**              | Full workflow from scratch              |
-| `followup`       | **implement**         | Additional changes on existing PR       |
-| `post-implement` | **fmt**               | Skip research/impl, start at formatting |
-| `polish`         | **hickey+lowy**       | Structural review + quality gate        |
-| `ci-only`        | **ci**                | Just run CI                             |
+| ID               | Starts at       | Use case                                |
+| ---------------- | --------------- | --------------------------------------- |
+| `default`        | **sync**        | Full workflow from scratch              |
+| `followup`       | **implement**   | Additional changes on existing PR       |
+| `post-implement` | **fmt**         | Skip research/impl, start at formatting |
+| `polish`         | **hickey+lowy** | Structural review + quality gate        |
+| `ci-only`        | **ci**          | Just run CI                             |
 
 ## Rules
 

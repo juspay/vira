@@ -47,7 +47,7 @@ For narrow, single-file lookups, `Grep`/`Read` directly is fine. The line is: if
 
 Every non-trivial claim in your response must be backed by a `file:line` reference you actually read in this session. If you cannot cite a file:line for a claim, either go read the source and come back, or explicitly mark the claim as a guess (e.g. "I'm guessing — haven't verified") so the user can weigh it accordingly.
 
-**Claims about third-party library behavior require file:line references inside that library's source** — not just citations in your own project. "`Terminal.tsx:139` calls `clearTextureAtlas()`" tells you nothing about what `clearTextureAtlas()` *does*; you need a citation in the library's own file to back any claim about its effect.
+**Claims about third-party library behavior require file:line references inside that library's source** — not just citations in your own project. "`Terminal.tsx:139` calls `clearTextureAtlas()`" tells you nothing about what `clearTextureAtlas()` _does_; you need a citation in the library's own file to back any claim about its effect.
 
 ### Hedge words are a stop signal
 
@@ -84,10 +84,10 @@ Use `AskUserQuestion` to collaborate on the cut: propose your split, surface the
 
 Any time the conversation produces a concrete code plan, diff proposal, or design sketch that could be implemented, **invoke both the `lowy` and `hickey` sub-agents on that proposal in parallel before presenting your final recommendation** — do not wait for the user to ask. Use `Agent(subagent_type="lowy")` and `Agent(subagent_type="hickey")` (not the `Skill` tool) so each runs in an isolated context and keeps the main turn lean.
 
-**Revise the recommendation in light of their findings before presenting it.** Invoking the reviewers is not the deliverable — the deliverable is a *post-review* proposal whose shape already reflects what landed. Concretely: when a finding lands (real complecting, fragmentation, or a missing volatility seam), change the design itself — don't tack the finding onto an unchanged sketch as a critique section the user has to reconcile. When a finding doesn't land, say briefly why. The headline the user reads should be the revised proposal, with the reviewer pass evident in what changed (and what was rejected), not the original sketch with raw sub-agent output appended.
+**Revise the recommendation in light of their findings before presenting it.** Invoking the reviewers is not the deliverable — the deliverable is a _post-review_ proposal whose shape already reflects what landed. Concretely: when a finding lands (real complecting, fragmentation, or a missing volatility seam), change the design itself — don't tack the finding onto an unchanged sketch as a critique section the user has to reconcile. When a finding doesn't land, say briefly why. The headline the user reads should be the revised proposal, with the reviewer pass evident in what changed (and what was rejected), not the original sketch with raw sub-agent output appended.
 
 - **Lowy** flags boundaries that track functionality instead of volatility and where a seam would cleanly encapsulate an axis of change.
-- **Hickey** flags structural complecting and fragmentation — concept multiplication, sum-types-as-parallel-fields, hidden coupling at OS or shared-state layers, and the rest of the Layer 3-4 catalog. Hickey on a sketch can drift toward generic critique; in your prompt, instruct it to either land specific complecting/fragmentation risks in *this* sketch or say explicitly that there's nothing yet to bite into. Generic principles are not findings. Layer 5 (entanglement counts) and the diff-shaped Actions table will be thin on a sketch — that's expected; the design-level layers are the ones that bite here.
+- **Hickey** flags structural complecting and fragmentation — concept multiplication, sum-types-as-parallel-fields, hidden coupling at OS or shared-state layers, and the rest of the Layer 3-4 catalog. Hickey on a sketch can drift toward generic critique; in your prompt, instruct it to either land specific complecting/fragmentation risks in _this_ sketch or say explicitly that there's nothing yet to bite into. Generic principles are not findings. Layer 5 (entanglement counts) and the diff-shaped Actions table will be thin on a sketch — that's expected; the design-level layers are the ones that bite here.
 
 Skip both passes only when the turn is pure Q&A with no proposed change (e.g. "how does X work?"). When in doubt, run them. `do` re-runs hickey + lowy post-implement on the real diff, so the talk-mode pass is the design-level rehearsal, not the final word.
 
@@ -99,12 +99,12 @@ Laconic mode is **on by default**. If `ARGUMENTS` begins with `--no-laconic` (st
 
 When laconic mode is active:
 
-- One or two sentences when it will do. A single word when *that* will do.
+- One or two sentences when it will do. A single word when _that_ will do.
 - No preamble, no recap of the question, no "great question", no closing offers to help further.
 - Drop bullet lists unless the answer is genuinely a list. No headings.
 - Keep file:line citations — brevity does not override the research/citation rules above. Research silently; show only the conclusion plus its citations.
 - Code blocks only when code is the answer.
 
-Laconic mode trims the *output*, not the *investigation*. Do the same reading you would otherwise; just say less about it.
+Laconic mode trims the _output_, not the _investigation_. Do the same reading you would otherwise; just say less about it.
 
 ARGUMENTS: $ARGUMENTS

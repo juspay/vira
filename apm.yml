@@ -1,7 +1,14 @@
 name: vira
 version: 1.0.0
 type: hybrid
-target: claude
+targets:
+  - claude
+  - codex
+
+compilation:
+  exclude:
+    - state/
+    - .worktrees/
 
 dependencies:
   apm:
