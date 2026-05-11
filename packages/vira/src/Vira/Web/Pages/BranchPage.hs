@@ -2,8 +2,10 @@
 
 module Vira.Web.Pages.BranchPage where
 
+import Effectful (Eff)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName, Commit (..), RepoName)
+import GH.Core (PullRequestLookup)
 import Lucid
 import Servant hiding (throwError)
 import Servant.API.ContentTypes.Lucid (HTML)
@@ -32,19 +34,20 @@ newtype Routes mode = Routes
 handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> RepoName -> BranchName -> Routes AsServer
 handlers globalSettings viraRuntimeState webSettings repoName branchName = do
   Routes
-    { _view = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml $ viewHandler repoName branchName
+    { _view = Web.runAppInServant globalSettings viraRuntimeState webSettings $ viewHandler repoName branchName
     }
 
-viewHandler :: RepoName -> BranchName -> AppHtml ()
+viewHandler :: RepoName -> BranchName -> Eff Web.AppServantStack (Html ())
 viewHandler repoName branchName = do
-  repo <- lift $ App.query (St.GetRepoByNameA repoName) >>= maybe (throwError err404) pure
-  branchDetails <- lift $ App.query (St.GetBranchDetailsA repoName branchName) >>= maybe (throwError err404) pure
-  jobs <- lift $ App.query $ St.GetJobsByBranchA repoName branchName
+  repo <- App.query (St.GetRepoByNameA repoName) >>= maybe (throwError err404) pure
+  branchDetails <- App.query (St.GetBranchDetailsA repoName branchName) >>= maybe (throwError err404) pure
+  jobs <- App.query $ St.GetJobsByBranchA repoName branchName
+  pullRequestLookup <- W.resolveBranchPullRequest repo.cloneUrl branchName
   let branchCrumbs = [LinkTo.RepoListing, LinkTo.Repo repoName, LinkTo.RepoBranch repoName branchName]
-  W.layout branchCrumbs $ viewBranch repo branchDetails jobs
+  runAppHtml $ W.layout branchCrumbs $ viewBranch repo pullRequestLookup branchDetails jobs
 
-viewBranch :: St.Repo -> BranchDetails -> [St.Job] -> AppHtml ()
-viewBranch repo branchDetails jobs = do
+viewBranch :: St.Repo -> PullRequestLookup -> BranchDetails -> [St.Job] -> AppHtml ()
+viewBranch repo pullRequestLookup branchDetails jobs = do
   -- Branch header with build and refresh buttons
   let branchTitle =
         toString repo.name
@@ -73,6 +76,7 @@ viewBranch repo branchDetails jobs = do
                 "Out of date"
             _ -> mempty -- Don't show badge for NeverBuilt or UpToDate
         div_ [class_ "flex items-center gap-2"] $ do
+          W.viewPullRequestLookup_ pullRequestLookup
           buildLink <- lift $ getLink $ LinkTo.Build repo.name branchDetails.branch.branchName
           W.viraRequestButton_
             W.ButtonSuccess
