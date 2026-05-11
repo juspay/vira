@@ -97,6 +97,7 @@ library
       Vira.Web.Pages.NotFoundPage
       Vira.Web.Pages.RegistryPage
       Vira.Web.Pages.RepoPage
+      Vira.Web.PullRequestCache
       Vira.Web.Servant
       Vira.Web.Server
       Vira.Web.Stack
@@ -377,6 +378,7 @@ executable vira-tests
       Vira.CI.WorkerSpec
       Vira.Lib.TimeExtraSpec
       Vira.State.ResetSpec
+      Vira.Web.PullRequestCacheSpec
       Paths_vira
   autogen-modules:
       Paths_vira

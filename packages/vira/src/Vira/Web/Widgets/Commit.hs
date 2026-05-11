@@ -15,12 +15,14 @@ import Data.Text qualified as T
 import Data.Time (defaultTimeLocale, formatTime, getCurrentTime)
 import Effectful (Eff)
 import Effectful.Git qualified as Git
+import Effectful.Reader.Dynamic qualified as Reader
 import GH.Core qualified as GH
 import Lucid
 import Vira.App qualified
 import Vira.Lib.TimeExtra (formatRelativeTime)
 import Vira.State.Acid qualified
 import Vira.Web.Lucid (AppHtml)
+import Vira.Web.PullRequestCache qualified as PullRequestCache
 import Vira.Web.Stack qualified as Web
 import Vira.Web.Widgets.Code qualified as Code
 import Web.TablerIcons.Outline qualified as Icon
@@ -28,12 +30,13 @@ import Web.TablerIcons.Outline qualified as Icon
 -- | Look up the GitHub pull request associated with a branch.
 resolveBranchPullRequest :: Text -> Git.BranchName -> Eff Web.AppServantStack GH.PullRequestLookup
 resolveBranchPullRequest cloneUrl branchName = do
-  result <- liftIO $ GH.lookupForBranchFromCloneUrl cloneUrl (toText branchName)
-  case result of
-    GH.PullRequestLookupFailed err ->
+  cache <- Reader.asks @Vira.App.ViraRuntimeState (.pullRequestCache)
+  cachedLookup <- liftIO $ PullRequestCache.resolvePullRequest cache cloneUrl branchName
+  case (cachedLookup.source, cachedLookup.result) of
+    (PullRequestCache.PullRequestCacheMiss, GH.PullRequestLookupFailed err) ->
       Vira.App.log Warning $ "Could not look up GitHub pull request for branch " <> toText branchName <> ": " <> err
     _ -> pass
-  pure result
+  pure cachedLookup.result
 
 -- | Render a pull request lookup result as a link when a PR exists.
 viewPullRequestLookup_ :: (Monad m) => GH.PullRequestLookup -> HtmlT m ()
