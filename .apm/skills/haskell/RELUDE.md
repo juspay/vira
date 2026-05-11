@@ -1,29 +1,29 @@
 # Relude Best Practices
 
-When using relude prelude, follow these HLint recommendations (from https://github.com/kowainik/relude/blob/main/.hlint.yaml):
+When using relude, follow these idiomatic substitutions (from [relude's HLint rules](https://github.com/kowainik/relude/blob/main/.hlint.yaml)):
 
-**Basic Idioms**:
+## Basic Idioms
 
-- Use `pass` instead of `pure ()` or `return ()`
-- Use `one` instead of `(: [])`, `(:| [])`, or singleton functions
-- Use `<<$>>` for double fmap: `f <<$>> x` instead of `fmap (fmap f) x`
-- Use `??` (flap) operator: `ff ?? x` instead of `fmap ($ x) ff`
+- `pass` instead of `pure ()` or `return ()`
+- `one` instead of `(: [])`, `(:| [])`, or singleton functions
+- `<<$>>` for double fmap: `f <<$>> x` instead of `fmap (fmap f) x`
+- `??` (flap) operator: `ff ?? x` instead of `fmap ($ x) ff`
 
-**File I/O**:
+## File I/O
 
-- `readFileText`, `writeFileText`, `appendFileText` for Text files
+- `readFileText`, `writeFileText`, `appendFileText` for Text
 - `readFileLText`, `writeFileLText`, `appendFileLText` for lazy Text
 - `readFileBS`, `writeFileBS`, `appendFileBS` for ByteString
 - `readFileLBS`, `writeFileLBS`, `appendFileLBS` for lazy ByteString
 
-**Console Output**:
+## Console Output
 
 - `putText`, `putTextLn` for Text
 - `putLText`, `putLTextLn` for lazy Text
 - `putBS`, `putBSLn` for ByteString
 - `putLBS`, `putLBSLn` for lazy ByteString
 
-**Maybe/Either Helpers**:
+## Maybe/Either Helpers
 
 - `whenJust m f` instead of `maybe pass f m`
 - `whenJustM m f` for monadic versions
@@ -32,47 +32,46 @@ When using relude prelude, follow these HLint recommendations (from https://gith
 - `whenLeftM_ m f`, `whenRightM_ m f` for monadic Either
 - `leftToMaybe`, `rightToMaybe` for conversions
 - `maybeToRight l`, `maybeToLeft r` for conversions
-- `isLeft`, `isRight` instead of `either (const True/False) (const False/True)`
 
-**List Operations**:
+## List Operations
 
-- Use `ordNub` instead of `nub` (O(n log n) vs O(n²))
-- Use `sortNub` instead of `Data.Set.toList . Data.Set.fromList`
-- Use `sortWith f` instead of `sortBy (comparing f)` for simple cases
-- Use `viaNonEmpty f x` instead of `fmap f (nonEmpty x)`
-- Use `asumMap f xs` instead of `asum (map f xs)`
-- Use `toList` instead of `foldr (:) []`
+- `ordNub` instead of `nub` (O(n log n) vs O(n²))
+- `sortNub` instead of `Data.Set.toList . Data.Set.fromList`
+- `sortWith f` instead of `sortBy (comparing f)`
+- `viaNonEmpty f x` instead of `fmap f (nonEmpty x)`
+- `asumMap f xs` instead of `asum (map f xs)`
+- `toList` instead of `foldr (:) []`
 
-**Monadic Operations**:
+## Monadic Operations
 
 - `andM s` instead of `and <$> sequence s`
 - `orM s` instead of `or <$> sequence s`
 - `allM f s` instead of `and <$> mapM f s`
 - `anyM f s` instead of `or <$> mapM f s`
 - `guardM f` instead of `f >>= guard`
-- `infinitely` instead of `forever` (better typed)
-- `unlessM (not <$> x)` → use `whenM x` instead
-- `whenM (not <$> x)` → use `unlessM x` instead
+- `infinitely` instead of `forever`
+- `unlessM (not <$> x)` → use `whenM x`
+- `whenM (not <$> x)` → use `unlessM x`
 
-**State/Reader Operations**:
+## State/Reader Operations
 
 - `usingReaderT` instead of `flip runReaderT`
 - `usingStateT` instead of `flip runStateT`
 - `evaluatingStateT s st` instead of `fst <$> usingStateT s st`
 - `executingStateT s st` instead of `snd <$> usingStateT s st`
 
-**Transformer Lifting**:
+## Transformer Lifting
 
 - `hoistMaybe m` instead of `MaybeT (pure m)`
 - `hoistEither m` instead of `ExceptT (pure m)`
 
-**List Pattern Matching**:
+## List Pattern Matching
 
 - `whenNotNull m f` for `case m of [] -> pass; (x:xs) -> f (x :| xs)`
 - `whenNotNullM m f` for monadic version
 
-**Text/ByteString Conversions**:
+## Text/ByteString Conversions
 
-- Use relude's `toText`, `toString`, `toLText` instead of pack/unpack
-- Use relude's `encodeUtf8`, `decodeUtf8` for UTF-8 encoding
+- `toText`, `toString`, `toLText` instead of pack/unpack
+- `encodeUtf8`, `decodeUtf8` for UTF-8 encoding
 - `fromStrict`, `toStrict` for lazy/strict conversions

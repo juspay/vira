@@ -1,5 +1,5 @@
 lockfile_version: '1'
-generated_at: '2026-05-11T16:42:13.071844+00:00'
+generated_at: '2026-05-11T17:45:25.224346+00:00'
 apm_version: 0.13.0
 dependencies:
 - repo_url: anthropics/skills
@@ -69,4 +69,4 @@ local_deployed_files:
 - .claude/skills/haskell
 - .claude/skills/vira-design
 local_deployed_file_hashes:
-  .claude/rules/vira.md: sha256:a8280deeb4ee7eca24d242745f21c2e8c2759af28b459b32c4d0fa61229b9b7b
+  .claude/rules/vira.md: sha256:cde4ad5715a4aeb8209b06e9a4fb37222b0b1432901beabc74e31e840371bc63

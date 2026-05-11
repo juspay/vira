@@ -1,5 +1,11 @@
+# List available recipes
 default:
     @just --list
+
+# Refresh APM-managed artifacts for Claude and Codex
+apm:
+    nix shell nixpkgs#uv -c uvx --from apm-cli apm install --target claude,codex
+    nix shell nixpkgs#uv -c uvx --from apm-cli apm compile --target codex
 
 # Run hoogle
 [group('2. haskell')]

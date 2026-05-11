@@ -1,81 +1,56 @@
 ---
 name: haskell
-description: Expert Haskell development assistance. Use when working with Haskell code, .hs files, Cabal, ghcid, or when user mentions Haskell, functional programming, or type-level programming.
+description: Use this when writing or reviewing Haskell code. Covers error handling, type safety, idiomatic patterns, HLint compliance, Aeson usage, and testing.
 ---
 
 # Haskell Development
 
-Expert assistance for Haskell programming.
+## Error Handling
 
-## Guidelines
-
-**CRITICAL - Error Handling in Code**: NEVER write code that silently ignores errors:
-
-- Do NOT use `undefined` or `error` as placeholders
-- Do NOT skip handling error cases in pattern matches
-- Do NOT ignore `Maybe`/`Either` failure cases
-- Handle all possible cases explicitly
+- NEVER use `undefined` or `error` as placeholders
+- Handle ALL `Maybe`/`Either` cases explicitly — no silent ignoring
+- Handle all pattern match cases — no partial matches
 - Use types to make impossible states unrepresentable
 
-Every error case in generated code must be handled properly.
-
-**CRITICAL - Compile Status**:
-
-- The code MUST compile without errors.
-- You MUST check `ghcid.txt` after every change and fix any errors reported there.
-- Do NOT proceed to verification or linting until `ghcid.txt` is clean.
-
-**CRITICAL - HLint Compliance**:
-
-- You MUST check for `.hlint.yaml` in the project root.
-- If it exists, you MUST run `hlint` on any file you modify.
-- You MUST fix ALL hlint warnings before considering the task complete.
-- Do NOT ignore hlint warnings unless explicitly instructed by the user.
-
-**Code Quality**:
+## Type Safety & Idioms
 
 - Write type signatures for all top-level definitions
-- Write total functions (avoid `head`, `tail`)
-- Prefer pure functions over IO when possible
-- Use explicit exports in modules
-- Leverage type system for safety
-- Favor composition over complex functions
-- Write Haddock documentation for public APIs
-
-**Idiomatic Patterns**:
-
 - Prefer `Text` over `String`
 - Use `newtype` wrappers for domain types
 - Apply smart constructors for validation
-- Records:
-  - Use RecordDotSyntax & OverloadedRecordDot (add pragma to modules that use the syntax)
-  - Use DisambiguateRecordFields and DuplicateRecordFields for simple field names (add pragma to modules that use the syntax)
-- Use lenses for record manipulation when appropriate
-- Use `Applicative` and `Monad` appropriately
-- Avoid trivial `let` bindings when inlining keeps code simple and readable
+- Write total functions — avoid `head`, `tail`, and other partial functions
+- Prefer pure functions over IO
+- Use explicit module exports
+- Favor composition over complex functions
+- Write Haddock documentation for public APIs
 
-**Working with Aeson**:
+## Records
+
+- Use `OverloadedRecordDot` (add pragma to modules that use the syntax)
+- Use `DisambiguateRecordFields` and `DuplicateRecordFields` for simple field names
+- Use lenses for record manipulation when appropriate
+
+## Aeson
 
 - NEVER construct aeson objects by hand
-- Instead create a type and use `encode` and `decode` on it
-- These types should generally use generic deriving of aeson (no hand deriving)
+- Create a type and use `encode`/`decode` on it
+- Prefer generic deriving; hand-write instances only when the wire format requires it
 
-## Relude Best Practices
+## HLint
 
-When using `relude`, refer to [RELUDE.md](RELUDE.md) for best practices and idioms.
+If `.hlint.yaml` exists in the project root, run `hlint` on every modified file. Fix ALL warnings before considering the task complete.
+
+## Build Workflow
+
+If `ghcid.txt` exists in the project, check it after every code change for compile errors. Do not proceed until it is clean. If this file does not exist, use whatever build workflow the project documents.
+
+When adding or deleting `.hs` modules: update the `.cabal` file, or run `hpack` if `package.yaml` exists.
+
+## Relude
+
+If the project uses [relude](https://github.com/kowainik/relude) (check `.cabal` or `package.yaml` dependencies), also follow [RELUDE.md](RELUDE.md) for idiomatic substitutions.
 
 ## Testing
 
-- Use QuickCheck for property-based testing
-- Use HUnit or Hspec for unit tests
-- Provide good examples in documentation
-
-## Build instructions
-
-As you make code changes, start a subagent in parallel to resolve any compile errors in `ghcid.txt`.
-
-**IMPORTANT**: Do not run build commands yourself. The human runs ghcid in the terminal, which then updates `ghcid.txt` with any compile error or warning (if this file does not exist, or if ghcid has stopped, remind the human to address it). You should read `ghcid.txt` (in _entirety_) after making code changes; this file updates near-instantly.
-
-**Adding/Deleting modules**: When a new `.hs` file is added or deleted, the `.cabal` file must be updated accordingly. However, if `package.yaml` exists in the project, run `hpack` instead to regenerate the `.cabal` file with the updated module list. This will trigger `ghcid` to restart automatically.
-
-**HLint warnings**: MANDATORY. After `ghcid.txt` shows success, if `.hlint.yaml` exists, run `hlint` on the modified files. You are NOT done until `hlint` reports no issues.
+- QuickCheck for property-based testing
+- HUnit or Hspec for unit tests
