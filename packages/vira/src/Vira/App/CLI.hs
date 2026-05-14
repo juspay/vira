@@ -44,6 +44,8 @@ data CISettings = CISettings
   -- ^ Whether to auto-build new branches
   , jobRetentionDays :: Natural
   -- ^ Delete jobs older than N days (0 = disable cleanup)
+  , postBuildHook :: Maybe FilePath
+  -- ^ Path to an operator-configured shell script run after each successful pipeline (from @--post-build-hook@).
   }
   deriving stock (Show)
 
@@ -70,7 +72,13 @@ data Command
   | ExportCommand
   | ImportCommand
   | InfoCommand
-  | CICommand (Maybe FilePath) CIMode
+  | CICommand
+      -- | Directory to run CI in. 'Nothing' defaults to the current directory.
+      (Maybe FilePath)
+      -- | Pipeline mode: 'FullBuild', 'LocalBuild', or 'BuildOnly'.
+      CIMode
+      -- | Path to an operator-configured post-build hook script (from @--post-build-hook@); 'Nothing' disables.
+      (Maybe FilePath)
   deriving stock (Show)
 
 -- | Complete CLI configuration
@@ -116,6 +124,22 @@ severityReader = eitherReader $ \s -> case map toLower s of
   "warn" -> Right Warning -- Allow both variants
   "error" -> Right Error
   _ -> Left "Invalid log level. Choose from: Debug, Info, Warning, Error"
+
+{- | Parser for the @--post-build-hook@ flag.
+
+Path to a shell script that runs after a successful pipeline. The script
+is executed with @VIRA_BRANCH@, @VIRA_COMMIT_ID@, and (when an origin
+remote is configured) @VIRA_REPO_CLONE_URL@ in the environment, and
+branches internally on those values to pick a target. 'Nothing' (the
+default) disables post-build hooks.
+-}
+postBuildHookOption :: Parser (Maybe FilePath)
+postBuildHookOption =
+  optional $
+    strOption $
+      long "post-build-hook"
+        <> metavar "PATH"
+        <> help "Path to a shell script to run after a successful pipeline"
 
 -- | Parser for web settings
 webSettingsParser :: Parser WebSettings
@@ -175,6 +199,7 @@ webSettingsParser = do
           <> value 14
           <> showDefault
       )
+  postBuildHook <- postBuildHookOption
   pure
     WebSettings
       { port
@@ -187,6 +212,7 @@ webSettingsParser = do
             { maxConcurrentBuilds
             , autoBuildNewBranches = AutoBuildNewBranches autoBuildNewBranchesBool
             , jobRetentionDays
+            , postBuildHook
             }
       }
 
@@ -204,6 +230,7 @@ ciCommandParser =
             <|> flag' LocalBuild (long "local" <> short 'l' <> help "Build only for the current system")
             <|> pure FullBuild
         )
+    <*> postBuildHookOption
 
 -- | Parser for commands
 commandParser :: Parser Command

@@ -14,7 +14,7 @@ import Effectful.Reader.Static qualified as ER
 import Prettyprinter
 import Prettyprinter.Render.Text (renderStrict)
 import System.Nix.System (System (..))
-import Vira.CI.Context (ViraContext (..))
+import Vira.CI.Context (CIMode (..), ViraContext (..))
 import Vira.CI.Error (PipelineError (..))
 import Vira.CI.Pipeline.Effect
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), NixConfig (..), SignoffStage (..), ViraPipeline (..))
@@ -78,6 +78,11 @@ pipelineProgram = do
 
   -- Step 4: Signoff
   signoff pipeline buildResults
+
+  -- Step 5: Post-build hook (run last, after cache and signoff).
+  -- Skipped in BuildOnly mode where side effects are disabled.
+  env <- ER.ask @PipelineEnv
+  when (env.viraContext.ciMode /= BuildOnly) postBuild
   logPipeline Info "Pipeline completed successfully"
 
 {- | Pipeline program with clone (for web/CI)

@@ -44,6 +44,7 @@ import Vira.CI.Configuration qualified as Configuration
 import Vira.CI.Context (CIMode (..), ViraContext (..))
 import Vira.CI.Error (ConfigurationError (..), PipelineError (..), pipelineToolError)
 import Vira.CI.Pipeline.Effect
+import Vira.CI.Pipeline.PostBuildHook (postBuildImpl)
 import Vira.CI.Pipeline.Process (runProcess)
 import Vira.CI.Pipeline.Signoff qualified as Signoff
 import Vira.CI.Pipeline.Type (BuildStage (..), CacheStage (..), Flake (..), NixConfig (..), SignoffStage (..), ViraPipeline (..), allowedNixOptions, validateNixOptions)
@@ -75,6 +76,7 @@ runPipeline env program =
           Build pipeline -> buildImpl pipeline
           Cache pipeline buildResults -> cacheImpl pipeline buildResults
           Signoff pipeline buildResults -> signoffImpl pipeline buildResults
+          PostBuild -> postBuildImpl
       )
       program
 

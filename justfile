@@ -48,10 +48,15 @@ run-vira ARGS='web --host 0.0.0.0 --base-path ${BASE_PATH:-/} --import ./sample.
     ghcid -T Main.main -c './cabal-repl vira:exe:vira' \
         --setup ":set args --state-dir ./state --auto-reset-state {{ ARGS }}"
 
-# Run `vira ci` on itself.
-ci:
+# Run `vira ci` on itself (build-only, no side effects) for fast local iteration.
+ci-local:
     @just pc
     nix run . -- ci -b
+
+# Run `vira ci` on itself with the sample post-build hook.
+ci:
+    @just pc
+    nix run . -- ci --local --post-build-hook ./sample-post-build-hook.sh
 
 # Run cabal tests (Pass, for example, `tail-test` to run for different component)
 [group('2. haskell')]

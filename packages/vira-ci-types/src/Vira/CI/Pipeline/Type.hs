@@ -16,7 +16,7 @@ module Vira.CI.Pipeline.Type where
 
 import Data.String (IsString (..))
 import GHC.Records.Compat
-import Relude (Bool (..), FilePath, Generic, Maybe, NonEmpty, Show, Text, notElem)
+import Relude (Bool (..), FilePath, Generic, Maybe (..), NonEmpty, Show, Text, notElem)
 import System.Nix.System (System)
 
 -- | CI Pipeline configuration types
@@ -125,4 +125,4 @@ instance HasField "cache" ViraPipeline CacheStage where
   hasField (ViraPipeline build nix cache signoff) = (\x -> ViraPipeline build nix x signoff, cache)
 
 instance HasField "signoff" ViraPipeline SignoffStage where
-  hasField (ViraPipeline build nix cache signoff) = (ViraPipeline build nix cache, signoff)
+  hasField (ViraPipeline build nix cache signoff) = (\x -> ViraPipeline build nix cache x, signoff)

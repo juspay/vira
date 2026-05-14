@@ -2,7 +2,9 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Vira.CI.Pipeline.Effect where
+module Vira.CI.Pipeline.Effect (
+  module Vira.CI.Pipeline.Effect,
+) where
 
 import Prelude hiding (asks)
 
@@ -32,6 +34,8 @@ data PipelineEnv = PipelineEnv
   -- ^ 'LogSink.Sink' for all output (ViraLog JSON + subprocess raw output)
   , excludeContextKeys :: [Text]
   -- ^ Context keys to exclude from log entries (repo/branch/job already in file path)
+  , postBuildHook :: Maybe FilePath
+  -- ^ Path to an operator-configured shell script to run after a successful pipeline. 'Nothing' disables post-build hooks.
   }
   deriving stock (Generic)
 
@@ -105,30 +109,34 @@ data Pipeline :: Effect where
   Cache :: ViraPipeline -> NonEmpty BuildResult -> Pipeline m ()
   -- | Create GitHub/Bitbucket commit signoff (one per system)
   Signoff :: ViraPipeline -> NonEmpty BuildResult -> Pipeline m ()
+  -- | Execute the operator-configured post-build hook script, if any
+  PostBuild :: Pipeline m ()
 
 -- Generate boilerplate for the effect
 makeEffect ''Pipeline
 
 -- | Construct PipelineEnv for web/CI execution (with output log and sink)
-pipelineEnvFromRemote :: Tools -> Sink Text -> [Text] -> ViraContext -> PipelineEnv
-pipelineEnvFromRemote tools sink excludeKeys ctx =
+pipelineEnvFromRemote :: Maybe FilePath -> Tools -> Sink Text -> [Text] -> ViraContext -> PipelineEnv
+pipelineEnvFromRemote postBuildHook tools sink excludeKeys ctx =
   PipelineEnv
     { outputLog = Just $ ctx.repoDir </> "output.log"
     , tools = tools
     , viraContext = ctx
     , logSink = sink
     , excludeContextKeys = excludeKeys
+    , postBuildHook = postBuildHook
     }
 
 -- | Construct PipelineEnv for CLI execution (stdout sink with severity filtering)
-pipelineEnvFromCLI :: Severity -> [Text] -> Tools -> ViraContext -> PipelineEnv
-pipelineEnvFromCLI minSeverity excludeKeys tools ctx =
+pipelineEnvFromCLI :: Maybe FilePath -> Severity -> [Text] -> Tools -> ViraContext -> PipelineEnv
+pipelineEnvFromCLI postBuildHook minSeverity excludeKeys tools ctx =
   PipelineEnv
     { outputLog = Nothing
     , tools = tools
     , viraContext = ctx
     , logSink = filteredStdoutSink minSeverity
     , excludeContextKeys = excludeKeys
+    , postBuildHook = postBuildHook
     }
   where
     filteredStdoutSink :: Severity -> Sink Text

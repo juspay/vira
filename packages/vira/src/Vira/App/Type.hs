@@ -46,4 +46,6 @@ data ViraRuntimeState = ViraRuntimeState
   -- ^ Server start time for uptime tracking
   , cachePublicKey :: PublicKey
   -- ^ Cache 'PublicKey' (for UI display)
+  , postBuildHook :: Maybe FilePath
+  -- ^ Operator-configured script path run after a successful pipeline. 'Nothing' disables post-build hooks.
   }

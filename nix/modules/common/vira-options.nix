@@ -92,6 +92,50 @@ in
       };
     };
 
+    postBuildHook = mkOption {
+      type = types.nullOr types.lines;
+      default = null;
+      description = ''
+        Shell script body to run after every successful CI pipeline.
+
+        When non-null, vira executes this script with
+        <literal>VIRA_BRANCH</literal>, <literal>VIRA_COMMIT_ID</literal>,
+        and <literal>VIRA_REPO_CLONE_URL</literal> exported in the
+        environment. The script is the operator's integration point —
+        match on the clone URL for exact per-repo dispatch (short names
+        can collide across orgs), then branch on the branch name.
+
+        Example:
+        <programlisting language="nix">
+        services.vira.postBuildHook = '''
+          short_sha="''${VIRA_COMMIT_ID:0:7}"
+          case "$VIRA_REPO_CLONE_URL" in
+            https://github.com/juspay/vira.git|git@github.com:juspay/vira.git)
+              case "$VIRA_BRANCH" in
+                main)
+                  curl -fsS --retry 3 -X POST \
+                    -u "$JENKINS_USER:$JENKINS_TOKEN" \
+                    "https://jenkins.office/job/vira-integration/buildWithParameters?BRANCH=$VIRA_BRANCH&COMMIT=$VIRA_COMMIT_ID"
+                  ;;
+                release-*)
+                  curl -fsS -X POST \
+                    -H "Content-Type: application/json" \
+                    -d "{\"text\": \":rocket: vira@$VIRA_BRANCH ($short_sha) shipped\"}" \
+                    "$SLACK_WEBHOOK_URL"
+                  ;;
+              esac
+              ;;
+          esac
+        ''';
+        </programlisting>
+      '';
+      example = literalExpression ''
+        '''
+          echo "Build succeeded: $VIRA_REPO_CLONE_URL@$VIRA_BRANCH (''${VIRA_COMMIT_ID:0:7})" | slack-notify
+        '''
+      '';
+    };
+
     systemd = mkOption {
       description = "Systemd service configuration overrides";
       default = { };
@@ -155,7 +199,11 @@ in
                 ++ optionals hasInitialState [ "--import" initialStateJson ]
                 ++ optionals (cfg.maxConcurrentBuilds != null) [ "--max-concurrent-builds" (toString cfg.maxConcurrentBuilds) ]
                 ++ optionals cfg.autoBuildNewBranches [ "--auto-build-new-branches" ]
-                ++ [ "--job-retention-days" (toString cfg.jobRetentionDays) ];
+                ++ [ "--job-retention-days" (toString cfg.jobRetentionDays) ]
+                ++ optionals (cfg.postBuildHook != null) [
+                  "--post-build-hook"
+                  "${pkgs.writeShellScript "vira-post-build-hook" cfg.postBuildHook}"
+                ];
               in
               "${cfg.package}/bin/vira ${concatStringsSep " " globalArgs} web ${concatStringsSep " " webArgs}";
           };

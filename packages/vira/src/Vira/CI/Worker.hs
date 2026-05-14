@@ -33,7 +33,7 @@ import Effectful.Reader.Static qualified as ER
 import System.Exit (ExitCode (..))
 import Vira.App.AcidState qualified as App
 import Vira.App.Stack (AppStack)
-import Vira.App.Type (ViraRuntimeState (jobWorker, supervisor))
+import Vira.App.Type (ViraRuntimeState (jobWorker, postBuildHook, supervisor))
 import Vira.CI.Context (CIMode (..), ViraContext (..))
 import Vira.CI.Pipeline qualified as Pipeline
 import Vira.CI.Pipeline.Program qualified as Program
@@ -171,7 +171,7 @@ startJob job = do
     broadcast
     logFn
     ( do
-        let env = Pipeline.pipelineEnvFromRemote tools logSink Pipeline.workspaceContextKeys ctx
+        let env = Pipeline.pipelineEnvFromRemote st.postBuildHook tools logSink Pipeline.workspaceContextKeys ctx
         let program = Program.pipelineProgramWithClone repo branch job.jobWorkingDir
         Pipeline.runPipeline env program
     )

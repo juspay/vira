@@ -32,9 +32,11 @@ in
       Service =
         let
           # Build environment variable list, avoiding duplicate PATH entries
-          defaultEnv = optionalAttrs (cfg.extraPackages != [ ]) {
-            PATH = "${makeBinPath cfg.extraPackages}:$PATH";
-          };
+          defaultEnv =
+            optionalAttrs (cfg.extraPackages != [ ])
+              {
+                PATH = "${makeBinPath cfg.extraPackages}:$PATH";
+              };
           # User environment overrides defaults
           mergedEnv = defaultEnv // cfg.systemd.environment;
           envList = mapAttrsToList (name: value: "${name}=${value}") mergedEnv;
@@ -76,7 +78,11 @@ in
         ProcessType = "Background";
         StandardOutPath = "${config.home.homeDirectory}/Library/Logs/vira.log";
         StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/vira.log";
-        EnvironmentVariables.PATH = makeBinPath cfg.extraPackages;
+        EnvironmentVariables =
+          optionalAttrs (cfg.extraPackages != [ ])
+            {
+              PATH = makeBinPath cfg.extraPackages;
+            };
       };
     };
 

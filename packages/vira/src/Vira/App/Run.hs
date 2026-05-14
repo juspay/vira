@@ -78,7 +78,7 @@ runVira = do
         ExportCommand -> runExport globalSettings
         ImportCommand -> runImport globalSettings
         InfoCommand -> runInfo
-        CICommand mDir ciMode -> runCI globalSettings mDir ciMode
+        CICommand mDir ciMode postBuildHook -> runCI globalSettings mDir ciMode postBuildHook
 
     runWebServer :: GlobalSettings -> WebSettings -> IO ()
     runWebServer globalSettings webSettings = do
@@ -86,6 +86,8 @@ runVira = do
         -- Import data if specified
         whenJust (importFile webSettings) $ \filePath -> do
           importFromFileOrStdin acid (Just filePath)
+
+        let postBuildHook = webSettings.ciSettings.postBuildHook
 
         startTime <- getCurrentTime
         instanceInfo <- getInstanceInfo
@@ -137,8 +139,8 @@ runVira = do
       putTextLn $ "Platform: " <> platform instanceInfo
       putTextLn $ "Schema version: " <> show viraDbVersion
 
-    runCI :: GlobalSettings -> Maybe FilePath -> CIMode -> IO ()
-    runCI gs mDir ciMode = do
+    runCI :: GlobalSettings -> Maybe FilePath -> CIMode -> Maybe FilePath -> IO ()
+    runCI gs mDir ciMode postBuildHook = do
       dir <- maybe getCurrentDirectory makeAbsolute mDir
       -- Throw Terminated on Ctrl+C so Process.hs cleanup logic can terminate nix processes
       exitCode <- withTerminationHandler Terminated $ App.runAppCLI gs $ do
@@ -155,7 +157,7 @@ runVira = do
           commitId <- getCurrentCommit dir
           let ctx = ViraContext status.branch ciMode commitId remoteUrl dir
           tools <- Tool.getAllTools
-          let env = Pipeline.pipelineEnvFromCLI gs.logLevel Pipeline.workspaceContextKeys tools ctx
+          let env = Pipeline.pipelineEnvFromCLI postBuildHook gs.logLevel Pipeline.workspaceContextKeys tools ctx
           runErrorNoCallStack (Pipeline.runPipeline env Program.pipelineProgram) >>= \case
             Left (err :: Pipeline.PipelineError) -> do
               log Error $ show err
