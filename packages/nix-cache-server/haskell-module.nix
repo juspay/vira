@@ -54,6 +54,14 @@
         ${pkgs.gnused}/bin/sed -i 's|#include <nix/store/store-api.hh>|#include <nix/store/store-api.hh>\n    #include <nix/store/store-open.hh>|' $out/cbits/nix.cpp
         ${pkgs.gnused}/bin/sed -i 's|#include <nix/store/log-store.hh>|#include <nix/store/log-store.hh>\n    #include <nix/store/globals.hh>|' $out/cbits/nix.cpp
 
+        # cppnix 2.30+ API compatibility for cbits/nix.cpp
+        # Site A: settings.nixStore removed; store directory now lives on Store instances (StoreDirConfig::storeDir)
+        ${pkgs.gnused}/bin/sed -i 's|copyString(settings\.nixStore, output);|copyString(getStore()->storeDir, output);|' $out/cbits/nix.cpp
+        # Site B: ValidPathInfo::sigs is now std::set<nix::Signature>, not std::set<std::string>
+        ${pkgs.gnused}/bin/sed -i 's|std::vector<std::string> sigs(validPathInfo->sigs\.begin(), validPathInfo->sigs\.end());|std::vector<std::string> sigs; for (const auto \& s : validPathInfo->sigs) sigs.push_back(s.to_string());|' $out/cbits/nix.cpp
+        # Site C: SecretKey::signDetached now returns nix::Signature; project to std::string
+        ${pkgs.gnused}/bin/sed -i 's|signDetached(message);|signDetached(message).to_string();|' $out/cbits/nix.cpp
+
         # Transform cabal file from executable to library
         ${pkgs.gnused}/bin/sed -i 's/^executable nix-serve$/library/' $out/nix-serve-ng.cabal
         ${pkgs.gnused}/bin/sed -i 's/main-is: *Main\.hs/exposed-modules:  NixServeNg\n                    , NixServeNg.Application\n                    , Nix/' $out/nix-serve-ng.cabal
