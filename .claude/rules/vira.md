@@ -7,6 +7,11 @@ paths:
 
 No-frills CI for teams using Nix.
 
+## Git
+
+- Never force push.
+- Never rebase. Merge the latest base branch instead when an update is needed.
+
 ## Design system
 
 - TailwindCSS is encoded in the Lucid HTML in the Haskell sources.

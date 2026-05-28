@@ -49,6 +49,7 @@ import Vira.State.Type (ViraState)
 import Vira.Supervisor.Core qualified as Supervisor
 import Vira.Supervisor.Type (Terminated (..))
 import Vira.Web.LinkTo.Resolve (linkTo)
+import Vira.Web.PullRequestCache qualified as PullRequestCache
 import Vira.Web.Server qualified as Server
 import Prelude hiding (Reader, ask, runReader)
 
@@ -96,6 +97,8 @@ runVira = do
         eventBus <- Event.newEventBus
         -- Create TVar with all tools data for caching
         tools <- runEff $ runLogActionStdout (logLevel globalSettings) $ runProcess Tool.newToolsTVar
+        -- Create cache for GitHub pull request lookups
+        pullRequestCache <- PullRequestCache.newPullRequestCache
         -- Initialize refresh state
         refreshState <- Refresh.newRefreshState
         -- Initialize job worker state

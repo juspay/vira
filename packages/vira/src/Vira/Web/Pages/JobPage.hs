@@ -8,6 +8,7 @@ import Effectful.Colog.Simple (withLogContext)
 import Effectful.Error.Static (throwError)
 import Effectful.Git (BranchName, Commit (..), RepoName)
 import Effectful.Reader.Dynamic qualified as ER
+import GH.Core (PullRequestLookup)
 import Htmx.Servant.Response
 import Lucid
 import Servant hiding (throwError)
@@ -50,7 +51,7 @@ handlers :: App.GlobalSettings -> App.ViraRuntimeState -> WebSettings -> Routes 
 handlers globalSettings viraRuntimeState webSettings = do
   Routes
     { _build = \x y -> Web.runAppInServant globalSettings viraRuntimeState webSettings (buildHandler x y)
-    , _view = Web.runAppInServant globalSettings viraRuntimeState webSettings . runAppHtml . viewHandler
+    , _view = Web.runAppInServant globalSettings viraRuntimeState webSettings . viewHandler
     , _log = JobLog.handlers globalSettings viraRuntimeState webSettings
     , _kill = Web.runAppInServant globalSettings viraRuntimeState webSettings . killHandler
     }
@@ -62,16 +63,18 @@ buildHandler repoName branchName =
     Client.enqueueJob repoName branchName branch.headCommit.id
     pure $ addHeader True "Ok"
 
-viewHandler :: JobId -> AppHtml ()
+viewHandler :: JobId -> Eff Web.AppServantStack (Html ())
 viewHandler jobId = do
-  job <- lift $ App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
+  job <- App.query (St.GetJobA jobId) >>= maybe (throwError err404) pure
+  repo <- App.query (St.GetRepoByNameA job.repo) >>= maybe (throwError err404) pure
+  pullRequestLookup <- W.resolveBranchPullRequest repo.cloneUrl job.branch
   let crumbs =
         [ LinkTo.RepoListing
         , LinkTo.Repo job.repo
         , LinkTo.RepoBranch job.repo job.branch
         , LinkTo.Job jobId
         ]
-  W.layout crumbs $ viewJob job
+  runAppHtml $ W.layout crumbs $ viewJob pullRequestLookup job
 
 killHandler :: JobId -> Eff Web.AppServantStack (Headers '[HXRefresh] Text)
 killHandler jobId = do
@@ -79,8 +82,8 @@ killHandler jobId = do
   Supervisor.killTask supervisor jobId
   pure $ addHeader True "Killed"
 
-viewJob :: St.Job -> AppHtml ()
-viewJob job = do
+viewJob :: PullRequestLookup -> St.Job -> AppHtml ()
+viewJob pullRequestLookup job = do
   let jobActive = St.jobIsActive job
 
   W.viraSection_ [] $ do
@@ -92,6 +95,7 @@ viewJob job = do
             span_ "Commit:"
             W.viraCommitInfo_ job.commit
           div_ [class_ "flex items-center space-x-4"] $ do
+            W.viewPullRequestLookup_ pullRequestLookup
             viewJobStatus job.jobStatus
             when jobActive $ do
               killLink <- lift $ getLink $ LinkTo.Kill job.jobId

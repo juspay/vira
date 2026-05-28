@@ -18,6 +18,7 @@ import Vira.Refresh.Type (RefreshState)
 import Vira.State.Core (ViraState)
 import Vira.Supervisor.Type (TaskSupervisor)
 import Vira.Web.LinkTo.Type (LinkTo)
+import Vira.Web.PullRequestCache (PullRequestCache)
 
 -- | Application-wide state available in 'Effectful.Eff' stack
 data ViraRuntimeState = ViraRuntimeState
@@ -30,12 +31,14 @@ data ViraRuntimeState = ViraRuntimeState
   , linkTo :: LinkTo -> Link
   {- ^ Create a link to a part of the app.
 
-  This is decoupled from Servant types deliberately to avoid cyclic imports.
+    This is decoupled from Servant types deliberately to avoid cyclic imports.
   -}
   , eventBus :: EventBus (SomeUpdate ViraState)
   -- ^ 'EventBus' for all 'Data.Acid.Events.SomeUpdate' events (SSE, subscriptions, debug log)
   , tools :: TVar Tools
   -- ^ Cached 'Tools' data (mutable for refreshing)
+  , pullRequestCache :: PullRequestCache
+  -- ^ Cached GitHub pull request lookups for branch and job pages
   , refreshState :: RefreshState
   -- ^ Git repository auto-refresh state
   , jobWorker :: JobWorkerState

@@ -62,6 +62,7 @@ library
     , base ==4.*
     , bytestring
     , containers
+    , modern-uri
     , process
     , relude >=1.0
     , which
@@ -116,6 +117,7 @@ executable gh-test
     , gh
     , hspec
     , hspec-discover
+    , modern-uri
     , process
     , relude >=1.0
     , which
